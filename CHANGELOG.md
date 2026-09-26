@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- The "Scanning" line in the ledger window now clears after a full scan finishes.
+
 ## [0.1.0] - 2026-09-26
 
 First test version for the Forever beta.

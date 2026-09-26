@@ -284,6 +284,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       local items = 0
       for id, units in pairs(byItem) do record(id, units, "full"); items = items + 1 end
       Scan.active = false
+      ns:UpdateScanStatus(n, n)
       ns:Print(("Full scan done: %d listings across %d items."):format(n, items))
       ns:RefreshUI()
     end
