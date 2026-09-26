@@ -10,3 +10,4 @@ Run through this after installing a new version. Send the results, plus any erro
 6. Try `/fl scan full` once. Note whether it finishes and how long it takes.
 7. Hover Linen Cloth. It should say which of your characters use it.
 8. Type `/fl csv` and check the price list looks sensible.
+9. Hover Lesser Magic Essence. "Worth to you" should list the auction house, the vendor and "Craft Greater Magic Wand, sell to vendor" at about 7s 49c.

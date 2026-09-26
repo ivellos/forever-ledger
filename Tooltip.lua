@@ -24,6 +24,18 @@ local function addLines(tt, id)
     tt:AddDoubleLine("Vendor sells it for", ns.Money(buy.p) .. (buy.lim and " |cff999999limited|r" or ""), LR, LG, LB, 1, 1, 1)
   end
 
+  local best, options = ns:GetValue(id)
+  if best then
+    tt:AddDoubleLine("Worth to you", ns.Money(best), LR, LG, LB, 1, 1, 1)
+    for i, o in ipairs(options) do
+      if i == 1 then
+        tt:AddDoubleLine("  " .. o.label, ns.Money(o.value), 0.5, 0.83, 0.61, 0.5, 0.83, 0.61)
+      else
+        tt:AddDoubleLine("  " .. o.label, ns.Money(o.value), 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
+      end
+    end
+  end
+
   local users = ns.usage and ns.usage[id]
   if users then
     local shown = 0

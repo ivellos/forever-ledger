@@ -13,7 +13,7 @@ local DEFAULTS = {
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
   vendorBuy = {},   -- [itemID] = { p = copper you pay, t = time, src, lim = limited supply }
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {} },
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5 },
 }
 
 local function copyDefaults(src, dst)
@@ -282,7 +282,15 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     else
       ns:Print("Use /fl source auto, own, auctionator, tsm or auctioneer.")
     end
+  elseif msg:match("^cut") then
+    local n = tonumber(msg:match("^cut%s+(%S+)"))
+    if n and n >= 0 and n < 100 then
+      ns.db.settings.ahCut = n
+      ns:Print(("Auction house cut set to %g%%."):format(n))
+    else
+      ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
+    end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl cut <percent>, /fl tooltip, /fl api, /fl debug")
   end
 end

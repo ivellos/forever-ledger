@@ -8,5 +8,6 @@
 Core.lua
 Prices.lua
 Professions.lua
+Values.lua
 Tooltip.lua
 UI.lua

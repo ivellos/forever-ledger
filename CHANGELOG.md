@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- "Worth to you" on item tooltips: the best of selling on the auction house (after the cut), selling to a vendor, or crafting it with a known recipe and selling the result. Every option is listed, best first.
+- Vendor floors: the guaranteed value of a material when a known recipe turns it into something a vendor buys.
+- `/fl cut` shows or changes the auction house cut used in values (default 5%).
+
 ### Fixed
 - The "Scanning" line in the ledger window now clears after a full scan finishes.
 

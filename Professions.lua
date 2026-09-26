@@ -163,8 +163,8 @@ ns:On("TRADE_SKILL_DATA_SOURCE_CHANGED", queueCapture)
 -- Which of your characters use each item
 ---------------------------------------------------------------------------
 function ns:BuildUsageIndex()
-  local usage = {}
-  for _, c in pairs(ns.db.chars) do
+  local usage, byReagent = {}, {}
+  for key, c in pairs(ns.db.chars) do
     for prof, p in pairs(c.profs or {}) do
       for _, rec in pairs(p.recipes or {}) do
         for _, r in ipairs(rec.r or {}) do
@@ -172,11 +172,14 @@ function ns:BuildUsageIndex()
           usage[id] = usage[id] or {}
           local k = (c.name or "?") .. "|" .. prof
           usage[id][k] = (usage[id][k] or 0) + 1
+          byReagent[id] = byReagent[id] or {}
+          table.insert(byReagent[id], { rec = rec, key = key, who = c.name })
         end
       end
     end
   end
   ns.usage = usage
+  ns.recipesByReagent = byReagent
 end
 
 ns:OnReady(function() ns:BuildUsageIndex() end)
