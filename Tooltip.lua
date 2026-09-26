@@ -36,6 +36,15 @@ local function addLines(tt, id)
     end
   end
 
+  local yield = ns:DisenchantYield(id)
+  if yield then
+    local parts = {}
+    for _, y in ipairs(yield) do
+      parts[#parts + 1] = ("%.2f %s"):format(y[2], ns:DisenchantMaterialName(y[1]))
+    end
+    tt:AddLine("Disenchants to about " .. table.concat(parts, ", "), LR, LG, LB, true)
+  end
+
   local users = ns.usage and ns.usage[id]
   if users then
     local shown = 0

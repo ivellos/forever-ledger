@@ -11,3 +11,4 @@ Run through this after installing a new version. Send the results, plus any erro
 7. Hover Linen Cloth. It should say which of your characters use it.
 8. Type `/fl csv` and check the price list looks sensible.
 9. Hover Lesser Magic Essence. "Worth to you" should list the auction house, the vendor and "Craft Greater Magic Wand, sell to vendor" at about 7s 49c.
+10. Hover Brown Linen Pants. It should say "Disenchants to about 1.18 Strange Dust, 0.31 Lesser Magic Essence", and "Worth to you" should include "Disenchant". Hover Bolt of Linen Cloth: it should list "Craft Brown Linen Pants, disenchant".

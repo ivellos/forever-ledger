@@ -19,6 +19,60 @@ local function vendorSale(id)
   return ns:GetSellPrice(id)
 end
 
+---------------------------------------------------------------------------
+-- Disenchanting. Average materials per item from the Classic table, which the
+-- owner's test (30 item level 12 capes) matched. Greens up to item level 20 only.
+---------------------------------------------------------------------------
+local STRANGE_DUST, LESSER_MAGIC, GREATER_MAGIC, SMALL_GLIMMERING = 10940, 10938, 10939, 10978
+local MAT_NAMES = {
+  [STRANGE_DUST] = "Strange Dust", [LESSER_MAGIC] = "Lesser Magic Essence",
+  [GREATER_MAGIC] = "Greater Magic Essence", [SMALL_GLIMMERING] = "Small Glimmering Shard",
+}
+local DISENCHANT = {
+  { maxLevel = 15,
+    armor  = { { STRANGE_DUST, 1.18 }, { LESSER_MAGIC, 0.31 } },
+    weapon = { { STRANGE_DUST, 0.30 }, { LESSER_MAGIC, 1.20 } } },
+  { maxLevel = 20,
+    armor  = { { STRANGE_DUST, 1.875 }, { GREATER_MAGIC, 0.30 }, { SMALL_GLIMMERING, 0.05 } },
+    weapon = { { STRANGE_DUST, 0.50 }, { GREATER_MAGIC, 1.125 }, { SMALL_GLIMMERING, 0.05 } } },
+}
+local WEAPON, ARMOR, UNCOMMON = 2, 4, 2   -- item class IDs and quality
+local NOT_DISENCHANTABLE = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
+
+-- Returns a list of { itemID, average count }, or nil if the item can't be disenchanted
+-- (or isn't covered by the table yet).
+function ns:DisenchantYield(id)
+  local _, _, quality, ilvl, _, _, _, _, equipLoc, _, _, classID = ns.GetItemInfo(id)
+  if quality ~= UNCOMMON or not ilvl or NOT_DISENCHANTABLE[equipLoc] then return end
+  local kind = (classID == WEAPON and "weapon") or (classID == ARMOR and "armor")
+  if not kind then return end
+  for _, band in ipairs(DISENCHANT) do
+    if ilvl <= band.maxLevel then return band[kind] end
+  end
+end
+
+function ns:DisenchantMaterialName(id)
+  return ns.GetItemInfo(id) or MAT_NAMES[id] or ("item " .. id)
+end
+
+local function canDisenchant()
+  for _, c in pairs(ns.db.chars) do
+    if c.profs and c.profs.Enchanting then return true end
+  end
+end
+
+-- Materials are valued at their own best value, but without disenchanting, so this can't loop.
+local function disenchantSale(id)
+  local yield = ns:DisenchantYield(id)
+  if not yield or not canDisenchant() then return end
+  local total = 0
+  for _, y in ipairs(yield) do
+    local v = ns:GetValue(y[1], true)
+    if v then total = total + v * y[2] end
+  end
+  if total > 0 then return total end
+end
+
 -- What a material costs to buy. Vendor price when a vendor sells it, otherwise the
 -- auction house price, unless vendorOnly is set.
 local function buyCost(id, vendorOnly)
@@ -47,7 +101,8 @@ local function viaRecipe(id, rec, sell, vendorOnly)
 end
 
 -- Returns the best value and a list of options { label, value }, best first.
-function ns:GetValue(id)
+-- noDisenchant leaves out disenchanting, used when valuing disenchant materials.
+function ns:GetValue(id, noDisenchant)
   if not id or not ns.db then return end
   local options = {}
   local function add(label, v)
@@ -56,6 +111,7 @@ function ns:GetValue(id)
 
   add(("Auction house, after %g%% cut"):format(ns.db.settings.ahCut or 5), ahSale(id))
   add("Sell to vendor", vendorSale(id))
+  if not noDisenchant then add("Disenchant", disenchantSale(id)) end
 
   -- Best recipe for each way of selling the output. The vendor route only counts
   -- vendor-bought materials, so it's a guaranteed floor.
@@ -64,6 +120,9 @@ function ns:GetValue(id)
     { sell = vendorSale, vendorOnly = true, fmt = "Craft %s, sell to vendor" },
     { sell = ahSale, vendorOnly = false, fmt = "Craft %s, auction house" },
   }
+  if not noDisenchant then
+    routes[#routes + 1] = { sell = disenchantSale, vendorOnly = false, fmt = "Craft %s, disenchant" }
+  end
   for _, route in ipairs(routes) do
     local best, bestUse
     for _, use in ipairs(ns.recipesByReagent and ns.recipesByReagent[id] or {}) do
