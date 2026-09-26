@@ -1,0 +1,30 @@
+name: Check code
+
+# Runs on every push and pull request. Fails if any Lua file has a syntax error.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  lua-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Install Lua 5.1 (the version WoW uses)
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+
+      - name: Check every Lua file
+        run: |
+          for f in *.lua; do
+            echo "Checking $f"
+            luac5.1 -p "$f"
+          done
+
+      - name: Check the TOC lists every Lua file
+        run: |
+          for f in *.lua; do
+            grep -qx "$f" ForeverLedger.toc || { echo "$f is missing from ForeverLedger.toc"; exit 1; }
+          done

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forever flip ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F1F7; --surface:#FFFFFF; --sunk:#ECE8F3; --line:#DAD4E6;
+  --text:#221B32; --muted:#5F5775; --arcane:#6A4FD6;
+  --gold:#8F6400; --silver:#555A69; --copper:#9C4F22; --loss:#B0344D; --win:#2F7A4B;
+  --serif:"Alegreya",Georgia,"Times New Roman",serif;
+  --sans:"Alegreya Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1A1625; --surface:#241E33; --sunk:#1F1A2C; --line:#3A3250;
+    --text:#ECE8F4; --muted:#A79FBA; --arcane:#B9A2FF;
+    --gold:#F2C14E; --silver:#C9CCD6; --copper:#E3935C; --loss:#EE8597; --win:#7FD39C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1A1625; --surface:#241E33; --sunk:#1F1A2C; --line:#3A3250;
+  --text:#ECE8F4; --muted:#A79FBA; --arcane:#B9A2FF;
+  --gold:#F2C14E; --silver:#C9CCD6; --copper:#E3935C; --loss:#EE8597; --win:#7FD39C;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:17px;line-height:1.5;-webkit-text-size-adjust:100%}
+.wrap{max-width:1160px;margin:0 auto;padding:28px 20px 60px}
+h1,h2,h3{font-family:var(--serif);font-weight:700;line-height:1.15;margin:0}
+h1{font-size:clamp(28px,4.4vw,40px);letter-spacing:-.01em}
+h2{font-size:24px;margin-bottom:6px}
+h3{font-size:19px;margin:18px 0 8px}
+p{margin:0}
+.lede{color:var(--muted);margin-top:6px;max-width:62ch}
+.num{font-variant-numeric:tabular-nums}
+.g{color:var(--gold);font-weight:700}.s{color:var(--silver);font-weight:700}.c{color:var(--copper);font-weight:700}
+.neg{color:var(--loss)}
+
+/* hero */
+.hero{margin:26px 0 30px;padding:24px 26px;border-radius:18px;background:var(--surface);border:1px solid var(--line);position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0 auto 0 0;width:6px;background:var(--arcane)}
+.hero .kicker{color:var(--muted);font-size:15px}
+.hero .flip{font-family:var(--serif);font-size:clamp(22px,3.2vw,30px);font-weight:800;margin:4px 0 14px}
+.hero .stats{display:flex;flex-wrap:wrap;gap:12px 40px}
+.hero .big{font-family:var(--serif);font-size:clamp(34px,6vw,52px);font-weight:800;line-height:1}
+.hero .stat small{display:block;color:var(--muted);font-size:14px;margin-top:4px}
+.hero .why{margin-top:14px;color:var(--muted);font-size:15px;max-width:70ch}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:28px}
+@media (min-width:920px){.grid{grid-template-columns:360px minmax(0,1fr)}}
+
+/* inputs */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 18px 20px}
+.inputs h3:first-of-type{margin-top:4px}
+.row{display:grid;grid-template-columns:1fr 128px;align-items:center;gap:10px;padding:5px 0}
+.row label{font-size:16px}
+.row .hint{display:block;color:var(--muted);font-size:13px;line-height:1.3}
+input[type=text],input[type=number]{width:100%;font:inherit;font-size:16px;padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:var(--sunk);color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--arcane);outline-offset:2px}
+input.bad{border-color:var(--loss)}
+.toggle{display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:16px}
+.toggle input{margin-top:5px;width:18px;height:18px;accent-color:var(--arcane)}
+details{margin-top:16px;border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-family:var(--serif);font-weight:700;font-size:18px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+button{font:inherit;font-size:15px;padding:7px 14px;border-radius:9px;border:1px solid var(--line);background:var(--sunk);color:var(--text);cursor:pointer}
+button:hover{border-color:var(--arcane)}
+.saved{color:var(--muted);font-size:13px;margin-top:10px}
+
+/* results */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;min-width:560px}
+th,td{padding:11px 14px;text-align:right;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:14px;background:var(--sunk)}
+th:first-child,td:first-child{text-align:left}
+tr:last-child td{border-bottom:0}
+td .name{font-weight:700}
+td .sub{display:block;color:var(--muted);font-size:14px;margin-top:2px}
+.tag{display:inline-block;font-size:12.5px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-left:6px;white-space:nowrap}
+tr.dim td{opacity:.55}
+.verdict{font-weight:700}
+.verdict.buy{color:var(--win)} .verdict.hold{color:var(--muted)}
+.sect{margin-top:30px}
+.sect > p{color:var(--muted);margin-bottom:12px;max-width:70ch}
+.foot{margin-top:36px;color:var(--muted);font-size:14px;max-width:80ch}
+.foot p+p{margin-top:8px}
+@media (prefers-reduced-motion:no-preference){.hero .big{transition:color .2s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Forever flip ledger</h1>
+    <p class="lede">Type in today's auction house prices. Every flip, break-even price and ranking updates as you type. Prices accept <span class="num">2s 29c</span>, <span class="num">1g45s96c</span>, <span class="num">67c</span>, or a plain number in silver.</p>
+  </header>
+
+  <section class="hero" aria-live="polite">
+    <p class="kicker">Best flip right now</p>
+    <p class="flip" id="heroName">—</p>
+    <div class="stats">
+      <div class="stat"><div class="big num" id="heroProfit">—</div><small>profit per craft</small></div>
+      <div class="stat"><div class="big num" id="heroHour">—</div><small>rough profit per hour</small></div>
+      <div class="stat"><div class="big num" id="heroRoi">—</div><small>return on what you spend</small></div>
+    </div>
+    <p class="why" id="heroWhy"></p>
+  </section>
+
+  <div class="grid">
+    <aside class="panel inputs" aria-label="Prices and settings">
+      <h2>Prices</h2>
+      <h3>Cloth</h3>
+      <div id="grpCloth"></div>
+      <h3>Enchanting materials</h3>
+      <div id="grpEnch"></div>
+      <h3>Other</h3>
+      <div id="grpOther"></div>
+
+      <label class="toggle"><input type="checkbox" id="gwKnown"> <span>I know the Greater Magic Wand recipe<span class="hint" style="display:block;color:var(--muted);font-size:13px">Turns yellow at Enchanting 110. Changes what every essence is worth.</span></span></label>
+
+      <details>
+        <summary>Vendor prices</summary>
+        <div id="grpVendor"></div>
+      </details>
+
+      <details>
+        <summary>Disenchant yields</summary>
+        <p class="hint" style="color:var(--muted);font-size:14px;margin:6px 0">Average materials per item. Defaults are Classic's table, which your 30-cape test matched.</p>
+        <div id="grpYield"></div>
+        <div class="btns"><button type="button" id="useMine">Use my cape test (1.30 dust, 0.33 essence)</button></div>
+      </details>
+
+      <details>
+        <summary>Settings</summary>
+        <div id="grpSettings"></div>
+      </details>
+
+      <div class="btns">
+        <button type="button" id="resetPrices">Reset to beta prices</button>
+        <button type="button" id="themeBtn">Switch light or dark</button>
+      </div>
+      <p class="saved" id="savedAt"></p>
+    </aside>
+
+    <main>
+      <section>
+        <h2>Flips, best first</h2>
+        <p style="color:var(--muted);margin-bottom:12px">Ranked by rough profit per hour. Greyed rows lose money or aren't unlocked yet.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th scope="col">Flip</th><th scope="col">Profit per craft</th><th scope="col">Return</th><th scope="col">Per hour</th></tr></thead>
+            <tbody id="flipBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="sect">
+        <h2>Buy at or below</h2>
+        <p>The highest price worth paying for each item, after your safety margin. Listings under these numbers are worth buying.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th scope="col">Item</th><th scope="col">Pay up to</th><th scope="col">Auction house now</th><th scope="col">Verdict</th></tr></thead>
+            <tbody id="snipeBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="sect">
+        <h2>What an essence is worth to you</h2>
+        <p>The best of selling it, turning it into wands for a vendor, or converting it. This is what the disenchant flips use.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th scope="col">Material</th><th scope="col">Worth to you</th><th scope="col">Best use</th></tr></thead>
+            <tbody id="valueBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="foot">
+        <p>Per-hour figures assume a fixed number of seconds per crafting action (set in Settings) and ignore travel and posting time. Treat them as a way to compare flips, not a promise.</p>
+        <p>Dust value comes from auction house sales, which aren't guaranteed. Essence value has a hard floor from vendoring wands, which is. Posting large amounts of dust at once will push its price down.</p>
+        <p>Recipes and vendor prices come from the Forever beta client and Wowhead's Forever database. Weapon disenchant yields use Classic's table and haven't been tested in Forever yet.</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var STORE="foreverFlipLedger.v1";
+
+  // ---- field definitions (prices in copper) ----
+  var FIELDS={
+    cloth:[
+      {id:"linen",label:"Linen Cloth",def:67},
+      {id:"linenBolt",label:"Bolt of Linen Cloth",def:155},
+      {id:"wool",label:"Wool Cloth",def:247},
+      {id:"woolBolt",label:"Bolt of Woolen Cloth",def:844}
+    ],
+    ench:[
+      {id:"dust",label:"Strange Dust",def:229},
+      {id:"lme",label:"Lesser Magic Essence",def:729},
+      {id:"gme",label:"Greater Magic Essence",def:2100},
+      {id:"lae",label:"Lesser Astral Essence",def:1330},
+      {id:"gae",label:"Greater Astral Essence",def:4400},
+      {id:"shard",label:"Small Glimmering Shard",def:null,hint:"Leave blank if unknown"}
+    ],
+    other:[
+      {id:"wizOil",label:"Minor Wizard Oil",def:500},
+      {id:"maple",label:"Maple Seed",def:null,hint:"Vendor price"},
+      {id:"vial",label:"Empty Vial",def:null,hint:"Vendor price"}
+    ],
+    vendor:[
+      {id:"wood",label:"Simple Wood",def:38,hint:"You buy"},
+      {id:"coarse",label:"Coarse Thread",def:10,hint:"You buy"},
+      {id:"fine",label:"Fine Thread",def:100,hint:"You buy"},
+      {id:"lwand",label:"Lesser Magic Wand",def:508,hint:"Vendor pays"},
+      {id:"gwand",label:"Greater Magic Wand",def:1535,hint:"Vendor pays"}
+    ]
+  };
+  var YIELDS=[
+    {id:"t1Dust",label:"Linen-tier armor: dust",def:1.18,hint:"Item level 5–15"},
+    {id:"t1Lme",label:"Linen-tier armor: Lesser essence",def:0.31},
+    {id:"t2Dust",label:"Wool-tier armor: dust",def:1.875,hint:"Item level 16–20"},
+    {id:"t2Gme",label:"Wool-tier armor: Greater essence",def:0.30},
+    {id:"t2Shard",label:"Wool-tier armor: shard",def:0.05},
+    {id:"w1Dust",label:"Weapon 5–15: dust",def:0.30},
+    {id:"w1Lme",label:"Weapon 5–15: Lesser essence",def:1.20},
+    {id:"w2Dust",label:"Weapon 16–20: dust",def:0.50},
+    {id:"w2Gme",label:"Weapon 16–20: Greater essence",def:1.125},
+    {id:"w2Shard",label:"Weapon 16–20: shard",def:0.05}
+  ];
+  var SETTINGS=[
+    {id:"cut",label:"Auction house cut (%)",def:5},
+    {id:"margin",label:"Safety margin (%)",def:10,hint:"Applied to buy-at-or-below prices"},
+    {id:"sec",label:"Seconds per crafting action",def:3,hint:"Used for per-hour estimates"}
+  ];
+
+  // ---- money helpers ----
+  function parseMoney(str){
+    if(str==null) return null;
+    var t=String(str).trim().toLowerCase().replace(/,/g,"");
+    if(t==="") return null;
+    var re=/(\d+(?:\.\d+)?)\s*([gsc])/g, m, total=0, found=false;
+    while((m=re.exec(t))){found=true;var v=parseFloat(m[1]);total+=m[2]==="g"?v*10000:m[2]==="s"?v*100:v;}
+    if(found){ if(t.replace(re,"").trim()!=="") return NaN; return Math.round(total);}
+    if(/^\d+(\.\d+)?$/.test(t)) return Math.round(parseFloat(t)*100);
+    return NaN;
+  }
+  function plainMoney(cp){
+    if(cp==null||isNaN(cp)) return "";
+    var n=Math.round(Math.abs(cp)),g=Math.floor(n/10000),s=Math.floor(n%10000/100),c=n%100,out=[];
+    if(g) out.push(g+"g"); if(s) out.push(s+"s"); if(c||!out.length) out.push(c+"c");
+    return (cp<0?"-":"")+out.join(" ");
+  }
+  function money(cp){
+    if(cp==null||isNaN(cp)) return '<span class="neg">—</span>';
+    var n=Math.round(Math.abs(cp)),g=Math.floor(n/10000),s=Math.floor(n%10000/100),c=n%100,out=[];
+    if(g) out.push(g+'<span class="g">g</span>');
+    if(s) out.push(s+'<span class="s">s</span>');
+    if(c||!out.length) out.push(c+'<span class="c">c</span>');
+    return '<span class="num'+(cp<0?' neg':'')+'">'+(cp<0?"−":"")+out.join(" ")+"</span>";
+  }
+
+  // ---- state ----
+  var state={prices:{},yields:{},settings:{},gw:true,savedAt:null};
+  function defaults(){
+    ["cloth","ench","other","vendor"].forEach(function(k){FIELDS[k].forEach(function(f){state.prices[f.id]=f.def;});});
+    YIELDS.forEach(function(f){state.yields[f.id]=f.def;});
+    SETTINGS.forEach(function(f){state.settings[f.id]=f.def;});
+    state.gw=true;
+  }
+  defaults();
+  try{
+    var raw=localStorage.getItem(STORE);
+    if(raw){var saved=JSON.parse(raw);
+      if(saved&&typeof saved==="object"){
+        ["prices","yields","settings"].forEach(function(k){if(saved[k]) for(var key in saved[k]) if(key in state[k]) state[k][key]=saved[k][key];});
+        if(typeof saved.gw==="boolean") state.gw=saved.gw;
+        state.savedAt=saved.savedAt||null;
+      }}
+  }catch(e){}
+  function save(){
+    state.savedAt=new Date().toISOString();
+    try{localStorage.setItem(STORE,JSON.stringify(state));}catch(e){}
+    showSaved();
+  }
+  function showSaved(){
+    var el=document.getElementById("savedAt");
+    if(!state.savedAt){el.textContent="";return;}
+    var d=new Date(state.savedAt);
+    el.textContent="Prices saved in this browser, last changed "+d.toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+".";
+  }
+
+  // ---- build inputs ----
+  function rowHTML(f,val,kind){
+    var hint=f.hint?'<span class="hint">'+f.hint+"</span>":"";
+    var v=kind==="money"?plainMoney(val):(val==null?"":val);
+    var type=kind==="money"?"text":"number";
+    var step=kind==="money"?"":' step="any" inputmode="decimal"';
+    return '<div class="row"><label for="f_'+f.id+'">'+f.label+hint+'</label><input id="f_'+f.id+'" data-kind="'+kind+'" data-id="'+f.id+'" type="'+type+'"'+step+(kind==="money"?' inputmode="text" autocomplete="off" spellcheck="false"':'')+' value="'+v+'"></div>';
+  }
+  function build(){
+    document.getElementById("grpCloth").innerHTML=FIELDS.cloth.map(function(f){return rowHTML(f,state.prices[f.id],"money");}).join("");
+    document.getElementById("grpEnch").innerHTML=FIELDS.ench.map(function(f){return rowHTML(f,state.prices[f.id],"money");}).join("");
+    document.getElementById("grpOther").innerHTML=FIELDS.other.map(function(f){return rowHTML(f,state.prices[f.id],"money");}).join("");
+    document.getElementById("grpVendor").innerHTML=FIELDS.vendor.map(function(f){return rowHTML(f,state.prices[f.id],"money");}).join("");
+    document.getElementById("grpYield").innerHTML=YIELDS.map(function(f){return rowHTML(f,state.yields[f.id],"yield");}).join("");
+    document.getElementById("grpSettings").innerHTML=SETTINGS.map(function(f){return rowHTML(f,state.settings[f.id],"setting");}).join("");
+    document.getElementById("gwKnown").checked=state.gw;
+  }
+  build();
+
+  document.addEventListener("input",function(e){
+    var t=e.target; if(!t.dataset||!t.dataset.kind) return;
+    var id=t.dataset.id,k=t.dataset.kind;
+    if(k==="money"){var v=parseMoney(t.value); if(isNaN(v)){t.classList.add("bad");return;} t.classList.remove("bad"); state.prices[id]=v;}
+    else{var n=t.value===""?null:parseFloat(t.value); if(n!=null&&isNaN(n)){t.classList.add("bad");return;} t.classList.remove("bad"); if(k==="yield") state.yields[id]=n||0; else state.settings[id]=n==null?0:n;}
+    save(); render();
+  });
+  document.getElementById("gwKnown").addEventListener("change",function(e){state.gw=e.target.checked;save();render();});
+  document.getElementById("useMine").addEventListener("click",function(){state.yields.t1Dust=1.30;state.yields.t1Lme=0.33;build();save();render();});
+  document.getElementById("resetPrices").addEventListener("click",function(){
+    var keepY=JSON.parse(JSON.stringify(state.yields)),keepS=JSON.parse(JSON.stringify(state.settings)),keepG=state.gw;
+    defaults(); state.yields=keepY; state.settings=keepS; state.gw=keepG; build(); save(); render();
+  });
+  document.getElementById("themeBtn").addEventListener("click",function(){
+    var root=document.documentElement,cur=root.getAttribute("data-theme");
+    var dark=cur?cur==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.setAttribute("data-theme",dark?"light":"dark");
+    try{localStorage.setItem(STORE+".theme",dark?"light":"dark");}catch(e){}
+  });
+  try{var th=localStorage.getItem(STORE+".theme"); if(th) document.documentElement.setAttribute("data-theme",th);}catch(e){}
+
+  // ---- the model ----
+  function has(v){return v!=null&&!isNaN(v);}
+  function compute(){
+    var P=state.prices,Y=state.yields,S=state.settings,gw=state.gw;
+    var cut=(S.cut||0)/100, margin=(S.margin||0)/100, sec=S.sec>0?S.sec:3;
+    var net=function(p){return has(p)?p*(1-cut):null;};
+
+    var lesserFloor=P.lwand-P.wood;                 // one essence per Lesser wand
+    var greaterFloor=(P.gwand-P.wood)/2;            // two essences per Greater wand
+    var wandFloor=gw?Math.max(lesserFloor,greaterFloor):lesserFloor;
+    var wandHow=gw&&greaterFloor>=lesserFloor?"Greater Magic Wands to a vendor":"Lesser Magic Wands to a vendor";
+
+    var lmeOpts=[{v:wandFloor,how:wandHow}];
+    if(has(P.lme)) lmeOpts.push({v:net(P.lme),how:"Sell on the auction house"});
+    if(has(P.gme)) lmeOpts.push({v:net(P.gme)/3,how:"Combine 3 into a Greater and sell"});
+    lmeOpts.sort(function(a,b){return b.v-a.v;});
+    var LME=lmeOpts[0];
+    var gmeOpts=[{v:3*wandFloor,how:"Split into 3 Lesser, then "+wandHow.charAt(0).toLowerCase()+wandHow.slice(1)}];
+    if(has(P.gme)) gmeOpts.push({v:net(P.gme),how:"Sell on the auction house"});
+    if(has(P.lme)) gmeOpts.push({v:3*net(P.lme),how:"Split into 3 Lesser and sell them"});
+    gmeOpts.sort(function(a,b){return b.v-a.v;});
+    var GME=gmeOpts[0];
+    var dustV=has(P.dust)?net(P.dust):0, shardV=has(P.shard)?net(P.shard):0;
+
+    var EV={
+      t1: Y.t1Dust*dustV + Y.t1Lme*LME.v,
+      t2: Y.t2Dust*dustV + Y.t2Gme*GME.v + Y.t2Shard*shardV,
+      w1: Y.w1Dust*dustV + Y.w1Lme*LME.v,
+      w2: Y.w2Dust*dustV + Y.w2Gme*GME.v + Y.w2Shard*shardV
+    };
+    var linenBolt=has(P.linen)?(has(P.linenBolt)?Math.min(2*P.linen,P.linenBolt):2*P.linen):P.linenBolt;
+    var woolBolt=has(P.wool)?(has(P.woolBolt)?Math.min(3*P.wool,P.woolBolt):3*P.wool):P.woolBolt;
+    var linenBoltCrafted=has(P.linen)&&(!has(P.linenBolt)||2*P.linen<=P.linenBolt);
+    var woolBoltCrafted=has(P.wool)&&(!has(P.woolBolt)||3*P.wool<=P.woolBolt);
+    var wandActs=function(ess){return gw?ess/2:ess;};
+
+    var flips=[];
+    function add(o){ if(!has(o.cost)||!has(o.value)) return; o.profit=o.value-o.cost; o.roi=o.cost>0?o.profit/o.cost:null; o.hour=o.profit/(o.acts*sec)*3600; flips.push(o);}
+
+    add({name:"Brown Linen Pants, then disenchant",gate:"Tailoring ~25",cost:2*linenBolt+P.coarse,value:EV.t1,
+      acts:(linenBoltCrafted?2:0)+2+wandActs(Y.t1Lme),
+      sub:"2 bolts + Coarse Thread, "+(linenBoltCrafted?"bolts made from linen":"bolts bought")});
+    add({name:"Brown Linen Robe, then disenchant",gate:"Tailoring ~25",cost:3*linenBolt+P.coarse,value:EV.t1,
+      acts:(linenBoltCrafted?3:0)+2+wandActs(Y.t1Lme),
+      sub:"3 bolts + Coarse Thread. Same disenchant as the pants for more cloth"});
+    add({name:"Woolen Cape, then disenchant",gate:"Tailoring ~55",cost:woolBolt+P.fine,value:EV.t2,
+      acts:(woolBoltCrafted?1:0)+2+Y.t2Gme*(1+wandActs(3)),
+      sub:"1 bolt + Fine Thread, "+(woolBoltCrafted?"bolt made from wool":"bolt bought")});
+    if(has(P.lme)){
+      if(gw) add({name:"Buy Lesser essence, make Greater Magic Wands",gate:"Greater wand",cost:P.lme+P.wood/2,value:P.gwand/2,acts:0.5+0.2,sub:"Per essence, 2 per wand"});
+      add({name:"Buy Lesser essence, make Lesser Magic Wands",gate:"Enchanting ~10",cost:P.lme+P.wood,value:P.lwand,acts:1.2,sub:"Per essence"});
+    }
+    if(has(P.gme)){
+      if(gw) add({name:"Buy Greater essence, split, make Greater Magic Wands",gate:"Greater wand",cost:P.gme+1.5*P.wood,value:1.5*P.gwand,acts:1+1.5+0.2,sub:"Per Greater essence"});
+      else add({name:"Buy Greater essence, split, make Lesser Magic Wands",gate:"Enchanting ~10",cost:P.gme+3*P.wood,value:3*P.lwand,acts:1+3+0.2,sub:"Per Greater essence"});
+    }
+    if(has(P.lme)&&has(P.gme)){
+      add({name:"Combine 3 Lesser essence, sell the Greater",gate:"Enchanting",cost:3*P.lme,value:net(P.gme),acts:1.5,sub:"Buy 3 Lesser, post 1 Greater"});
+      add({name:"Split a Greater essence, sell 3 Lesser",gate:"Enchanting",cost:P.gme,value:3*net(P.lme),acts:2,sub:"Buy 1 Greater, post 3 Lesser"});
+    }
+    if(has(P.lae)&&has(P.gae)) add({name:"Combine 3 Lesser Astral, sell the Greater",gate:"Enchanting",cost:3*P.lae,value:net(P.gae),acts:1.5,sub:"Buy 3 Lesser Astral, post 1 Greater Astral"});
+    if(has(P.wool)&&has(P.woolBolt)) add({name:"Wool into bolts, sell the bolts",gate:"Tailoring ~55",cost:3*P.wool,value:net(P.woolBolt),acts:1.5,sub:"Per bolt"});
+    if(has(P.linen)&&has(P.linenBolt)) add({name:"Linen into bolts, sell the bolts",gate:"Tailoring 1",cost:2*P.linen,value:net(P.linenBolt),acts:1.5,sub:"Per bolt"});
+    if(has(P.wizOil)&&has(P.dust)){
+      if(has(P.maple)&&has(P.vial)) add({name:"Minor Wizard Oil to sell",gate:"Enchanting 5 + formula",cost:P.dust+P.maple+P.vial,value:net(P.wizOil),acts:1.5,sub:"Strange Dust + Maple Seed + Empty Vial"});
+      else flips.push({name:"Minor Wizard Oil to sell",gate:"Enchanting 5 + formula",missing:true,sub:"Enter Maple Seed and Empty Vial vendor prices to check this"});
+    }
+
+    flips.forEach(function(f){f.locked=(!gw&&/Greater wand/.test(f.gate));});
+    flips.sort(function(a,b){
+      if(a.missing!==b.missing) return a.missing?1:-1;
+      var ag=a.profit>0&&!a.locked, bg=b.profit>0&&!b.locked;
+      if(ag!==bg) return ag?-1:1;
+      return (b.hour||0)-(a.hour||0);
+    });
+
+    var snipes=[
+      {name:"Linen Cloth",note:"For Brown Linen Pants",max:(EV.t1-P.coarse)/4,now:P.linen},
+      {name:"Wool Cloth",note:"For Woolen Capes",max:(EV.t2-P.fine)/3,now:P.wool},
+      {name:"Lesser Magic Essence",note:"Guaranteed by the wand vendor price",max:wandFloor,now:P.lme},
+      {name:"Greater Magic Essence",note:"Split into 3, then wands",max:3*wandFloor,now:P.gme},
+      {name:"Green armor, item level 5–15",note:"To disenchant",max:EV.t1,now:null},
+      {name:"Green armor, item level 16–20",note:"To disenchant",max:EV.t2,now:null},
+      {name:"Green weapon, item level 5–15",note:"Mostly Lesser essence (Classic table)",max:EV.w1,now:null},
+      {name:"Green weapon, item level 16–20",note:"Mostly Greater essence (Classic table)",max:EV.w2,now:null}
+    ].map(function(r){r.pay=r.max*(1-margin);return r;});
+
+    var values=[
+      {name:"Lesser Magic Essence",v:LME.v,how:LME.how},
+      {name:"Greater Magic Essence",v:GME.v,how:GME.how},
+      {name:"Strange Dust",v:dustV,how:"Sell on the auction house"},
+      {name:"Small Glimmering Shard",v:has(P.shard)?shardV:null,how:has(P.shard)?"Sell on the auction house":"Add a price to include shards"}
+    ];
+    return {flips:flips,snipes:snipes,values:values,gw:gw};
+  }
+
+  function pct(x){return x==null||!isFinite(x)?"—":'<span class="num'+(x<0?' neg':'')+'">'+Math.round(x*100)+"%</span>";}
+
+  function render(){
+    var r=compute();
+    var body="";
+    r.flips.forEach(function(f){
+      if(f.missing){body+='<tr class="dim"><td><span class="name">'+f.name+'</span><span class="tag">'+f.gate+'</span><span class="sub">'+f.sub+'</span></td><td>—</td><td>—</td><td>—</td></tr>';return;}
+      var dim=f.profit<=0||f.locked;
+      var sub=f.sub+". Costs "+plainMoney(f.cost)+", returns "+plainMoney(f.value)+(f.locked?". Needs the Greater Magic Wand recipe":"");
+      body+='<tr'+(dim?' class="dim"':'')+'><td><span class="name">'+f.name+'</span><span class="tag">'+f.gate+'</span><span class="sub">'+sub+'</span></td><td>'+money(f.profit)+'</td><td>'+pct(f.roi)+'</td><td>'+money(f.hour)+'</td></tr>';
+    });
+    document.getElementById("flipBody").innerHTML=body;
+
+    document.getElementById("snipeBody").innerHTML=r.snipes.map(function(s){
+      var verdict='<span class="verdict hold">—</span>';
+      if(has(s.now)) verdict=s.now<=s.pay?'<span class="verdict buy">Buy</span>':'<span class="verdict hold">Too high</span>';
+      return '<tr><td><span class="name">'+s.name+'</span><span class="sub">'+s.note+'</span></td><td>'+money(s.pay)+'</td><td>'+(has(s.now)?money(s.now):'<span style="color:var(--muted)">check listings</span>')+'</td><td>'+verdict+'</td></tr>';
+    }).join("");
+
+    document.getElementById("valueBody").innerHTML=r.values.map(function(v){
+      return '<tr><td><span class="name">'+v.name+'</span></td><td>'+(v.v==null?'—':money(v.v))+'</td><td style="text-align:left">'+v.how+'</td></tr>';
+    }).join("");
+
+    var best=r.flips.filter(function(f){return !f.missing&&!f.locked&&f.profit>0;})[0];
+    if(best){
+      document.getElementById("heroName").textContent=best.name;
+      document.getElementById("heroProfit").innerHTML=money(best.profit);
+      document.getElementById("heroHour").innerHTML=money(best.hour);
+      document.getElementById("heroRoi").innerHTML=pct(best.roi);
+      document.getElementById("heroWhy").textContent="Costs "+plainMoney(best.cost)+" per craft and returns about "+plainMoney(best.value)+" once everything is sold or vendored. Needs "+best.gate+".";
+    }else{
+      document.getElementById("heroName").textContent="Nothing is profitable at these prices";
+      ["heroProfit","heroHour","heroRoi"].forEach(function(id){document.getElementById(id).textContent="—";});
+      document.getElementById("heroWhy").textContent="Level instead, or check whether any listings are under the buy-at-or-below prices.";
+    }
+  }
+  showSaved();
+  render();
+})();
+</script>
+</body>
+</html>

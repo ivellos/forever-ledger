@@ -1,0 +1,15 @@
+# Build output
+build/
+*.zip
+release-notes.md
+
+# Never commit your game's saved data (it lives in WTF, but just in case)
+WTF/
+*.bak
+
+# Editor and system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

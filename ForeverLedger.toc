@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Forever Ledger
+## Notes: Tracks your characters' professions, recipes, vendor prices and auction house prices for flips and shuffles.
+## Author: Forever Ledger
+## Version: @project-version@
+## SavedVariables: ForeverLedgerDB
+
+Core.lua
+Prices.lua
+Professions.lua
+Tooltip.lua
+UI.lua
