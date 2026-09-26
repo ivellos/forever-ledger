@@ -53,10 +53,23 @@ local DISENCHANT = {
 }
 local WEAPON, ARMOR, UNCOMMON = 2, 4, 2   -- item class IDs and quality
 local NOT_DISENCHANTABLE = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
+-- Crafted wands can't be disenchanted in Forever (owner's test); wands found in the world can.
+local CRAFTED_WANDS = { [247789] = true, [11287] = true, [11288] = true, [11289] = true, [11290] = true }
+
+-- True if a captured Enchanting recipe makes this item.
+local function madeByEnchanting(id)
+  for _, c in pairs(ns.db.chars) do
+    local p = c.profs and c.profs.Enchanting
+    for _, rec in pairs(p and p.recipes or {}) do
+      if rec.out == id then return true end
+    end
+  end
+end
 
 -- Returns a list of { itemID, average count }, or nil if the item can't be disenchanted
 -- (or isn't covered by the table yet).
 function ns:DisenchantYield(id)
+  if CRAFTED_WANDS[id] or madeByEnchanting(id) then return end
   local _, _, quality, ilvl, _, _, _, _, equipLoc, _, _, classID = ns.GetItemInfo(id)
   if quality ~= UNCOMMON or not ilvl or NOT_DISENCHANTABLE[equipLoc] then return end
   local kind = (classID == WEAPON and "weapon") or (classID == ARMOR and "armor")
