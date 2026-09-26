@@ -45,6 +45,7 @@ function ns:RememberItem(id)
   local name, _, _, _, _, _, _, _, _, _, sell = getItemInfo(id)
   if name then
     ns.db.vendorSell[id] = sell or 0
+    if ns.InvalidateValues then ns:InvalidateValues() end
   elseif not waiting[id] then
     waiting[id] = true
     if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
@@ -95,6 +96,7 @@ local function captureMerchant()
       got = got + 1
     end
   end
+  if got > 0 and ns.InvalidateValues then ns:InvalidateValues() end
   ns:Debug("Vendor prices captured:", got)
 end
 ns:On("MERCHANT_SHOW", function() C_Timer.After(0.3, captureMerchant) end)
@@ -126,6 +128,7 @@ end
 
 -- units: list of { unitPrice, quantity }
 local function record(id, units, src)
+  if ns.InvalidateValues then ns:InvalidateValues() end
   local key = ns.MarketKey()
   ns.db.prices[key] = ns.db.prices[key] or {}
   if #units == 0 then

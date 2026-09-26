@@ -180,6 +180,7 @@ function ns:BuildUsageIndex()
   end
   ns.usage = usage
   ns.recipesByReagent = byReagent
+  if ns.InvalidateValues then ns:InvalidateValues() end
 end
 
 ns:OnReady(function() ns:BuildUsageIndex() end)

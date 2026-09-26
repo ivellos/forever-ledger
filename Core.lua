@@ -286,6 +286,7 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     local n = tonumber(msg:match("^cut%s+(%S+)"))
     if n and n >= 0 and n < 100 then
       ns.db.settings.ahCut = n
+      ns:InvalidateValues()
       ns:Print(("Auction house cut set to %g%%."):format(n))
     else
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))

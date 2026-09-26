@@ -2,17 +2,23 @@ local _, ns = ...
 
 ---------------------------------------------------------------------------
 -- What an item is worth to you: the best of selling it on the auction house,
--- selling it to a vendor, or crafting it into something and selling that.
+-- selling it to a vendor, disenchanting it, converting it, or crafting it into
+-- something else, following chains up to MAX_STEPS long.
 ---------------------------------------------------------------------------
+local MAX_STEPS = 4     -- crafts, disenchants and conversions in one chain
+local MIN_LISTED = 5    -- inside a chain, ignore auction house prices with fewer listings
 
 function ns:AHCut()
   return (ns.db.settings.ahCut or 5) / 100
 end
 
--- What one unit fetches on the auction house after the cut.
-local function ahSale(id)
-  local p = ns:GetPrice(id)
-  if p then return p * (1 - ns:AHCut()) end
+-- What one unit fetches on the auction house after the cut. With needListings,
+-- thin markets (fewer than MIN_LISTED listed) don't count.
+local function ahSale(id, needListings)
+  local p, _, _, rec = ns:GetPrice(id)
+  if not p then return end
+  if needListings and rec and rec.q and rec.q < MIN_LISTED then return end
+  return p * (1 - ns:AHCut())
 end
 
 local function vendorSale(id)
@@ -89,89 +95,163 @@ local function canDisenchant()
   end
 end
 
--- Materials are valued at their own best value, but without disenchanting, so this can't loop.
-local function disenchantSale(id)
-  local yield = ns:DisenchantYield(id)
-  if not yield or not canDisenchant() then return end
-  local total = 0
-  for _, y in ipairs(yield) do
-    local v = ns:GetValue(y[1], true)
-    if v then total = total + v * y[2] end
-  end
-  if total > 0 then return total end
-end
-
--- What a material costs to buy. Vendor price when a vendor sells it, otherwise the
--- auction house price, unless vendorOnly is set.
-local function buyCost(id, vendorOnly)
+-- What a material costs to buy: the vendor price when a vendor sells it, otherwise
+-- the auction house price.
+local function buyCost(id)
   local p = ns:GetVendorBuyPrice(id)
   if p then return p end
-  if not vendorOnly then return (ns:GetPrice(id)) end
+  return (ns:GetPrice(id))
 end
 
--- Value of one `id` when crafted with `rec` and the output sold with `sell`.
--- Every other material is paid for; what's left is shared across the units of `id`.
-local function viaRecipe(id, rec, sell, vendorOnly)
-  if not rec.out or rec.out == id then return end
-  local each = sell(rec.out)
-  if not each or each <= 0 then return end
-  local left, units = each * (rec.oq or 1), 0
-  for _, r in ipairs(rec.r or {}) do
-    if r[1] == id then
-      units = units + r[2]
-    else
-      local cost = buyCost(r[1], vendorOnly)
-      if not cost then return end
-      left = left - cost * r[2]
+---------------------------------------------------------------------------
+-- Options. Each option is a table:
+--   kind  = "ah" | "vendor" | "disenchant" | "convert" | "craft"
+--   value = copper per unit of the item
+--   step  = text for this step (convert, craft)
+--   next  = the best option for the output (convert, craft)
+--   mats  = { { id, count, opt } } for disenchant
+--   buys  = { { id, qty, cost } } other materials a craft needs, per craft
+--   rec, units, who (craft): the recipe, units of this item it uses, and the
+--   character who knows it if that isn't the one logged in
+---------------------------------------------------------------------------
+
+-- Best options are cached per item and chain depth, and cleared whenever prices,
+-- recipes or settings change (and at least once a minute).
+local cache, cacheTime = {}, 0
+function ns:InvalidateValues() cache = {} end
+
+local best
+
+-- All options for `id` with `depth` steps already taken. `path` holds the items
+-- earlier in this chain, which can't appear again.
+local function options(id, depth, path)
+  local list = {}
+  local function add(o)
+    if o.value and o.value > 0 then list[#list + 1] = o end
+  end
+
+  add({ kind = "ah", value = ahSale(id, depth > 0) })
+  add({ kind = "vendor", value = vendorSale(id) })
+
+  if depth < MAX_STEPS then
+    path[id] = true
+
+    local yield = canDisenchant() and ns:DisenchantYield(id)
+    if yield then
+      local total, mats = 0, {}
+      for _, y in ipairs(yield) do
+        local o = not path[y[1]] and best(y[1], depth + 1, path)
+        if o then
+          total = total + o.value * y[2]
+          mats[#mats + 1] = { id = y[1], count = y[2], opt = o }
+        end
+      end
+      add({ kind = "disenchant", value = total, mats = mats })
     end
-  end
-  if units > 0 and left > 0 then return left / units end
-end
 
--- Returns the best value and a list of options { label, value }, best first.
--- noDisenchant leaves out disenchanting, used when valuing disenchant materials.
--- noConvert leaves out conversions, used when valuing a conversion's output so
--- splitting and combining can't loop.
-function ns:GetValue(id, noDisenchant, noConvert)
-  if not id or not ns.db then return end
-  local options = {}
-  local function add(label, v)
-    if v and v > 0 then options[#options + 1] = { label = label, value = v } end
-  end
-
-  add(("Auction house, after %g%% cut"):format(ns.db.settings.ahCut or 5), ahSale(id))
-  add("Sell to vendor", vendorSale(id))
-  if not noDisenchant then add("Disenchant", disenchantSale(id)) end
-  if not noConvert then
     for _, conv in ipairs(CONVERSIONS[id] or {}) do
-      local v = ns:GetValue(conv.out, noDisenchant, true)
-      if v then add(conv.label, v * conv.per) end
+      local o = not path[conv.out] and best(conv.out, depth + 1, path)
+      if o then add({ kind = "convert", value = o.value * conv.per, step = conv.label, next = o }) end
     end
-  end
 
-  -- Best recipe for each way of selling the output. The vendor route only counts
-  -- vendor-bought materials, so it's a guaranteed floor.
-  local me = ns.CharKey()
-  local routes = {
-    { sell = vendorSale, vendorOnly = true, fmt = "Craft %s, sell to vendor" },
-    { sell = ahSale, vendorOnly = false, fmt = "Craft %s, auction house" },
-  }
-  if not noDisenchant then
-    routes[#routes + 1] = { sell = disenchantSale, vendorOnly = false, fmt = "Craft %s, disenchant" }
-  end
-  for _, route in ipairs(routes) do
-    local best, bestUse
+    local me = ns.CharKey()
     for _, use in ipairs(ns.recipesByReagent and ns.recipesByReagent[id] or {}) do
-      local v = viaRecipe(id, use.rec, route.sell, route.vendorOnly)
-      if v and (not best or v > best) then best, bestUse = v, use end
+      local rec = use.rec
+      local o = rec.out and not path[rec.out] and best(rec.out, depth + 1, path)
+      if o then
+        -- Pay for every other material; what's left is shared across the units of `id`.
+        local left, units, buys = o.value * (rec.oq or 1), 0, {}
+        for _, r in ipairs(rec.r or {}) do
+          if r[1] == id then
+            units = units + r[2]
+          else
+            local cost = buyCost(r[1])
+            if not cost then left = nil; break end
+            left = left - cost * r[2]
+            buys[#buys + 1] = { id = r[1], qty = r[2], cost = cost }
+          end
+        end
+        if left and units > 0 then
+          add({
+            kind = "craft", value = left / units, step = "Craft " .. (rec.n or "?"), next = o,
+            rec = rec, units = units, buys = buys, who = use.key ~= me and use.who or nil,
+          })
+        end
+      end
     end
-    if best then
-      local label = route.fmt:format(bestUse.rec.n or "?")
-      if bestUse.key ~= me then label = label .. " (" .. (bestUse.who or "?") .. ")" end
-      add(label, best)
-    end
+
+    path[id] = nil
   end
 
-  table.sort(options, function(a, b) return a.value > b.value end)
-  return options[1] and options[1].value, options
+  table.sort(list, function(a, b) return a.value > b.value end)
+  return list
+end
+
+best = function(id, depth, path)
+  local key = id .. ":" .. depth
+  local hit = cache[key]
+  if hit == nil then
+    hit = options(id, depth, path)[1] or false
+    cache[key] = hit
+  end
+  return hit or nil
+end
+
+local function freshCache()
+  if time() - cacheTime > 60 then cache, cacheTime = {}, time() end
+end
+
+-- Best option for an item, with its whole chain.
+function ns:BestOption(id)
+  if not id or not ns.db then return end
+  freshCache()
+  return best(id, 0, {})
+end
+
+---------------------------------------------------------------------------
+-- Labels
+---------------------------------------------------------------------------
+local function countSteps(o)
+  if o.kind == "craft" or o.kind == "convert" then return 1 + countSteps(o.next) end
+  if o.kind == "disenchant" then
+    local n = 0
+    for _, m in ipairs(o.mats) do n = math.max(n, countSteps(m.opt)) end
+    return 1 + n
+  end
+  return 0
+end
+ns.CountSteps = countSteps
+
+-- How a chain carries on after its first step.
+local function rest(o)
+  if o.kind == "ah" then return "auction house" end
+  if o.kind == "vendor" then return "sell to vendor" end
+  local n = countSteps(o)
+  if o.kind == "disenchant" and n == 1 then return "disenchant" end
+  return n == 1 and "1 more step" or (n .. " more steps")
+end
+
+function ns:OptionLabel(o)
+  if o.kind == "ah" then return ("Auction house, after %g%% cut"):format(ns.db.settings.ahCut or 5) end
+  if o.kind == "vendor" then return "Sell to vendor" end
+  if o.kind == "disenchant" then return "Disenchant" end
+  local label = o.step .. ", " .. rest(o.next)
+  if o.who then label = label .. " (" .. o.who .. ")" end
+  return label
+end
+
+-- Returns the best value and a list of options (each with a label), best first.
+-- Only the three best recipes are listed, so tooltips stay short.
+function ns:GetValue(id)
+  if not id or not ns.db then return end
+  freshCache()
+  local list, crafts, seen = {}, 0, {}
+  for _, o in ipairs(options(id, 0, {})) do
+    if o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
+      if o.kind == "craft" then seen[o.step] = true; crafts = crafts + 1 end
+      o.label = ns:OptionLabel(o)
+      list[#list + 1] = o
+    end
+  end
+  return list[1] and list[1].value, list
 end

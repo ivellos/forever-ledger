@@ -10,6 +10,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Vendor floors: the guaranteed value of a material when a known recipe turns it into something a vendor buys.
 - Disenchant values for green armor and weapons up to item level 20: a "Disenchant" option in "Worth to you", a "Craft X, disenchant" option for materials, and a "Disenchants to about" tooltip line. Only shown when one of your characters has Enchanting.
 - Essence conversions in "Worth to you": splitting a greater essence into 3 lesser, and combining 3 lesser into a greater, for every essence type. Disenchant values use them too.
+- "Worth to you" follows chains up to 4 steps long, for example Linen Cloth → Bolt of Linen Cloth → Heavy Linen Gloves → disenchant → Greater Magic Wand → vendor. Only the three best recipes are listed.
+- Inside a chain, auction house prices with fewer than 5 listings are ignored, so one overpriced listing can't inflate values.
 - `/fl cut` shows or changes the auction house cut used in values (default 5%).
 
 ### Fixed
