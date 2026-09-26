@@ -13,7 +13,7 @@ local DEFAULTS = {
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
   vendorBuy = {},   -- [itemID] = { p = copper you pay, t = time, src, lim = limited supply }
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5 },
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3 },
 }
 
 local function copyDefaults(src, dst)
@@ -282,6 +282,24 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     else
       ns:Print("Use /fl source auto, own, auctionator, tsm or auctioneer.")
     end
+  elseif msg == "shuffles" or msg == "shuffles all" then
+    ns:PrintShuffles(msg == "shuffles all")
+  elseif msg:match("^margin") then
+    local n = tonumber(msg:match("^margin%s+(%S+)"))
+    if n and n >= 0 and n < 100 then
+      ns.db.settings.margin = n
+      ns:Print(("Safety margin set to %g%%."):format(n))
+    else
+      ns:Print(("Safety margin is %g%%. Shuffles only count if you can buy at least this much below the item's worth. Change it with /fl margin 10"):format(ns.db.settings.margin or 10))
+    end
+  elseif msg:match("^seconds") then
+    local n = tonumber(msg:match("^seconds%s+(%S+)"))
+    if n and n > 0 then
+      ns.db.settings.actionSeconds = n
+      ns:Print(("Profit per hour now assumes %g seconds per craft, disenchant or split."):format(n))
+    else
+      ns:Print(("Profit per hour assumes %g seconds per craft, disenchant or split. Change it with /fl seconds 3"):format(ns.db.settings.actionSeconds or 3))
+    end
   elseif msg:match("^cut") then
     local n = tonumber(msg:match("^cut%s+(%S+)"))
     if n and n >= 0 and n < 100 then
@@ -292,6 +310,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl cut <percent>, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl tooltip, /fl api, /fl debug")
   end
 end

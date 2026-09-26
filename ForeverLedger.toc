@@ -9,5 +9,6 @@ Core.lua
 Prices.lua
 Professions.lua
 Values.lua
+Shuffles.lua
 Tooltip.lua
 UI.lua

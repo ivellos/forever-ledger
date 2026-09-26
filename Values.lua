@@ -109,6 +109,7 @@ end
 --   value = copper per unit of the item
 --   step  = text for this step (convert, craft)
 --   next  = the best option for the output (convert, craft)
+--   per   = outputs per unit (convert)
 --   mats  = { { id, count, opt } } for disenchant
 --   buys  = { { id, qty, cost } } other materials a craft needs, per craft
 --   rec, units, who (craft): the recipe, units of this item it uses, and the
@@ -151,7 +152,7 @@ local function options(id, depth, path)
 
     for _, conv in ipairs(CONVERSIONS[id] or {}) do
       local o = not path[conv.out] and best(conv.out, depth + 1, path)
-      if o then add({ kind = "convert", value = o.value * conv.per, step = conv.label, next = o }) end
+      if o then add({ kind = "convert", value = o.value * conv.per, step = conv.label, next = o, per = conv.per }) end
     end
 
     local me = ns.CharKey()
@@ -206,6 +207,13 @@ function ns:BestOption(id)
   if not id or not ns.db then return end
   freshCache()
   return best(id, 0, {})
+end
+
+-- Every option for an item, best first.
+function ns:Options(id)
+  if not id or not ns.db then return {} end
+  freshCache()
+  return options(id, 0, {})
 end
 
 ---------------------------------------------------------------------------

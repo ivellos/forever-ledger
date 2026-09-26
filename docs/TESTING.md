@@ -14,3 +14,4 @@ Run through this after installing a new version. Send the results, plus any erro
 10. Hover Brown Linen Pants. It should say "Disenchants to about 1.18 Strange Dust, 0.31 Lesser Magic Essence", and "Worth to you" should include "Disenchant". Hover Bolt of Linen Cloth: it should list "Craft Brown Linen Pants, disenchant".
 11. Hover Greater Magic Essence. "Worth to you" should include "Split into Lesser Magic Essence" at 3 times the Lesser essence's value.
 12. Hover Linen Cloth. "Worth to you" should include "Craft Bolt of Linen Cloth, 3 more steps" (bolt → gloves or pants → disenchant → wand).
+13. Type `/fl shuffles`. The list should include Strange Dust (Minor Wizard Oil to vendor), and Linen or Wool Cloth through bolts.
