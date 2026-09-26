@@ -20,6 +20,21 @@ local function vendorSale(id)
 end
 
 ---------------------------------------------------------------------------
+-- Conversions anyone can do by right-clicking: 3 lesser essences make 1 greater,
+-- and 1 greater splits into 3 lesser.
+---------------------------------------------------------------------------
+local ESSENCES = {
+  { 10938, 10939, "Magic" }, { 10998, 11082, "Astral" }, { 11134, 11135, "Mystic" },
+  { 11174, 11175, "Nether" }, { 16202, 16203, "Eternal" },
+}
+local CONVERSIONS = {}   -- [itemID] = { { out = itemID, per = outputs per input, label } }
+for _, e in ipairs(ESSENCES) do
+  local lesser, greater, kind = e[1], e[2], e[3]
+  CONVERSIONS[lesser] = { { out = greater, per = 1 / 3, label = "Combine into Greater " .. kind .. " Essence" } }
+  CONVERSIONS[greater] = { { out = lesser, per = 3, label = "Split into Lesser " .. kind .. " Essence" } }
+end
+
+---------------------------------------------------------------------------
 -- Disenchanting. Average materials per item from the Classic table, which the
 -- owner's test (30 item level 12 capes) matched. Greens up to item level 20 only.
 ---------------------------------------------------------------------------
@@ -102,7 +117,9 @@ end
 
 -- Returns the best value and a list of options { label, value }, best first.
 -- noDisenchant leaves out disenchanting, used when valuing disenchant materials.
-function ns:GetValue(id, noDisenchant)
+-- noConvert leaves out conversions, used when valuing a conversion's output so
+-- splitting and combining can't loop.
+function ns:GetValue(id, noDisenchant, noConvert)
   if not id or not ns.db then return end
   local options = {}
   local function add(label, v)
@@ -112,6 +129,12 @@ function ns:GetValue(id, noDisenchant)
   add(("Auction house, after %g%% cut"):format(ns.db.settings.ahCut or 5), ahSale(id))
   add("Sell to vendor", vendorSale(id))
   if not noDisenchant then add("Disenchant", disenchantSale(id)) end
+  if not noConvert then
+    for _, conv in ipairs(CONVERSIONS[id] or {}) do
+      local v = ns:GetValue(conv.out, noDisenchant, true)
+      if v then add(conv.label, v * conv.per) end
+    end
+  end
 
   -- Best recipe for each way of selling the output. The vendor route only counts
   -- vendor-bought materials, so it's a guaranteed floor.
