@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - History for the coming dashboard: each character's gold over time, money in and out each day by source (auction house sales, purchases and fees, vendors, repairs, mail, trade, loot, quests, training, flights), a log of auction house sales and purchases, and 60 days of daily prices per item.
 - `/fl money` shows today's money in and out for the character you're on.
-- Deal alert: after a scan, a chime, an on-screen message and a chat list when something is listed far below what it alone is worth: its usual auction house price (from price history once there are 3 days of it), its vendor price, its disenchant value or an essence conversion (default: half or less, and at least 1s cheaper). Recipe profits don't count as deals; they're in the Shuffles tab. `/fl deals` lists current deals, `/fl deals 40` changes the threshold, `/fl deals sound` turns the chime on or off.
+- Deal alert: after a scan, a chime, an on-screen message and a chat list when something is listed far below what it alone is worth: its usual auction house price (stackable items only; from price history once there are 3 days of it), its vendor price, its disenchant value or an essence conversion (default: half or less, and at least 1s cheaper). Recipe profits don't count as deals; they're in the Shuffles tab. `/fl deals` lists current deals, `/fl deals 40` changes the threshold, `/fl deals sound` turns the chime on or off.
 
 ## [0.2.0] - 2026-09-26
 

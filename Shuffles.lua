@@ -319,7 +319,8 @@ end
 
 ---------------------------------------------------------------------------
 -- Deal alert: after a scan, flag listings far below what that item alone is worth:
--- reselling at its usual price, selling to a vendor, disenchanting or converting it.
+-- reselling at its usual price (stackable items only), selling to a vendor,
+-- disenchanting or converting it.
 -- Recipes don't count here: their profit is shared by every ingredient, and the
 -- Shuffles tab covers them. A deal is a cheapest listing at or below dealPct% of that
 -- worth, and at least DEAL_MIN_PROFIT cheaper.
@@ -331,8 +332,12 @@ local HISTORY_DAYS = 3        -- days of history needed before it replaces today
 local alerted = {}            -- itemID = price already alerted this session
 
 -- The usual price: the median typical price over past days once there's enough history,
--- otherwise today's typical price if enough are listed.
+-- otherwise today's typical price if enough are listed. Stackable items only: gear
+-- prices vary with random stats and hopeful sellers (a 98s shield looked "worth" 11g),
+-- and unique items like recipes are just as patchy.
 local function usualPrice(id, rec)
+  local stack = select(8, ns.GetItemInfo(id))
+  if not stack or stack <= 1 then return end
   local hist = ns:PriceHistory(id)
   local days = {}
   for _, h in ipairs(hist) do
