@@ -381,6 +381,20 @@ end)
 function ns:RefreshShuffles()
   if not main then return end
   local vendor, ah, oneOff, flips = ns:FindShuffles()
+
+  -- Debug: name the shuffles that came or went since the last refresh.
+  if ns.db.settings.debug then
+    local now, before = {}, main.shuffleKeys
+    for _, list in ipairs({ vendor, ah, oneOff, flips }) do
+      for _, s in ipairs(list) do now[s.key] = ns:ShuffleTitle(s) .. " (" .. ns.Money(s.profit) .. ")" end
+    end
+    if before then
+      for k, title in pairs(now) do if not before[k] then ns:Debug("New since last refresh:", title) end end
+      for k, title in pairs(before) do if not now[k] then ns:Debug("Gone since last refresh:", title) end end
+    end
+    main.shuffleKeys = now
+  end
+
   main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff, flips = flips }
   main.shuffleInfo:SetText(("%d shuffles and %d vendor flips, worked out at %s. Click a row for details."):format(
     #vendor + #ah + #oneOff, #flips, date("%H:%M")))
