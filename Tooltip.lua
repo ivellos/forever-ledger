@@ -36,6 +36,16 @@ local function addLines(tt, id)
     end
   end
 
+  -- Green when the ledger price is already at or below it.
+  local maxBuy = ns:BuyAtOrBelow(id)
+  if maxBuy then
+    if price and price <= maxBuy then
+      tt:AddDoubleLine("Buy at or below", ns.Money(maxBuy), LR, LG, LB, 0.5, 0.83, 0.61)
+    else
+      tt:AddDoubleLine("Buy at or below", ns.Money(maxBuy), LR, LG, LB, 1, 1, 1)
+    end
+  end
+
   local yield = ns:DisenchantYield(id)
   if yield then
     local parts = {}

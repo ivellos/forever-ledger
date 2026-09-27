@@ -209,6 +209,22 @@ function ns:BestOption(id)
   return best(id, 0, {})
 end
 
+-- The most worth paying for an item: its best value without relisting it on the
+-- auction house, less the safety margin. Only for items you can craft with,
+-- disenchant or convert. Returns the price and the option it comes from.
+function ns:BuyAtOrBelow(id)
+  local bestNonAH, useful
+  for _, o in ipairs(ns:Options(id)) do
+    if o.kind ~= "ah" then
+      bestNonAH = bestNonAH or o
+      if o.kind ~= "vendor" then useful = true end
+    end
+  end
+  if bestNonAH and useful then
+    return bestNonAH.value * (1 - (ns.db.settings.margin or 10) / 100), bestNonAH
+  end
+end
+
 -- Every option for an item, best first.
 function ns:Options(id)
   if not id or not ns.db then return {} end
