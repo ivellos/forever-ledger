@@ -318,13 +318,32 @@ end
 
 
 ---------------------------------------------------------------------------
--- Deal alert: after a scan, flag listings far below their worth to you.
--- A deal is a cheapest listing at or below dealPct% of the item's best value
--- (not counting relisting it), and at least DEAL_MIN_PROFIT cheaper.
+-- Deal alert: after a scan, flag listings far below what that item alone is worth:
+-- reselling at its usual price, selling to a vendor, disenchanting or converting it.
+-- Recipes don't count here: their profit is shared by every ingredient, and the
+-- Shuffles tab covers them. A deal is a cheapest listing at or below dealPct% of that
+-- worth, and at least DEAL_MIN_PROFIT cheaper.
 ---------------------------------------------------------------------------
 local DEAL_MIN_PROFIT = 100   -- copper
 local DEAL_RECENT = 600       -- only prices from the last 10 minutes
+local DEAL_MIN_LISTED = 5     -- listings needed before today's prices count as "usual"
+local HISTORY_DAYS = 3        -- days of history needed before it replaces today's prices
 local alerted = {}            -- itemID = price already alerted this session
+
+-- The usual price: the median typical price over past days once there's enough history,
+-- otherwise today's typical price if enough are listed.
+local function usualPrice(id, rec)
+  local hist = ns:PriceHistory(id)
+  local days = {}
+  for _, h in ipairs(hist) do
+    if h[1] < math.floor(time() / 86400) then days[#days + 1] = h[3] end
+  end
+  if #days >= HISTORY_DAYS then
+    table.sort(days)
+    return days[math.floor((#days + 1) / 2)], "usual price"
+  end
+  if rec.a and (rec.q or 0) >= DEAL_MIN_LISTED then return rec.a, "today's typical price" end
+end
 
 -- Returns deals, biggest saving first: { id, price, worth, listed, how }.
 function ns:FindDeals()
@@ -333,13 +352,16 @@ function ns:FindDeals()
   local now, deals = time(), {}
   for id, rec in pairs(market) do
     if rec.m and not rec.none and now - (rec.t or 0) <= DEAL_RECENT then
+      local worth, how
+      local usual, basis = usualPrice(id, rec)
+      if usual then worth, how = usual * (1 - ns:AHCut()), "resell at " .. basis end
       for _, o in ipairs(ns:Options(id)) do
-        if o.kind ~= "ah" then
-          if rec.m <= o.value * pct and o.value - rec.m >= DEAL_MIN_PROFIT then
-            deals[#deals + 1] = { id = id, price = rec.m, worth = o.value, listed = rec.q, how = ns:OptionLabel(o) }
-          end
-          break
+        if o.kind ~= "ah" and o.kind ~= "craft" and (not worth or o.value > worth) then
+          worth, how = o.value, ns:OptionLabel(o)
         end
+      end
+      if worth and rec.m <= worth * pct and worth - rec.m >= DEAL_MIN_PROFIT then
+        deals[#deals + 1] = { id = id, price = rec.m, worth = worth, listed = rec.q, how = how }
       end
     end
   end
