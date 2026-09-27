@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - "Worth to you" on item tooltips: the best of selling on the auction house (after the cut), selling to a vendor, or crafting it with a known recipe and selling the result. Every option is listed, best first.
 - Vendor floors: the guaranteed value of a material when a known recipe turns it into something a vendor buys.
-- Disenchant values for green armor and weapons up to item level 20: a "Disenchant" option in "Worth to you", a "Craft X, disenchant" option for materials, and a "Disenchants to about" tooltip line. Only shown when one of your characters has Enchanting.
+- Disenchant values for green armor and weapons up to item level 20: a "Disenchant" option in "Worth to you", a "Craft X, disenchant" option for materials, and a "Disenchants to about" tooltip line. Only shown when one of your characters has Enchanting. Crafted wands and other Enchanting products are skipped, since Forever doesn't allow disenchanting them.
 - Essence conversions in "Worth to you": splitting a greater essence into 3 lesser, and combining 3 lesser into a greater, for every essence type. Disenchant values use them too.
 - "Worth to you" follows chains up to 4 steps long, for example Linen Cloth → Bolt of Linen Cloth → Heavy Linen Gloves → disenchant → Greater Magic Wand → vendor. Only the three best recipes are listed.
 - Inside a chain, auction house prices with fewer than 5 listings are ignored, so one overpriced listing can't inflate values.
@@ -19,18 +19,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - "Buy at or below" on tooltips for anything you can craft with, disenchant or convert: the most worth paying, after the safety margin. Green when the current price is already below it.
 - `/fl margin` sets the safety margin for shuffles (default 10%), and `/fl seconds` sets the seconds per craft used for profit per hour (default 3).
 - `/fl cut` shows or changes the auction house cut used in values (default 5%).
+- Minimap button: click to open or close the ledger, right-click for shuffles, drag to move it. `/fl minimap` hides or shows it.
 
 ### Changed
-- Minimap button: click to open or close the ledger, right-click for shuffles, drag to move it. `/fl minimap` hides or shows it.
 - Two scan buttons, in the ledger window and on the auction house: "Full scan" (reads everything in seconds) shows "Ready" or a countdown to when Blizzard allows the next one (about every 15 minutes), and "Scan materials" scans what your recipes use.
 - `/fl scan` does a full scan when one is allowed and scans your materials otherwise. `/fl scan materials` forces the materials scan. If the auction house doesn't send a full scan within 30 seconds, the materials scan runs instead.
-- The materials scan tries items that got no reply once more at the end.
+- The materials scan waits 3 seconds instead of 6 for items with no reply, and tries those items once more at the end.
 - The "scan finished" and "full scan done" messages say how long the scan took.
 
 ### Fixed
 - Auction house scans read prices for items sold one at a time (bags, oils, rods) far too low, for example Linen Reagent Bags at 19c instead of 13s. Forever already reports these per item. Full scans weren't affected.
-- Scans wait 3 seconds instead of 6 for items with no reply, so they finish faster. Before giving up on an item, they read any results the auction house already has, which caught items like Bolt of Linen Cloth being skipped right after a full scan.
-- Crafted wands, and anything else made by Enchanting, no longer count as disenchantable. Forever doesn't allow it.
 - The "Scanning" line in the ledger window now clears after a full scan finishes.
 
 ## [0.1.0] - 2026-09-26

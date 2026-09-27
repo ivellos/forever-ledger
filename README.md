@@ -1,17 +1,23 @@
 # Forever Ledger
 
-A World of Warcraft: Forever addon for crafters who like to make gold. It remembers every character's professions and recipes, tracks vendor and auction house prices, and (from version 0.2) finds profitable flips and shuffles across your characters.
+A World of Warcraft: Forever addon for crafters who like to make gold. It remembers every character's professions and recipes, tracks vendor and auction house prices, and finds profitable shuffles: things you can buy, craft, disenchant or convert, and sell for more.
 
-> **Status:** early testing on the Forever beta. Expect bugs, and please report them.
+> **Status:** testing on the Forever beta. Expect bugs, and please report them.
 
 ## Features
 
+- **What's it worth to you?** Every tooltip shows an item's best value: selling it on the auction house (after the cut), selling it to a vendor, disenchanting it, splitting or combining essences, or crafting it into something worth more, following chains up to 4 steps long.
+- **Vendor floors.** When a recipe you know turns an item into something a vendor buys, that sets a guaranteed minimum value for its materials.
+- **Buy at or below.** The most worth paying for a material, after a safety margin, shown in green when the auction house price is already lower.
+- **Shuffle finder.** A ranked list of shuffles, split into ones that end with vendor sales (safe) and ones that end on the auction house (depend on buyers), with what to buy, the steps, profit, return and a rough profit per hour. Choose which characters' recipes count.
+- **Vendor flips.** Things listed on the auction house for less than a vendor pays.
 - **Character profiles that build themselves.** Level, professions, skill and every known recipe with its exact materials, saved as you play.
-- **Vendor prices.** What vendors pay you, read from the game, and what they charge you, captured whenever you open a vendor.
-- **Auction house scanning.** Scan the materials your characters use, or every listing at once.
+- **Vendor and auction house prices.** Vendor prices read from the game and from merchant windows. A full auction house scan reads every listing in seconds (Blizzard allows one about every 15 minutes), and a materials scan checks what your recipes use in between.
 - **Works with Auctionator, TSM and Auctioneer.** Uses their prices when your own scan is out of date.
-- **Tooltips.** See an item's price, what a vendor charges for it, and which of your characters use it.
 - **Export and import.** Move data between accounts, for example to an auction house character on a second account.
+- **Minimap button.** Click to open the ledger, right-click for shuffles.
+
+The addon suggests; you click. Every craft, purchase and auction still needs your own click, as Blizzard requires.
 
 ## Install
 
@@ -24,9 +30,15 @@ A World of Warcraft: Forever addon for crafters who like to make gold. It rememb
 | Command | What it does |
 |---|---|
 | `/fl` | Open or close the ledger window |
-| `/fl scan` | Scan prices for every material your characters use (auction house must be open) |
+| `/fl scan` | Full scan if one is allowed, otherwise scan your materials (auction house must be open) |
 | `/fl scan full` | Scan every listing (Blizzard allows this about every 15 minutes) |
+| `/fl scan materials` | Scan just the materials and products of your recipes |
 | `/fl stop` | Stop a scan |
+| `/fl shuffles` | List the best shuffles and vendor flips in chat (`/fl shuffles all` for everything) |
+| `/fl cut 5` | Auction house cut used in values, in percent |
+| `/fl margin 10` | Safety margin for shuffles and "buy at or below", in percent |
+| `/fl seconds 3` | Seconds per craft, used for profit per hour |
+| `/fl minimap` | Hide or show the minimap button |
 | `/fl pull` | Copy prices from Auctionator, TSM or Auctioneer |
 | `/fl source auto` | Choose where prices come from: `auto`, `own`, `auctionator`, `tsm`, `auctioneer` |
 | `/fl export` / `/fl import` | Move data between accounts |
