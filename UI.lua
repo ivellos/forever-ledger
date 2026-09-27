@@ -1023,9 +1023,10 @@ end
 function ns:OnAHShow()
   local ah = AuctionHouseFrame or AuctionFrame
   if ah and not ns.ahButton then
-    -- Bottom-right, beside the gold display, where nothing of Blizzard's sits.
+    -- Just below the window's bottom-right corner, level with Blizzard's Buy/Sell/Auctions
+    -- tabs. Inside the window they covered the bid and buyout boxes on item pages.
     ns.ahButton = blizzButton(ah, "Scan materials", 120, function() ns.Scan:Start("watch") end)
-    ns.ahButton:SetPoint("BOTTOMRIGHT", ah, "BOTTOMRIGHT", -10, 6)
+    ns.ahButton:SetPoint("TOPRIGHT", ah, "BOTTOMRIGHT", -4, -2)
     ns.ahButton:SetFrameLevel(ah:GetFrameLevel() + 20)
     ns.ahFullButton = blizzButton(ah, "Full scan", 130, function() ns.Scan:Start("full") end)
     ns.ahFullButton:SetPoint("RIGHT", ns.ahButton, "LEFT", -4, 0)
