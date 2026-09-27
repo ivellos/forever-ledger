@@ -6,6 +6,11 @@ A World of Warcraft: Forever addon for crafters who like to make gold. It rememb
 
 ## Features
 
+- **Dashboard.** A gold graph over any range, with sales, expenses, profit and your best items, for one character or all.
+- **Ledger.** Every sale and purchase, a resale view for your flips, and other money in and out, with search and filters.
+- **Work it and sessions.** Open a shuffle, click items to find them on the auction house or buy them from a vendor, start the craft, and track what one session of it earned.
+- **Deal alerts.** A chime after a scan when something is listed well below its usual price, or below what a vendor pays.
+- **Tinted auction house.** Listings worth buying are highlighted on the auction house itself.
 - **What's it worth to you?** Every tooltip shows an item's best value: selling it on the auction house (after the cut), selling it to a vendor, disenchanting it, splitting or combining essences, or crafting it into something worth more, following chains up to 4 steps long.
 - **Vendor floors.** When a recipe you know turns an item into something a vendor buys, that sets a guaranteed minimum value for its materials.
 - **Buy at or below.** The most worth paying for a material, after a safety margin, shown in green when the auction house price is already lower.
@@ -16,6 +21,7 @@ A World of Warcraft: Forever addon for crafters who like to make gold. It rememb
 - **Works with Auctionator, TSM and Auctioneer.** Uses their prices when your own scan is out of date.
 - **Export and import.** Move data between accounts, for example to an auction house character on a second account.
 - **Minimap button.** Click to open the ledger, right-click for shuffles.
+- **Looks at home with EllesmereUI.** Uses its font and your accent colour when it's installed.
 
 The addon suggests; you click. Every craft, purchase and auction still needs your own click, as Blizzard requires.
 
@@ -38,6 +44,9 @@ The addon suggests; you click. Every craft, purchase and auction still needs you
 | `/fl cut 5` | Auction house cut used in values, in percent |
 | `/fl margin 10` | Safety margin for shuffles and "buy at or below", in percent |
 | `/fl seconds 3` | Seconds per craft, used for profit per hour |
+| `/fl deals` | List current deals (`/fl deals settings` for the options; they're also in the Settings tab) |
+| `/fl session` | Open the Work it window for the running session |
+| `/fl money` | Today's money in and out for this character |
 | `/fl minimap` | Hide or show the minimap button |
 | `/fl pull` | Copy prices from Auctionator, TSM or Auctioneer |
 | `/fl source auto` | Choose where prices come from: `auto`, `own`, `auctionator`, `tsm`, `auctioneer` |
