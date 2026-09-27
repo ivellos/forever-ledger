@@ -1,0 +1,408 @@
+local _, ns = ...
+local T = ns.Theme
+
+---------------------------------------------------------------------------
+-- Dashboard: a gold graph, and Sales / Expenses / Profit for a range of time,
+-- for one character or all of them. Built from History.lua's records.
+---------------------------------------------------------------------------
+local DAY = 86400
+local RANGES = {
+  { key = "day", label = "Day", secs = DAY },
+  { key = "week", label = "Week", secs = 7 * DAY },
+  { key = "month", label = "Month", secs = 30 * DAY },
+  { key = "3months", label = "3 months", secs = 91 * DAY },
+  { key = "year", label = "Year", secs = 365 * DAY },
+  { key = "all", label = "All time" },
+}
+local SALES = { ahSale = true, vendorSell = true }
+local EXPENSES = { ahBuy = true, ahFee = true, vendorBuy = true, repair = true }
+local POINTS = 60
+local PAD_LEFT, PAD_RIGHT, PAD_TOP, PAD_BOTTOM = 58, 12, 28, 22
+
+local function dim(t) return "|cff888888" .. t .. "|r" end
+
+-- "12g", "85s" or "40c", for graph labels.
+local function short(c)
+  if c >= 10000 then return ("%dg"):format(math.floor(c / 10000)) end
+  if c >= 100 then return ("%ds"):format(math.floor(c / 100)) end
+  return ("%dc"):format(c)
+end
+
+local function settings()
+  local d = ns.db.settings.dashboard
+  d.char = d.char or "all"
+  d.range = d.range or "week"
+  return d
+end
+
+local function chosenKeys()
+  local want, keys = settings().char, {}
+  for k in pairs(ns.db.chars) do
+    if want == "all" or want == k then keys[#keys + 1] = k end
+  end
+  table.sort(keys)
+  return keys
+end
+
+-- Start and end of the chosen range, in seconds.
+local function timeRange(keys)
+  local now, secs = time(), nil
+  for _, r in ipairs(RANGES) do if r.key == settings().range then secs = r.secs end end
+  if secs then return now - secs, now end
+  local first
+  for _, k in ipairs(keys) do
+    for h in pairs(ns.db.gold[k] or {}) do if not first or h < first then first = h end end
+  end
+  return first and math.min(first * 3600, now - 3600) or now - DAY, now
+end
+
+---------------------------------------------------------------------------
+-- Numbers
+---------------------------------------------------------------------------
+-- Gold at POINTS evenly spaced times: the last known value for each character, added up.
+local function goldSeries(keys, from, to)
+  local sorted = {}
+  for _, k in ipairs(keys) do
+    local hs = {}
+    for h in pairs(ns.db.gold[k] or {}) do hs[#hs + 1] = h end
+    table.sort(hs)
+    sorted[k] = hs
+  end
+  local pts = {}
+  for i = 0, POINTS - 1 do
+    local t = from + (to - from) * i / (POINTS - 1)
+    local hour = math.floor(t / 3600)
+    local total, any = 0, false
+    for _, k in ipairs(keys) do
+      local hs, lo, hi, found = sorted[k], 1, #sorted[k], nil
+      while lo <= hi do
+        local mid = math.floor((lo + hi) / 2)
+        if hs[mid] <= hour then found, lo = mid, mid + 1 else hi = mid - 1 end
+      end
+      if found then total, any = total + ns.db.gold[k][hs[found]], true end
+    end
+    pts[#pts + 1] = { t = t, v = any and total or nil }
+  end
+  return pts
+end
+
+local function itemLabel(id) return id and ((ns.GetItemInfo(id)) or ("item " .. id)) or "Unknown item" end
+
+-- Sales, expenses, days covered, and the top items for each.
+local function totals(keys, from, to)
+  local keyset = {}
+  for _, k in ipairs(keys) do keyset[k] = true end
+  local fromDay, toDay = ns.LocalDay(from), ns.LocalDay(to)
+  local sales, expenses, firstDay = 0, 0, nil
+  for _, k in ipairs(keys) do
+    for day, src in pairs(ns.db.money[k] or {}) do
+      if day >= fromDay and day <= toDay then
+        if not firstDay or day < firstDay then firstDay = day end
+        for s, amt in pairs(src) do
+          if SALES[s] then sales = sales + amt elseif EXPENSES[s] then expenses = expenses + amt end
+        end
+      end
+    end
+  end
+
+  local sold, bought = {}, {}
+  local function add(t, name, amt) t[name] = (t[name] or 0) + amt end
+  for _, e in ipairs(ns.db.sales) do
+    if e.t >= from and keyset[e.c] and e.n then add(sold, e.n, e.a) end
+  end
+  for _, e in ipairs(ns.db.vendorLog) do
+    if e.t >= from and keyset[e.c] and e.id then add(e.s == "sell" and sold or bought, itemLabel(e.id), e.a) end
+  end
+  for _, e in ipairs(ns.db.purchases) do
+    if e.t >= from and keyset[e.c] then add(bought, itemLabel(e.id), e.a) end
+  end
+  local function top(t)
+    local name, best
+    for n, v in pairs(t) do if not best or v > best then name, best = n, v end end
+    return name
+  end
+  local net = {}
+  for n, v in pairs(sold) do net[n] = v - (bought[n] or 0) end
+
+  local days = math.max(1, toDay - math.max(fromDay, firstDay or toDay) + 1)
+  return {
+    sales = sales, expenses = expenses, profit = sales - expenses, days = days,
+    topSold = top(sold), topBought = top(bought), topProfit = top(net),
+  }
+end
+
+---------------------------------------------------------------------------
+-- Building blocks
+---------------------------------------------------------------------------
+local function box(parent, title)
+  local b = CreateFrame("Frame", nil, parent)
+  T:Fill(b, { 1, 1, 1, 0.03 })
+  T:Border(b)
+  b.title = T:Text(b, 12, T.accent)
+  b.title:SetPoint("TOPLEFT", 10, -8)
+  b.title:SetText(title)
+  b.rows = {}
+  for i = 1, 3 do
+    local label = T:Text(b, 11, T.dim)
+    label:SetPoint("TOPLEFT", 10, -10 - i * 18)
+    local value = T:Text(b, 12)
+    value:SetPoint("TOPRIGHT", -10, -10 - i * 18)
+    value:SetPoint("LEFT", label, "RIGHT", 8, 0)
+    value:SetJustifyH("RIGHT")
+    value:SetWordWrap(false)
+    b.rows[i] = { label = label, value = value }
+  end
+  function b:Set(lines)
+    for i, row in ipairs(self.rows) do
+      row.label:SetText(lines[i] and lines[i][1] or "")
+      row.value:SetText(lines[i] and lines[i][2] or "")
+    end
+  end
+  return b
+end
+
+local function money(v) return (v < 0 and "-" or "") .. ns.Money(math.abs(v)) end
+
+---------------------------------------------------------------------------
+-- The graph
+---------------------------------------------------------------------------
+local function pool(g, name, make)
+  g[name] = g[name] or {}
+  local p, used = g[name], 0
+  return function()
+    used = used + 1
+    if not p[used] then p[used] = make() end
+    p[used]:Show()
+    return p[used]
+  end, function()
+    for i = used + 1, #p do p[i]:Hide() end
+  end
+end
+
+local function drawGraph(g, pts, from, to, rangeKey)
+  local w, h = g:GetWidth(), g:GetHeight()
+  local plotW, plotH = w - PAD_LEFT - PAD_RIGHT, h - PAD_TOP - PAD_BOTTOM
+  g.pts, g.plot = pts, { x = PAD_LEFT, w = plotW, h = plotH }
+
+  local lo, hi
+  for _, p in ipairs(pts) do
+    if p.v then lo = lo and math.min(lo, p.v) or p.v; hi = hi and math.max(hi, p.v) or p.v end
+  end
+  g.empty:SetShown(lo == nil)
+  local nextCol, doneCols = pool(g, "cols", function()
+    local t = g:CreateTexture(nil, "ARTWORK")
+    t:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
+    return t
+  end)
+  local nextLine, doneLines = pool(g, "lines", function()
+    local l = g.CreateLine and g:CreateLine(nil, "OVERLAY")
+    if l then l:SetThickness(2); l:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 1) end
+    return l or g:CreateTexture(nil, "OVERLAY")
+  end)
+  local nextLabel, doneLabels = pool(g, "labels", function() return T:Text(g, 10, T.dim) end)
+  local nextGrid, doneGrid = pool(g, "grid", function()
+    local t = g:CreateTexture(nil, "BORDER")
+    t:SetColorTexture(1, 1, 1, 0.06)
+    t:SetHeight(1)
+    return t
+  end)
+
+  if lo then
+    if hi == lo then lo, hi = math.max(0, lo - 10000), hi + 10000 end
+    local span = hi - lo
+    lo, hi = math.max(0, lo - span * 0.1), hi + span * 0.1
+    g.scale = { lo = lo, hi = hi }
+    local function y(v) return PAD_BOTTOM + (v - lo) / (hi - lo) * plotH end
+    local function x(i) return PAD_LEFT + (i - 1) / (#pts - 1) * plotW end
+
+    -- Grid lines and gold labels
+    for i = 0, 3 do
+      local v = lo + (hi - lo) * i / 3
+      local line = nextGrid()
+      line:ClearAllPoints()
+      line:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", PAD_LEFT, y(v))
+      line:SetPoint("BOTTOMRIGHT", g, "BOTTOMRIGHT", -PAD_RIGHT, y(v))
+      local label = nextLabel()
+      label:ClearAllPoints()
+      label:SetPoint("RIGHT", g, "BOTTOMLEFT", PAD_LEFT - 6, y(v))
+      label:SetText(short(v))
+    end
+
+    -- Filled columns and the line
+    local colW = math.max(1, plotW / #pts)
+    local prevX, prevY
+    for i, p in ipairs(pts) do
+      if p.v then
+        local col = nextCol()
+        col:ClearAllPoints()
+        col:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x(i) - colW / 2, PAD_BOTTOM)
+        col:SetSize(colW, math.max(1, y(p.v) - PAD_BOTTOM))
+        if prevX and g.CreateLine then
+          local l = nextLine()
+          l:SetStartPoint("BOTTOMLEFT", g, prevX, prevY)
+          l:SetEndPoint("BOTTOMLEFT", g, x(i), y(p.v))
+        end
+        prevX, prevY = x(i), y(p.v)
+      end
+    end
+  end
+
+  -- Dates along the bottom
+  local fmt = rangeKey == "day" and "%H:%M" or "%b %d"
+  for i = 0, 3 do
+    local t = from + (to - from) * i / 3
+    local label = nextLabel()
+    label:ClearAllPoints()
+    label:SetPoint("TOP", g, "BOTTOMLEFT", PAD_LEFT + plotW * i / 3, PAD_BOTTOM - 4)
+    label:SetText(date(fmt, t))
+  end
+
+  doneCols(); doneLines(); doneLabels(); doneGrid()
+end
+
+-- While the mouse is over the graph: a marker and the gold at that point.
+local function hoverGraph(g)
+  local mx = GetCursorPosition() / g:GetEffectiveScale() - g:GetLeft()
+  local pts, plot = g.pts, g.plot
+  if not pts or not plot or not g.scale then return end
+  local i = math.floor((mx - plot.x) / plot.w * (#pts - 1) + 1.5)
+  i = math.max(1, math.min(#pts, i))
+  local p = pts[i]
+  g.marker:ClearAllPoints()
+  g.marker:SetPoint("BOTTOM", g, "BOTTOMLEFT", plot.x + (i - 1) / (#pts - 1) * plot.w, PAD_BOTTOM)
+  g.marker:SetHeight(plot.h)
+  g.marker:Show()
+  GameTooltip:SetOwner(g, "ANCHOR_CURSOR")
+  GameTooltip:AddLine(date("%b %d %H:%M", p.t), 1, 1, 1)
+  GameTooltip:AddLine(p.v and ns.Money(p.v) or "No record yet", 0.85, 0.85, 0.85)
+  GameTooltip:Show()
+end
+
+---------------------------------------------------------------------------
+-- The tab
+---------------------------------------------------------------------------
+function ns:BuildDashboard(parent)
+  local f = CreateFrame("Frame", nil, parent)
+  f:SetAllPoints()
+
+  f.charLabel = T:Text(f, 12, T.dim)
+  f.charLabel:SetPoint("TOPLEFT", 2, -4)
+  f.charLabel:SetText("Characters")
+  f.rangeChoice = T:Choice(f, (function()
+    local o = {}
+    for _, r in ipairs(RANGES) do o[#o + 1] = { value = r.key, label = r.label } end
+    return o
+  end)(), function(v) settings().range = v; ns:RefreshDashboard(f) end)
+  f.rangeChoice:SetPoint("TOPRIGHT", 0, 0)
+
+  local g = CreateFrame("Frame", nil, f)
+  T:Fill(g, { 1, 1, 1, 0.03 })
+  T:Border(g)
+  g.title = T:Text(g, 12, T.accent)
+  g.title:SetPoint("TOPLEFT", 10, -8)
+  g.title:SetText("Gold")
+  g.empty = T:Text(g, 12, T.dim)
+  g.empty:SetPoint("CENTER")
+  g.empty:SetText("No gold recorded in this range yet.")
+  g.marker = g:CreateTexture(nil, "OVERLAY")
+  g.marker:SetColorTexture(1, 1, 1, 0.25)
+  g.marker:SetWidth(1)
+  g.marker:Hide()
+  g:EnableMouse(true)
+  g:SetScript("OnEnter", function(self) self:SetScript("OnUpdate", hoverGraph) end)
+  g:SetScript("OnLeave", function(self)
+    self:SetScript("OnUpdate", nil)
+    self.marker:Hide()
+    GameTooltip:Hide()
+  end)
+  f.graph = g
+
+  f.sales = box(f, "Sales")
+  f.expenses = box(f, "Expenses")
+  f.profit = box(f, "Profit")
+
+  f.sessions = T:Text(f, 11)
+  f.sessions:SetJustifyH("LEFT")
+  f.sessions:SetJustifyV("TOP")
+  f.sessions:SetSpacing(3)
+  return f
+end
+
+-- Character buttons: All plus one per character, rebuilt when characters change.
+local function charChoice(f)
+  local keys = {}
+  for k in pairs(ns.db.chars) do keys[#keys + 1] = k end
+  table.sort(keys)
+  local sig = table.concat(keys, ",")
+  if f.charSig == sig then return end
+  if f.charChoice then f.charChoice:Hide() end
+  local opts = { { value = "all", label = "All" } }
+  for _, k in ipairs(keys) do opts[#opts + 1] = { value = k, label = ns.db.chars[k].name or k } end
+  f.charChoice = T:Choice(f, opts, function(v) settings().char = v; ns:RefreshDashboard(f) end)
+  f.charChoice:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
+  f.charSig = sig
+end
+
+function ns:RefreshDashboard(f)
+  if not f or not ns.db then return end
+  local s = settings()
+  if s.char ~= "all" and not ns.db.chars[s.char] then s.char = "all" end
+  charChoice(f)
+  f.charChoice:SetValue(s.char)
+  f.rangeChoice:SetValue(s.range)
+
+  -- Layout for the current size
+  local W, H = f:GetWidth(), f:GetHeight()
+  local top = 32
+  local graphH = math.max(140, math.floor((H - top) * 0.5))
+  f.graph:ClearAllPoints()
+  f.graph:SetPoint("TOPLEFT", 0, -top)
+  f.graph:SetSize(W, graphH)
+  local boxW = math.floor((W - 20) / 3)
+  local boxY = top + graphH + 10
+  for i, b in ipairs({ f.sales, f.expenses, f.profit }) do
+    b:ClearAllPoints()
+    b:SetPoint("TOPLEFT", (i - 1) * (boxW + 10), -boxY)
+    b:SetSize(boxW, 88)
+  end
+  f.sessions:ClearAllPoints()
+  f.sessions:SetPoint("TOPLEFT", 2, -(boxY + 100))
+  f.sessions:SetPoint("RIGHT", f, "RIGHT", -2, 0)
+
+  -- Numbers
+  local keys = chosenKeys()
+  local from, to = timeRange(keys)
+  drawGraph(f.graph, goldSeries(keys, from, to), from, to, s.range)
+  local n = totals(keys, from, to)
+  f.sales:Set({
+    { "Total", ns.Money(n.sales) },
+    { "Per day", ns.Money(math.floor(n.sales / n.days)) },
+    { "Top item", n.topSold or dim("none yet") },
+  })
+  f.expenses:Set({
+    { "Total", ns.Money(n.expenses) },
+    { "Per day", ns.Money(math.floor(n.expenses / n.days)) },
+    { "Top item", n.topBought or dim("none yet") },
+  })
+  f.profit:Set({
+    { "Total", "|cff" .. (n.profit >= 0 and "7fd39c" or "ee8597") .. money(n.profit) .. "|r" },
+    { "Per day", money(math.floor(n.profit / n.days)) },
+    { "Most profitable", n.topProfit or dim("none yet") },
+  })
+
+  -- Sessions
+  local lines = { T:AccentCode() .. "Sessions|r" }
+  local st = ns.SessionStats and ns:SessionStats()
+  if st then
+    lines[#lines + 1] = ("Running: %s, %d runs, profit %s so far. %s"):format(
+      ns.db.session.name, st.runs, money(st.profit), dim("/fl session to open it"))
+  end
+  local list = ns.db.sessions
+  for i = #list, math.max(1, #list - 3), -1 do
+    local x = list[i]
+    lines[#lines + 1] = ("%s  %s: %d runs in %d min, profit %s"):format(dim(date("%b %d %H:%M", x.t)),
+      x.name, x.runs, math.floor((x.stop - x.t) / 60), money(x.earned - x.spent))
+  end
+  if #list == 0 and not st then lines[#lines + 1] = dim("None yet. Open a shuffle and click Work it to start one.") end
+  f.sessions:SetText(table.concat(lines, "\n"))
+end

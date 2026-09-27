@@ -142,7 +142,7 @@ local function buildMain()
   rule(main, "BOTTOM", 46)
 
   main.views = {
-    dashboard = textArea(),
+    dashboard = ns:BuildDashboard(main.body),
     characters = textArea(),
   }
   main.views.settings = buildSettings()
@@ -245,54 +245,8 @@ function ns:ToggleUI(view)
 end
 
 ---------------------------------------------------------------------------
--- Text views: Dashboard (for now), Characters, Settings
+-- Characters tab (text). The Dashboard is in Dashboard.lua.
 ---------------------------------------------------------------------------
-local function dashboardText(add)
-  add(heading("Dashboard"))
-  add("A gold graph and sales, expenses and profit are coming here.")
-  local since = ns:RecordingSince()
-  add(dim(since and ("History has been recorded since " .. since .. ".") or "History starts recording now."))
-  add("")
-
-  add(heading("Gold"))
-  local total = 0
-  for _, key in ipairs(sortedCharKeys()) do
-    local hours, latest, gold = ns.db.gold[key], nil, nil
-    for h, g in pairs(hours or {}) do if not latest or h > latest then latest, gold = h, g end end
-    if gold then
-      total = total + gold
-      add(("  %s: %s"):format(classColored(ns.db.chars[key]), ns.Money(gold)))
-    end
-  end
-  add(("  All characters: %s"):format(ns.Money(total)))
-  add("")
-
-  add(heading("Today for " .. (UnitName("player") or "?")))
-  local lines, net = ns:MoneyToday()
-  if lines then
-    for _, line in ipairs(lines) do add("  " .. line) end
-    add(("  Net: %s%s"):format(net >= 0 and "+" or "-", ns.Money(math.abs(net))))
-  else
-    add(dim("  Nothing in or out yet today."))
-  end
-
-  add("")
-  add(heading("Sessions"))
-  local st = ns:SessionStats()
-  if st then
-    add(("  Running: %s, %d runs, profit %s%s so far. %s"):format(ns.db.session.name, st.runs,
-      st.profit < 0 and "-" or "", ns.Money(math.abs(st.profit)), dim("/fl session to open it")))
-  end
-  local list = ns.db.sessions
-  if #list == 0 and not st then add(dim("  None yet. Open a shuffle and click Work it to start one.")) end
-  for i = #list, math.max(1, #list - 4), -1 do
-    local s = list[i]
-    local profit = s.earned - s.spent
-    add(("  %s  %s: %d runs in %d min, profit %s%s"):format(dim(date("%b %d %H:%M", s.t)), s.name, s.runs,
-      math.floor((s.stop - s.t) / 60), profit < 0 and "-" or "", ns.Money(math.abs(profit))))
-  end
-end
-
 local function charactersText(add)
   add(heading("Your characters"))
   local keys = sortedCharKeys()
@@ -343,7 +297,7 @@ local function charactersText(add)
   add(("  %d vendor prices saved. Open any vendor to add theirs."):format(vb))
 end
 
-local TEXT_VIEWS = { dashboard = dashboardText, characters = charactersText }
+local TEXT_VIEWS = { characters = charactersText }
 
 ---------------------------------------------------------------------------
 -- Settings tab: a control for each setting. Changes apply straight away.
@@ -462,6 +416,8 @@ function ns:RefreshUI()
   local build = TEXT_VIEWS[main.view]
   if main.view == "settings" then
     refreshSettings()
+  elseif main.view == "dashboard" then
+    ns:RefreshDashboard(main.views.dashboard)
   elseif build then
     local L = {}
     build(function(s) L[#L + 1] = s or "" end)
