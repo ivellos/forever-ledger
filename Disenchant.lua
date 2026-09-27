@@ -31,7 +31,22 @@ local function bagCounts()
 end
 
 ns:On("UNIT_SPELLCAST_START", function(unit, _, spellID)
-  if unit == "player" and isDisenchant(spellID) then pending = { bags = bagCounts(), start = GetTime() } end
+  if unit == "player" and isDisenchant(spellID) then
+    local item = pending and pending.item   -- may already be known from the lock below
+    pending = { bags = bagCounts(), start = GetTime(), item = item }
+  end
+end)
+
+-- Picking an item for Disenchant locks it (it greys out). That names the item for
+-- certain; the bag comparison is a backup. (Comparing bags alone found nothing in Forever.)
+local lockSeen
+ns:On("ITEM_LOCK_CHANGED", function(bag, slot)
+  if not slot or not (C_Container and C_Container.GetContainerItemInfo) then return end
+  local info = C_Container.GetContainerItemInfo(bag, slot)
+  if info and info.isLocked and info.itemID then
+    lockSeen = { id = info.itemID, t = GetTime() }
+    if pending and not pending.t then pending.item = info.itemID end
+  end
 end)
 
 ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
@@ -65,9 +80,10 @@ local function onLoot()
     if id then mats[id] = (mats[id] or 0) + (qty or 1); any = true end
   end
   if not any then return end
-  -- Bags only change once the cast is done; look a moment later to be sure.
-  C_Timer.After(0.5, function()
-    local id = disenchantedItem(p.bags)
+  -- The locked item if seen, otherwise compare bags a moment later.
+  if not p.item and lockSeen and GetTime() - lockSeen.t < 15 then p.item = lockSeen.id end
+  C_Timer.After(1.5, function()
+    local id = p.item or disenchantedItem(p.bags)
     local quality, ilvl, classID
     if id then
       local _
