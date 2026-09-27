@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Waylaid Crates: a Crates tab listing every crate seen in your scans or bags, with its cheapest bundle at today's prices (buying 20 counts the real cost across the cheapest listings), the crate's own price, the total, Favor it pays and gold per Favor, best first. Click a crate for every bundle and what you already have; click an item to search the auction house. Bundles are read from the crate's own tooltip. Favor per crate starts as an estimate per tier and is learned from your turn-ins. Crate tooltips show the cheapest fill. It can be turned off in Settings.
+
 ## [0.5.0] - 2026-09-28
 
 Disenchanting tools and one-click steps for working a shuffle. The item level 16-20 disenchant table was confirmed in the beta (22 items: 2.05 Strange Dust and 0.36 Greater Magic Essence each).

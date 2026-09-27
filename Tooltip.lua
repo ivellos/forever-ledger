@@ -46,6 +46,9 @@ local function addLines(tt, id)
     end
   end
 
+  local crateLine = ns.CrateTooltipLine and ns:CrateTooltipLine(id)
+  if crateLine then tt:AddLine(crateLine, LR, LG, LB, true) end
+
   local yield = ns:DisenchantYield(id)
   if yield then
     local parts = {}

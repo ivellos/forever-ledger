@@ -102,6 +102,7 @@ local TABS = {
   { key = "shuffles", label = "Shuffles" },
   { key = "flips", label = "Vendor flips" },
   { key = "ledger", label = "Ledger" },
+  { key = "crates", label = "Crates", setting = "crates" },
   { key = "characters", label = "Characters" },
   { key = "settings", label = "Settings" },
 }
@@ -120,6 +121,23 @@ local function textArea()
   return sf
 end
 
+-- Line the tabs up, leaving out any turned off in Settings (the Crates tab).
+function ns:LayoutTabs()
+  if not main then return end
+  local prev
+  for _, tab in ipairs(TABS) do
+    local b = main.tabs[tab.key]
+    local on = not tab.setting or ns.db.settings[tab.setting]
+    b:ClearAllPoints()
+    b:SetShown(on)
+    if on then
+      if prev then b:SetPoint("LEFT", prev, "RIGHT", 0, 0) else b:SetPoint("TOPLEFT", 6, -32) end
+      prev = b
+    end
+  end
+  if main.view and not main.tabs[main.view]:IsShown() then setView("dashboard") end
+end
+
 local function buildMain()
   if main then return main end
   main = themedWindow("ForeverLedgerFrame", 760, 520,
@@ -127,13 +145,10 @@ local function buildMain()
 
   -- Tabs
   main.tabs = {}
-  local prev
   for _, tab in ipairs(TABS) do
-    local b = T:Tab(main, tab.label, function() setView(tab.key) end)
-    if prev then b:SetPoint("LEFT", prev, "RIGHT", 0, 0) else b:SetPoint("TOPLEFT", 6, -32) end
-    main.tabs[tab.key] = b
-    prev = b
+    main.tabs[tab.key] = T:Tab(main, tab.label, function() setView(tab.key) end)
   end
+  ns:LayoutTabs()
   rule(main, "TOP", -61)
 
   -- Content area and footer
@@ -145,6 +160,7 @@ local function buildMain()
   main.views = {
     dashboard = ns:BuildDashboard(main.body),
     ledger = ns:BuildLedger(main.body),
+    crates = ns:BuildCrates(main.body),
     characters = textArea(),
   }
   main.views.settings = buildSettings()
@@ -337,6 +353,8 @@ local SETTINGS = {
   { section = "Other" },
   { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end },
   { key = "tooltip", label = "Tooltip lines", kind = "check" },
+  { key = "crates", label = "Waylaid Crates", kind = "check", after = function() ns:LayoutTabs() end,
+    help = "The Crates tab and the \"cheapest fill\" line on crate tooltips." },
   { key = "ahHighlight", label = "Tint good buys on the auction house", kind = "check",
     help = "On an item's buy page, listings at or below its buy limit get a tint." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
@@ -425,6 +443,8 @@ function ns:RefreshUI()
     ns:RefreshDashboard(main.views.dashboard)
   elseif main.view == "ledger" then
     ns:RefreshLedger()
+  elseif main.view == "crates" then
+    ns:RefreshCrates()
   elseif build then
     local L = {}
     build(function(s) L[#L + 1] = s or "" end)
