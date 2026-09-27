@@ -341,7 +341,7 @@ buildSettings = function()
         sf.rules:SetPoint("TOPLEFT", 4, -y)
         sf.rules:SetPoint("RIGHT", content, "RIGHT", -8, 0)
         sf.rules:SetJustifyH("LEFT")
-        y = y + 34
+        y = y + 42
       end
     else
       local label = T:Text(content, 12)
