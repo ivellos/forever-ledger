@@ -80,14 +80,24 @@ local NOT_FOUND = ERR_CHAT_PLAYER_NOT_FOUND_S and ERR_CHAT_PLAYER_NOT_FOUND_S:ma
 local function notFound(msg)
   if not (lastSentTo and GetTime() - lastSentTo < 5 and type(msg) == "string") then return false end
   if msg:sub(1, #NOT_FOUND) ~= NOT_FOUND then return false end
-  local target = test and me() or shortName(partner())
+  local target = ping or (test and me()) or shortName(partner())
   return target ~= nil and msg:find(target, 1, true) ~= nil
 end
 
+local ping   -- name being pinged with /fl sync ping
+
 local function failed()
+  local unsent = #queue > 0
   queue = {}
   sending = false
-  if test then
+  if unsent and partner() then
+    local st = state()
+    st.sentUpTo = st.previous
+  end
+  if ping then
+    ns:Print(("Sync ping: the game says there's no player named %s. Check the spelling, or that they're online."):format(ping))
+    ping = nil
+  elseif test then
     ns:Print(("Sync test stopped: the game says there's no player named %s, so addon whispers to %s don't arrive."):format(
       me(), fullName(me())))
     test = nil
@@ -101,7 +111,7 @@ if ChatFrame_AddMessageEventFilter then
   ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", function(_, _, msg) return notFound(msg) end)
 end
 ns:On("CHAT_MSG_SYSTEM", function(msg)
-  if notFound(msg) and (test or #queue > 0 or partnerOnline) then failed() end
+  if notFound(msg) and (ping or test or #queue > 0 or partnerOnline) then failed() end
 end)
 
 ---------------------------------------------------------------------------
@@ -129,11 +139,9 @@ local function changes(since)
       end
     end
   end
+  -- What vendors pay comes from the game on every client, so it isn't sent.
   for id, rec in pairs(ns.db.vendorBuy) do
     if (rec.t or 0) > since then data.vendorBuy[id] = rec end
-  end
-  if since == 0 then
-    for id, v in pairs(ns.db.vendorSell) do data.vendorSell[id] = v end
   end
   return data, now
 end
@@ -148,7 +156,8 @@ function ns:SyncSend(full)
   local data, now = changes(full and 0 or (st.sentUpTo or 0))
   if count(data.chars) + countPrices(data.prices) + count(data.vendorBuy) + count(data.vendorSell) == 0 then return end
   local n = send(data, to)
-  st.sentUpTo = now
+  -- If the partner goes offline before it all arrives, send it again next time.
+  st.previous, st.sentUpTo = st.sentUpTo, now
   ns:Debug(("Sync: sending %d characters, %d prices, %d vendor prices to %s in %d messages."):format(
     count(data.chars), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), to, n))
 end
@@ -252,6 +261,15 @@ function ns:SyncCommand(args)
     local n = send(data, me())
     ns:Print(("Sync test: sending %d characters, %d prices and %d vendor prices to yourself in %d messages. This takes about %d seconds."):format(
       count(data.chars), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), n, math.ceil(n * SEND_GAP)))
+  elseif cmd == "ping" then
+    local name = rest:match("^(%S+)")
+    if not name then ns:Print("Use /fl sync ping Name, with someone who's online."); return end
+    ping = name:sub(1, 1):upper() .. name:sub(2)
+    send({ k = "p" }, ping)
+    ns:Print(("Sync ping: sent one hidden message to %s. If nothing else appears within 5 seconds, it reached them."):format(fullName(ping)))
+    C_Timer.After(5, function()
+      if ping then ns:Print(("Sync ping: no error, so addon whispers to %s work."):format(fullName(ping))); ping = nil end
+    end)
   elseif cmd == "now" then
     if not partner() then ns:Print("Pair first with /fl pair Charactername."); return end
     hello(false)
@@ -261,7 +279,7 @@ function ns:SyncCommand(args)
     local p = partner()
     ns:Print(p and ("Paired with %s, %s. %d messages waiting to send."):format(p, partnerOnline and "online" or "not seen online yet", #queue)
       or "Not paired. Use /fl pair Charactername on both characters.")
-    print("  /fl pair Name, /fl unpair, /fl sync now (send everything), /fl sync test (send to yourself to check it works)")
+    print("  /fl pair Name, /fl unpair, /fl sync now (send everything), /fl sync ping Name (check whispers reach someone online)")
   end
 end
 
