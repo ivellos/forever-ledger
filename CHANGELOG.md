@@ -5,8 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-27
+
+Live sync between two accounts, so an auction house character's scans reach your main. The whisper route was checked in the beta; syncing two of your own accounts can only be tried at launch.
+
 ### Added
-- Live sync between two characters on different accounts, while both are online: `/fl pair Name` on each. Prices (last 48 hours), characters and recipes, and vendor prices are sent a few seconds after they change; newer data wins, as with Import. `/fl sync` shows the status, `/fl sync now` sends everything, `/fl sync test` sends your data to yourself to check it works. The Characters tab shows the sync status. Whispers use the full "Name-Server" and stop at the first "no player named"; anything unsent is sent again next time. What vendors pay isn't sent, since every client reads it from the game. `/fl sync ping First Last` checks that a hidden whisper reaches someone online, trying the name with and without the server and keeping the form that works; `/fl sync whoami` shows how the game names your character. Pairing takes full first and last names. Confirmed in the beta: whispers reach "First Last", not "First Last-Server". (The game doesn't deliver addon whispers to yourself, so there's no one-client test.)
+- Live sync: `/fl pair First Last` on each character (Forever names have a first and last name). While both are online, auction house prices from the last 48 hours, characters and recipes, and vendor prices are sent automatically a few seconds after they change. Newer data wins, as with Import; gold, the ledger and sessions stay on their own account. Pairing is remembered, and each login only sends what changed; anything cut off is sent again next time.
+- `/fl sync` shows the status (also on the Characters tab), `/fl sync now` sends everything, `/fl sync ping First Last` checks that a hidden whisper reaches someone online and saves the name form that works, `/fl sync whoami` shows how the game names your character.
 
 ### Fixed
 - The Dashboard gold graph no longer dips to 0c: 0-gold readings the game gives around login and logout are skipped, and ones already saved are removed.
