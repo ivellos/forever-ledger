@@ -194,7 +194,8 @@ function ns:PrintShuffles(showAll)
   else
     local hidden = math.max(0, #vendor - n) + math.max(0, #ah - n) + #oneOff
     if hidden > 0 then
-      ns:Print(("Plus %d more, including %d one-off deals. Type /fl shuffles all to see everything."):format(hidden, #oneOff))
+      local deals = #oneOff > 0 and (", including %d one-off deals"):format(#oneOff) or ""
+      ns:Print(("Plus %d more%s. Type /fl shuffles all to see everything."):format(hidden, deals))
     end
   end
 end
