@@ -5,7 +5,7 @@ local _, ns = ...
 -- by source, auction house sales and purchases, and daily prices.
 ---------------------------------------------------------------------------
 local HOURLY_DAYS = 14      -- keep hourly gold this long, then one value per day
-local LOG_SIZE = 500        -- auction house sales and purchases kept
+local LOG_SIZE = 2000       -- auction house sales and purchases, and vendor buys and sells, kept
 local PENDING_SECONDS = 5   -- how long a hint (repair, posting fee, mail) waits for the gold change
 
 -- Days follow the player's own clock (a UTC day would start in the US evening).
@@ -57,6 +57,7 @@ end
 local open = {}          -- per window: true while open, GetTime() when it closed
 local pendingAll = {}    -- hints for the next gold change: { source, t, amount, item, qty, log }
 local lastMoney
+local lastShownItem      -- the item the auction house last showed listings for
 
 local function hint(h)
   h.t = GetTime()
@@ -164,9 +165,12 @@ local function onMoney()
     end
   end
   if source == "ahBuy" then
+    -- Commodity purchases name their item; for other purchases, use the item the
+    -- auction house last showed listings for.
     local h = hints[1]
-    addLog(ns.db.purchases, { t = now, c = who, id = h and h.item, q = h and h.qty, a = math.abs(delta) })
+    addLog(ns.db.purchases, { t = now, c = who, id = (h and h.item) or lastShownItem, q = h and h.qty, a = math.abs(delta) })
   end
+  if ns.OnMoneyLogged then ns:OnMoneyLogged() end
   ns:Debug("Money", source, delta > 0 and "+" or "-", ns.Money(math.abs(delta)))
 end
 
@@ -242,6 +246,11 @@ ns:OnReady(function()
   hook(C_AuctionHouse, "PostCommodity", function() hint({ source = "ahFee" }) end)
   hook(C_AuctionHouse, "ConfirmCommoditiesPurchase", function(itemID, quantity)
     hint({ source = "ahBuy", item = itemID, qty = quantity })
+  end)
+  -- The auction house window asks for an item's listings when you open it. Our own
+  -- scans do too, so those are ignored.
+  hook(C_AuctionHouse, "SendSearchQuery", function(itemKey)
+    if itemKey and itemKey.itemID and not (ns.Scan and ns.Scan.active) then lastShownItem = itemKey.itemID end
   end)
   pruneGold()
 end)

@@ -209,7 +209,8 @@ local function options(id, depth)
         if left and units > 0 then
           add({
             kind = "craft", value = left / units, step = "Craft " .. (rec.n or "?"), next = o,
-            rec = rec, units = units, buys = buys, prof = use.prof, who = use.key ~= me and use.who or nil,
+            rec = rec, units = units, buys = buys, prof = use.prof, recipeID = use.recipeID,
+            who = use.key ~= me and use.who or nil,
           })
         end
       end

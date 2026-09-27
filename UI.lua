@@ -74,6 +74,8 @@ local function themedWindow(name, w, h, titleText)
   return f
 end
 
+ns.ThemedWindow = themedWindow
+
 -- A thin horizontal line.
 local function rule(parent, anchor, y)
   local t = parent:CreateTexture(nil, "BORDER")
@@ -268,6 +270,22 @@ local function dashboardText(add)
     add(("  Net: %s%s"):format(net >= 0 and "+" or "-", ns.Money(math.abs(net))))
   else
     add(dim("  Nothing in or out yet today."))
+  end
+
+  add("")
+  add(heading("Sessions"))
+  local st = ns:SessionStats()
+  if st then
+    add(("  Running: %s, %d runs, profit %s%s so far. %s"):format(ns.db.session.name, st.runs,
+      st.profit < 0 and "-" or "", ns.Money(math.abs(st.profit)), dim("/fl session to open it")))
+  end
+  local list = ns.db.sessions
+  if #list == 0 and not st then add(dim("  None yet. Open a shuffle and click Work it to start one.")) end
+  for i = #list, math.max(1, #list - 4), -1 do
+    local s = list[i]
+    local profit = s.earned - s.spent
+    add(("  %s  %s: %d runs in %d min, profit %s%s"):format(dim(date("%b %d %H:%M", s.t)), s.name, s.runs,
+      math.floor((s.stop - s.t) / 60), profit < 0 and "-" or "", ns.Money(math.abs(profit))))
   end
 end
 
@@ -780,6 +798,8 @@ local function getDetail(i)
   d.steps:SetSpacing(3)
   d.profit = T:Text(d, 11)
   d.profit:SetJustifyH("LEFT")
+  d.work = T:Button(d, "Work it", 90, function() ns:OpenWork(d.shuffle) end, 22)
+  d.work:SetPoint("TOPRIGHT", -10, -6)
   d.lines = {}
   details[i] = d
   return d
@@ -803,6 +823,7 @@ local MAX_BUY_LINES = 12
 -- noSteps: vendor flips, where the only step is always "sell to a vendor".
 local function fillDetail(d, s, width, noSteps)
   d:SetWidth(width)
+  d.shuffle = s
   local half = noSteps and (width - 8) or math.floor(width * 0.5)
   d.stepTitle:SetShown(not noSteps)
   d.steps:SetShown(not noSteps)

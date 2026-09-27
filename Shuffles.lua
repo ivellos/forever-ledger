@@ -363,6 +363,39 @@ function ns:ShuffleRuns(s)
   return runs
 end
 
+local DISENCHANT_SPELL = 13262
+
+-- What a session on this shuffle should watch: inputs (bought) and products (sold)
+-- as sets of item IDs, and what counts as one run: a spell cast (the first craft,
+-- or Disenchant), or, for a vendor flip, selling the item.
+function ns:ShuffleItems(s)
+  local inputs, products = {}, {}
+  for _, b in ipairs(ns:ShuffleBuys(s)) do inputs[b.id] = true end
+  local function walk(o)
+    if o.kind == "craft" then
+      for _, b in ipairs(o.buys or {}) do inputs[b.id] = true end
+      products[o.rec.out] = true
+      walk(o.next)
+    elseif o.kind == "convert" then
+      products[o.next.id] = true
+      walk(o.next)
+    elseif o.kind == "disenchant" then
+      for _, m in ipairs(o.mats) do products[m.id] = true; walk(m.opt) end
+    end
+  end
+  walk(s.opt)
+  local run = {}
+  if s.opt.kind == "craft" then
+    run.spell = s.opt.recipeID
+  elseif s.opt.kind == "disenchant" then
+    run.spell = DISENCHANT_SPELL
+  elseif s.opt.kind == "vendor" then
+    products[s.id] = true
+    run.sellItem = s.id
+  end
+  return inputs, products, run
+end
+
 -- A short name for the table: the item or recipe, without the steps.
 function ns:ShuffleName(s)
   if s.group then return ("%s (%d)"):format(s.group, #s.members) end
