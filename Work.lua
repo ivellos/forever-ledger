@@ -46,6 +46,40 @@ local SKILL_LINES = {
   Tailoring = 197, Cooking = 185, ["First Aid"] = 129, Mining = 186, Fishing = 356,
 }
 
+-- The skill line to open a profession: the character's own, else the usual number.
+local function skillLineFor(prof)
+  if GetProfessions and GetProfessionInfo then
+    local list = { GetProfessions() }
+    for i = 1, 6 do
+      local idx = list[i]
+      if idx then
+        local name, _, _, _, _, _, line = GetProfessionInfo(idx)
+        if name == prof and line then return line end
+      end
+    end
+  end
+  return SKILL_LINES[prof or ""]
+end
+
+-- The profession window sometimes opens on the last profession used. When it does,
+-- switch it to the one asked for (a couple of tries, within a few seconds).
+local pendingOpen
+local function checkOpened()
+  local p = pendingOpen
+  if not p then return end
+  if GetTime() - p.t > 5 then pendingOpen = nil; return end
+  local base = C_TradeSkillUI.GetBaseProfessionInfo and C_TradeSkillUI.GetBaseProfessionInfo()
+  local open = type(base) == "table" and base.professionName
+  if open == p.prof then
+    pendingOpen = nil
+  elseif open and p.tries < 3 then
+    p.tries = p.tries + 1
+    pcall(C_TradeSkillUI.OpenTradeSkill, p.line)
+  end
+end
+ns:On("TRADE_SKILL_SHOW", function() C_Timer.After(0.2, checkOpened) end)
+ns:On("TRADE_SKILL_DATA_SOURCE_CHANGED", function() C_Timer.After(0.2, checkOpened) end)
+
 -- Start crafting a recipe from a click. Only works while that profession's window is open.
 function ns:CraftFromClick(opt, count)
   local TS = C_TradeSkillUI
@@ -61,8 +95,9 @@ function ns:CraftFromClick(opt, count)
   if not windowOpen or not openProf or (opt.prof and openProf ~= opt.prof) then
     -- Open the profession for the player; crafting waits for a second click, since a
     -- craft started after the window loads wouldn't count as coming from their click.
-    local line = SKILL_LINES[opt.prof or ""]
+    local line = skillLineFor(opt.prof)
     if line and TS.OpenTradeSkill and pcall(TS.OpenTradeSkill, line) then
+      pendingOpen = { prof = opt.prof, line = line, t = GetTime(), tries = 1 }
       ns:Print(("Opening %s. Click Craft again once it's open."):format(opt.prof))
     else
       ns:Print(("Open your %s window first, then click Craft."):format(opt.prof or "profession"))
@@ -219,10 +254,19 @@ local function buildWindow()
   win.name:SetPoint("RIGHT", win, "RIGHT", -14, 0)
   win.name:SetJustifyH("LEFT")
 
+  -- One number for everything: amounts to buy, crafts, and the session goal.
   local runsLabel = T:Text(win, 12, T.dim)
   runsLabel:SetPoint("TOPLEFT", 14, -72)
-  runsLabel:SetText("Buy for")
-  win.runs = T:Number(win, { min = 1, max = 999, suffix = "runs" }, function() win:RefreshList() end)
+  runsLabel:SetText("Runs")
+  win.runs = T:Number(win, { min = 1, max = 999, suffix = "(what to buy, craft, and the session goal)" }, function(v)
+    local sess = ns.db.session
+    if sess then
+      sess.goal = v
+      if sess.runs < v then sess.goalDone = nil end
+    end
+    win:RefreshList()
+    win:RefreshSession()
+  end)
   win.runs:SetPoint("LEFT", runsLabel, "RIGHT", 10, 0)
   win.runs:SetValue(1)
 
@@ -290,19 +334,13 @@ local function buildWindow()
 
   -- Session area, along the bottom.
   local sessTitle = T:Text(win, 12, T.accent)
-  sessTitle:SetPoint("BOTTOMLEFT", 14, 150)
+  sessTitle:SetPoint("BOTTOMLEFT", 14, 124)
   sessTitle:SetText("Session")
-  local goalLabel = T:Text(win, 12, T.dim)
-  goalLabel:SetPoint("BOTTOMLEFT", 14, 122)
-  goalLabel:SetText("Goal")
-  win.goal = T:Number(win, { min = 0, max = 9999, suffix = "runs (0 = none)" }, function() end)
-  win.goal:SetPoint("LEFT", goalLabel, "RIGHT", 10, 0)
-  win.goal:SetValue(0)
-  win.startStop = T:Button(win, "Start session", 130, function()
-    if ns.db.session then ns:StopSession() elseif current then ns:StartSession(current, win.goal.value or 0) end
+  win.startStop = T:Button(win, "Start session", 220, function()
+    if ns.db.session then ns:StopSession() elseif current then ns:StartSession(current, win.runs.value or 1) end
     win:RefreshSession()
   end)
-  win.startStop:SetPoint("BOTTOMRIGHT", -14, 116)
+  win.startStop:SetPoint("BOTTOMRIGHT", -14, 118)
   win.stats = T:Text(win, 12)
   win.stats:SetPoint("TOPLEFT", win, "BOTTOMLEFT", 14, 102)
   win.stats:SetPoint("RIGHT", win, "RIGHT", -14, 0)
@@ -364,8 +402,8 @@ local function buildWindow()
       self.startStop:SetText("Stop session")
       self.startStop:SetEnabled(true)
     else
-      self.stats:SetText(dim("Set a goal if you like, then Start session. Spending on this shuffle's materials, sales of its products and runs are counted until you stop."))
-      self.startStop:SetText("Start session")
+      self.stats:SetText(dim("Start a session to count what you spend on this shuffle's materials, what you earn selling its products, and your runs, until you stop. The goal is the Runs number at the top."))
+      self.startStop:SetText(("Start session (goal: %d runs)"):format(self.runs.value or 1))
       self.startStop:SetEnabled(current ~= nil)
     end
   end
