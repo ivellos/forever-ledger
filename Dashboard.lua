@@ -124,26 +124,20 @@ local function totals(keys, from, to)
   local net = {}
   for n, v in pairs(sold) do net[n] = v - (bought[n] or 0) end
 
-  -- How many sales and purchases, and the biggest single one of each.
+  -- Auction house only (as in TSM): how many sales and purchases, and the biggest
+  -- single one of each. Vendor trades would swamp these (every oil sold counts).
   local nSales, nBuys, bigSale, bigBuy = 0, 0, nil, nil
-  local function sale(name, amt)
-    nSales = nSales + 1
-    if not bigSale or amt > bigSale.a then bigSale = { n = name, a = amt } end
-  end
-  local function buy(name, amt)
-    nBuys = nBuys + 1
-    if not bigBuy or amt > bigBuy.a then bigBuy = { n = name, a = amt } end
-  end
   for _, e in ipairs(ns.db.sales) do
-    if e.t >= from and keyset[e.c] and e.n then sale(e.n, e.a) end
-  end
-  for _, e in ipairs(ns.db.vendorLog) do
-    if e.t >= from and keyset[e.c] and e.id then
-      if e.s == "sell" then sale(itemLabel(e.id), e.a) else buy(itemLabel(e.id), e.a) end
+    if e.t >= from and keyset[e.c] and e.n then
+      nSales = nSales + 1
+      if not bigSale or e.a > bigSale.a then bigSale = { n = e.n, a = e.a } end
     end
   end
   for _, e in ipairs(ns.db.purchases) do
-    if e.t >= from and keyset[e.c] then buy(itemLabel(e.id), e.a) end
+    if e.t >= from and keyset[e.c] then
+      nBuys = nBuys + 1
+      if not bigBuy or e.a > bigBuy.a then bigBuy = { n = itemLabel(e.id), a = e.a } end
+    end
   end
 
   local days = math.max(1, toDay - math.max(fromDay, firstDay or toDay) + 1)
@@ -353,7 +347,7 @@ function ns:BuildDashboard(parent)
 
   f.goldStats = box(f, "Gold", 2)
   f.activity = box(f, "Activity", 2)
-  f.biggest = box(f, "Biggest", 2)
+  f.biggest = box(f, "Biggest on the auction house", 2)
   f.sales = box(f, "Sales")
   f.expenses = box(f, "Expenses")
   f.profit = box(f, "Profit")
@@ -427,8 +421,8 @@ function ns:RefreshDashboard(f)
     { "Lowest", lo and ns.Money(lo) or dim("no record yet") },
   })
   f.activity:Set({
-    { "Sales per day", ("%.1f"):format(n.nSales / n.days) },
-    { "Purchases per day", ("%.1f"):format(n.nBuys / n.days) },
+    { "Auction sales per day", tostring(math.floor(n.nSales / n.days + 0.5)) },
+    { "Auction purchases per day", tostring(math.floor(n.nBuys / n.days + 0.5)) },
   })
   f.biggest:Set({
     { "Sale", n.bigSale and (ns.Money(n.bigSale.a) .. " " .. dim(n.bigSale.n)) or dim("none yet") },

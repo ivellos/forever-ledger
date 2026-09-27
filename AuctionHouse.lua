@@ -131,8 +131,13 @@ local function watch(page, kind)
       if price then anyPrice = true end
       tint(row, price ~= nil and limit ~= nil and price <= limit)
     end)
-    if not found then debugOnce("list" .. kind, "Auction house: couldn't find the rows on the", kind, "page.") end
-    if found and not anyPrice then debugOnce("price" .. kind, "Auction house: couldn't read prices on the", kind, "page.") end
+    -- Report only if it keeps failing (about 3 seconds): during a purchase the list
+    -- is briefly empty, which is normal.
+    w.fails = (not found or not anyPrice) and (w.fails or 0) + 1 or 0
+    if w.fails >= 10 then
+      if not found then debugOnce("list" .. kind, "Auction house: couldn't find the rows on the", kind, "page.") end
+      if found and not anyPrice then debugOnce("price" .. kind, "Auction house: couldn't read prices on the", kind, "page.") end
+    end
 
     if browse then return end
     id = id or shownID

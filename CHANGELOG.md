@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
-- Dashboard: a gold graph (hover for the amount at any point) and Sales, Expenses and Profit boxes with totals, per day and top items, for all characters or one, over a day, week, month, 3 months, year or all time. The graph is green when gold went up over the range and red when it went down. A row above the boxes shows the highest and lowest gold, sales and purchases per day, and the biggest single sale and purchase. Recent sessions below.
+- Dashboard: a gold graph (hover for the amount at any point) and Sales, Expenses and Profit boxes with totals, per day and top items, for all characters or one, over a day, week, month, 3 months, year or all time. The graph is green when gold went up over the range and red when it went down. A row above the boxes shows the highest and lowest gold, auction house sales and purchases per day, and the biggest single auction house sale and purchase. Recent sessions below.
 - Auction house sales also record how many were sold and to whom, for the coming Ledger.
 - New look for the ledger window: dark and flat with an accent colour, matching EllesmereUI (and using its font and your accent colour when it's installed). Tabs across the top: Dashboard, Shuffles, Vendor flips, Characters (the old overview) and Settings. Dashboard and Settings show a summary for now; their full versions come next.
 - "One-off deals" in the Shuffles tab are now called "Limited supply".
