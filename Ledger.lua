@@ -426,3 +426,5 @@ function ns:RefreshLedger()
   local label = s.tab == "resale" and "profit" or (s.tab == "other" and "net" or "total")
   f.summary:SetText(("%d %s, %s %s%s"):format(#list, words[s.tab], label, money(math.floor(total + 0.5)), extra))
 end
+
+ns.RefreshLedger = ns.Timed("Ledger tab", ns.RefreshLedger)

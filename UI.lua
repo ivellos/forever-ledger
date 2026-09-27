@@ -1137,3 +1137,5 @@ function ns:ShowPricesCSV()
   f.eb:SetFocus()
   f.eb:HighlightText()
 end
+ns.RefreshShuffles = ns.Timed("Shuffles table", ns.RefreshShuffles)
+ns.RefreshUI = ns.Timed("Ledger window", ns.RefreshUI)

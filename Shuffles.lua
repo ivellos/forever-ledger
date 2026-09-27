@@ -631,3 +631,5 @@ function ns:PrintDeals()
   end
   printGrouped(deals, 20)
 end
+ns.FindShuffles = ns.Timed("Finding shuffles", ns.FindShuffles)
+ns.CheckDeals = ns.Timed("Deal check", ns.CheckDeals)

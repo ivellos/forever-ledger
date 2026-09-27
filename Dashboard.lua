@@ -463,3 +463,5 @@ function ns:RefreshDashboard(f)
   while #lines > fit do table.remove(lines) end
   f.sessions:SetText(table.concat(lines, "\n"))
 end
+
+ns.RefreshDashboard = ns.Timed("Dashboard", ns.RefreshDashboard)

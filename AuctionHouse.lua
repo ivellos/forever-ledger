@@ -104,7 +104,7 @@ local function watch(page, kind)
     w.note:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
   end
   local elapsed = 0
-  w:SetScript("OnUpdate", function(_, dt)
+  w:SetScript("OnUpdate", ns.Timed("Auction house tint", function(_, dt)
     elapsed = elapsed + dt
     if elapsed < REFRESH then return end
     elapsed = 0
@@ -147,7 +147,7 @@ local function watch(page, kind)
     else
       w.note:SetText("")
     end
-  end)
+  end))
 end
 
 function ns:SetUpAuctionHighlights()
@@ -382,3 +382,4 @@ ns:On("AUCTION_HOUSE_SHOW", function()
     end
   end)
 end)
+ns.RefreshDisenchantFinder = ns.Timed("Disenchant finder", ns.RefreshDisenchantFinder)

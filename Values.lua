@@ -170,8 +170,9 @@ end
 -- tooltip recalculate everything. Settings changes clear it straight away (now = true).
 -- It's also cleared at least once a minute.
 local cache, cacheTime, dirty = {}, 0, false
+local listCache = {}    -- itemID = full options list at depth 0 (tooltips, finder)
 function ns:InvalidateValues(now)
-  if now then cache, cacheTime, dirty = {}, GetTime(), false else dirty = true end
+  if now then cache, listCache, cacheTime, dirty = {}, {}, GetTime(), false else dirty = true end
 end
 
 local best
@@ -271,9 +272,21 @@ best = function(id, depth)
   return hit or nil
 end
 
+-- After small changes (an item's details arriving, a vendor price) values are rebuilt at
+-- most every 30 seconds; rebuilding every 2 seconds caused a lag spike each time.
+-- Scans and settings changes rebuild straight away (InvalidateValues(true)).
 local function freshCache()
   local age = GetTime() - cacheTime
-  if (dirty and age > 2) or age > 60 then cache, cacheTime, dirty = {}, GetTime(), false end
+  if (dirty and age > 30) or age > 300 then
+    cache, listCache, cacheTime, dirty = {}, {}, GetTime(), false
+    if ns.PerfNote then ns.PerfNote("Values thrown away (count only)", 0) end
+  end
+end
+
+local function allOptions(id)
+  local list = listCache[id]
+  if not list then list = options(id, 0); listCache[id] = list end
+  return list
 end
 
 -- Best option for an item, with its whole chain.
@@ -303,7 +316,7 @@ end
 function ns:Options(id)
   if not id or not ns.db then return {} end
   freshCache()
-  return options(id, 0)
+  return allOptions(id)
 end
 
 ---------------------------------------------------------------------------
@@ -344,7 +357,7 @@ function ns:GetValue(id)
   if not id or not ns.db then return end
   freshCache()
   local list, crafts, seen = {}, 0, {}
-  for _, o in ipairs(options(id, 0)) do
+  for _, o in ipairs(allOptions(id)) do
     if o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
       if o.kind == "craft" then seen[o.step] = true; crafts = crafts + 1 end
       o.label = ns:OptionLabel(o)

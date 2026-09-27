@@ -122,14 +122,50 @@ function ns:On(event, fn)
   end
   table.insert(handlers[event], fn)
 end
+-- Timing, for /fl perf: total and slowest single run per event or task.
+ns.perf, ns.perfSince = {}, GetTime()
+local clock = debugprofilestop or function() return GetTime() * 1000 end
+local function note(label, ms)
+  local p = ns.perf[label]
+  if not p then p = { n = 0, ms = 0, max = 0 }; ns.perf[label] = p end
+  p.n, p.ms = p.n + 1, p.ms + ms
+  if ms > p.max then p.max = ms end
+end
+
+ns.PerfNote = note
+
+-- Wrap a function so its time is counted under a label.
+function ns.Timed(label, fn)
+  return function(...)
+    local t = clock()
+    local a, b, c, d = fn(...)
+    note(label, clock() - t)
+    return a, b, c, d
+  end
+end
+
 frame:SetScript("OnEvent", function(_, event, ...)
   local list = handlers[event]
   if not list then return end
+  local t = clock()
   for i = 1, #list do
     local ok, err = pcall(list[i], ...)
     if not ok then geterrorhandler()(err) end
   end
+  note(event, clock() - t)
 end)
+
+function ns:PrintPerf(reset)
+  if reset then ns.perf, ns.perfSince = {}, GetTime(); ns:Print("Timing reset. Play for a minute, then /fl perf."); return end
+  local rows = {}
+  for label, p in pairs(ns.perf) do rows[#rows + 1] = { label = label, p = p } end
+  table.sort(rows, function(a, b) return a.p.max > b.p.max end)
+  ns:Print(("Time used by Forever Ledger over the last %d seconds, slowest single moment first:"):format(GetTime() - ns.perfSince))
+  for i = 1, math.min(12, #rows) do
+    local r = rows[i]
+    print(("  %s: slowest %.0f ms, %d times, %.0f ms total"):format(r.label, r.p.max, r.p.n, r.p.ms))
+  end
+end
 
 ns.readyCallbacks = {}
 function ns:OnReady(fn) table.insert(ns.readyCallbacks, fn) end
@@ -353,6 +389,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:SyncCommand(msg:gsub("^pair%s*", "pair "))
   elseif msg:match("^sync") then
     ns:SyncCommand(msg:match("^sync%s*(.*)$"))
+  elseif msg == "perf" or msg == "perf reset" then
+    ns:PrintPerf(msg == "perf reset")
   elseif msg == "de" or msg == "de reset" then
     ns:PrintDisenchants(msg == "de reset")
   elseif msg == "session" then

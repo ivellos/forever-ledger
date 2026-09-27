@@ -79,3 +79,5 @@ else
   GameTooltip:HookScript("OnTooltipSetItem", hook)
   ItemRefTooltip:HookScript("OnTooltipSetItem", hook)
 end
+
+addLines = ns.Timed("Tooltip lines", addLines)   -- for /fl perf
