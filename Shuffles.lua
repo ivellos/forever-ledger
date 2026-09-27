@@ -156,8 +156,9 @@ local function groupDisenchants(list)
   return out
 end
 
--- Returns three lists, best profit per hour first: shuffles that end with vendor sales,
--- ones that end with auction house sales, and one-off deals.
+-- Returns four lists: shuffles that end with vendor sales, ones that end with auction
+-- house sales, one-off deals (best profit per hour first), and vendor flips (buy on the
+-- auction house, sell straight to a vendor).
 function ns:FindShuffles()
   local margin = (ns.db.settings.margin or 10) / 100
   local secs = ns.db.settings.actionSeconds or 3
@@ -169,7 +170,7 @@ function ns:FindShuffles()
   end
   for id in pairs(ns.db.vendorBuy) do candidates[id] = true end
 
-  local vendor, ah, oneOff, seen = {}, {}, {}, {}
+  local vendor, ah, oneOff, flips, seen = {}, {}, {}, {}, {}
   for id in pairs(candidates) do
     local cost, listed = buyInfo(id, market)
     if cost and cost > 0 then
@@ -184,7 +185,8 @@ function ns:FindShuffles()
             local s = build(id, o, cost, listed, market, margin, secs)
             if s and not seen[s.key] then
               seen[s.key] = true
-              local list = (s.oneOff and oneOff) or (section == "ah" and ah) or vendor
+              -- Buying and selling straight to a vendor is a vendor flip, not a shuffle.
+              local list = (o.kind == "vendor" and flips) or (s.oneOff and oneOff) or (section == "ah" and ah) or vendor
               list[#list + 1] = s
             end
           end
@@ -199,7 +201,11 @@ function ns:FindShuffles()
   table.sort(vendor, byHour)
   table.sort(ah, byHour)
   table.sort(oneOff, byHour)
-  return vendor, ah, oneOff
+  -- Vendor flips have no crafting time, so rank them by total profit on offer.
+  table.sort(flips, function(a, b)
+    return a.profit * math.min(a.buys[1].listed or 20, 20) > b.profit * math.min(b.buys[1].listed or 20, 20)
+  end)
+  return vendor, ah, oneOff, flips
 end
 
 local function where(b)
@@ -219,6 +225,10 @@ end
 
 -- Profit, return and per hour (rounded to silver) for the right side of a row.
 function ns:ShuffleSummary(s)
+  if s.opt.kind == "vendor" then
+    -- No crafting time, so per hour means nothing. Show how many are listed instead.
+    return ("|cff7fd39c%s|r   %d%%   %s listed"):format(ns.Money(s.profit), returnPct(s), s.buys[1].listed or "?")
+  end
   return ("|cff7fd39c%s|r   %d%%   %s/h"):format(
     ns.Money(s.profit), returnPct(s), ns.Money(math.floor(s.perHour / 100) * 100))
 end
@@ -285,8 +295,8 @@ local function printSection(title, list, n)
 end
 
 function ns:PrintShuffles(showAll)
-  local vendor, ah, oneOff = ns:FindShuffles()
-  if #vendor + #ah + #oneOff == 0 then
+  local vendor, ah, oneOff, flips = ns:FindShuffles()
+  if #vendor + #ah + #oneOff + #flips == 0 then
     ns:Print("No shuffles found at current prices. Scan the auction house and open your profession windows first.")
     return
   end
@@ -294,10 +304,11 @@ function ns:PrintShuffles(showAll)
   ns:Print(("Shuffles at current prices, best profit per hour first (%g%% safety margin)."):format(ns.db.settings.margin or 10))
   printSection("Sells to a vendor (safe):", vendor, n)
   printSection("Sells on the auction house (depends on buyers):", ah, n)
+  printSection("Vendor flips (buy on the auction house, sell to a vendor):", flips, n)
   if showAll then
     printSection(("One-off deals (fewer than %d listed):"):format(MIN_LISTED), oneOff, n)
   else
-    local hidden = math.max(0, #vendor - n) + math.max(0, #ah - n) + #oneOff
+    local hidden = math.max(0, #vendor - n) + math.max(0, #ah - n) + math.max(0, #flips - n) + #oneOff
     if hidden > 0 then
       local deals = #oneOff > 0 and (", including %d one-off deals"):format(#oneOff) or ""
       ns:Print(("Plus %d more%s. Type /fl shuffles all to see everything."):format(hidden, deals))

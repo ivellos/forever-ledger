@@ -65,6 +65,8 @@ local function buildMain()
   main.tabOverview:SetPoint("TOPLEFT", 14, -28)
   main.tabShuffles = button(main, "Shuffles", 100, function() setView("shuffles") end)
   main.tabShuffles:SetPoint("LEFT", main.tabOverview, "RIGHT", 4, 0)
+  main.tabFlips = button(main, "Vendor flips", 110, function() setView("flips") end)
+  main.tabFlips:SetPoint("LEFT", main.tabShuffles, "RIGHT", 4, 0)
 
   -- Overview
   local sf, content = scrollArea(66)
@@ -113,10 +115,8 @@ setView = function(view)
   main.refreshBtn:SetShown(not overview)
   main.shuffleInfo:SetShown(not overview)
   -- The tab you're on stays highlighted.
-  if overview then
-    main.tabOverview:LockHighlight(); main.tabShuffles:UnlockHighlight()
-  else
-    main.tabShuffles:LockHighlight(); main.tabOverview:UnlockHighlight()
+  for tab, name in pairs({ [main.tabOverview] = "overview", [main.tabShuffles] = "shuffles", [main.tabFlips] = "flips" }) do
+    if name == view then tab:LockHighlight() else tab:UnlockHighlight() end
   end
   if overview then
     ns:RefreshUI()
@@ -228,7 +228,16 @@ end
 
 layoutShuffles = function()
   local content, data = main.shuffleContent, main.shuffles
-  local y, nRows, nDetails = layoutCharBoxes(content), 0, 0
+  local flipsView = main.view == "flips"
+  local y, nRows, nDetails = 0, 0, 0
+  -- Recipes don't matter for vendor flips, so only the Shuffles tab has the checkboxes.
+  if flipsView then
+    if main.charLabel then main.charLabel:Hide() end
+    for _, cb in ipairs(boxes) do cb:Hide() end
+  else
+    y = layoutCharBoxes(content)
+    main.charLabel:Show()
+  end
 
   local function row(left, right, s)
     nRows = nRows + 1
@@ -266,9 +275,13 @@ layoutShuffles = function()
     y = y + 10
   end
 
-  section("Sells to a vendor (safe)", data.vendor)
-  section("Sells on the auction house (depends on buyers)", data.ah)
-  if #data.oneOff > 0 then section("One-off deals (fewer than 5 listed)", data.oneOff) end
+  if flipsView then
+    section("Buy on the auction house, sell straight to a vendor", data.flips)
+  else
+    section("Sells to a vendor (safe)", data.vendor)
+    section("Sells on the auction house (depends on buyers)", data.ah)
+    if #data.oneOff > 0 then section("One-off deals (fewer than 5 listed)", data.oneOff) end
+  end
 
   for i = nRows + 1, #rows do rows[i]:Hide() end
   for i = nDetails + 1, #details do details[i]:Hide() end
@@ -289,10 +302,10 @@ end)
 
 function ns:RefreshShuffles()
   if not main then return end
-  local vendor, ah, oneOff = ns:FindShuffles()
-  main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff }
-  main.shuffleInfo:SetText(("%d shuffles, worked out at %s. Click a row for the steps."):format(
-    #vendor + #ah + #oneOff, date("%H:%M")))
+  local vendor, ah, oneOff, flips = ns:FindShuffles()
+  main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff, flips = flips }
+  main.shuffleInfo:SetText(("%d shuffles and %d vendor flips, worked out at %s. Click a row for details."):format(
+    #vendor + #ah + #oneOff, #flips, date("%H:%M")))
   layoutShuffles()
 end
 
