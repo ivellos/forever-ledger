@@ -312,7 +312,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     elseif cmd == "history" and ns.HISTORY_SOURCES[arg] then
       set.dealHistory = arg
       ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
-      if arg ~= "local" and not TSM_API then ns:Print("TSM isn't installed, so this addon's own scans are used for now.") end
     elseif cmd == "vendor" and arg:match("%%$") and pct and pct < 100 then
       set.dealVendorPct = pct
       ns:Print("Deals are now listings " .. ns:DealRules() .. ".")

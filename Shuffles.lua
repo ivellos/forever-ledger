@@ -358,7 +358,8 @@ function ns:DealUsualPrice(id)
   if src ~= "local" then
     local v = tsmUsual(id, s.dealWindow)
     if v then return v, "TSM" end
-    if src == "tsm" then return end
+    -- "tsm" means TSM only, unless TSM isn't installed at all.
+    if src == "tsm" and TSM_API then return end
   end
   local usual, points = ns:UsualPrice(id, s.dealWindow)
   if usual and points >= MIN_POINTS then return usual, "ledger" end
@@ -370,9 +371,16 @@ function ns:DealRules()
   local vendor = ("%g%% or more below vendor price"):format(s.dealVendorPct or 10)
   if (s.dealVendorMin or 0) > 0 then vendor = vendor .. " and at least " .. ns.Money(s.dealVendorMin) .. " profit each" end
   local src = s.dealHistory or "auto"
-  local from = (src == "tsm" and "TSM's prices")
-    or (src == "local" and "this addon's scans")
-    or ((TSM_API and "TSM's prices, or this addon's scans where TSM has none") or "this addon's scans")
+  local from
+  if not TSM_API then
+    from = src == "local" and "this addon's scans" or "this addon's scans, as TSM isn't installed"
+  elseif src == "tsm" then
+    from = "TSM's prices"
+  elseif src == "local" then
+    from = "this addon's scans"
+  else
+    from = "TSM's prices, or this addon's scans where TSM has none"
+  end
   return ("%g%% or more below the usual price over %s (from %s), or %s"):format(
     s.dealUsualPct or 20, ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", from, vendor)
 end
