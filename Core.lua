@@ -13,7 +13,7 @@ local DEFAULTS = {
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
   vendorBuy = {},   -- [itemID] = { p = copper you pay, t = time, src, lim = limited supply }
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3 },
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {} },
 }
 
 local function copyDefaults(src, dst)
@@ -304,7 +304,7 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     local n = tonumber(msg:match("^cut%s+(%S+)"))
     if n and n >= 0 and n < 100 then
       ns.db.settings.ahCut = n
-      ns:InvalidateValues()
+      ns:InvalidateValues(true)
       ns:Print(("Auction house cut set to %g%%."):format(n))
     else
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))

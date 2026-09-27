@@ -92,7 +92,7 @@ local function buildMain()
   main.overviewButtons = { scan, exp, imp, csv }
 
   -- Shuffles
-  main.shuffleSF, main.shuffleContent = scrollArea(48)
+  main.shuffleSF, main.shuffleContent = scrollArea(62)
   main.refreshBtn = button(main, "Refresh", 90, function() ns:RefreshShuffles() end)
   main.refreshBtn:SetPoint("BOTTOMLEFT", 14, 14)
   main.shuffleInfo = main:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -176,9 +176,59 @@ local function getDetail(i)
   return fs
 end
 
+-- "Use recipes from" checkboxes, one per character.
+local boxes = {}
+local function getBox(i)
+  local cb = boxes[i]
+  if not cb then
+    cb = CreateFrame("CheckButton", nil, main.shuffleContent, "UICheckButtonTemplate")
+    cb:SetSize(22, 22)
+    cb.label = cb.Text or cb.text or cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cb.label:ClearAllPoints()
+    cb.label:SetPoint("LEFT", cb, "RIGHT", 1, 0)
+    cb:SetScript("OnClick", function(self)
+      ns.db.settings.skipChars[self.charKey] = (not self:GetChecked()) or nil
+      ns:InvalidateValues(true)
+      ns:RefreshShuffles()
+    end)
+    boxes[i] = cb
+  end
+  return cb
+end
+
+-- Returns the height used.
+local function layoutCharBoxes(content)
+  if not main.charLabel then
+    main.charLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    main.charLabel:SetText("Use recipes from:")
+  end
+  main.charLabel:ClearAllPoints()
+  main.charLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 2, -5)
+
+  local keys = {}
+  for k in pairs(ns.db.chars) do keys[#keys + 1] = k end
+  table.sort(keys)
+  local x, y = main.charLabel:GetStringWidth() + 10, 0
+  for i, key in ipairs(keys) do
+    local c, cb = ns.db.chars[key], getBox(i)
+    local cc = CLASS_COLORS[c.class or ""]
+    cb.label:SetText(cc and ("|c" .. (cc.colorStr or "ffffffff") .. (c.name or "?") .. "|r") or (c.name or "?"))
+    local width = 22 + cb.label:GetStringWidth() + 14
+    if x + width > 470 then x, y = 0, y + 24 end
+    cb:ClearAllPoints()
+    cb:SetPoint("TOPLEFT", content, "TOPLEFT", x, -y)
+    cb:SetChecked(not ns.db.settings.skipChars[key])
+    cb.charKey = key
+    cb:Show()
+    x = x + width
+  end
+  for i = #keys + 1, #boxes do boxes[i]:Hide() end
+  return y + 30
+end
+
 layoutShuffles = function()
   local content, data = main.shuffleContent, main.shuffles
-  local y, nRows, nDetails = 0, 0, 0
+  local y, nRows, nDetails = layoutCharBoxes(content), 0, 0
 
   local function row(left, right, s)
     nRows = nRows + 1
@@ -224,6 +274,18 @@ layoutShuffles = function()
   for i = nDetails + 1, #details do details[i]:Hide() end
   content:SetHeight(math.max(y, 10))
 end
+
+-- Item names arrive from the game a moment after they're first asked for.
+-- Redraw the list once they do, so "item 4470" becomes "Simple Wood".
+local redrawQueued = false
+ns:On("GET_ITEM_INFO_RECEIVED", function()
+  if redrawQueued or not main or not main:IsShown() or main.view ~= "shuffles" or not main.shuffles then return end
+  redrawQueued = true
+  C_Timer.After(0.5, function()
+    redrawQueued = false
+    if main:IsShown() and main.view == "shuffles" then layoutShuffles() end
+  end)
+end)
 
 function ns:RefreshShuffles()
   if not main then return end

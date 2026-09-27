@@ -99,9 +99,14 @@ function ns:DisenchantMaterialName(id)
   return ns.GetItemInfo(id) or MAT_NAMES[id] or ("item " .. id)
 end
 
+-- Characters unticked in the Shuffles tab don't count for recipes or disenchanting.
+local function counts(charKey)
+  return not ns.db.settings.skipChars[charKey]
+end
+
 local function canDisenchant()
-  for _, c in pairs(ns.db.chars) do
-    if c.profs and c.profs.Enchanting then return true end
+  for key, c in pairs(ns.db.chars) do
+    if counts(key) and c.profs and c.profs.Enchanting then return true end
   end
 end
 
@@ -126,10 +131,14 @@ end
 --   character who knows it if that isn't the one logged in
 ---------------------------------------------------------------------------
 
--- Best options are cached per item and chain depth, and cleared whenever prices,
--- recipes or settings change (and at least once a minute).
-local cache, cacheTime = {}, 0
-function ns:InvalidateValues() cache = {} end
+-- Best options are cached per item and chain depth. When prices or recipes change the
+-- cache is cleared at most every 2 seconds, so a scan saving prices doesn't make every
+-- tooltip recalculate everything. Settings changes clear it straight away (now = true).
+-- It's also cleared at least once a minute.
+local cache, cacheTime, dirty = {}, 0, false
+function ns:InvalidateValues(now)
+  if now then cache, cacheTime, dirty = {}, GetTime(), false else dirty = true end
+end
 
 local best
 
@@ -168,7 +177,7 @@ local function options(id, depth, path)
     local me = ns.CharKey()
     for _, use in ipairs(ns.recipesByReagent and ns.recipesByReagent[id] or {}) do
       local rec = use.rec
-      local o = rec.out and not path[rec.out] and best(rec.out, depth + 1, path)
+      local o = counts(use.key) and rec.out and not path[rec.out] and best(rec.out, depth + 1, path)
       if o then
         -- Pay for every other material; what's left is shared across the units of `id`.
         local left, units, buys = o.value * (rec.oq or 1), 0, {}
@@ -209,7 +218,8 @@ best = function(id, depth, path)
 end
 
 local function freshCache()
-  if time() - cacheTime > 60 then cache, cacheTime = {}, time() end
+  local age = GetTime() - cacheTime
+  if (dirty and age > 2) or age > 60 then cache, cacheTime, dirty = {}, GetTime(), false end
 end
 
 -- Best option for an item, with its whole chain.
