@@ -64,6 +64,17 @@ function ns.Age(t)
   return math.floor(d / 86400) .. "d ago"
 end
 
+-- Money as plain text without coin icons, for text boxes: "1g 50s", "75c".
+function ns.MoneyPlain(copper)
+  copper = math.floor((copper or 0) + 0.5)
+  local g, s, c = math.floor(copper / 10000), math.floor(copper % 10000 / 100), copper % 100
+  local out = {}
+  if g > 0 then out[#out + 1] = g .. "g" end
+  if s > 0 then out[#out + 1] = s .. "s" end
+  if c > 0 or #out == 0 then out[#out + 1] = c .. "c" end
+  return table.concat(out, " ")
+end
+
 -- "1g50s", "25s", "75c" or plain copper ("75") to copper. nil if it isn't money.
 function ns.ParseMoney(s)
   s = (s or ""):lower():gsub("%s+", "")

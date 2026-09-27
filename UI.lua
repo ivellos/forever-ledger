@@ -89,7 +89,7 @@ end
 -- Main window: title bar, tabs, a content area and a footer with buttons
 ---------------------------------------------------------------------------
 local main
-local setView, layoutShuffles, refreshText
+local setView, layoutShuffles, buildSettings
 
 local TABS = {
   { key = "dashboard", label = "Dashboard" },
@@ -138,8 +138,8 @@ local function buildMain()
   main.views = {
     dashboard = textArea(),
     characters = textArea(),
-    settings = textArea(),
   }
+  main.views.settings = buildSettings()
   main.shuffleSF, main.shuffleContent = T:Scroll(main.body)
   main.shuffleSF:SetAllPoints()
   main.views.shuffles, main.views.flips = main.shuffleSF, main.shuffleSF
@@ -285,38 +285,124 @@ local function charactersText(add)
   add(("  %d vendor prices saved. Open any vendor to add theirs."):format(vb))
 end
 
-local function settingsText(add)
-  local s = ns.db.settings
-  add(heading("Settings"))
-  add(dim("Buttons and sliders are coming here. For now, change these with the commands shown."))
-  add("")
-  add(heading("Values and shuffles"))
-  add(("  Auction house cut: %g%%   %s"):format(s.ahCut or 5, dim("/fl cut 5")))
-  add(("  Safety margin: %g%%   %s"):format(s.margin or 10, dim("/fl margin 10")))
-  add(("  Seconds per craft: %g   %s"):format(s.actionSeconds or 3, dim("/fl seconds 3")))
-  add(("  Price source: %s   %s"):format(s.source or "auto", dim("/fl source auto/own/auctionator/tsm/auctioneer")))
-  add("")
-  add(heading("Deal alerts"))
-  add("  Deals are listings " .. ns:DealRules() .. ".")
-  add(("  Below usual price: %g%%   %s"):format(s.dealUsualPct or 20, dim("/fl deals usual 20")))
-  add(("  Period: %s   %s"):format(ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", dim("/fl deals period week/month/3months/6months/year/all")))
-  add(("  History from: %s   %s"):format(s.dealHistory or "auto", dim("/fl deals history auto/local/tsm")))
-  add(("  Below vendor price: %g%%   %s"):format(s.dealVendorPct or 10, dim("/fl deals vendor 10%")))
-  add(("  Least vendor profit each: %s   %s"):format((s.dealVendorMin or 0) > 0 and ns.Money(s.dealVendorMin) or "off", dim("/fl deals vendor 1s")))
-  add(("  Chime: %s   %s"):format(s.dealSound and "on" or "off", dim("/fl deals sound")))
-  add("")
-  add(heading("Other"))
-  add(("  Minimap button: %s   %s"):format(s.minimap and "shown" or "hidden", dim("/fl minimap")))
-  add(("  Tooltip lines: %s   %s"):format(s.tooltip and "on" or "off", dim("/fl tooltip")))
-  add(("  Debug messages: %s   %s"):format(s.debug and "on" or "off", dim("/fl debug")))
+local TEXT_VIEWS = { dashboard = dashboardText, characters = charactersText }
+
+---------------------------------------------------------------------------
+-- Settings tab: a control for each setting. Changes apply straight away.
+---------------------------------------------------------------------------
+local function recalc() ns:InvalidateValues(true) end
+
+local SETTINGS = {
+  { section = "Values and shuffles" },
+  { key = "ahCut", label = "Auction house cut", kind = "number", suffix = "%", min = 0, max = 99, after = recalc,
+    help = "Taken off every auction house sale in values and shuffles." },
+  { key = "margin", label = "Safety margin", kind = "number", suffix = "%", min = 0, max = 99,
+    help = "Shuffles and \"buy at or below\" keep this much below an item's worth." },
+  { key = "actionSeconds", label = "Seconds per craft", kind = "number", suffix = "seconds", min = 1, max = 60,
+    help = "Used for the rough profit per hour." },
+  { key = "source", label = "Auction house prices from", kind = "choice", after = recalc, options = {
+      { "auto", "Auto" }, { "own", "My scans" }, { "Auctionator", "Auctionator" }, { "TSM", "TSM" }, { "Auctioneer", "Auctioneer" } },
+    help = "Auto uses your own scans while they're fresh, then other auction addons." },
+
+  { section = "Deal alerts", rules = true },
+  { key = "dealUsualPct", label = "Below usual price by", kind = "number", suffix = "% or more", min = 1, max = 99 },
+  { key = "dealWindow", label = "Usual price over", kind = "choice", options = {
+      { "week", "Week" }, { "month", "Month" }, { "3months", "3 months" }, { "6months", "6 months" },
+      { "year", "Year" }, { "all", "All time" } } },
+  { key = "dealHistory", label = "Usual prices from", kind = "choice", options = {
+      { "auto", "Auto" }, { "local", "My scans" }, { "tsm", "TSM" } },
+    help = "Auto uses TSM's history where it has a price, otherwise your own scans." },
+  { key = "dealVendorPct", label = "Below vendor price by", kind = "number", suffix = "% or more", min = 0, max = 99 },
+  { key = "dealVendorMin", label = "Least vendor profit each", kind = "money",
+    help = "For example 1s or 50c. \"off\" for no minimum." },
+  { key = "dealSound", label = "Chime", kind = "check", help = "Plays the raid warning sound when a scan finds new deals." },
+
+  { section = "Other" },
+  { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end },
+  { key = "tooltip", label = "Tooltip lines", kind = "check" },
+  { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
+}
+
+local LABEL_WIDTH, CONTROL_X = 210, 220
+
+buildSettings = function()
+  local sf, content = T:Scroll(main.body)
+  sf:SetAllPoints()
+  sf.controls = {}
+  local y = 0
+  for _, def in ipairs(SETTINGS) do
+    if def.section then
+      if y > 0 then y = y + 14 end
+      local h = T:Text(content, 13, T.accent)
+      h:SetPoint("TOPLEFT", 4, -y)
+      h:SetText(def.section)
+      y = y + 22
+      if def.rules then
+        sf.rules = T:Text(content, 11, T.dim)
+        sf.rules:SetPoint("TOPLEFT", 4, -y)
+        sf.rules:SetPoint("RIGHT", content, "RIGHT", -8, 0)
+        sf.rules:SetJustifyH("LEFT")
+        y = y + 34
+      end
+    else
+      local label = T:Text(content, 12)
+      label:SetPoint("TOPLEFT", 4, -(y + 4))
+      label:SetWidth(LABEL_WIDTH)
+      label:SetJustifyH("LEFT")
+      label:SetText(def.label)
+
+      local function changed(v)
+        ns.db.settings[def.key] = v
+        if def.after then def.after() end
+        if sf.rules then sf.rules:SetText("Deals are listings " .. ns:DealRules() .. ".") end
+      end
+      local control
+      if def.kind == "number" then
+        control = T:Number(content, def, changed)
+      elseif def.kind == "money" then
+        control = T:MoneyBox(content, changed)
+      elseif def.kind == "choice" then
+        local opts = {}
+        for _, o in ipairs(def.options) do opts[#opts + 1] = { value = o[1], label = o[2] } end
+        control = T:Choice(content, opts, changed)
+      elseif def.kind == "check" then
+        control = T:Check(content, function(self) changed(self:GetChecked()) end)
+        control:SetPoint("TOPLEFT", CONTROL_X, -(y + 4))
+      end
+      if def.kind ~= "check" then control:SetPoint("TOPLEFT", CONTROL_X, -y) end
+      sf.controls[#sf.controls + 1] = { def = def, control = control }
+      y = y + 28
+      if def.help then
+        local help = T:Text(content, 11, T.dim)
+        help:SetPoint("TOPLEFT", CONTROL_X, -(y - 4))
+        help:SetPoint("RIGHT", content, "RIGHT", -8, 0)
+        help:SetJustifyH("LEFT")
+        help:SetText(def.help)
+        y = y + 16
+      end
+    end
+  end
+  content:SetHeight(y + 10)
+  return sf
 end
 
-local TEXT_VIEWS = { dashboard = dashboardText, characters = charactersText, settings = settingsText }
+local function refreshSettings()
+  local sf = main.views.settings
+  sf:GetScrollChild():SetWidth(math.max(sf:GetWidth() - 12, 300))
+  for _, c in ipairs(sf.controls) do
+    local v = ns.db.settings[c.def.key]
+    if c.def.kind == "check" then c.control:SetChecked(v) else c.control:SetValue(v) end
+  end
+  if sf.rules then sf.rules:SetText("Deals are listings " .. ns:DealRules() .. ".") end
+  sf.UpdateScrollBar()
+end
 
 function ns:RefreshUI()
   if not main or not main:IsShown() or not ns.db then return end
   local build = TEXT_VIEWS[main.view]
-  if build then
+  if main.view == "settings" then
+    refreshSettings()
+  elseif build then
     local L = {}
     build(function(s) L[#L + 1] = s or "" end)
     local sf = main.views[main.view]

@@ -78,31 +78,123 @@ function T:Border(frame, color)
   }
 end
 
--- A flat button. Supports SetText and SetEnabled like Blizzard's.
+-- How a flat button looks: normal, hovered, or selected (a chosen option).
+local function buttonLook(b, hover)
+  local c, a = T.button, T.accent
+  local borderAlpha
+  if b.selected then
+    b.bg:SetColorTexture(a[1] * 0.3, a[2] * 0.3, a[3] * 0.3, 0.95)
+    borderAlpha = 1
+  elseif hover then
+    b.bg:SetColorTexture(c[1] * 1.6, c[2] * 1.6, c[3] * 1.6, T.buttonHover)
+    borderAlpha = 0.6
+  else
+    b.bg:SetColorTexture(c[1], c[2], c[3], c[4])
+  end
+  for _, e in ipairs(b.borders) do
+    if borderAlpha then e:SetColorTexture(a[1], a[2], a[3], borderAlpha)
+    else e:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4]) end
+  end
+end
+
+-- A flat button. Supports SetText and SetEnabled like Blizzard's, plus SetSelected.
 function T:Button(parent, label, width, onClick, height)
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(width, height or 24)
-  local c = T.button
-  b.bg = T:Fill(b, c)
+  b.bg = T:Fill(b, T.button)
   T:Border(b)
   local fs = T:Text(b, 12)
   fs:SetPoint("CENTER")
   b:SetFontString(fs)
   b:SetText(label)
-  b:SetScript("OnEnter", function(self)
-    if self:IsEnabled() then
-      self.bg:SetColorTexture(c[1] * 1.6, c[2] * 1.6, c[3] * 1.6, T.buttonHover)
-      for _, e in ipairs(self.borders) do e:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.6) end
-    end
-  end)
-  b:SetScript("OnLeave", function(self)
-    self.bg:SetColorTexture(c[1], c[2], c[3], c[4])
-    for _, e in ipairs(self.borders) do e:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4]) end
-  end)
+  function b:SetSelected(on) self.selected = on; buttonLook(self, false) end
+  b:SetScript("OnEnter", function(self) if self:IsEnabled() then buttonLook(self, true) end end)
+  b:SetScript("OnLeave", function(self) buttonLook(self, false) end)
   b:SetScript("OnDisable", function(self) self:GetFontString():SetAlpha(0.35) end)
   b:SetScript("OnEnable", function(self) self:GetFontString():SetAlpha(1) end)
   b:SetScript("OnClick", onClick)
   return b
+end
+
+-- A text box in the same style.
+local function editBox(parent, width, justify)
+  local eb = CreateFrame("EditBox", nil, parent)
+  eb:SetSize(width, 22)
+  T:Fill(eb, T.button)
+  T:Border(eb)
+  eb:SetFont(T.font, 12, "")
+  eb:SetTextColor(1, 1, 1, 1)
+  eb:SetJustifyH(justify or "CENTER")
+  eb:SetTextInsets(6, 6, 0, 0)
+  eb:SetAutoFocus(false)
+  eb:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  return eb
+end
+
+-- A number with - and + buttons. opts: min, max, step, suffix.
+-- SetValue shows a value; onChange(value) runs when the player changes it.
+function T:Number(parent, opts, onChange)
+  local f = CreateFrame("Frame", nil, parent)
+  f:SetSize(150, 22)
+  local minus = T:Button(f, "-", 22, nil, 22)
+  minus:SetPoint("LEFT")
+  local eb = editBox(f, 54)
+  eb:SetPoint("LEFT", minus, "RIGHT", 4, 0)
+  local plus = T:Button(f, "+", 22, nil, 22)
+  plus:SetPoint("LEFT", eb, "RIGHT", 4, 0)
+  local suffix = T:Text(f, 12, T.dim)
+  suffix:SetPoint("LEFT", plus, "RIGHT", 6, 0)
+  suffix:SetText(opts.suffix or "")
+
+  function f:SetValue(v) self.value = v; eb:SetText(("%g"):format(v or 0)) end
+  local function set(v)
+    v = tonumber(v)
+    if v then
+      v = math.max(opts.min or -math.huge, math.min(opts.max or math.huge, v))
+      if v ~= f.value then f:SetValue(v); onChange(v); return end
+    end
+    f:SetValue(f.value)
+  end
+  minus:SetScript("OnClick", function() set((f.value or 0) - (opts.step or 1)) end)
+  plus:SetScript("OnClick", function() set((f.value or 0) + (opts.step or 1)) end)
+  eb:SetScript("OnEscapePressed", function(self) f:SetValue(f.value); self:ClearFocus() end)
+  eb:SetScript("OnEditFocusLost", function(self) set(self:GetText()) end)
+  return f
+end
+
+-- An amount of money typed as "1g 50s", "25s" or "75c". 0 shows as "off".
+function T:MoneyBox(parent, onChange)
+  local eb = editBox(parent, 100)
+  local function show(v) eb:SetText((v or 0) > 0 and ns.MoneyPlain(v) or "off") end
+  function eb:SetValue(v) self.value = v; show(v) end
+  eb:SetScript("OnEscapePressed", function(self) show(self.value); self:ClearFocus() end)
+  eb:SetScript("OnEditFocusLost", function(self)
+    local text = self:GetText():lower()
+    local v = (text == "off" or text == "") and 0 or ns.ParseMoney(text)
+    if v and v ~= self.value then self.value = v; onChange(v) end
+    show(self.value)
+  end)
+  return eb
+end
+
+-- A row of buttons, one of which is chosen. options: { { value, label }, ... }.
+function T:Choice(parent, options, onChange)
+  local f = CreateFrame("Frame", nil, parent)
+  f.buttons = {}
+  local x = 0
+  for _, o in ipairs(options) do
+    local b = T:Button(f, o.label, 10, function() f:SetValue(o.value); onChange(o.value) end, 22)
+    b:SetWidth(b:GetFontString():GetStringWidth() + 20)
+    b:SetPoint("LEFT", x, 0)
+    b.value = o.value
+    x = x + b:GetWidth() + 4
+    f.buttons[#f.buttons + 1] = b
+  end
+  f:SetSize(x, 22)
+  function f:SetValue(v)
+    for _, b in ipairs(self.buttons) do b:SetSelected(b.value == v) end
+  end
+  return f
 end
 
 -- A tab: plain text, with an accent underline when selected.
