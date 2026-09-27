@@ -71,9 +71,24 @@ end
 -- A window counts as open until LINGER seconds after it closes, because money can
 -- arrive a moment later (auto-loot closes the loot window before the coins land).
 local LINGER = 1.5
+-- Close events don't always arrive (loot was once counted as mail because the mailbox
+-- never reported closing), so also check the window is really on screen. Loot is left
+-- out: with auto-loot its window often never shows.
+local FRAMES = {
+  merchant = "MerchantFrame", ah = "AuctionHouseFrame", mail = "MailFrame", trade = "TradeFrame",
+  quest = "QuestFrame", trainer = "ClassTrainerFrame", taxi = "TaxiFrame",
+}
 local function isOpen(name)
   local v = open[name]
-  return v == true or (v and GetTime() - v < LINGER)
+  if v == true then
+    local frame = FRAMES[name] and _G[FRAMES[name]]
+    if frame and frame.IsShown and not frame:IsShown() then
+      open[name] = nil
+      return false
+    end
+    return true
+  end
+  return v and GetTime() - v < LINGER
 end
 
 local function sourceFor(delta)
