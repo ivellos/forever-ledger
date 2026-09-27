@@ -391,6 +391,30 @@ function ns:ShuffleItems(s)
   return inputs, products, run
 end
 
+-- Everything the player does in this shuffle, in order, for Work it's buttons:
+-- { kind = "craft", opt = craft option, first = true for the first step },
+-- { kind = "use", item = itemID, label = "Split into …" } (essence split/combine),
+-- { kind = "disenchant" }. Each craft and item appears once.
+function ns:ShuffleActions(s)
+  local out, seen = {}, {}
+  local function add(key, a) if not seen[key] then seen[key] = true; out[#out + 1] = a end end
+  local function walk(o)
+    if not o then return end
+    if o.kind == "craft" then
+      add("craft" .. tostring(o.recipeID or o.step), { kind = "craft", opt = o, first = #out == 0 })
+      walk(o.next)
+    elseif o.kind == "convert" then
+      add("use" .. tostring(o.id), { kind = "use", item = o.id, label = o.step })
+      walk(o.next)
+    elseif o.kind == "disenchant" then
+      add("disenchant", { kind = "disenchant" })
+      for _, m in ipairs(o.mats or {}) do walk(m.opt) end
+    end
+  end
+  walk(s.opt)
+  return out
+end
+
 -- The items this shuffle disenchants (a group's members, the item itself, or what a
 -- craft makes right before disenchanting), as a set of item IDs, or nil if none.
 function ns:ShuffleDisenchantTargets(s)

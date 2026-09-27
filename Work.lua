@@ -104,6 +104,15 @@ function ns:CraftFromClick(opt, count)
     end
     return
   end
+  -- No count: as many as the materials in the bags allow.
+  if not count then
+    local info = TS.GetRecipeInfo and TS.GetRecipeInfo(opt.recipeID)
+    count = info and info.numAvailable or 0
+    if count <= 0 then
+      ns:Print(("No materials for %s in your bags yet."):format(opt.rec and opt.rec.n or "that craft"))
+      return
+    end
+  end
   local ok, err = pcall(TS.CraftRecipe, opt.recipeID, count)
   if not ok then ns:Print("Couldn't start the craft: " .. tostring(err)) end
 end
@@ -289,8 +298,29 @@ end
 ns:On("BAG_UPDATE_DELAYED", function() if deButton and deButton:IsVisible() then updateDisenchantButton() end end)
 ns:On("PLAYER_REGEN_ENABLED", function() if deButton and deButton.pending then updateDisenchantButton() end end)
 
-local function buildDisenchantButton(parent)
-  local b = CreateFrame("Button", "ForeverLedgerDisenchantButton", parent, "SecureActionButtonTemplate")
+-- Split or combine buttons: secure too (using an item from a bag is protected).
+local useButtons = {}
+
+local function updateUseButton(b)
+  if InCombatLockdown() then b.pending = true; return end
+  b.pending = false
+  local n = GetItemCount and GetItemCount(b.item) or 0
+  b:SetAttribute("type", "item")
+  b:SetAttribute("item", "item:" .. b.item)
+  b.text:SetText(("%s (%d %s in bags)"):format(b.label, n, ns.ItemName(b.item)))
+  b.icon:SetTexture(ns:ItemIcon(b.item))
+  b:SetAlpha(n > 0 and 1 or 0.6)
+end
+
+ns:On("BAG_UPDATE_DELAYED", function()
+  for _, b in ipairs(useButtons) do if b:IsVisible() then updateUseButton(b) end end
+end)
+ns:On("PLAYER_REGEN_ENABLED", function()
+  for _, b in ipairs(useButtons) do if b.pending then updateUseButton(b) end end
+end)
+
+local function buildDisenchantButton(parent, name, tipTitle, tipText)
+  local b = CreateFrame("Button", name or "ForeverLedgerDisenchantButton", parent, "SecureActionButtonTemplate")
   b:SetSize(300, 26)
   b:RegisterForClicks("AnyUp", "AnyDown")
   local c = T.button
@@ -310,8 +340,8 @@ local function buildDisenchantButton(parent)
   b.text:SetWordWrap(false)
   b:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine("Disenchants the next item from this shuffle in your bags", 1, 1, 1, true)
-    GameTooltip:AddLine("One click, one disenchant. Only this shuffle's items are ever picked.", 0.85, 0.85, 0.85, true)
+    GameTooltip:AddLine(tipTitle or "Disenchants the next item from this shuffle in your bags", 1, 1, 1, true)
+    GameTooltip:AddLine(tipText or "One click, one disenchant. Only this shuffle's items are ever picked.", 0.85, 0.85, 0.85, true)
     GameTooltip:Show()
   end)
   b:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -396,21 +426,37 @@ local function buildWindow()
 
   win.stepsTitle = T:Text(win, 12, T.accent)
   win.stepsTitle:SetText("Steps")
-  -- Starts the first craft, as many times as "Buy for" says. Needs its profession window open.
-  win.craft = T:Button(win, "Craft", 120, function()
-    if current and current.opt.kind == "craft" then ns:CraftFromClick(current.opt, win.runs.value or 1) end
-  end, 22)
-  win.craft:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine("Starts the first craft", 1, 1, 1)
-    GameTooltip:AddLine(("Open your %s window first."):format(current and current.opt.prof or "profession"), 0.85, 0.85, 0.85, true)
-    GameTooltip:Show()
-  end)
-  win.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
   deButton = buildDisenchantButton(win)
-  win.craftNote = T:Text(win, 10, T.dim)
-  win.craftNote:SetPoint("TOPRIGHT", win.craft, "BOTTOMRIGHT", 0, -3)
-  win.craftNote:SetJustifyH("RIGHT")
+
+  -- "Do it" buttons, one per step: crafts (plain buttons: crafting from a click is
+  -- allowed), splits and combines (secure), and Disenchant (secure, above).
+  win.actionsTitle = T:Text(win, 12, T.accent)
+  win.actionsTitle:SetText("Do it")
+  win.actionsNote = T:Text(win, 10, T.dim)
+  win.actionsNote:SetPoint("LEFT", win.actionsTitle, "RIGHT", 10, 0)
+  win.actionsNote:SetText("A craft's first click opens its profession, the second crafts.")
+  win.craftButtons = {}
+  for i = 1, 4 do
+    local b = T:Button(win, "", 300, function(self)
+      if self.opt then ns:CraftFromClick(self.opt, self.count) end
+    end, 24)
+    b:GetFontString():ClearAllPoints()
+    b:GetFontString():SetPoint("LEFT", 10, 0)
+    b:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine(self.opt and self.opt.rec and self.opt.rec.n or "Craft", 1, 1, 1)
+      GameTooltip:AddLine(self.count and ("Crafts %d."):format(self.count) or "Crafts as many as the materials in your bags allow.", 0.85, 0.85, 0.85, true)
+      GameTooltip:AddLine(("Needs your %s window open (the first click opens it)."):format(self.opt and self.opt.prof or "profession"), 0.85, 0.85, 0.85, true)
+      GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    win.craftButtons[i] = b
+  end
+  for i = 1, 2 do
+    useButtons[i] = buildDisenchantButton(win, "ForeverLedgerUseButton" .. i,
+      "Uses the item, like right-clicking it in your bags", "Splits or combines one each click.")
+  end
+
   win.steps = T:Text(win, 11, { 1, 1, 1, 0.85 })
   win.steps:SetJustifyH("LEFT")
   win.steps:SetJustifyV("TOP")
@@ -437,8 +483,10 @@ local function buildWindow()
       for _, b in ipairs(self.lines) do b:Hide() end
       self.stepsTitle:Hide()
       self.steps:Hide()
-      self.craft:Hide()
-      self.craftNote:Hide()
+      self.actionsTitle:Hide()
+      self.actionsNote:Hide()
+      for _, b in ipairs(self.craftButtons) do b:Hide() end
+      if not InCombatLockdown() then for _, b in ipairs(useButtons) do b:Hide() end end
       deTargets = nil
       updateDisenchantButton()
       return
@@ -463,27 +511,54 @@ local function buildWindow()
     self.stepsTitle:ClearAllPoints()
     self.stepsTitle:SetPoint("TOPLEFT", 14, -y)
     self.stepsTitle:Show()
-    local canCraft = current.opt.kind == "craft" and current.opt.recipeID ~= nil
-    self.craft:ClearAllPoints()
-    self.craft:SetPoint("TOPRIGHT", self, "TOPRIGHT", -14, -(y - 4))
-    self.craft:SetText(("Craft %d"):format(runs))
-    self.craft:SetShown(canCraft)
-    self.craftNote:SetText("First click opens the profession\nSecond click crafts")
-    self.craftNote:SetShown(canCraft)
     self.steps:ClearAllPoints()
     self.steps:SetPoint("TOPLEFT", 14, -(y + 18))
     self.steps:SetPoint("RIGHT", self, "RIGHT", -14, 0)
     self.steps:SetText(ns:ShuffleSteps(current) .. "\n\n" .. ns:ShuffleProfitLine(current))
     self.steps:Show()
+    y = y + 18 + self.steps:GetStringHeight() + 12
 
-    -- The Disenchant button sits under the steps (moved only out of combat).
-    -- Secure buttons can only be anchored to frames, not to text, so place it on the
-    -- window at the height where the steps end.
-    deTargets = ns:ShuffleDisenchantTargets(current)
-    if not InCombatLockdown() then
-      deButton:ClearAllPoints()
-      deButton:SetPoint("TOPLEFT", self, "TOPLEFT", 14, -(y + 18 + self.steps:GetStringHeight() + 10))
-      deButton:SetPoint("RIGHT", self, "RIGHT", -14, 0)
+    -- One button per step, in order. Secure buttons (splits, Disenchant) can only be
+    -- anchored to frames and only moved out of combat, so they're placed on the window.
+    local actions = ns:ShuffleActions(current)
+    self.actionsTitle:ClearAllPoints()
+    self.actionsTitle:SetPoint("TOPLEFT", 14, -y)
+    self.actionsTitle:SetShown(#actions > 0)
+    self.actionsNote:SetShown(#actions > 0)
+    if #actions > 0 then y = y + 20 end
+    local nCraft, nUse, combat = 0, 0, InCombatLockdown()
+    deTargets = nil
+    local function place(b)
+      b:ClearAllPoints()
+      b:SetPoint("TOPLEFT", self, "TOPLEFT", 14, -y)
+      b:SetPoint("RIGHT", self, "RIGHT", -14, 0)
+      y = y + 28
+    end
+    for _, a in ipairs(actions) do
+      if a.kind == "craft" and a.opt.recipeID and nCraft < #self.craftButtons then
+        nCraft = nCraft + 1
+        local b = self.craftButtons[nCraft]
+        b.opt, b.count = a.opt, a.first and runs or nil
+        b:SetText(a.first and ("Craft %d x %s"):format(runs, a.opt.rec.n or "?")
+          or ("Craft all you can: %s"):format(a.opt.rec.n or "?"))
+        place(b)
+        b:Show()
+      elseif a.kind == "use" and nUse < #useButtons then
+        nUse = nUse + 1
+        local b = useButtons[nUse]
+        b.item, b.label = a.item, a.label
+        if not combat then place(b); b:Show() else y = y + 28 end
+        updateUseButton(b)
+      elseif a.kind == "disenchant" then
+        deTargets = ns:ShuffleDisenchantTargets(current)
+        if not combat then place(deButton) else y = y + 28 end
+      end
+    end
+    for i = nCraft + 1, #self.craftButtons do self.craftButtons[i]:Hide() end
+    if not combat then
+      for i = nUse + 1, #useButtons do useButtons[i]:Hide() end
+      -- Grow the window to fit, above the session area.
+      self:SetHeight(math.max(520, y + 170))
     end
     updateDisenchantButton()
   end
