@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - History for the coming dashboard: each character's gold over time, money in and out each day by source (auction house sales, purchases and fees, vendors, repairs, mail, trade, loot, quests, training, flights), and a log of auction house sales and purchases.
+- A log of vendor purchases and sales per item (which item, how many, how much), for the coming session tracker. Quick sales that arrive as one gold change are split back into the items sold.
 - Price history per item: daily for 30 days, weekly for 2 years, and all-time lowest and average.
 - `/fl money` shows today's money in and out for the character you're on.
 - Deal alerts after each scan (chime, on-screen message, chat list), two kinds:

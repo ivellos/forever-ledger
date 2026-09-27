@@ -46,25 +46,46 @@ end
 -- Money in and out: money[charKey][day][source] = copper (always positive)
 ---------------------------------------------------------------------------
 local open = {}          -- per window: true while open, GetTime() when it closed
-local pending = {}       -- hints for the next gold change: { source, t, amount, item, log }
+local pendingAll = {}    -- hints for the next gold change: { source, t, amount, item, qty, log }
 local lastMoney
 
 local function hint(h)
   h.t = GetTime()
-  pending[#pending + 1] = h
+  pendingAll[#pendingAll + 1] = h
 end
 
--- Take the hint that best matches a gold change: same amount first, otherwise the oldest.
-local function takeHint(delta)
-  local now, pick = GetTime(), nil
-  for i = #pending, 1, -1 do
-    if now - pending[i].t > PENDING_SECONDS then table.remove(pending, i) end
+-- Take the hints that explain a gold change: one with the same amount; otherwise several
+-- whose amounts add up to it (quick vendor sales can arrive as one change); otherwise
+-- the oldest. Returns a list, possibly empty.
+local GAINS = { vendorSell = true, ahSale = true, mailIn = true }
+
+local function takeHints(delta)
+  local now, want = GetTime(), math.abs(delta)
+  -- Drop old hints, and never let a sale explain money going out (or the reverse).
+  local pending = {}
+  for i = #pendingAll, 1, -1 do
+    if now - pendingAll[i].t > PENDING_SECONDS then table.remove(pendingAll, i) end
   end
-  for i, h in ipairs(pending) do
-    if h.amount and h.amount == math.abs(delta) then pick = i; break end
+  for _, h in ipairs(pendingAll) do
+    if (GAINS[h.source] or false) == (delta > 0) then pending[#pending + 1] = h end
   end
-  pick = pick or (#pending > 0 and 1)
-  if pick then return table.remove(pending, pick) end
+  local function take(h)
+    for i, p in ipairs(pendingAll) do if p == h then table.remove(pendingAll, i); break end end
+    return h
+  end
+  for _, h in ipairs(pending) do
+    if h.amount == want then return { take(h) } end
+  end
+  local sum, picks = 0, {}
+  for _, h in ipairs(pending) do
+    if h.amount and sum + h.amount <= want then sum = sum + h.amount; picks[#picks + 1] = h end
+  end
+  if sum == want and #picks > 1 then
+    for _, h in ipairs(picks) do take(h) end
+    return picks
+  end
+  if #pending > 0 then return { take(pending[1]) } end
+  return {}
 end
 
 -- A window counts as open until LINGER seconds after it closes, because money can
@@ -116,17 +137,26 @@ local function onMoney()
   snapshotGold()
   if delta == 0 then return end
 
-  local h = takeHint(delta)
-  local source = h and h.source or sourceFor(delta)
+  local hints = takeHints(delta)
+  local source = hints[1] and hints[1].source or sourceFor(delta)
   local day = charTable(ns.db.money)
   day[today()] = day[today()] or {}
   local totals = day[today()]
   totals[source] = (totals[source] or 0) + math.abs(delta)
 
-  if h and h.log == "sale" then
-    addLog(ns.db.sales, { t = time(), c = ns.CharKey(), n = h.item, a = math.abs(delta), cut = h.cut })
-  elseif source == "ahBuy" then
-    addLog(ns.db.purchases, { t = time(), c = ns.CharKey(), id = h and h.item, q = h and h.qty, a = math.abs(delta) })
+  local now, who = time(), ns.CharKey()
+  for _, h in ipairs(hints) do
+    local amount = (#hints > 1 and h.amount) or math.abs(delta)
+    if h.log == "sale" then
+      addLog(ns.db.sales, { t = now, c = who, n = h.item, a = amount, cut = h.cut })
+    elseif h.log == "vendor" then
+      addLog(ns.db.vendorLog, { t = now, c = who, id = h.item, q = h.qty, a = amount, s = h.source == "vendorSell" and "sell" or "buy" })
+      ns:Debug("Vendor", h.source == "vendorSell" and "sold" or "bought", h.qty or "?", "x", h.item or "?", "for", ns.Money(amount))
+    end
+  end
+  if source == "ahBuy" then
+    local h = hints[1]
+    addLog(ns.db.purchases, { t = now, c = who, id = h and h.item, q = h and h.qty, a = math.abs(delta) })
   end
   ns:Debug("Money", source, delta > 0 and "+" or "-", ns.Money(math.abs(delta)))
 end
@@ -171,7 +201,31 @@ local function mailHint(index)
   end
 end
 
+-- Buying from a vendor: which item and how many.
+local function buyHint(index, quantity)
+  local id = GetMerchantItemID and GetMerchantItemID(index)
+  local stack = 1
+  if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+    local info = C_MerchantFrame.GetItemInfo(index)
+    stack = info and info.stackCount or 1
+  end
+  hint({ source = "vendorBuy", item = id, qty = quantity or stack, log = "vendor" })
+end
+
+-- Selling to a vendor (right-clicking a bag item while a vendor is open): which item,
+-- how many, and what the vendor should pay, so quick sales can be told apart.
+local function sellHint(bag, slot)
+  if not isOpen("merchant") or not (C_Container and C_Container.GetContainerItemInfo) then return end
+  local info = C_Container.GetContainerItemInfo(bag, slot)
+  if not info or not info.itemID then return end
+  local count = info.stackCount or 1
+  local each = ns:GetSellPrice(info.itemID)
+  hint({ source = "vendorSell", item = info.itemID, qty = count, amount = each and each > 0 and each * count or nil, log = "vendor" })
+end
+
 ns:OnReady(function()
+  hook(_G, "BuyMerchantItem", buyHint)
+  hook(C_Container, "UseContainerItem", sellHint)
   hook(_G, "TakeInboxMoney", mailHint)
   hook(_G, "AutoLootMailItem", mailHint)
   hook(_G, "RepairAllItems", function() hint({ source = "repair" }) end)

@@ -17,6 +17,7 @@ local DEFAULTS = {
   money = {},       -- [charKey][day][source] = copper in or out
   sales = {},       -- auction house sales: { t, c = charKey, n = item name, a = copper received, cut }
   purchases = {},   -- auction house purchases: { t, c, id, q, a }
+  vendorLog = {},   -- vendor buys and sells: { t, c, id, q, a, s = "buy" | "sell" }
   history = {},       -- [marketKey][itemID] = "day:cheapest:typical|..." (last 30 days)
   historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (2 years)
   historyAll = {},    -- [marketKey][itemID] = "lowest:typicalSum:days"
@@ -254,6 +255,7 @@ function ns:ApiReport()
     "C_AuctionHouse.GetItemSearchResultInfo", "C_MerchantFrame.GetItemInfo", "GetMerchantItemInfo",
     "TooltipDataProcessor.AddTooltipPostCall", "C_Item.GetItemInfo",
     "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
+    "BuyMerchantItem", "GetMerchantItemID", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
     "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
   }
