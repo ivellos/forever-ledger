@@ -19,20 +19,32 @@ local incoming = {}          -- [sender .. id] = { parts, n, got, t }
 local partnerOnline = false
 local lastSentTo             -- when a message was last sent, for hiding "no player named" errors
 local test                   -- running /fl sync test
+local ping                   -- running /fl sync ping: { name, ok, failed }
 local counter = 0
 
 local function me() return UnitName("player") end
 local function partner() return ns.db.settings.syncPartner end
 
--- Whispers need "Name-Server" in Forever (plain "Iveilos" got "No player named").
--- Names without a server get this character's server.
-local function fullName(name)
-  if not name or name:find("-", 1, true) then return name end
+local function realmSuffix()
   local realm = GetNormalizedRealmName and GetNormalizedRealmName()
   if not realm or realm == "" then realm = (GetRealmName() or ""):gsub("[%s%-]", "") end
+  return realm
+end
+
+-- Forever names have a first and last name ("Tamia Corvidae"). Whether whispers
+-- need "-Server" on the end is found out by /fl sync ping (settings.syncAddRealm).
+local function fullName(name)
+  if not name or name:find("-", 1, true) or not ns.db.settings.syncAddRealm then return name end
+  local realm = realmSuffix()
   return realm ~= "" and (name .. "-" .. realm) or name
 end
 local function shortName(name) return name and name:match("^[^-]+") end
+
+-- "tamia corvidae" to "Tamia Corvidae" (the slash command arrives in lower case).
+local function titleCase(s)
+  s = (s or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  return (s:gsub("(%a)([%w']*)", function(a, b) return a:upper() .. b end))
+end
 
 local function state()
   local p = (partner() or ""):lower()
@@ -79,12 +91,12 @@ end
 local NOT_FOUND = ERR_CHAT_PLAYER_NOT_FOUND_S and ERR_CHAT_PLAYER_NOT_FOUND_S:match("^(.-)%%s") or "No player named "
 local function notFound(msg)
   if not (lastSentTo and GetTime() - lastSentTo < 5 and type(msg) == "string") then return false end
-  if msg:sub(1, #NOT_FOUND) ~= NOT_FOUND then return false end
-  local target = ping or (test and me()) or shortName(partner())
-  return target ~= nil and msg:find(target, 1, true) ~= nil
+  if msg:sub(1, #NOT_FOUND) ~= NOT_FOUND and not msg:find("No player named", 1, true) then return false end
+  local target = (ping and ping.name) or (test and me()) or partner()
+  -- The game names only the first word, so match on that.
+  local first = target and target:match("^[^%s%-]+")
+  return first ~= nil and msg:lower():find(first:lower(), 1, true) ~= nil
 end
-
-local ping   -- name being pinged with /fl sync ping
 
 local function failed()
   local unsent = #queue > 0
@@ -95,8 +107,7 @@ local function failed()
     st.sentUpTo = st.previous
   end
   if ping then
-    ns:Print(("Sync ping: the game says there's no player named %s. Check the spelling, or that they're online."):format(ping))
-    ping = nil
+    ping.failed = true
   elseif test then
     ns:Print(("Sync test stopped: the game says there's no player named %s, so addon whispers to %s don't arrive."):format(
       me(), fullName(me())))
@@ -245,9 +256,8 @@ end)
 function ns:SyncCommand(args)
   local cmd, rest = (args or ""):match("^(%S*)%s*(.-)$")
   if cmd == "pair" then
-    local name = rest:match("^(%S+)")
-    if not name then ns:Print("Use /fl pair Charactername, on both characters."); return end
-    name = name:sub(1, 1):upper() .. name:sub(2):lower()
+    local name = titleCase(rest)
+    if name == "" then ns:Print("Use /fl pair First Last, on both characters."); return end
     ns.db.settings.syncPartner = name
     partnerOnline = false
     ns:Print(("Paired with %s. Do /fl pair %s on that character too. Syncing starts when both are online."):format(name, me()))
@@ -262,14 +272,46 @@ function ns:SyncCommand(args)
     ns:Print(("Sync test: sending %d characters, %d prices and %d vendor prices to yourself in %d messages. This takes about %d seconds."):format(
       count(data.chars), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), n, math.ceil(n * SEND_GAP)))
   elseif cmd == "ping" then
-    local name = rest:match("^(%S+)")
-    if not name then ns:Print("Use /fl sync ping Name, with someone who's online."); return end
-    ping = name:sub(1, 1):upper() .. name:sub(2)
-    send({ k = "p" }, ping)
-    ns:Print(("Sync ping: sent one hidden message to %s. If nothing else appears within 5 seconds, it reached them."):format(fullName(ping)))
-    C_Timer.After(5, function()
-      if ping then ns:Print(("Sync ping: no error, so addon whispers to %s work."):format(fullName(ping))); ping = nil end
-    end)
+    -- Try "First Last", then "First Last-Server", and report which the game accepts.
+    local name = titleCase(rest)
+    if name == "" then ns:Print("Use /fl sync ping First Last, with someone who's online."); return end
+    local realm = realmSuffix()
+    local tries = { name, realm ~= "" and (name .. "-" .. realm) or nil }
+    local results = {}
+    local function try(i)
+      local target = tries[i]
+      if not target then
+        local works = {}
+        for j, r in ipairs(results) do if r then works[#works + 1] = j end end
+        if #works == 0 then
+          ns:Print(("Sync ping: neither form reached %s. Check they're online and the name is spelled exactly."):format(name))
+        else
+          ns.db.settings.syncAddRealm = works[1] == 2
+          ns:Print(("Sync ping: whispers to \"%s\" work. Sync will use that form."):format(tries[works[1]]))
+        end
+        return
+      end
+      ping = { name = target }
+      queue[#queue + 1] = { to = target, text = "0:1:1:" .. ns.Serialize({ k = "p" }) }
+      if not sending then pump() end
+      C_Timer.After(3, function()
+        results[i] = not ping.failed
+        ns:Print(("Sync ping: \"%s\" %s."):format(target, results[i] and "was accepted" or "got \"no player named\""))
+        ping = nil
+        try(i + 1)
+      end)
+    end
+    ns:Print(("Sync ping: sending one hidden message to %s, in two forms, 3 seconds apart."):format(name))
+    try(1)
+  elseif cmd == "whoami" then
+    local n1, r1 = UnitName("player")
+    local fn, fr = UnitFullName and UnitFullName("player")
+    local gn = GetUnitName and GetUnitName("player", true)
+    ns:Print("How the game names this character:")
+    print(("  UnitName: %s / %s"):format(tostring(n1), tostring(r1)))
+    print(("  UnitFullName: %s / %s"):format(tostring(fn), tostring(fr)))
+    print(("  GetUnitName with server: %s"):format(tostring(gn)))
+    print(("  Server for whispers: %s"):format(realmSuffix()))
   elseif cmd == "now" then
     if not partner() then ns:Print("Pair first with /fl pair Charactername."); return end
     hello(false)
