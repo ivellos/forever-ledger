@@ -21,7 +21,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl cut` shows or changes the auction house cut used in values (default 5%).
 
 ### Changed
-- The scan buttons and `/fl scan` now do a full scan when Blizzard allows one (about every 15 minutes), which reads everything in seconds. Otherwise they scan your materials, and say when the next full scan is possible. `/fl scan materials` forces the materials scan.
+- Two scan buttons, in the ledger window and on the auction house: "Full scan" (reads everything in seconds) shows "Ready" or a countdown to when Blizzard allows the next one (about every 15 minutes), and "Scan materials" scans what your recipes use.
+- `/fl scan` does a full scan when one is allowed and scans your materials otherwise. `/fl scan materials` forces the materials scan. If the auction house doesn't send a full scan within 30 seconds, the materials scan runs instead.
 - The materials scan tries items that got no reply once more at the end.
 - The "scan finished" and "full scan done" messages say how long the scan took.
 

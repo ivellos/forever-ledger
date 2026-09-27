@@ -6,7 +6,7 @@ Run through this after installing a new version. Send the results, plus any erro
 2. Type `/fl`. Your character should be listed with its professions. The window title shows the version.
 3. Open your Tailoring window, then your Enchanting window. Chat should say "Saved N ... recipes".
 4. Visit a Trade Supplies vendor. Hover Coarse Thread or Simple Wood: the tooltip should show "Vendor sells it for".
-5. Open the auction house and click "Ledger scan". It should do a full scan (a few seconds). Click it again: it should say when the next full scan is possible and scan your materials instead. Hover Strange Dust and compare the ledger price with the auction house.
+5. Open the auction house. Next to "Scan materials" there should be "Full scan: Ready" (or a countdown). Click it: a full scan should finish in a few seconds and the button should start counting down from 15:00. Hover Strange Dust and compare the ledger price with the auction house.
 6. Try `/fl scan materials` once. Note how long it takes and how many "No reply" lines appear with `/fl debug` on.
 7. Hover Linen Cloth. It should say which of your characters use it.
 8. Type `/fl csv` and check the price list looks sensible.

@@ -82,16 +82,18 @@ local function buildMain()
   main.status:SetPoint("BOTTOMLEFT", 16, 44)
   main.status:SetText("")
 
-  local scan = button(main, "Scan auction house", 150, function() ns.Scan:Start("auto") end)
-  scan:SetPoint("BOTTOMLEFT", 14, 14)
-  local exp = button(main, "Export", 90, function() ns:ShowExport() end)
+  local full = button(main, "Full scan", 130, function() ns.Scan:Start("full") end)
+  full:SetPoint("BOTTOMLEFT", 14, 14)
+  local scan = button(main, "Scan materials", 120, function() ns.Scan:Start("watch") end)
+  scan:SetPoint("LEFT", full, "RIGHT", 6, 0)
+  local exp = button(main, "Export", 65, function() ns:ShowExport() end)
   exp:SetPoint("LEFT", scan, "RIGHT", 6, 0)
-  local imp = button(main, "Import", 90, function() ns:ShowImport() end)
+  local imp = button(main, "Import", 65, function() ns:ShowImport() end)
   imp:SetPoint("LEFT", exp, "RIGHT", 6, 0)
-  local csv = button(main, "Prices as text", 120, function() ns:ShowPricesCSV() end)
+  local csv = button(main, "Prices as text", 100, function() ns:ShowPricesCSV() end)
   csv:SetPoint("LEFT", imp, "RIGHT", 6, 0)
-  main.scanBtn = scan
-  main.overviewButtons = { scan, exp, imp, csv }
+  main.scanBtn, main.fullBtn = scan, full
+  main.overviewButtons = { full, scan, exp, imp, csv }
 
   -- Shuffles
   main.shuffleSF, main.shuffleContent = scrollArea(62)
@@ -374,7 +376,35 @@ function ns:RefreshUI()
   main.text:SetText(table.concat(L, "\n"))
   main.content:SetHeight(main.text:GetStringHeight() + 10)
   main.scanBtn:SetEnabled(ns:IsAHOpen())
+  ns:UpdateFullScanButtons()
 end
+
+-- "Full scan: Ready", or a countdown until Blizzard allows the next one.
+function ns:UpdateFullScanButtons()
+  if not ns.db then return end
+  local wait = ns.Scan:FullWait()
+  local label, ready = "Full scan", false
+  if wait == 0 then
+    label, ready = "Full scan: Ready", true
+  elseif wait < math.huge then
+    label = ("Full scan: %d:%02d"):format(math.floor(wait / 60), wait % 60)
+  end
+  for _, b in ipairs({ main and main.fullBtn or false, ns.ahFullButton or false }) do
+    if b then
+      b:SetText(label)
+      b:SetEnabled(ready and ns:IsAHOpen() and not ns.Scan.active)
+    end
+  end
+end
+
+-- Tick the countdown once a second while a button showing it is on screen.
+ns:OnReady(function()
+  C_Timer.NewTicker(1, function()
+    if (main and main:IsShown()) or (ns.ahFullButton and ns.ahFullButton:IsVisible()) then
+      ns:UpdateFullScanButtons()
+    end
+  end)
+end)
 
 function ns:UpdateScanStatus(done, total)
   if main and main.status then
@@ -389,9 +419,12 @@ end
 function ns:OnAHShow()
   local ah = AuctionHouseFrame or AuctionFrame
   if ah and not ns.ahButton then
-    ns.ahButton = button(ah, "Ledger scan", 110, function() ns.Scan:Start("auto") end)
+    ns.ahButton = button(ah, "Scan materials", 120, function() ns.Scan:Start("watch") end)
     ns.ahButton:SetPoint("TOPRIGHT", ah, "TOPRIGHT", -30, -28)
+    ns.ahFullButton = button(ah, "Full scan", 130, function() ns.Scan:Start("full") end)
+    ns.ahFullButton:SetPoint("RIGHT", ns.ahButton, "LEFT", -4, 0)
   end
+  ns:UpdateFullScanButtons()
   ns:RefreshUI()
 end
 
