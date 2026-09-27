@@ -11,6 +11,8 @@ A World of Warcraft: Forever addon for crafters who like to make gold. It rememb
 - **Work it and sessions.** Open a shuffle, click items to find them on the auction house or buy them from a vendor, start the craft, and track what one session of it earned.
 - **Deal alerts.** A chime after a scan when something is listed well below its usual price, or below what a vendor pays.
 - **Tinted auction house.** Listings worth buying are highlighted on the auction house itself.
+- **Disenchanting tools.** A finder beside the auction house lists greens by item level with their disenchant value, a one-click Disenchant button works through a shuffle's items, and a recorder checks what you actually get.
+- **One click per step.** Work it has a button for each craft, split and disenchant in a shuffle.
 - **What's it worth to you?** Every tooltip shows an item's best value: selling it on the auction house (after the cut), selling it to a vendor, disenchanting it, splitting or combining essences, or crafting it into something worth more, following chains up to 4 steps long.
 - **Vendor floors.** When a recipe you know turns an item into something a vendor buys, that sets a guaranteed minimum value for its materials.
 - **Buy at or below.** The most worth paying for a material, after a safety margin, shown in green when the auction house price is already lower.
@@ -48,6 +50,8 @@ The addon suggests; you click. Every craft, purchase and auction still needs you
 | `/fl deals` | List current deals (`/fl deals settings` for the options; they're also in the Settings tab) |
 | `/fl session` | Open the Work it window for the running session |
 | `/fl money` | Today's money in and out for this character |
+| `/fl de` | Disenchant results so far, against what the addon expects (`/fl de reset` to start over) |
+| `/fl perf` | What the addon has spent time on (for lag reports) |
 | `/fl pair First Last` | Pair with your character on another account for live sync (do it on both) |
 | `/fl sync` | Sync status; `/fl sync now` sends everything, `/fl sync ping First Last` checks whispers reach someone |
 | `/fl minimap` | Hide or show the minimap button |
