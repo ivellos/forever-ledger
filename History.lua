@@ -58,6 +58,7 @@ local open = {}          -- per window: true while open, GetTime() when it close
 local pendingAll = {}    -- hints for the next gold change: { source, t, amount, item, qty, log }
 local lastMoney
 local lastShownItem      -- the item the auction house last showed listings for
+function ns.LastShownItem() return lastShownItem end
 
 local function hint(h)
   h.t = GetTime()

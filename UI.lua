@@ -378,6 +378,8 @@ local SETTINGS = {
   { section = "Other" },
   { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end },
   { key = "tooltip", label = "Tooltip lines", kind = "check" },
+  { key = "ahHighlight", label = "Tint good buys on the auction house", kind = "check",
+    help = "On an item's buy page, listings at or below its buy limit get a tint." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
 
