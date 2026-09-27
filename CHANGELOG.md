@@ -12,6 +12,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shuffle rows are simpler: the name is just the item or recipe, a Steps column gives the count, and hovering a step icon names that step. Runs, and "Listed" on vendor flips, count only listings cheap enough to make a profit (scans now save how many are listed at each of the cheapest 20 prices).
 - The ledger window can be resized from its bottom-right corner, and remembers its size.
 - "Work it" on each opened shuffle or vendor flip: a small window with the shopping list and steps. Click an item to search the auction house for it, or to buy it from the open vendor (choose how many runs to buy for). Each click is one search or one purchase.
+- At the auction house, clicking an item in Work it also fills in the Quantity box on its buy page (amount per run times "Buy for" runs). You still click Buy.
+- The scan buttons on the auction house window moved to its bottom-right corner, where they're no longer hidden.
 - Sessions: start one from the Work it window, optionally with a goal. It counts what you spend on the shuffle's materials, what you earn selling its products, runs done (crafts, disenchants or items sold), profit and profit per hour, until you stop. The Dashboard lists the running session and the last five. `/fl session` opens it.
 - The Settings tab has controls for every setting: number boxes with - and +, rows of choices, a money box and checkboxes. Changes apply straight away. The slash commands still work.
 

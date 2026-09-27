@@ -1061,10 +1061,13 @@ end
 function ns:OnAHShow()
   local ah = AuctionHouseFrame or AuctionFrame
   if ah and not ns.ahButton then
+    -- Bottom-right, beside the gold display, where nothing of Blizzard's sits.
     ns.ahButton = blizzButton(ah, "Scan materials", 120, function() ns.Scan:Start("watch") end)
-    ns.ahButton:SetPoint("TOPRIGHT", ah, "TOPRIGHT", -30, -28)
+    ns.ahButton:SetPoint("BOTTOMRIGHT", ah, "BOTTOMRIGHT", -10, 6)
+    ns.ahButton:SetFrameLevel(ah:GetFrameLevel() + 20)
     ns.ahFullButton = blizzButton(ah, "Full scan", 130, function() ns.Scan:Start("full") end)
     ns.ahFullButton:SetPoint("RIGHT", ns.ahButton, "LEFT", -4, 0)
+    ns.ahFullButton:SetFrameLevel(ah:GetFrameLevel() + 20)
   end
   ns:UpdateFullScanButtons()
   ns:RefreshUI()

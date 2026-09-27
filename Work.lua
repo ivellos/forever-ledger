@@ -24,8 +24,10 @@ end
 ---------------------------------------------------------------------------
 -- Actions (each runs from one click)
 ---------------------------------------------------------------------------
--- Search the open auction house for an item by its exact name.
-function ns:SearchAuctionHouse(id)
+-- Search the open auction house for an item by its exact name. With a quantity,
+-- also fill in the Quantity box once the item's buy page opens (you still click Buy).
+local pendingQty
+function ns:SearchAuctionHouse(id, qty)
   local ah, name = AuctionHouseFrame, ns.GetItemInfo(id)
   if not (ah and ah:IsShown() and name) then return false end
   if ah.SetDisplayMode and AuctionHouseFrameDisplayMode and AuctionHouseFrameDisplayMode.Buy then
@@ -35,8 +37,36 @@ function ns:SearchAuctionHouse(id)
   if not (bar and bar.SearchBox) then return false end
   bar.SearchBox:SetText('"' .. name .. '"')
   if bar.StartSearch then pcall(bar.StartSearch, bar) end
+  pendingQty = qty and { id = id, qty = qty, t = GetTime() } or nil
   return true
 end
+
+-- Put a number in the commodity buy page's Quantity box, the way typing it would.
+local function fillQuantity(qty)
+  local buy = AuctionHouseFrame and AuctionHouseFrame.CommoditiesBuyFrame
+  local display = buy and buy.BuyDisplay
+  local input = display and display.QuantityInput
+  local box = input and (input.InputBox or input)
+  if not (box and box.SetText) then return false end
+  if input.SetQuantity then
+    pcall(input.SetQuantity, input, qty)
+  else
+    box:SetText(tostring(qty))
+    local changed = box:GetScript("OnTextChanged")
+    if changed then pcall(changed, box, true) end
+  end
+  return true
+end
+
+ns:On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
+  local p = pendingQty
+  if not p or p.id ~= itemID or GetTime() - p.t > 10 then return end
+  pendingQty = nil
+  -- Let the buy page finish opening first.
+  C_Timer.After(0.2, function()
+    if not fillQuantity(p.qty) then ns:Debug("Couldn't find the auction house Quantity box.") end
+  end)
+end)
 
 -- Buy from the open vendor. Returns true, or false and why.
 function ns:BuyFromVendor(id, qty)
@@ -64,9 +94,17 @@ function ns:StartSession(s, goal)
     local n = ns.GetItemInfo(id)
     if n then names[n] = true end
   end
+  -- Runs are matched by spell name too: in Forever a recipe's number isn't its spell's.
+  local spellName
+  if s.opt.kind == "craft" then
+    spellName = s.opt.rec and s.opt.rec.n
+  elseif s.opt.kind == "disenchant" then
+    spellName = ns.SpellName(run.spell) or "Disenchant"
+  end
   ns.db.session = {
     key = s.key, name = ns:ShuffleName(s), t = time(), goal = goal ~= 0 and goal or nil, char = ns.CharKey(),
-    inputs = inputs, products = products, names = names, spell = run.spell, sellItem = run.sellItem, runs = 0,
+    inputs = inputs, products = products, names = names, spell = run.spell, spellName = spellName,
+    sellItem = run.sellItem, runs = 0,
   }
   ns:Print(("Session started: %s. Buy, craft and sell as usual; the ledger keeps count."):format(ns.db.session.name))
 end
@@ -113,10 +151,19 @@ function ns:StopSession()
     st.profit < 0 and "-" or "", ns.Money(math.abs(st.profit))))
 end
 
+function ns.SpellName(spellID)
+  if not spellID then return end
+  if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(spellID) end
+  if GetSpellInfo then return (GetSpellInfo(spellID)) end
+end
+
 -- Count runs: each successful cast of the first craft, or of Disenchant.
 ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
   local sess = ns.db and ns.db.session
-  if unit == "player" and sess and sess.spell and spellID == sess.spell then
+  if unit ~= "player" or not sess then return end
+  local name = ns.SpellName(spellID)
+  ns:Debug("Cast", spellID, name or "?", "- session counts", sess.spell or "?", sess.spellName or "?")
+  if (sess.spell and spellID == sess.spell) or (sess.spellName and name == sess.spellName) then
     sess.runs = sess.runs + 1
     if win and win:IsShown() then win:RefreshSession() end
   end
@@ -171,7 +218,7 @@ local function buildWindow()
     b.text:SetWordWrap(false)
     b:SetScript("OnClick", function(self)
       local qty = self.qty * (win.runs.value or 1)
-      if ns:SearchAuctionHouse(self.id) then return end
+      if ns:SearchAuctionHouse(self.id, qty) then return end
       local ok, why = ns:BuyFromVendor(self.id, qty)
       if ok then return end
       ns:Print(why or "Open the auction house or a vendor first, then click an item.")
@@ -180,7 +227,7 @@ local function buildWindow()
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       GameTooltip:SetItemByID(self.id)
       GameTooltip:AddLine(" ")
-      GameTooltip:AddLine("At the auction house: click to search for it.", T.accent[1], T.accent[2], T.accent[3])
+      GameTooltip:AddLine(("At the auction house: click to search for it (quantity %d)."):format(self.qty * (win.runs.value or 1)), T.accent[1], T.accent[2], T.accent[3])
       GameTooltip:AddLine(("At a vendor: click to buy %d."):format(self.qty * (win.runs.value or 1)), T.accent[1], T.accent[2], T.accent[3])
       GameTooltip:Show()
     end)
