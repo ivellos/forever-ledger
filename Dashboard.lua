@@ -124,17 +124,40 @@ local function totals(keys, from, to)
   local net = {}
   for n, v in pairs(sold) do net[n] = v - (bought[n] or 0) end
 
+  -- How many sales and purchases, and the biggest single one of each.
+  local nSales, nBuys, bigSale, bigBuy = 0, 0, nil, nil
+  local function sale(name, amt)
+    nSales = nSales + 1
+    if not bigSale or amt > bigSale.a then bigSale = { n = name, a = amt } end
+  end
+  local function buy(name, amt)
+    nBuys = nBuys + 1
+    if not bigBuy or amt > bigBuy.a then bigBuy = { n = name, a = amt } end
+  end
+  for _, e in ipairs(ns.db.sales) do
+    if e.t >= from and keyset[e.c] and e.n then sale(e.n, e.a) end
+  end
+  for _, e in ipairs(ns.db.vendorLog) do
+    if e.t >= from and keyset[e.c] and e.id then
+      if e.s == "sell" then sale(itemLabel(e.id), e.a) else buy(itemLabel(e.id), e.a) end
+    end
+  end
+  for _, e in ipairs(ns.db.purchases) do
+    if e.t >= from and keyset[e.c] then buy(itemLabel(e.id), e.a) end
+  end
+
   local days = math.max(1, toDay - math.max(fromDay, firstDay or toDay) + 1)
   return {
     sales = sales, expenses = expenses, profit = sales - expenses, days = days,
     topSold = top(sold), topBought = top(bought), topProfit = top(net),
+    nSales = nSales, nBuys = nBuys, bigSale = bigSale, bigBuy = bigBuy,
   }
 end
 
 ---------------------------------------------------------------------------
 -- Building blocks
 ---------------------------------------------------------------------------
-local function box(parent, title)
+local function box(parent, title, rows)
   local b = CreateFrame("Frame", nil, parent)
   T:Fill(b, { 1, 1, 1, 0.03 })
   T:Border(b)
@@ -142,7 +165,7 @@ local function box(parent, title)
   b.title:SetPoint("TOPLEFT", 10, -8)
   b.title:SetText(title)
   b.rows = {}
-  for i = 1, 3 do
+  for i = 1, rows or 3 do
     local label = T:Text(b, 11, T.dim)
     label:SetPoint("TOPLEFT", 10, -10 - i * 18)
     local value = T:Text(b, 12)
@@ -184,11 +207,20 @@ local function drawGraph(g, pts, from, to, rangeKey)
   local plotW, plotH = w - PAD_LEFT - PAD_RIGHT, h - PAD_TOP - PAD_BOTTOM
   g.pts, g.plot = pts, { x = PAD_LEFT, w = plotW, h = plotH }
 
-  local lo, hi
+  local lo, hi, first, last
   for _, p in ipairs(pts) do
-    if p.v then lo = lo and math.min(lo, p.v) or p.v; hi = hi and math.max(hi, p.v) or p.v end
+    if p.v then
+      lo = lo and math.min(lo, p.v) or p.v
+      hi = hi and math.max(hi, p.v) or p.v
+      first = first or p.v
+      last = p.v
+    end
   end
   g.empty:SetShown(lo == nil)
+  -- Green when gold went up over the range, red when it went down (as in TSM).
+  local c = T.accent
+  if first and last and last > first then c = { 0.5, 0.83, 0.61 }
+  elseif first and last and last < first then c = { 0.93, 0.52, 0.59 } end
   local nextCol, doneCols = pool(g, "cols", function()
     local t = g:CreateTexture(nil, "ARTWORK")
     t:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
@@ -234,11 +266,13 @@ local function drawGraph(g, pts, from, to, rangeKey)
     for i, p in ipairs(pts) do
       if p.v then
         local col = nextCol()
+        col:SetColorTexture(c[1], c[2], c[3], 0.18)
         col:ClearAllPoints()
         col:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x(i) - colW / 2, PAD_BOTTOM)
         col:SetSize(colW, math.max(1, y(p.v) - PAD_BOTTOM))
         if prevX and g.CreateLine then
           local l = nextLine()
+          l:SetColorTexture(c[1], c[2], c[3], 1)
           l:SetStartPoint("BOTTOMLEFT", g, prevX, prevY)
           l:SetEndPoint("BOTTOMLEFT", g, x(i), y(p.v))
         end
@@ -317,6 +351,9 @@ function ns:BuildDashboard(parent)
   end)
   f.graph = g
 
+  f.goldStats = box(f, "Gold", 2)
+  f.activity = box(f, "Activity", 2)
+  f.biggest = box(f, "Biggest", 2)
   f.sales = box(f, "Sales")
   f.expenses = box(f, "Expenses")
   f.profit = box(f, "Profit")
@@ -354,26 +391,49 @@ function ns:RefreshDashboard(f)
   -- Layout for the current size
   local W, H = f:GetWidth(), f:GetHeight()
   local top = 32
-  local graphH = math.max(140, math.floor((H - top) * 0.5))
+  local graphH = math.max(110, math.floor((H - top) * 0.34))
   f.graph:ClearAllPoints()
   f.graph:SetPoint("TOPLEFT", 0, -top)
   f.graph:SetSize(W, graphH)
   local boxW = math.floor((W - 20) / 3)
-  local boxY = top + graphH + 10
-  for i, b in ipairs({ f.sales, f.expenses, f.profit }) do
-    b:ClearAllPoints()
-    b:SetPoint("TOPLEFT", (i - 1) * (boxW + 10), -boxY)
-    b:SetSize(boxW, 88)
+  local function row(boxes, y, h)
+    for i, b in ipairs(boxes) do
+      b:ClearAllPoints()
+      b:SetPoint("TOPLEFT", (i - 1) * (boxW + 10), -y)
+      b:SetSize(boxW, h)
+    end
   end
+  local statsY = top + graphH + 10
+  row({ f.goldStats, f.activity, f.biggest }, statsY, 66)
+  local boxY = statsY + 76
+  row({ f.sales, f.expenses, f.profit }, boxY, 88)
   f.sessions:ClearAllPoints()
-  f.sessions:SetPoint("TOPLEFT", 2, -(boxY + 100))
+  f.sessions:SetPoint("TOPLEFT", 2, -(boxY + 98))
   f.sessions:SetPoint("RIGHT", f, "RIGHT", -2, 0)
 
   -- Numbers
   local keys = chosenKeys()
   local from, to = timeRange(keys)
-  drawGraph(f.graph, goldSeries(keys, from, to), from, to, s.range)
+  local pts = goldSeries(keys, from, to)
+  drawGraph(f.graph, pts, from, to, s.range)
   local n = totals(keys, from, to)
+
+  local lo, hi
+  for _, p in ipairs(pts) do
+    if p.v then lo = lo and math.min(lo, p.v) or p.v; hi = hi and math.max(hi, p.v) or p.v end
+  end
+  f.goldStats:Set({
+    { "Highest", hi and ns.Money(hi) or dim("no record yet") },
+    { "Lowest", lo and ns.Money(lo) or dim("no record yet") },
+  })
+  f.activity:Set({
+    { "Sales per day", ("%.1f"):format(n.nSales / n.days) },
+    { "Purchases per day", ("%.1f"):format(n.nBuys / n.days) },
+  })
+  f.biggest:Set({
+    { "Sale", n.bigSale and (ns.Money(n.bigSale.a) .. " " .. dim(n.bigSale.n)) or dim("none yet") },
+    { "Purchase", n.bigBuy and (ns.Money(n.bigBuy.a) .. " " .. dim(n.bigBuy.n)) or dim("none yet") },
+  })
   f.sales:Set({
     { "Total", ns.Money(n.sales) },
     { "Per day", ns.Money(math.floor(n.sales / n.days)) },
@@ -404,5 +464,8 @@ function ns:RefreshDashboard(f)
       x.name, x.runs, math.floor((x.stop - x.t) / 60), money(x.earned - x.spent))
   end
   if #list == 0 and not st then lines[#lines + 1] = dim("None yet. Open a shuffle and click Work it to start one.") end
+  -- Only as many lines as fit below the boxes.
+  local fit = math.max(1, math.floor((H - (boxY + 98)) / 14))
+  while #lines > fit do table.remove(lines) end
   f.sessions:SetText(table.concat(lines, "\n"))
 end

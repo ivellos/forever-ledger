@@ -6,7 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
-- Dashboard: a gold graph (hover for the amount at any point) and Sales, Expenses and Profit boxes with totals, per day and top items, for all characters or one, over a day, week, month, 3 months, year or all time. Recent sessions below.
+- Dashboard: a gold graph (hover for the amount at any point) and Sales, Expenses and Profit boxes with totals, per day and top items, for all characters or one, over a day, week, month, 3 months, year or all time. The graph is green when gold went up over the range and red when it went down. A row above the boxes shows the highest and lowest gold, sales and purchases per day, and the biggest single sale and purchase. Recent sessions below.
+- Auction house sales also record how many were sold and to whom, for the coming Ledger.
 - New look for the ledger window: dark and flat with an accent colour, matching EllesmereUI (and using its font and your accent colour when it's installed). Tabs across the top: Dashboard, Shuffles, Vendor flips, Characters (the old overview) and Settings. Dashboard and Settings show a summary for now; their full versions come next.
 - "One-off deals" in the Shuffles tab are now called "Limited supply".
 - The Shuffles tab is a table: sub-tabs for "Sells to a vendor", "Sells on the auction house" and "Limited supply" (with counts), and columns for steps, shuffle, profit, return, profit per hour and runs (how many times you could do it with what's listed, limited by the scarcest auction house purchase). Hover a column heading for what it means. Click a column heading to sort. Each row shows an icon per step (profession, disenchant, split, vendor or auction house) and the item's icon; hover for the steps. Click a row to open what to buy, with item icons, next to the numbered steps. Vendor flips use the same table, with "Listed" and "If all bought" columns.

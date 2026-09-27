@@ -159,7 +159,8 @@ local function onMoney()
   for _, h in ipairs(hints) do
     local amount = (#hints > 1 and h.amount) or math.abs(delta)
     if h.log == "sale" then
-      addLog(ns.db.sales, { t = now, c = who, n = h.item, a = amount, cut = h.cut })
+      addLog(ns.db.sales, { t = now, c = who, n = h.item, a = amount, cut = h.cut, q = h.qty, b = h.buyer })
+      ns:Debug("Sale", h.qty or "?", "x", h.item or "?", "to", h.buyer or "?", "for", ns.Money(amount))
     elseif h.log == "vendor" then
       addLog(ns.db.vendorLog, { t = now, c = who, id = h.item, q = h.qty, a = amount, s = h.source == "vendorSell" and "sell" or "buy" })
       ns:Debug("Vendor", h.source == "vendorSell" and "sold" or "bought", h.qty or "?", "x", h.item or "?", "for", ns.Money(amount))
@@ -206,10 +207,14 @@ local function mailHint(index)
   if not GetInboxHeaderInfo then return end
   local _, _, _, _, money = GetInboxHeaderInfo(index)
   if not money or money <= 0 then return end
-  local invoiceType, itemName, _, _, _, _, consignment
-  if GetInboxInvoiceInfo then invoiceType, itemName, _, _, _, _, consignment = GetInboxInvoiceInfo(index) end
+  local invoiceType, itemName, buyer, consignment, count
+  if GetInboxInvoiceInfo then
+    local info = { GetInboxInvoiceInfo(index) }
+    invoiceType, itemName, buyer, consignment, count = info[1], info[2], info[3], info[7], info[11]
+  end
   if invoiceType == "seller" then
-    hint({ source = "ahSale", amount = money, item = itemName, cut = consignment, log = "sale" })
+    hint({ source = "ahSale", amount = money, item = itemName, cut = consignment, log = "sale",
+      buyer = buyer, qty = tonumber(count) })
   else
     hint({ source = "mailIn", amount = money })
   end
