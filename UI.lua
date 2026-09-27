@@ -101,6 +101,7 @@ local TABS = {
   { key = "dashboard", label = "Dashboard" },
   { key = "shuffles", label = "Shuffles" },
   { key = "flips", label = "Vendor flips" },
+  { key = "ledger", label = "Ledger" },
   { key = "characters", label = "Characters" },
   { key = "settings", label = "Settings" },
 }
@@ -143,6 +144,7 @@ local function buildMain()
 
   main.views = {
     dashboard = ns:BuildDashboard(main.body),
+    ledger = ns:BuildLedger(main.body),
     characters = textArea(),
   }
   main.views.settings = buildSettings()
@@ -418,6 +420,8 @@ function ns:RefreshUI()
     refreshSettings()
   elseif main.view == "dashboard" then
     ns:RefreshDashboard(main.views.dashboard)
+  elseif main.view == "ledger" then
+    ns:RefreshLedger()
   elseif build then
     local L = {}
     build(function(s) L[#L + 1] = s or "" end)

@@ -5,7 +5,8 @@ local _, ns = ...
 -- by source, auction house sales and purchases, and daily prices.
 ---------------------------------------------------------------------------
 local HOURLY_DAYS = 14      -- keep hourly gold this long, then one value per day
-local LOG_SIZE = 2000       -- auction house sales and purchases, and vendor buys and sells, kept
+local LOG_SIZE = 10000      -- auction house sales and purchases, and vendor buys and sells, kept
+local LOG_DAYS = 365        -- and for at most this long
 local PENDING_SECONDS = 5   -- how long a hint (repair, posting fee, mail) waits for the gold change
 
 -- Days follow the player's own clock (a UTC day would start in the US evening).
@@ -259,6 +260,16 @@ ns:OnReady(function()
     if itemKey and itemKey.itemID and not (ns.Scan and ns.Scan.active) then lastShownItem = itemKey.itemID end
   end)
   pruneGold()
+  -- Drop log entries older than LOG_DAYS (the logs are oldest first).
+  local cutoff = time() - LOG_DAYS * 86400
+  for _, list in ipairs({ ns.db.sales, ns.db.purchases, ns.db.vendorLog }) do
+    local drop = 0
+    while list[drop + 1] and (list[drop + 1].t or 0) < cutoff do drop = drop + 1 end
+    if drop > 0 then
+      for i = 1, #list - drop do list[i] = list[i + drop] end
+      for i = #list, #list - drop + 1, -1 do list[i] = nil end
+    end
+  end
 end)
 
 ---------------------------------------------------------------------------

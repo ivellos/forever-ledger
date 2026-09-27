@@ -1,0 +1,406 @@
+local _, ns = ...
+local T = ns.Theme
+
+---------------------------------------------------------------------------
+-- Ledger tab: every sale and purchase (auction house and vendor), a resale
+-- summary for items both bought and sold, and other money in and out. Filter by
+-- time, character and item name; click a column heading to sort.
+---------------------------------------------------------------------------
+local DAY = 86400
+local ROW_HEIGHT = 20
+local MAX_ROWS = 500
+local RANGES = {
+  { key = "week", label = "Week", secs = 7 * DAY },
+  { key = "month", label = "Month", secs = 30 * DAY },
+  { key = "3months", label = "3 months", secs = 91 * DAY },
+  { key = "year", label = "Year", secs = 365 * DAY },
+  { key = "all", label = "All" },
+}
+local SUBTABS = {
+  { key = "sales", label = "Sales" },
+  { key = "purchases", label = "Purchases" },
+  { key = "resale", label = "Resale" },
+  { key = "other", label = "Other" },
+}
+local OTHER = {
+  ahFee = "Auction house fees", repair = "Repairs", mailIn = "Mail received", mailOut = "Mail sent",
+  tradeIn = "Trade received", tradeOut = "Trade given", loot = "Loot", quest = "Quests",
+  training = "Training", flight = "Flights", otherIn = "Other income", otherOut = "Other spending",
+}
+local OTHER_IN = { mailIn = true, tradeIn = true, loot = true, quest = true, otherIn = true }
+
+local COLUMNS = {
+  sales = {
+    { key = "t", label = "Time", width = 96 },
+    { key = "item", label = "Item" },
+    { key = "qty", label = "Qty", width = 40, right = true },
+    { key = "each", label = "Each", width = 86, right = true },
+    { key = "total", label = "Total", width = 96, right = true },
+    { key = "where", label = "Where", width = 60 },
+    { key = "who", label = "Buyer", width = 96 },
+    { key = "char", label = "Character", width = 84 },
+  },
+  purchases = {
+    { key = "t", label = "Time", width = 96 },
+    { key = "item", label = "Item" },
+    { key = "qty", label = "Qty", width = 40, right = true },
+    { key = "each", label = "Each", width = 86, right = true },
+    { key = "total", label = "Total", width = 96, right = true },
+    { key = "where", label = "Where", width = 60 },
+    { key = "char", label = "Character", width = 84 },
+  },
+  resale = {
+    { key = "item", label = "Item" },
+    { key = "bought", label = "Bought", width = 56, right = true },
+    { key = "avgBuy", label = "Avg buy", width = 90, right = true },
+    { key = "sold", label = "Sold", width = 50, right = true },
+    { key = "avgSell", label = "Avg sell", width = 90, right = true },
+    { key = "profit", label = "Profit", width = 100, right = true },
+  },
+  other = {
+    { key = "t", label = "Day", width = 96 },
+    { key = "item", label = "Type" },
+    { key = "total", label = "Amount", width = 110, right = true },
+    { key = "char", label = "Character", width = 84 },
+  },
+}
+
+local function dim(t) return "|cff888888" .. t .. "|r" end
+local function money(v) return (v < 0 and "-" or "") .. ns.Money(math.abs(v)) end
+
+local function settings()
+  local s = ns.db.settings.ledger
+  s.tab = s.tab or "sales"
+  s.range = s.range or "month"
+  s.char = s.char or "all"
+  s.sort = s.sort or {}
+  return s
+end
+
+local function charName(key)
+  local c = ns.db.chars[key]
+  return (c and c.name) or (key and key:match("^[^-]+")) or "?"
+end
+
+local function nameOf(id) return id and ((ns.GetItemInfo(id)) or ("item " .. id)) or "Unknown item" end
+
+-- An item's icon from its ID or name (names only work once the game knows the item).
+local function iconOf(idOrName)
+  if not idOrName then return end
+  if type(idOrName) == "number" then return ns:ItemIcon(idOrName) end
+  local ok, _, _, _, _, _, _, _, _, _, icon = pcall(ns.GetItemInfo, idOrName)
+  return ok and icon or nil
+end
+
+-- Seconds ahead of UTC, to turn a local day number back into a time for display.
+local function utcOffset()
+  local now = time()
+  local utc = date("!*t", now)
+  utc.isdst = date("*t", now).isdst
+  return now - time(utc)
+end
+
+---------------------------------------------------------------------------
+-- Records for each sub-tab
+---------------------------------------------------------------------------
+local function records(tab, from, charOK, match)
+  local out = {}
+  local function keep(e) return (e.t or 0) >= from and charOK(e.c) end
+
+  if tab == "sales" or tab == "purchases" or tab == "resale" then
+    local sales, buys = {}, {}
+    for _, e in ipairs(ns.db.sales) do
+      if keep(e) then
+        sales[#sales + 1] = { t = e.t, item = e.n or "?", icon = iconOf(e.n), qty = e.q, total = e.a,
+          where = "Auction", who = e.b, char = e.c }
+      end
+    end
+    for _, e in ipairs(ns.db.purchases) do
+      if keep(e) then
+        buys[#buys + 1] = { t = e.t, item = nameOf(e.id), icon = iconOf(e.id), qty = e.q, total = e.a,
+          where = "Auction", char = e.c }
+      end
+    end
+    for _, e in ipairs(ns.db.vendorLog) do
+      if keep(e) and e.id then
+        local r = { t = e.t, item = nameOf(e.id), icon = iconOf(e.id), qty = e.q, total = e.a, where = "Vendor", char = e.c }
+        if e.s == "sell" then sales[#sales + 1] = r else buys[#buys + 1] = r end
+      end
+    end
+    for _, list in ipairs({ sales, buys }) do
+      for _, r in ipairs(list) do r.each = r.qty and r.qty > 0 and r.total / r.qty or nil end
+    end
+
+    if tab == "sales" then out = sales elseif tab == "purchases" then out = buys else
+      -- Resale: items both bought and sold.
+      local by = {}
+      local function add(r, sold)
+        local x = by[r.item] or { item = r.item, icon = r.icon, bought = 0, boughtTotal = 0, sold = 0, soldTotal = 0 }
+        by[r.item] = x
+        x.icon = x.icon or r.icon
+        local q = r.qty or 1
+        if sold then x.sold, x.soldTotal = x.sold + q, x.soldTotal + r.total
+        else x.bought, x.boughtTotal = x.bought + q, x.boughtTotal + r.total end
+      end
+      for _, r in ipairs(sales) do add(r, true) end
+      for _, r in ipairs(buys) do add(r, false) end
+      for _, x in pairs(by) do
+        if x.bought > 0 and x.sold > 0 then
+          x.avgBuy, x.avgSell = x.boughtTotal / x.bought, x.soldTotal / x.sold
+          x.profit = (x.avgSell - x.avgBuy) * math.min(x.bought, x.sold)
+          out[#out + 1] = x
+        end
+      end
+    end
+  else
+    -- Other: daily totals by type.
+    local fromDay, offset = ns.LocalDay(from), utcOffset()
+    for key, days in pairs(ns.db.money) do
+      if charOK(key) then
+        for day, src in pairs(days) do
+          if day >= fromDay then
+            for s, amt in pairs(src) do
+              if OTHER[s] then
+                out[#out + 1] = { t = day * DAY - offset + DAY / 2, day = true, item = OTHER[s],
+                  total = OTHER_IN[s] and amt or -amt, char = key }
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  if match ~= "" then
+    local kept = {}
+    for _, r in ipairs(out) do
+      if (r.item or ""):lower():find(match, 1, true) then kept[#kept + 1] = r end
+    end
+    out = kept
+  end
+  return out
+end
+
+---------------------------------------------------------------------------
+-- The tab
+---------------------------------------------------------------------------
+local f
+local rows, headers = {}, {}
+
+local function columnLayout(cols, width)
+  local fixed = 0
+  for _, c in ipairs(cols) do fixed = fixed + (c.width or 0) + 8 end
+  local x, out = 4, {}
+  for _, c in ipairs(cols) do
+    local w = c.width or math.max(140, width - fixed - 4)
+    out[c.key] = { x = x, w = w }
+    x = x + w + 8
+  end
+  return out
+end
+
+function ns:BuildLedger(parent)
+  f = CreateFrame("Frame", nil, parent)
+  f:SetAllPoints()
+
+  f.subtabs = {}
+  local prev
+  for _, st in ipairs(SUBTABS) do
+    local b = T:Tab(f, st.label, function() settings().tab = st.key; ns:RefreshLedger() end)
+    if prev then b:SetPoint("LEFT", prev, "RIGHT", 0, 0) else b:SetPoint("TOPLEFT", -6, 4) end
+    f.subtabs[st.key] = b
+    prev = b
+  end
+  f.range = T:Choice(f, (function()
+    local o = {}
+    for _, r in ipairs(RANGES) do o[#o + 1] = { value = r.key, label = r.label } end
+    return o
+  end)(), function(v) settings().range = v; ns:RefreshLedger() end)
+  f.range:SetPoint("TOPRIGHT", 0, 0)
+
+  f.searchLabel = T:Text(f, 12, T.dim)
+  f.searchLabel:SetPoint("TOPLEFT", 4, -40)
+  f.searchLabel:SetText("Search")
+  f.search = T:EditBox(f, 180, "LEFT")
+  f.search:SetPoint("LEFT", f.searchLabel, "RIGHT", 8, 0)
+  f.search:SetScript("OnTextChanged", function() ns:RefreshLedger() end)
+  f.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+  f.charLabel = T:Text(f, 12, T.dim)
+  f.charLabel:SetPoint("LEFT", f.search, "RIGHT", 18, 0)
+  f.charLabel:SetText("Characters")
+
+  f.header = CreateFrame("Frame", nil, f)
+  f.header:SetPoint("TOPLEFT", 0, -66)
+  f.header:SetPoint("TOPRIGHT", 0, -66)
+  f.header:SetHeight(22)
+  T:Fill(f.header, { 1, 1, 1, 0.05 })
+
+  f.sf, f.content = T:Scroll(f)
+  f.sf:SetPoint("TOPLEFT", 0, -90)
+  f.sf:SetPoint("BOTTOMRIGHT", 0, 22)
+  f.empty = T:Text(f.content, 12, T.dim)
+  f.empty:SetPoint("TOPLEFT", 8, -8)
+  f.empty:SetText("Nothing recorded for these filters yet.")
+
+  f.summary = T:Text(f, 12)
+  f.summary:SetPoint("BOTTOMLEFT", 4, 2)
+  return f
+end
+
+-- Character buttons: All plus one per character, rebuilt when characters change.
+local function charChoice()
+  local keys = {}
+  for k in pairs(ns.db.chars) do keys[#keys + 1] = k end
+  table.sort(keys)
+  local sig = table.concat(keys, ",")
+  if f.charSig == sig then return end
+  if f.chars then f.chars:Hide() end
+  local opts = { { value = "all", label = "All" } }
+  for _, k in ipairs(keys) do opts[#opts + 1] = { value = k, label = charName(k) } end
+  f.chars = T:Choice(f, opts, function(v) settings().char = v; ns:RefreshLedger() end)
+  f.chars:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
+  f.charSig = sig
+end
+
+local function getHeader(i)
+  if not headers[i] then
+    local h = CreateFrame("Button", nil, f.header)
+    h.fs = T:Text(h, 11, T.dim)
+    h.fs:SetAllPoints()
+    h:SetScript("OnClick", function(self)
+      local s = settings()
+      local sort = s.sort[s.tab] or {}
+      if sort.key == self.key then sort.desc = not sort.desc else sort.key, sort.desc = self.key, self.key ~= "item" end
+      s.sort[s.tab] = sort
+      ns:RefreshLedger()
+    end)
+    headers[i] = h
+  end
+  return headers[i]
+end
+
+local function getRow(i)
+  if rows[i] then return rows[i] end
+  local r = CreateFrame("Frame", nil, f.content)
+  r:SetHeight(ROW_HEIGHT)
+  r.stripe = T:Fill(r, { 1, 1, 1, 0.025 })
+  r.icon = r:CreateTexture(nil, "ARTWORK")
+  r.icon:SetSize(14, 14)
+  r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  r.cells = {}
+  rows[i] = r
+  return r
+end
+
+local function cell(r, key)
+  if not r.cells[key] then
+    local fs = T:Text(r, 11)
+    fs:SetWordWrap(false)
+    r.cells[key] = fs
+  end
+  return r.cells[key]
+end
+
+-- The text shown for one value.
+local function show(rec, key)
+  local v = rec[key]
+  if key == "t" then return dim(date(rec.day and "%b %d" or "%b %d %H:%M", v)) end
+  if key == "char" then return charName(v) end
+  if key == "qty" or key == "bought" or key == "sold" then return v and tostring(v) or dim("?") end
+  if key == "each" or key == "avgBuy" or key == "avgSell" then return v and ns.Money(math.floor(v + 0.5)) or dim("?") end
+  if key == "total" then return rec.day and ("|cff" .. (v >= 0 and "7fd39c" or "ee8597") .. money(v) .. "|r") or ns.Money(v) end
+  if key == "profit" then return "|cff" .. (v >= 0 and "7fd39c" or "ee8597") .. money(math.floor(v + 0.5)) .. "|r" end
+  if key == "who" then return v or dim("-") end
+  return v or ""
+end
+
+function ns:RefreshLedger()
+  if not f or not f:IsShown() then return end
+  local s = settings()
+  if s.char ~= "all" and not ns.db.chars[s.char] then s.char = "all" end
+  for key, b in pairs(f.subtabs) do b:SetSelected(key == s.tab) end
+  f.range:SetValue(s.range)
+  charChoice()
+  f.chars:SetValue(s.char)
+
+  -- Records for the filters
+  local from = 0
+  for _, r in ipairs(RANGES) do if r.key == s.range and r.secs then from = time() - r.secs end end
+  local function charOK(c) return s.char == "all" or c == s.char end
+  local list = records(s.tab, from, charOK, (f.search:GetText() or ""):lower())
+
+  local cols = COLUMNS[s.tab]
+  local sort = s.sort[s.tab] or { key = s.tab == "resale" and "profit" or "t", desc = true }
+  table.sort(list, function(a, b)
+    local va, vb = a[sort.key], b[sort.key]
+    if type(va) == "string" then va = va:lower() end
+    if type(vb) == "string" then vb = vb:lower() end
+    if va == vb or va == nil or vb == nil then
+      if va == nil and vb ~= nil then return false end
+      if vb == nil and va ~= nil then return true end
+      return (a.t or 0) > (b.t or 0)
+    end
+    if sort.desc then return va > vb end
+    return va < vb
+  end)
+
+  -- Header
+  local width = f:GetWidth() - 12
+  local lay = columnLayout(cols, width)
+  for i, c in ipairs(cols) do
+    local h = getHeader(i)
+    h.key = c.key
+    h:ClearAllPoints()
+    h:SetPoint("LEFT", f.header, "LEFT", lay[c.key].x, 0)
+    h:SetSize(lay[c.key].w, 22)
+    h.fs:SetJustifyH(c.right and "RIGHT" or "LEFT")
+    local sorted = sort.key == c.key
+    h.fs:SetText(c.label .. (sorted and (sort.desc and " v" or " ^") or ""))
+    local col = sorted and { T.accent[1], T.accent[2], T.accent[3], 1 } or T.dim
+    h.fs:SetTextColor(col[1], col[2], col[3], col[4] or 1)
+    h:Show()
+  end
+  for i = #cols + 1, #headers do headers[i]:Hide() end
+
+  -- Rows
+  f.content:SetWidth(width)
+  local n = math.min(#list, MAX_ROWS)
+  for i = 1, n do
+    local rec, r = list[i], getRow(i)
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", f.content, "TOPLEFT", 0, -(i - 1) * ROW_HEIGHT)
+    r:SetWidth(width)
+    r.stripe:SetShown(i % 2 == 0)
+    for key, fs in pairs(r.cells) do fs:SetShown(lay[key] ~= nil) end
+    for _, c in ipairs(cols) do
+      local fs = cell(r, c.key)
+      fs:ClearAllPoints()
+      local x, w = lay[c.key].x, lay[c.key].w
+      if c.key == "item" and rec.icon then
+        r.icon:ClearAllPoints()
+        r.icon:SetPoint("LEFT", r, "LEFT", x, 0)
+        r.icon:SetTexture(rec.icon)
+        x, w = x + 18, w - 18
+      end
+      fs:SetPoint("LEFT", r, "LEFT", x, 0)
+      fs:SetWidth(w)
+      fs:SetJustifyH(c.right and "RIGHT" or "LEFT")
+      fs:SetText(show(rec, c.key))
+      fs:Show()
+    end
+    r.icon:SetShown(lay.item ~= nil and rec.icon ~= nil)
+    r:Show()
+  end
+  for i = n + 1, #rows do rows[i]:Hide() end
+  f.empty:SetShown(#list == 0)
+  f.content:SetHeight(math.max(n * ROW_HEIGHT, 30))
+  f.sf.UpdateScrollBar()
+
+  -- Summary
+  local total, extra = 0, ""
+  for _, rec in ipairs(list) do total = total + (rec.profit or rec.total or 0) end
+  if #list > MAX_ROWS then extra = dim((" (showing the first %d)"):format(MAX_ROWS)) end
+  local words = { sales = "sales", purchases = "purchases", resale = "items bought and sold", other = "entries" }
+  local label = s.tab == "resale" and "profit" or (s.tab == "other" and "net" or "total")
+  f.summary:SetText(("%d %s, %s %s%s"):format(#list, words[s.tab], label, money(math.floor(total + 0.5)), extra))
+end

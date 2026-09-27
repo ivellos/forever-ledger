@@ -131,6 +131,8 @@ local function editBox(parent, width, justify)
   return eb
 end
 
+function T:EditBox(parent, width, justify) return editBox(parent, width, justify) end
+
 -- A number with - and + buttons. opts: min, max, step, suffix.
 -- SetValue shows a value; onChange(value) runs when the player changes it.
 function T:Number(parent, opts, onChange)
