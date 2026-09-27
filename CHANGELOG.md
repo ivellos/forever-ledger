@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Live sync between two characters on different accounts, while both are online: `/fl pair Name` on each. Prices (last 48 hours), characters and recipes, and vendor prices are sent a few seconds after they change; newer data wins, as with Import. `/fl sync` shows the status, `/fl sync now` sends everything, `/fl sync test` sends your data to yourself to check it works. The Characters tab shows the sync status.
+
 ## [0.3.0] - 2026-09-27
 
 A new look, a dashboard and a ledger, deal alerts, and tools for working a shuffle from start to finish. Tested on the Forever beta.

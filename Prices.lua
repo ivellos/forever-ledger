@@ -101,6 +101,7 @@ local function captureMerchant()
     end
   end
   if got > 0 and ns.InvalidateValues then ns:InvalidateValues() end
+  if got > 0 and ns.SyncSoon then ns:SyncSoon() end
   ns:Debug("Vendor prices captured:", got)
 end
 ns:On("MERCHANT_SHOW", function() C_Timer.After(0.3, captureMerchant) end)
@@ -299,6 +300,7 @@ function Scan:Stop(reason)
   self.queue = {}
   if was then ns:Print(reason or ("Scan finished: %d items checked in %s."):format(self.items or self.done or 0, took())) end
   if was and not reason and ns.CheckDeals then C_Timer.After(0.5, function() ns:CheckDeals() end) end
+  if was and ns.SyncSoon then ns:SyncSoon() end
   ns:RefreshUI()
 end
 
@@ -408,6 +410,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       ns:UpdateScanStatus(n, n)
       ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
       if ns.CheckDeals then C_Timer.After(0.5, function() ns:CheckDeals() end) end
+      if ns.SyncSoon then ns:SyncSoon() end
       ns:RefreshUI()
     end
   end

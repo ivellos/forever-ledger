@@ -18,6 +18,7 @@ local DEFAULTS = {
   sales = {},       -- auction house sales: { t, c = charKey, n = item name, a = copper received, cut }
   purchases = {},   -- auction house purchases: { t, c, id, q, a }
   vendorLog = {},   -- vendor buys and sells: { t, c, id, q, a, s = "buy" | "sell" }
+  sync = {},        -- [partner name lowercased] = { sentUpTo = time } (Sync.lua; partner in settings.syncPartner)
   sessions = {},    -- finished sessions: { name, t, stop, spent, earned, runs, goal } (the running one is `session`)
   history = {},       -- [marketKey][itemID] = "day:cheapest:typical|..." (last 30 days)
   historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (2 years)
@@ -224,7 +225,14 @@ end
 function ns:Import(text)
   local data, err = ns.Deserialize(text)
   if not data then return false, err end
-  local db, nChars, nPrices = ns.db, 0, 0
+  local nChars, nPrices = ns:MergeData(data)
+  return true, ("Imported %d characters and %d prices."):format(nChars, nPrices)
+end
+
+-- Merge characters, prices and vendor prices from another account (Import and live
+-- sync). Newer data wins. Returns how many characters, prices and vendor prices changed.
+function ns:MergeData(data)
+  local db, nChars, nPrices, nVendor = ns.db, 0, 0, 0
   for key, c in pairs(data.chars or {}) do
     local mine = db.chars[key]
     if not mine or (c.updated or 0) > (mine.updated or 0) then db.chars[key] = c; nChars = nChars + 1 end
@@ -238,13 +246,14 @@ function ns:Import(text)
   end
   for id, rec in pairs(data.vendorBuy or {}) do
     local mine = db.vendorBuy[id]
-    if not mine or (rec.t or 0) > (mine.t or 0) then db.vendorBuy[id] = rec end
+    if not mine or (rec.t or 0) > (mine.t or 0) then db.vendorBuy[id] = rec; nVendor = nVendor + 1 end
   end
   for id, v in pairs(data.vendorSell or {}) do
-    if db.vendorSell[id] == nil then db.vendorSell[id] = v end
+    if db.vendorSell[id] == nil then db.vendorSell[id] = v; nVendor = nVendor + 1 end
   end
-  if ns.BuildUsageIndex then ns:BuildUsageIndex() end
-  return true, ("Imported %d characters and %d prices."):format(nChars, nPrices)
+  if nChars > 0 and ns.BuildUsageIndex then ns:BuildUsageIndex() end
+  if (nPrices > 0 or nVendor > 0) and ns.InvalidateValues then ns:InvalidateValues() end
+  return nChars, nPrices, nVendor
 end
 
 ---------------------------------------------------------------------------
@@ -269,6 +278,7 @@ function ns:ApiReport()
     "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
     "BuyMerchantItem", "GetMerchantItemID", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
     "C_TradeSkillUI.CraftRecipe", "C_TradeSkillUI.OpenTradeSkill", "LOOT_ITEM_CREATED_SELF",
+    "C_ChatInfo.SendAddonMessage", "C_ChatInfo.RegisterAddonMessagePrefix", "ChatFrame_AddMessageEventFilter",
     "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
   }
@@ -336,6 +346,10 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     else
       ns:Print("Deal settings: /fl deals usual 20 (percent below usual price), /fl deals period week/month/3months/6months/year/all, /fl deals history auto/local/tsm (where usual prices come from), /fl deals vendor 10% (percent below vendor price), /fl deals vendor 1s (least profit each), /fl deals sound.")
     end
+  elseif msg:match("^pair") or msg == "unpair" then
+    ns:SyncCommand(msg:gsub("^pair%s*", "pair "))
+  elseif msg:match("^sync") then
+    ns:SyncCommand(msg:match("^sync%s*(.*)$"))
   elseif msg == "session" then
     ns:OpenWork()
   elseif msg == "money" then
@@ -384,6 +398,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto/own/auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl session, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto/own/auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl session, /fl pair <name>, /fl sync, /fl tooltip, /fl api, /fl debug")
   end
 end

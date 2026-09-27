@@ -297,6 +297,9 @@ local function charactersText(add)
   local vb = 0
   for _ in pairs(ns.db.vendorBuy) do vb = vb + 1 end
   add(("  %d vendor prices saved. Open any vendor to add theirs."):format(vb))
+  add("")
+  add(heading("Live sync"))
+  add("  " .. ns:SyncStatus() .. "  " .. dim("/fl sync for help"))
 end
 
 local TEXT_VIEWS = { characters = charactersText }

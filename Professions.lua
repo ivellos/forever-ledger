@@ -144,6 +144,7 @@ function ns:CaptureTradeSkill()
   end
   ns:BuildUsageIndex()
   ns:RefreshUI()
+  if ns.SyncSoon then ns:SyncSoon() end
 end
 
 local pendingCapture = false

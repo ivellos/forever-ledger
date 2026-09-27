@@ -17,4 +17,5 @@ Dashboard.lua
 Ledger.lua
 UI.lua
 Work.lua
+Sync.lua
 AuctionHouse.lua
