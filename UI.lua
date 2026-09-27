@@ -42,6 +42,10 @@ local function themedWindow(name, w, h, titleText)
   f:SetMovable(true)
   f:EnableMouse(true)
   f:SetClampedToScreen(true)
+  -- Clicking a window brings all of it in front of the other, instead of the two
+  -- windows' contents mixing where they overlap.
+  f:SetToplevel(true)
+  f:SetScript("OnShow", function(self) self:Raise() end)
   f:Hide()
   tinsert(UISpecialFrames, name)
   T:Fill(f, T.bg)

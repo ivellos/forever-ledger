@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - "Work it" on each opened shuffle or vendor flip: a small window with the shopping list and steps. Click an item to search the auction house for it, or to buy it from the open vendor (choose how many runs to buy for). Each click is one search or one purchase.
 - A "Craft" button in Work it starts the shuffle's first craft as many times as the Runs number says. If that profession's window isn't open, the first click opens it (switching to the right profession if needed) and the second crafts.
 - Work it has one Runs number for what to buy, how many to craft and the session goal.
+- The ledger and Work it windows come fully to the front when clicked, instead of mixing where they overlap.
 - Sessions with a goal play the chime and show "Goal reached" when the runs reach it.
 - The scan buttons on the auction house window moved to its bottom-right corner, where they're no longer hidden.
 - Sessions: start one from the Work it window, optionally with a goal. It counts what you spend on the shuffle's materials, what you earn selling its products, runs done (crafts, counted from "You create" messages; disenchants; or items sold), profit and profit per hour, until you stop. The Dashboard lists the running session and the last five. `/fl session` opens it.
