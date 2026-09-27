@@ -13,7 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 - Opening Work it gave an error ("Cannot anchor protected frames to regions") after the Disenchant button was added.
 - Item names in lists no longer flicker between "item 727" and the name (and the redrawing this caused made the game lag): names are remembered once the game has given them.
-- Less lag: after small changes, item values are rebuilt at most every 30 seconds instead of every 2, and each item's full list of options is remembered for tooltips and the finder. `/fl perf` shows which parts of the addon take the most time (`/fl perf reset` to start over).
+- Less lag: after small changes, item values are rebuilt at most every 30 seconds instead of every 2, and each item's full list of options is remembered for tooltips and the finder. `/fl perf` shows which parts of the addon take the most time (`/fl perf reset` to start over). The addon now only hears your own spell casts, not everyone's nearby.
 
 ### Changed
 - The disenchant table now covers green items up to item level 65 (Classic's table beyond level 25, assumed until tested; 21-25 matches the first disenchants in Forever). Disenchanting only counts when one of your characters has the Enchanting skill the item level needs.

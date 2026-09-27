@@ -114,10 +114,21 @@ function ns:UpdateScanStatus() end
 ---------------------------------------------------------------------------
 local frame = CreateFrame("Frame")
 local handlers = {}
+-- Events only ever wanted for the player's own unit: the game sends just those,
+-- instead of every cast by everyone nearby.
+local PLAYER_ONLY = {
+  UNIT_SPELLCAST_START = true, UNIT_SPELLCAST_SUCCEEDED = true, UNIT_SPELLCAST_INTERRUPTED = true,
+}
+
 function ns:On(event, fn)
   if not handlers[event] then
     handlers[event] = {}
-    local ok = pcall(frame.RegisterEvent, frame, event)
+    local ok
+    if PLAYER_ONLY[event] and frame.RegisterUnitEvent then
+      ok = pcall(frame.RegisterUnitEvent, frame, event, "player")
+    else
+      ok = pcall(frame.RegisterEvent, frame, event)
+    end
     if not ok then handlers[event].unknown = true end
   end
   table.insert(handlers[event], fn)
