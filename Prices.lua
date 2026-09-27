@@ -209,7 +209,8 @@ function Scan:Next()
     self:Finish(id, nil)
     return
   end
-  C_Timer.After(6, function()
+  -- Items with nothing listed may never get a reply, so don't wait long.
+  C_Timer.After(3, function()
     if self.active and self.token == tok and self.pending == id then
       ns:Debug("No reply for item", id)
       self:Finish(id, nil)
@@ -255,9 +256,10 @@ ns:On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
   local units = {}
   for i = 1, n do
     local r = C_AuctionHouse.GetItemSearchResultInfo(itemKey, i)
+    -- buyoutAmount is already per item in Forever (beta test: dividing by quantity
+    -- made Linen Reagent Bags 19c instead of 13s). The full scan's buyout is per listing.
     if r and r.buyoutAmount and r.buyoutAmount > 0 then
-      local q = math.max(r.quantity or 1, 1)
-      units[#units + 1] = { math.floor(r.buyoutAmount / q + 0.5), q }
+      units[#units + 1] = { r.buyoutAmount, math.max(r.quantity or 1, 1) }
     end
   end
   if n > 0 then ns:Debug("Item search sample", id, n, units[1] and units[1][1]) end
