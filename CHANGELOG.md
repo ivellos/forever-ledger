@@ -5,24 +5,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-28
+
+Disenchanting tools and one-click steps for working a shuffle. The item level 16-20 disenchant table was confirmed in the beta (22 items: 2.05 Strange Dust and 0.36 Greater Magic Essence each).
+
 ### Added
-- Disenchant recorder: every disenchant is logged (the item, its level and what it gave). `/fl de` shows the totals per group next to what the addon's yield table expects; `/fl de reset` starts a fresh count.
-- Work it has a "Do it" button for every step of a shuffle, in order: each craft (the first makes your Runs number, later ones as many as your bags allow), splitting or combining essences, and disenchanting. The window grows to fit.
-- Disenchant button in Work it, for shuffles that disenchant: "Disenchant: <item> (N left)" disenchants the next of that shuffle's items in your bags with one click. It only ever picks the shuffle's own items (a group's greens, or what you crafted for it), and updates between clicks out of combat.
-- Disenchant finder: a panel beside the auction house (button below it) listing green armor and weapons from your last scan, filtered by item level band (checkboxes), armor or weapons, and "only worth disenchanting", with price, disenchant value and profit. Click an item to search for it. Items the game never loads are asked for once and then left out, so the list doesn't keep reloading (that caused lag).
-
-- `/fl probe` reports what the game gives for planned features: Merchant's Favor, chat channels and profession links, Waylaid Crate and Writ tooltips in your bags, then the next trade and the next vendor that sells for a currency. It only reads and prints.
-
-### Fixed
-- Craft buttons no longer try to switch the profession window by themselves (the game blocked it); if the wrong profession opens, the next click switches it.
-- "Craft all you can" said there were no materials when there were: it now counts the materials in your bags from the saved recipe.
-- The split button set off an error in Wowhead Looter; it now uses the item's bag slot instead.
-- Opening Work it gave an error ("Cannot anchor protected frames to regions") after the Disenchant button was added.
-- Item names in lists no longer flicker between "item 727" and the name (and the redrawing this caused made the game lag): names are remembered once the game has given them.
-- Less lag: after small changes, item values are rebuilt at most every 30 seconds instead of every 2, and each item's full list of options is remembered for tooltips and the finder. `/fl perf` shows which parts of the addon take the most time (`/fl perf reset` to start over). The addon now only hears your own spell casts, not everyone's nearby.
+- Work it has a "Do it" button for every step of a shuffle, in order: each craft (the first makes your Runs number, later ones as many as your bags allow; if its profession window is closed, the first click opens it and the second crafts), splitting or combining essences, and disenchanting.
+- Disenchant button: "Disenchant: <item> (N left)" disenchants the next of that shuffle's items in your bags with one click. It only ever picks the shuffle's own items.
+- Disenchant finder: a panel beside the auction house listing green armor and weapons from your last scan by item level band, armor or weapons, and "only worth disenchanting", with price, disenchant value and profit. Click an item to search for it.
+- Disenchant recorder: every disenchant is logged. `/fl de` shows the totals per group next to what the addon expects; `/fl de reset` starts a fresh count.
+- `/fl perf` shows which parts of the addon take the most time.
+- `/fl probe` reports what the game gives for planned features (Merchant's Favor, chat channels, profession links, crate tooltips, trades, currency vendors). It only reads and prints.
 
 ### Changed
-- The disenchant table now covers green items up to item level 65 (Classic's table beyond level 25, assumed until tested; 21-25 matches the first disenchants in Forever). Disenchanting only counts when one of your characters has the Enchanting skill the item level needs.
+- The disenchant table covers green items up to item level 65 (Classic's figures above level 25, assumed until tested). Disenchanting only counts when one of your characters has the Enchanting skill the item level needs.
+- Less work in the background: item values are rebuilt less often, item names are remembered (lists no longer flicker between "item 727" and the name), and the addon only listens to your own spell casts.
 
 ## [0.4.0] - 2026-09-27
 
