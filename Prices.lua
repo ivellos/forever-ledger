@@ -162,6 +162,13 @@ ns.RecordPrice = record
 local Scan = { queue = {}, active = false, done = 0, total = 0 }
 ns.Scan = Scan
 
+-- "45s" or "2m 5s" since the scan started.
+local function took()
+  local s = math.floor(GetTime() - (Scan.started or GetTime()) + 0.5)
+  if s < 60 then return s .. "s" end
+  return ("%dm %ds"):format(math.floor(s / 60), s % 60)
+end
+
 local SORTS
 local function sorts()
   if not SORTS and Enum and Enum.AuctionHouseSortOrder then
@@ -174,6 +181,7 @@ function Scan:Start(mode)
   if not C_AuctionHouse then ns:Print("This client has no auction house scanning."); return end
   if not ahOpen then ns:Print("Open the auction house first."); return end
   if self.active then ns:Print("A scan is already running. Type /fl stop to cancel it."); return end
+  self.started = GetTime()
   if mode == "full" then return self:StartFull() end
   self.queue = ns:WatchList()
   self.total, self.done, self.active, self.pending = #self.queue, 0, true, nil
@@ -221,7 +229,7 @@ function Scan:Stop(reason)
   local was = self.active
   self.active, self.pending, self.full, self.waiting = false, nil, false, false
   self.queue = {}
-  if was then ns:Print(reason or ("Scan finished: %d items checked."):format(self.done or 0)) end
+  if was then ns:Print(reason or ("Scan finished: %d items checked in %s."):format(self.done or 0, took())) end
   ns:RefreshUI()
 end
 
@@ -292,7 +300,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       for id, units in pairs(byItem) do record(id, units, "full"); items = items + 1 end
       Scan.active = false
       ns:UpdateScanStatus(n, n)
-      ns:Print(("Full scan done: %d listings across %d items."):format(n, items))
+      ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
       ns:RefreshUI()
     end
   end

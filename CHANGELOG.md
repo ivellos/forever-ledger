@@ -19,6 +19,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl margin` sets the safety margin for shuffles (default 10%), and `/fl seconds` sets the seconds per craft used for profit per hour (default 3).
 - `/fl cut` shows or changes the auction house cut used in values (default 5%).
 
+### Changed
+- The "scan finished" and "full scan done" messages say how long the scan took.
+
 ### Fixed
 - Crafted wands, and anything else made by Enchanting, no longer count as disenchantable. Forever doesn't allow it.
 - The "Scanning" line in the ledger window now clears after a full scan finishes.
