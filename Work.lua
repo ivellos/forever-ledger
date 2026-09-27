@@ -61,24 +61,9 @@ local function skillLineFor(prof)
   return SKILL_LINES[prof or ""]
 end
 
--- The profession window sometimes opens on the last profession used. When it does,
--- switch it to the one asked for (a couple of tries, within a few seconds).
+-- If the profession window opens on the wrong profession, the next click on the button
+-- switches it. (Switching automatically isn't allowed: it was blocked as a protected action.)
 local pendingOpen
-local function checkOpened()
-  local p = pendingOpen
-  if not p then return end
-  if GetTime() - p.t > 5 then pendingOpen = nil; return end
-  local base = C_TradeSkillUI.GetBaseProfessionInfo and C_TradeSkillUI.GetBaseProfessionInfo()
-  local open = type(base) == "table" and base.professionName
-  if open == p.prof then
-    pendingOpen = nil
-  elseif open and p.tries < 3 then
-    p.tries = p.tries + 1
-    pcall(C_TradeSkillUI.OpenTradeSkill, p.line)
-  end
-end
-ns:On("TRADE_SKILL_SHOW", function() C_Timer.After(0.2, checkOpened) end)
-ns:On("TRADE_SKILL_DATA_SOURCE_CHANGED", function() C_Timer.After(0.2, checkOpened) end)
 
 -- Start crafting a recipe from a click. Only works while that profession's window is open.
 function ns:CraftFromClick(opt, count)

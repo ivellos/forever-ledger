@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl probe` reports what the game gives for planned features: Merchant's Favor, chat channels and profession links, Waylaid Crate and Writ tooltips in your bags, then the next trade and the next vendor that sells for a currency. It only reads and prints.
 
 ### Fixed
+- Craft buttons no longer try to switch the profession window by themselves (the game blocked it); if the wrong profession opens, the next click switches it.
 - "Craft all you can" said there were no materials when there were: it now counts the materials in your bags from the saved recipe.
 - The split button set off an error in Wowhead Looter; it now uses the item's bag slot instead.
 - Opening Work it gave an error ("Cannot anchor protected frames to regions") after the Disenchant button was added.
