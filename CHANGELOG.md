@@ -12,7 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Essence conversions in "Worth to you": splitting a greater essence into 3 lesser, and combining 3 lesser into a greater, for every essence type. Disenchant values use them too.
 - "Worth to you" follows chains up to 4 steps long, for example Linen Cloth → Bolt of Linen Cloth → Heavy Linen Gloves → disenchant → Greater Magic Wand → vendor. Only the three best recipes are listed.
 - Inside a chain, auction house prices with fewer than 5 listings are ignored, so one overpriced listing can't inflate values.
-- Shuffle finder: `/fl shuffles` lists the 10 best things to buy and what to do with them, with the most to pay, profit each, return and a rough profit per hour. `/fl shuffles all` also lists one-off deals with fewer than 5 listed.
+- Shuffle finder: `/fl shuffles` lists the best shuffles in two groups, ones that end with vendor sales (safe) and ones that end on the auction house (depend on buyers). Each shows what to buy, profit per craft, return and a rough profit per hour. `/fl shuffles all` lists everything, including one-off deals with fewer than 5 listed.
 - `/fl margin` sets the safety margin for shuffles (default 10%), and `/fl seconds` sets the seconds per craft used for profit per hour (default 3).
 - `/fl cut` shows or changes the auction house cut used in values (default 5%).
 

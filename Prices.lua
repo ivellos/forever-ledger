@@ -28,6 +28,10 @@ ns:OnReady(function()
   for id, p in pairs(VENDOR_DEFAULTS) do
     if not ns.db.vendorBuy[id] then ns.db.vendorBuy[id] = { p = p, t = 0, src = "default" } end
   end
+  -- Ask the game for vendor items' names now, so lists show names instead of "item 2321".
+  if C_Item and C_Item.RequestLoadItemDataByID then
+    for id in pairs(ns.db.vendorBuy) do pcall(C_Item.RequestLoadItemDataByID, id) end
+  end
 end)
 
 ---------------------------------------------------------------------------
