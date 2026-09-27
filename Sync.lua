@@ -22,7 +22,11 @@ local test                   -- running /fl sync test
 local ping                   -- running /fl sync ping: { name, ok, failed }
 local counter = 0
 
-local function me() return UnitName("player") end
+-- In Forever, UnitName's second value is the last name ("Iveilos", "Veren"), not a server.
+local function me()
+  local first, last = UnitName("player")
+  return (last and last ~= "") and (first .. " " .. last) or first
+end
 local function partner() return ns.db.settings.syncPartner end
 
 local function realmSuffix()
