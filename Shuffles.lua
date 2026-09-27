@@ -42,6 +42,20 @@ local function ahShare(o)
   return 0
 end
 
+-- Text for one craft or conversion step, with the craft's extra materials unless skipBuys.
+local function stepText(o, skipBuys)
+  local step = o.step
+  if o.kind == "craft" then
+    if not skipBuys then
+      local extra = {}
+      for _, b in ipairs(o.buys or {}) do extra[#extra + 1] = b.qty .. " " .. itemName(b.id) end
+      if #extra > 0 then step = step .. " (+" .. table.concat(extra, ", +") .. ")" end
+    end
+    if o.who then step = step .. " [" .. o.who .. "]" end
+  end
+  return step
+end
+
 -- Plain-text steps, for example
 -- "Craft Heavy Linen Gloves (+1 Coarse Thread) > disenchant (Strange Dust: ...; Lesser Magic Essence: ...)".
 -- skipBuys leaves out the first craft's extra materials, which the buy line lists instead.
@@ -53,16 +67,23 @@ local function describe(o, skipBuys)
     for _, m in ipairs(o.mats) do parts[#parts + 1] = itemName(m.id) .. ": " .. describe(m.opt) end
     return "disenchant (" .. table.concat(parts, "; ") .. ")"
   end
-  local step = o.step
-  if o.kind == "craft" then
-    if not skipBuys then
-      local extra = {}
-      for _, b in ipairs(o.buys or {}) do extra[#extra + 1] = b.qty .. " " .. itemName(b.id) end
-      if #extra > 0 then step = step .. " (+" .. table.concat(extra, ", +") .. ")" end
+  return stepText(o, skipBuys) .. " > " .. describe(o.next)
+end
+
+-- The same steps as numbered lines, for the ledger window.
+local function stepLines(o, lines, num, skipBuys)
+  num.n = num.n + 1
+  if o.kind == "ah" then lines[#lines + 1] = num.n .. ". Sell on the auction house"; return end
+  if o.kind == "vendor" then lines[#lines + 1] = num.n .. ". Sell to a vendor"; return end
+  if o.kind == "disenchant" then
+    lines[#lines + 1] = num.n .. ". Disenchant. On average each one gives:"
+    for _, m in ipairs(o.mats) do
+      lines[#lines + 1] = ("      %.2f %s: %s"):format(m.count, itemName(m.id), describe(m.opt))
     end
-    if o.who then step = step .. " [" .. o.who .. "]" end
+    return
   end
-  return step .. " > " .. describe(o.next)
+  lines[#lines + 1] = num.n .. ". " .. stepText(o, skipBuys)
+  stepLines(o.next, lines, num)
 end
 
 -- What an item costs to buy, and how many are listed (nil when a vendor sells it).
@@ -152,6 +173,42 @@ end
 
 local function where(b)
   return b.listed and (b.listed .. " listed") or "vendor"
+end
+
+local function returnPct(s)
+  return math.floor(s.profit / s.cost * 100 + 0.5)
+end
+
+-- Short one-line name, for example "Raider's Cloak: Disenchant".
+function ns:ShuffleTitle(s)
+  if s.single then return itemName(s.id) .. ": " .. ns:OptionLabel(s.opt) end
+  return ns:OptionLabel(s.opt)
+end
+
+-- Profit, return and per hour (rounded to silver) for the right side of a row.
+function ns:ShuffleSummary(s)
+  return ("|cff7fd39c%s|r   %d%%   %s/h"):format(
+    ns.Money(s.profit), returnPct(s), ns.Money(math.floor(s.perHour / 100) * 100))
+end
+
+-- Everything needed to do a shuffle, one line per step.
+function ns:ShuffleDetails(s)
+  local lines = {}
+  if s.single then
+    local b = s.buys[1]
+    lines[#lines + 1] = ("Buy %s at up to %s (now %s, %s)."):format(
+      itemName(s.id), ns.Money(s.maxBuy), ns.Money(b.price), where(b))
+  else
+    lines[#lines + 1] = "Buy for each craft:"
+    for _, b in ipairs(s.buys) do
+      lines[#lines + 1] = ("      %s %s at %s (%s)"):format(b.qty, itemName(b.id), ns.Money(b.price), where(b))
+    end
+  end
+  lines[#lines + 1] = "Then:"
+  stepLines(s.opt, lines, { n = 0 }, true)
+  lines[#lines + 1] = ("Profit %s %s (%d%%), about %s an hour."):format(
+    ns.Money(s.profit), s.single and "each" or "per craft", returnPct(s), ns.Money(s.perHour))
+  return table.concat(lines, "\n")
 end
 
 local function printShuffle(i, s)

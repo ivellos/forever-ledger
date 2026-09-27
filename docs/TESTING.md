@@ -16,3 +16,4 @@ Run through this after installing a new version. Send the results, plus any erro
 12. Hover Linen Cloth and Wool Cloth. "Worth to you" should include "Craft Bolt of …, N more steps", following the chain to a vendor or auction house sale.
 13. Type `/fl shuffles`. It should show two groups, "Sells to a vendor" and "Sells on the auction house", with each recipe listed once and item names (not "item 1234").
 14. Hover Strange Dust. "Buy at or below" should be 90% of its "Worth to you", and green if the ledger price is lower.
+15. Type `/fl` and click Shuffles. Two groups of rows should appear. Click a row: its steps open underneath. Click again to close. Click Refresh.

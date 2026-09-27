@@ -42,26 +42,39 @@ local function button(parent, label, width, onClick)
 end
 
 ---------------------------------------------------------------------------
--- Main window
+-- Main window: an Overview tab and a Shuffles tab
 ---------------------------------------------------------------------------
 local main
+local setView, layoutShuffles
+
+local function scrollArea(bottom)
+  local sf = CreateFrame("ScrollFrame", nil, main, "UIPanelScrollFrameTemplate")
+  sf:SetPoint("TOPLEFT", 14, -58)
+  sf:SetPoint("BOTTOMRIGHT", -32, bottom)
+  local content = CreateFrame("Frame", nil, sf)
+  content:SetSize(480, 10)
+  sf:SetScrollChild(content)
+  return sf, content
+end
+
 local function buildMain()
   if main then return main end
   main = makeWindow("ForeverLedgerFrame", 540, 470, "Forever Ledger " .. ns.VERSION)
 
-  local sf = CreateFrame("ScrollFrame", nil, main, "UIPanelScrollFrameTemplate")
-  sf:SetPoint("TOPLEFT", 14, -32)
-  sf:SetPoint("BOTTOMRIGHT", -32, 66)
-  local content = CreateFrame("Frame", nil, sf)
-  content:SetSize(480, 10)
-  sf:SetScrollChild(content)
+  main.tabOverview = button(main, "Overview", 100, function() setView("overview") end)
+  main.tabOverview:SetPoint("TOPLEFT", 14, -28)
+  main.tabShuffles = button(main, "Shuffles", 100, function() setView("shuffles") end)
+  main.tabShuffles:SetPoint("LEFT", main.tabOverview, "RIGHT", 4, 0)
+
+  -- Overview
+  local sf, content = scrollArea(66)
   local text = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   text:SetPoint("TOPLEFT")
   text:SetWidth(480)
   text:SetJustifyH("LEFT")
   text:SetJustifyV("TOP")
   text:SetSpacing(3)
-  main.text, main.content = text, content
+  main.sf, main.text, main.content = sf, text, content
 
   main.status = main:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   main.status:SetPoint("BOTTOMLEFT", 16, 44)
@@ -76,12 +89,146 @@ local function buildMain()
   local csv = button(main, "Prices as text", 120, function() ns:ShowPricesCSV() end)
   csv:SetPoint("LEFT", imp, "RIGHT", 6, 0)
   main.scanBtn = scan
+  main.overviewButtons = { scan, exp, imp, csv }
+
+  -- Shuffles
+  main.shuffleSF, main.shuffleContent = scrollArea(48)
+  main.refreshBtn = button(main, "Refresh", 90, function() ns:RefreshShuffles() end)
+  main.refreshBtn:SetPoint("BOTTOMLEFT", 14, 14)
+  main.shuffleInfo = main:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  main.shuffleInfo:SetPoint("LEFT", main.refreshBtn, "RIGHT", 10, 0)
+  main.shuffleInfo:SetPoint("RIGHT", main, "RIGHT", -16, 0)
+  main.shuffleInfo:SetJustifyH("LEFT")
+
+  setView("overview")
   return main
+end
+
+setView = function(view)
+  main.view = view
+  local overview = view == "overview"
+  main.sf:SetShown(overview)
+  for _, b in ipairs(main.overviewButtons) do b:SetShown(overview) end
+  main.shuffleSF:SetShown(not overview)
+  main.refreshBtn:SetShown(not overview)
+  main.shuffleInfo:SetShown(not overview)
+  -- The tab you're on is greyed out.
+  main.tabOverview:SetEnabled(not overview)
+  main.tabShuffles:SetEnabled(overview)
+  if overview then
+    ns:RefreshUI()
+  elseif main.shuffles then
+    layoutShuffles()
+  else
+    ns:RefreshShuffles()
+  end
 end
 
 function ns:ToggleUI()
   local f = buildMain()
   if f:IsShown() then f:Hide() else ns:ScanSkillLines(); f:Show(); ns:RefreshUI() end
+end
+
+---------------------------------------------------------------------------
+-- Shuffles tab: a list of rows; click one to show its steps underneath
+---------------------------------------------------------------------------
+local MAX_ROWS = 25       -- per section
+local rows, details, openKeys = {}, {}, {}
+
+local function getRow(i)
+  local r = rows[i]
+  if not r then
+    r = CreateFrame("Button", nil, main.shuffleContent)
+    r:SetHeight(18)
+    r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    r.right = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.right:SetPoint("RIGHT", -2, 0)
+    r.right:SetJustifyH("RIGHT")
+    r.left = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.left:SetPoint("LEFT", 2, 0)
+    r.left:SetPoint("RIGHT", r.right, "LEFT", -8, 0)
+    r.left:SetJustifyH("LEFT")
+    r.left:SetWordWrap(false)
+    r:SetScript("OnClick", function(self)
+      if self.shuffle then
+        openKeys[self.shuffle.key] = not openKeys[self.shuffle.key]
+        layoutShuffles()
+      end
+    end)
+    rows[i] = r
+  end
+  return r
+end
+
+local function getDetail(i)
+  local fs = details[i]
+  if not fs then
+    fs = main.shuffleContent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    fs:SetWidth(456)
+    fs:SetJustifyH("LEFT")
+    fs:SetJustifyV("TOP")
+    fs:SetSpacing(2)
+    details[i] = fs
+  end
+  return fs
+end
+
+layoutShuffles = function()
+  local content, data = main.shuffleContent, main.shuffles
+  local y, nRows, nDetails = 0, 0, 0
+
+  local function row(left, right, s)
+    nRows = nRows + 1
+    local r = getRow(nRows)
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
+    r:SetWidth(476)
+    r.left:SetText(left)
+    r.right:SetText(right or "")
+    r.shuffle = s
+    r:SetEnabled(s ~= nil)
+    r:Show()
+    y = y + 18
+  end
+
+  local function detail(text)
+    nDetails = nDetails + 1
+    local fs = getDetail(nDetails)
+    fs:ClearAllPoints()
+    fs:SetPoint("TOPLEFT", content, "TOPLEFT", 16, -y)
+    fs:SetText(text)
+    fs:Show()
+    y = y + fs:GetStringHeight() + 8
+  end
+
+  local function section(title, list)
+    row("|cffb9a2ff" .. title .. "|r")
+    if #list == 0 then row("|cff999999  None at current prices.|r") end
+    for i = 1, math.min(#list, MAX_ROWS) do
+      local s = list[i]
+      local open = openKeys[s.key]
+      row((open and "|cff999999-|r " or "|cff999999+|r ") .. ns:ShuffleTitle(s), ns:ShuffleSummary(s), s)
+      if open then detail(ns:ShuffleDetails(s)) end
+    end
+    y = y + 10
+  end
+
+  section("Sells to a vendor (safe)", data.vendor)
+  section("Sells on the auction house (depends on buyers)", data.ah)
+  if #data.oneOff > 0 then section("One-off deals (fewer than 5 listed)", data.oneOff) end
+
+  for i = nRows + 1, #rows do rows[i]:Hide() end
+  for i = nDetails + 1, #details do details[i]:Hide() end
+  content:SetHeight(math.max(y, 10))
+end
+
+function ns:RefreshShuffles()
+  if not main then return end
+  local vendor, ah, oneOff = ns:FindShuffles()
+  main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff }
+  main.shuffleInfo:SetText(("%d shuffles, worked out at %s. Click a row for the steps."):format(
+    #vendor + #ah + #oneOff, date("%H:%M")))
+  layoutShuffles()
 end
 
 local CLASS_COLORS = RAID_CLASS_COLORS or {}
