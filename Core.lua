@@ -21,7 +21,7 @@ local DEFAULTS = {
   historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (2 years)
   historyAll = {},    -- [marketKey][itemID] = "lowest:typicalSum:days"
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true,
-    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0 },
+    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto" },
 }
 
 local function copyDefaults(src, dst)
@@ -309,6 +309,10 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     elseif cmd == "period" and ns.PRICE_WINDOWS[arg] then
       set.dealWindow = arg
       ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
+    elseif cmd == "history" and ns.HISTORY_SOURCES[arg] then
+      set.dealHistory = arg
+      ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
+      if arg ~= "local" and not TSM_API then ns:Print("TSM isn't installed, so this addon's own scans are used for now.") end
     elseif cmd == "vendor" and arg:match("%%$") and pct and pct < 100 then
       set.dealVendorPct = pct
       ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
@@ -316,7 +320,7 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       set.dealVendorMin = ns.ParseMoney(arg)
       ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
     else
-      ns:Print("Deal settings: /fl deals usual 20 (percent below usual price), /fl deals period week|month|3months|6months|year|all, /fl deals vendor 10% (percent below vendor price), /fl deals vendor 1s (least profit each), /fl deals sound.")
+      ns:Print("Deal settings: /fl deals usual 20 (percent below usual price), /fl deals period week|month|3months|6months|year|all, /fl deals history auto|local|tsm (where usual prices come from),/fl deals vendor 10% (percent below vendor price), /fl deals vendor 1s (least profit each), /fl deals sound.")
     end
   elseif msg == "money" then
     ns:PrintMoney()

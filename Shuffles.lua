@@ -335,13 +335,46 @@ ns.WINDOW_NAMES = {
   ["6months"] = "the last 6 months", year = "the last year", all = "all time",
 }
 
+-- Where usual prices come from: "auto" (TSM if it has a price, otherwise this addon's
+-- own history), "local" or "tsm". TSM has no arbitrary periods: its market value
+-- (about 2 weeks) stands in for a week or a month, its historical price (about 2 months)
+-- for anything longer.
+local TSM_SOURCE = {
+  week = "dbmarket", month = "dbmarket", ["3months"] = "dbhistorical",
+  ["6months"] = "dbhistorical", year = "dbhistorical", all = "dbhistorical",
+}
+ns.HISTORY_SOURCES = { auto = true, ["local"] = true, tsm = true }
+
+local function tsmUsual(id, window)
+  if not (TSM_API and TSM_API.GetCustomPriceValue) then return end
+  local ok, v = pcall(TSM_API.GetCustomPriceValue, TSM_SOURCE[window or "all"] or "dbhistorical", "i:" .. id)
+  if ok and v and v > 0 then return v end
+end
+
+-- The usual price used for deals, and where it came from ("TSM" or "ledger").
+function ns:DealUsualPrice(id)
+  local s = ns.db.settings
+  local src = s.dealHistory or "auto"
+  if src ~= "local" then
+    local v = tsmUsual(id, s.dealWindow)
+    if v then return v, "TSM" end
+    if src == "tsm" then return end
+  end
+  local usual, points = ns:UsualPrice(id, s.dealWindow)
+  if usual and points >= MIN_POINTS then return usual, "ledger" end
+end
+
 -- The current rules in words, for messages.
 function ns:DealRules()
   local s = ns.db.settings
   local vendor = ("%g%% or more below vendor price"):format(s.dealVendorPct or 10)
   if (s.dealVendorMin or 0) > 0 then vendor = vendor .. " and at least " .. ns.Money(s.dealVendorMin) .. " profit each" end
-  return ("%g%% or more below the usual price over %s, or %s"):format(
-    s.dealUsualPct or 20, ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", vendor)
+  local src = s.dealHistory or "auto"
+  local from = (src == "tsm" and "TSM's prices")
+    or (src == "local" and "this addon's scans")
+    or ((TSM_API and "TSM's prices, or this addon's scans where TSM has none") or "this addon's scans")
+  return ("%g%% or more below the usual price over %s (from %s), or %s"):format(
+    s.dealUsualPct or 20, ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", from, vendor)
 end
 
 -- Returns deals, biggest saving first: { kind = "usual" | "vendor", id, price, worth, listed }.
@@ -361,9 +394,9 @@ function ns:FindDeals()
           deals[#deals + 1] = { kind = "vendor", id = id, price = price, worth = sell, listed = rec.q }
         end
       end
-      local usual, points = ns:UsualPrice(id, s.dealWindow)
-      if usual and points >= MIN_POINTS and price <= usual * (1 - usualPct) then
-        deals[#deals + 1] = { kind = "usual", id = id, price = price, worth = usual, listed = rec.q }
+      local usual, basis = ns:DealUsualPrice(id)
+      if usual and price <= usual * (1 - usualPct) then
+        deals[#deals + 1] = { kind = "usual", id = id, price = price, worth = usual, listed = rec.q, basis = basis }
       end
     end
   end
@@ -376,9 +409,9 @@ local function printDeal(d)
     print(("    |cffffffff%s|r at %s, a vendor pays %s (%s profit each). %s listed."):format(
       itemName(d.id), ns.Money(d.price), ns.Money(d.worth), ns.Money(d.worth - d.price), d.listed or "?"))
   else
-    print(("    |cffffffff%s|r at %s, usually %s (%d%% below). %s listed."):format(
+    print(("    |cffffffff%s|r at %s, usually %s (%d%% below, %s). %s listed."):format(
       itemName(d.id), ns.Money(d.price), ns.Money(d.worth),
-      math.floor((1 - d.price / d.worth) * 100 + 0.5), d.listed or "?"))
+      math.floor((1 - d.price / d.worth) * 100 + 0.5), d.basis or "ledger", d.listed or "?"))
   end
 end
 
