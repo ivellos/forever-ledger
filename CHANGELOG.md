@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - New look for the ledger window: dark and flat with an accent colour, matching EllesmereUI (and using its font and your accent colour when it's installed). Tabs across the top: Dashboard, Shuffles, Vendor flips, Characters (the old overview) and Settings. Dashboard and Settings show a summary for now; their full versions come next.
 - "One-off deals" in the Shuffles tab are now called "Limited supply".
+- The Shuffles tab is a table: sub-tabs for "Sells to a vendor", "Sells on the auction house" and "Limited supply" (with counts), and columns for steps, shuffle, profit, return, profit per hour and supply. Click a column heading to sort. Each row shows an icon per step (profession, disenchant, split, vendor or auction house) and the item's icon; hover for the steps. Click a row to open what to buy, with item icons, next to the numbered steps. Vendor flips use the same table, with "Listed" and "If all bought" columns.
 - The Settings tab has controls for every setting: number boxes with - and +, rows of choices, a money box and checkboxes. Changes apply straight away. The slash commands still work.
 
 ### Added

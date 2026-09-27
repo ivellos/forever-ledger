@@ -262,6 +262,96 @@ function ns:ShuffleDetails(s)
   return table.concat(lines, "\n")
 end
 
+---------------------------------------------------------------------------
+-- Pieces for the Shuffles table
+---------------------------------------------------------------------------
+local PROF_ICONS = {
+  Alchemy = "Interface\\Icons\\Trade_Alchemy", Blacksmithing = "Interface\\Icons\\Trade_BlackSmithing",
+  Enchanting = "Interface\\Icons\\Trade_Engraving", Engineering = "Interface\\Icons\\Trade_Engineering",
+  Leatherworking = "Interface\\Icons\\Trade_LeatherWorking", Tailoring = "Interface\\Icons\\Trade_Tailoring",
+  Cooking = "Interface\\Icons\\INV_Misc_Food_15", ["First Aid"] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
+  Fishing = "Interface\\Icons\\Trade_Fishing", Mining = "Interface\\Icons\\Trade_Mining",
+}
+local DISENCHANT_ICON = "Interface\\Icons\\Spell_Holy_RemoveCurse"
+local VENDOR_ICON = "Interface\\Icons\\INV_Misc_Coin_01"
+local AH_ICON = "Interface\\Icons\\INV_Misc_Coin_04"
+local UNKNOWN_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
+
+function ns:ItemIcon(id)
+  local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)
+  if not icon and GetItemIcon then icon = GetItemIcon(id) end
+  return icon or UNKNOWN_ICON
+end
+
+-- One { icon, text } per step, following the main path. After disenchanting it follows
+-- the material worth the most.
+function ns:StepIcons(o)
+  local out = {}
+  local function walk(o)
+    if o.kind == "ah" then out[#out + 1] = { AH_ICON, "Sell on the auction house" }; return end
+    if o.kind == "vendor" then out[#out + 1] = { VENDOR_ICON, "Sell to a vendor" }; return end
+    if o.kind == "disenchant" then
+      out[#out + 1] = { DISENCHANT_ICON, "Disenchant" }
+      local top
+      for _, m in ipairs(o.mats) do
+        if not top or m.opt.value * m.count > top.opt.value * top.count then top = m end
+      end
+      if top then walk(top.opt) end
+      return
+    end
+    if o.kind == "craft" then
+      out[#out + 1] = { PROF_ICONS[o.prof or ""] or ns:ItemIcon(o.rec.out), stepText(o) }
+    else
+      out[#out + 1] = { ns:ItemIcon(o.next.id), o.step }
+    end
+    walk(o.next)
+  end
+  walk(o)
+  return out
+end
+
+-- What to buy: { id, qty, price, listed }. For a group, one line per item, cheapest first.
+function ns:ShuffleBuys(s)
+  local out = {}
+  if s.group then
+    for _, m in ipairs(s.members) do
+      out[#out + 1] = { id = m.id, qty = 1, price = m.cost, listed = m.buys[1].listed }
+    end
+  else
+    for _, b in ipairs(s.buys) do
+      out[#out + 1] = { id = b.id, qty = b.qty, price = b.price, listed = b.listed }
+    end
+  end
+  return out
+end
+
+-- The numbered steps as text.
+function ns:ShuffleSteps(s)
+  local lines = {}
+  stepLines(s.opt, lines, { n = 0 }, true)
+  return table.concat(lines, "\n")
+end
+
+-- The buying limit and profit, as one line.
+function ns:ShuffleProfitLine(s)
+  local limit = (s.single or s.group) and ("Buy at up to %s. "):format(ns.Money(s.maxBuy)) or ""
+  local hour = s.opt.kind == "vendor" and "" or (", about %s an hour"):format(ns.Money(s.perHour))
+  return ("%sProfit %s %s (%d%%)%s."):format(
+    limit, ns.Money(s.profit), s.single and "each" or "per craft", returnPct(s), hour)
+end
+
+-- How many of the main thing to buy are listed (for a group, all members together).
+function ns:ShuffleSupply(s)
+  if s.group then
+    local n = 0
+    for _, m in ipairs(s.members) do n = n + (m.buys[1].listed or 0) end
+    return n
+  end
+  return s.buys[1] and s.buys[1].listed
+end
+
+function ns:ShuffleReturn(s) return s.cost > 0 and s.profit / s.cost or 0 end
+
 local function printShuffle(i, s)
   if s.group then
     print(("%d. |cffffffff%s|r"):format(i, ns:ShuffleTitle(s)))

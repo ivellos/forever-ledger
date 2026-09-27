@@ -89,7 +89,7 @@ end
 -- Main window: title bar, tabs, a content area and a footer with buttons
 ---------------------------------------------------------------------------
 local main
-local setView, layoutShuffles, buildSettings
+local setView, layoutShuffles, buildSettings, buildTable
 
 local TABS = {
   { key = "dashboard", label = "Dashboard" },
@@ -140,9 +140,8 @@ local function buildMain()
     characters = textArea(),
   }
   main.views.settings = buildSettings()
-  main.shuffleSF, main.shuffleContent = T:Scroll(main.body)
-  main.shuffleSF:SetAllPoints()
-  main.views.shuffles, main.views.flips = main.shuffleSF, main.shuffleSF
+  main.table = buildTable()
+  main.views.shuffles, main.views.flips = main.table, main.table
 
   -- Footer buttons. Scan buttons show on Dashboard and Characters.
   local full = T:Button(main, "Full scan", 140, function() ns.Scan:Start("full") end)
@@ -486,161 +485,428 @@ end
 ns:OnReady(function() ns:UpdateMinimapButton() end)
 
 ---------------------------------------------------------------------------
--- Shuffles and Vendor flips: a list of rows; click one to show its steps underneath
+-- Shuffles and Vendor flips: a table with sortable columns. Click a row to open
+-- what to buy (left) and the steps (right) underneath it.
 ---------------------------------------------------------------------------
-local MAX_ROWS = 25       -- per section
-local ROW_HEIGHT = 22
-local rows, details, openKeys = {}, {}, {}
+local ROW_HEIGHT = 26
+local MAX_ROWS = 60
+local SUBTABS = {
+  { key = "vendor", label = "Sells to a vendor" },
+  { key = "ah", label = "Sells on the auction house" },
+  { key = "oneOff", label = "Limited supply" },
+}
+local COLUMNS = {
+  shuffles = {
+    { key = "steps", label = "Steps", width = 116 },
+    { key = "name", label = "Shuffle" },
+    { key = "profit", label = "Profit", width = 90 },
+    { key = "ret", label = "Return", width = 58 },
+    { key = "hour", label = "Per hour", width = 96 },
+    { key = "supply", label = "Supply", width = 62 },
+  },
+  flips = {
+    { key = "name", label = "Item" },
+    { key = "profit", label = "Profit each", width = 90 },
+    { key = "ret", label = "Return", width = 58 },
+    { key = "supply", label = "Listed", width = 62 },
+    { key = "total", label = "If all bought", width = 110 },
+  },
+}
+local SORT_VALUE = {
+  steps = function(s) return #ns:StepIcons(s.opt) end,
+  name = function(s) return ns:ShuffleTitle(s):lower() end,
+  profit = function(s) return s.profit end,
+  ret = function(s) return ns:ShuffleReturn(s) end,
+  hour = function(s) return s.perHour end,
+  supply = function(s) return ns:ShuffleSupply(s) or 0 end,
+  total = function(s) return s.profit * (ns:ShuffleSupply(s) or 0) end,
+}
+local sortBy = { shuffles = { key = "hour", desc = true }, flips = { key = "total", desc = true } }
+local subtab = "vendor"
+local openKeys = {}
+local rows, details, boxes, headerCells = {}, {}, {}, {}
 
-local function getRow(i)
-  local r = rows[i]
-  if not r then
-    r = CreateFrame("Button", nil, main.shuffleContent)
-    r:SetHeight(ROW_HEIGHT)
-    local hl = r:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.10)
-    r.right = T:Text(r, 12)
-    r.right:SetPoint("RIGHT", -4, 0)
-    r.right:SetJustifyH("RIGHT")
-    r.left = T:Text(r, 12)
-    r.left:SetPoint("LEFT", 4, 0)
-    r.left:SetPoint("RIGHT", r.right, "LEFT", -12, 0)
-    r.left:SetJustifyH("LEFT")
-    r.left:SetWordWrap(false)
-    r:SetScript("OnClick", function(self)
-      if self.shuffle then
-        openKeys[self.shuffle.key] = not openKeys[self.shuffle.key]
-        layoutShuffles()
-      end
-    end)
-    rows[i] = r
+local function itemName(id) return (ns.GetItemInfo(id)) or ("item " .. id) end
+
+-- x position and width of each column for a table this wide.
+local function columnLayout(cols, width)
+  local fixed = 0
+  for _, c in ipairs(cols) do fixed = fixed + (c.width or 0) + 8 end
+  local x, out = 4, {}
+  for _, c in ipairs(cols) do
+    local w = c.width or math.max(140, width - fixed - 4)
+    out[c.key] = { x = x, w = w }
+    x = x + w + 8
   end
-  return r
+  return out
 end
 
-local function getDetail(i)
-  local fs = details[i]
-  if not fs then
-    fs = T:Text(main.shuffleContent, 11, { 1, 1, 1, 0.85 })
-    fs:SetJustifyH("LEFT")
-    fs:SetJustifyV("TOP")
-    fs:SetSpacing(3)
-    details[i] = fs
-  end
-  return fs
+-- The item whose icon a row shows: what you buy, or what you craft.
+local function mainItem(s)
+  if s.group then return s.members[1].id end
+  if s.single then return s.id end
+  return s.opt.rec and s.opt.rec.out or s.id
 end
 
--- "Use recipes from" checkboxes, one per character.
-local boxes = {}
+buildTable = function()
+  local f = CreateFrame("Frame", nil, main.body)
+  f:SetAllPoints()
+
+  f.subtabs = {}
+  local prev
+  for _, st in ipairs(SUBTABS) do
+    local b = T:Tab(f, st.label, function() subtab = st.key; layoutShuffles() end)
+    b.base = st.label
+    if prev then b:SetPoint("LEFT", prev, "RIGHT", 0, 0) else b:SetPoint("TOPLEFT", -6, 4) end
+    f.subtabs[st.key] = b
+    prev = b
+  end
+
+  f.charLabel = T:Text(f, 12, T.dim)
+  f.charLabel:SetText("Use recipes from:")
+
+  f.header = CreateFrame("Frame", nil, f)
+  f.header:SetHeight(22)
+  T:Fill(f.header, { 1, 1, 1, 0.05 })
+
+  f.sf, f.content = T:Scroll(f)
+  f.empty = T:Text(f.content, 12, T.dim)
+  f.empty:SetPoint("TOPLEFT", 8, -8)
+  f.empty:SetText("None at current prices. Scan the auction house, then click Refresh.")
+  return f
+end
+
 local function getBox(i)
-  local cb = boxes[i]
-  if not cb then
-    cb = T:Check(main.shuffleContent, function(self)
+  if not boxes[i] then
+    boxes[i] = T:Check(main.table, function(self)
       ns.db.settings.skipChars[self.charKey] = (not self:GetChecked()) or nil
       ns:InvalidateValues(true)
       ns:RefreshShuffles()
     end)
-    boxes[i] = cb
   end
-  return cb
+  return boxes[i]
 end
 
--- Returns the height used.
-local function layoutCharBoxes(content, width)
-  if not main.charLabel then
-    main.charLabel = T:Text(content, 12, T.dim)
-    main.charLabel:SetText("Use recipes from:")
+local function getHeaderCell(i)
+  local h = headerCells[i]
+  if not h then
+    h = CreateFrame("Button", nil, main.table.header)
+    h.fs = T:Text(h, 11, T.dim)
+    h.fs:SetAllPoints()
+    h:SetScript("OnClick", function(self)
+      local sort = sortBy[main.view == "flips" and "flips" or "shuffles"]
+      if sort.key == self.key then
+        sort.desc = not sort.desc
+      else
+        sort.key, sort.desc = self.key, self.key ~= "name"
+      end
+      layoutShuffles()
+    end)
+    headerCells[i] = h
   end
-  main.charLabel:ClearAllPoints()
-  main.charLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 4, -4)
-  main.charLabel:Show()
+  return h
+end
 
-  local keys = sortedCharKeys()
-  local x, y = main.charLabel:GetStringWidth() + 16, 0
-  for i, key in ipairs(keys) do
-    local cb = getBox(i)
-    cb.label:SetText(classColored(ns.db.chars[key]))
-    local w = 14 + 6 + cb.label:GetStringWidth() + 18
-    if x + w > width then x, y = 4, y + 22 end
-    cb:ClearAllPoints()
-    cb:SetPoint("TOPLEFT", content, "TOPLEFT", x, -(y + 2))
-    cb:SetChecked(not ns.db.settings.skipChars[key])
-    cb.charKey = key
-    cb:Show()
-    x = x + w
+local function getRow(i)
+  local r = rows[i]
+  if r then return r end
+  r = CreateFrame("Button", nil, main.table.content)
+  r:SetHeight(ROW_HEIGHT)
+  r.stripe = T:Fill(r, { 1, 1, 1, 0.025 })
+  local hl = r:CreateTexture(nil, "HIGHLIGHT")
+  hl:SetAllPoints()
+  hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.10)
+  r.openBar = r:CreateTexture(nil, "ARTWORK")
+  r.openBar:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 1)
+  r.openBar:SetPoint("TOPLEFT")
+  r.openBar:SetPoint("BOTTOMLEFT")
+  r.openBar:SetWidth(2)
+  r.steps = {}
+  r.icon = r:CreateTexture(nil, "ARTWORK")
+  r.icon:SetSize(18, 18)
+  r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  r.name = T:Text(r, 12)
+  r.name:SetJustifyH("LEFT")
+  r.name:SetWordWrap(false)
+  r.cells = {}
+  r:SetScript("OnClick", function(self)
+    openKeys[self.shuffle.key] = not openKeys[self.shuffle.key]
+    layoutShuffles()
+  end)
+  r:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+    GameTooltip:AddLine(ns:ShuffleTitle(self.shuffle), 1, 1, 1)
+    for line in ns:ShuffleSteps(self.shuffle):gmatch("[^\n]+") do GameTooltip:AddLine(line, 0.85, 0.85, 0.85, true) end
+    GameTooltip:AddLine("Click to show what to buy.", T.accent[1], T.accent[2], T.accent[3])
+    GameTooltip:Show()
+  end)
+  r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  rows[i] = r
+  return r
+end
+
+local function stepIcon(r, j)
+  if not r.steps[j] then
+    local t = r:CreateTexture(nil, "ARTWORK")
+    t:SetSize(16, 16)
+    t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    r.steps[j] = t
   end
-  for i = #keys + 1, #boxes do boxes[i]:Hide() end
-  return y + 30
+  return r.steps[j]
+end
+
+local function cell(r, key)
+  if not r.cells[key] then
+    local fs = T:Text(r, 12)
+    fs:SetJustifyH("RIGHT")
+    fs:SetWordWrap(false)
+    r.cells[key] = fs
+  end
+  return r.cells[key]
+end
+
+local function fillRow(r, s, lay, index, width)
+  r:SetWidth(width)
+  r.shuffle = s
+  r.stripe:SetShown(index % 2 == 0)
+  r.openBar:SetShown(openKeys[s.key] or false)
+
+  local icons = lay.steps and ns:StepIcons(s.opt) or {}
+  local fit = lay.steps and math.floor(lay.steps.w / 19) or 0
+  for j, st in ipairs(icons) do
+    local t = stepIcon(r, j)
+    t:SetTexture(st[1])
+    t:ClearAllPoints()
+    t:SetPoint("LEFT", r, "LEFT", lay.steps.x + (j - 1) * 19, 0)
+    t:SetShown(j <= fit)
+  end
+  for j = #icons + 1, #r.steps do r.steps[j]:Hide() end
+
+  r.icon:SetTexture(ns:ItemIcon(mainItem(s)))
+  r.icon:ClearAllPoints()
+  r.icon:SetPoint("LEFT", r, "LEFT", lay.name.x, 0)
+  r.name:ClearAllPoints()
+  r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+  r.name:SetWidth(lay.name.w - 26)
+  r.name:SetText(ns:ShuffleTitle(s))
+
+  local supply = ns:ShuffleSupply(s)
+  local values = {
+    profit = "|cff7fd39c" .. ns.Money(s.profit) .. "|r",
+    ret = ("%d%%"):format(math.floor(ns:ShuffleReturn(s) * 100 + 0.5)),
+    hour = ns.Money(math.floor(s.perHour / 100) * 100),
+    supply = supply and tostring(supply) or "vendor",
+    total = supply and ns.Money(s.profit * supply) or "",
+  }
+  for key, fs in pairs(r.cells) do fs:SetShown(lay[key] ~= nil) end
+  for key, text in pairs(values) do
+    if lay[key] then
+      local fs = cell(r, key)
+      fs:ClearAllPoints()
+      fs:SetPoint("LEFT", r, "LEFT", lay[key].x, 0)
+      fs:SetWidth(lay[key].w)
+      fs:SetText(text)
+      fs:Show()
+    end
+  end
+end
+
+-- The opened part under a row: what to buy on the left, the steps on the right.
+local function getDetail(i)
+  local d = details[i]
+  if d then return d end
+  d = CreateFrame("Frame", nil, main.table.content)
+  T:Fill(d, { 1, 1, 1, 0.035 })
+  d.buyTitle = T:Text(d, 11, T.accent)
+  d.buyTitle:SetText("What to buy")
+  d.stepTitle = T:Text(d, 11, T.accent)
+  d.stepTitle:SetText("Steps")
+  d.steps = T:Text(d, 11, { 1, 1, 1, 0.85 })
+  d.steps:SetJustifyH("LEFT")
+  d.steps:SetJustifyV("TOP")
+  d.steps:SetSpacing(3)
+  d.profit = T:Text(d, 11)
+  d.profit:SetJustifyH("LEFT")
+  d.lines = {}
+  details[i] = d
+  return d
+end
+
+local function detailLine(d, j)
+  local l = d.lines[j]
+  if not l then
+    l = { icon = d:CreateTexture(nil, "ARTWORK"), text = T:Text(d, 11) }
+    l.icon:SetSize(14, 14)
+    l.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    l.text:SetJustifyH("LEFT")
+    l.text:SetWordWrap(false)
+    d.lines[j] = l
+  end
+  return l
+end
+
+local MAX_BUY_LINES = 12
+
+local function fillDetail(d, s, width)
+  d:SetWidth(width)
+  local half = math.floor(width * 0.5)
+  d.buyTitle:ClearAllPoints()
+  d.buyTitle:SetPoint("TOPLEFT", 14, -8)
+  d.stepTitle:ClearAllPoints()
+  d.stepTitle:SetPoint("TOPLEFT", half + 8, -8)
+
+  local buys, y = ns:ShuffleBuys(s), 26
+  local shown = 0
+  for j, b in ipairs(buys) do
+    if j > MAX_BUY_LINES then break end
+    shown = j
+    local l = detailLine(d, j)
+    l.icon:SetTexture(ns:ItemIcon(b.id))
+    l.icon:ClearAllPoints()
+    l.icon:SetPoint("TOPLEFT", 14, -y)
+    l.icon:Show()
+    l.text:ClearAllPoints()
+    l.text:SetPoint("LEFT", l.icon, "RIGHT", 6, 0)
+    l.text:SetWidth(half - 44)
+    l.text:SetText(("%s%s at %s  %s"):format(b.qty > 1 and (b.qty .. " x ") or "", itemName(b.id),
+      ns.Money(b.price), dim(b.listed and (b.listed .. " listed") or "from a vendor")))
+    l.text:Show()
+    y = y + 18
+  end
+  if #buys > MAX_BUY_LINES then
+    shown = shown + 1
+    local l = detailLine(d, shown)
+    l.icon:Hide()
+    l.text:ClearAllPoints()
+    l.text:SetPoint("TOPLEFT", 34, -y)
+    l.text:SetText(dim(("and %d more"):format(#buys - MAX_BUY_LINES)))
+    l.text:Show()
+    y = y + 18
+  end
+  for j = shown + 1, #d.lines do d.lines[j].icon:Hide(); d.lines[j].text:Hide() end
+
+  d.steps:ClearAllPoints()
+  d.steps:SetPoint("TOPLEFT", half + 8, -26)
+  d.steps:SetWidth(width - half - 20)
+  d.steps:SetText(ns:ShuffleSteps(s))
+
+  local h = math.max(y, 26 + d.steps:GetStringHeight()) + 8
+  d.profit:ClearAllPoints()
+  d.profit:SetPoint("TOPLEFT", 14, -h)
+  d.profit:SetWidth(width - 28)
+  d.profit:SetText(ns:ShuffleProfitLine(s))
+  d:SetHeight(h + 22)
 end
 
 layoutShuffles = function()
-  local content, data = main.shuffleContent, main.shuffles
-  content:SetWidth(math.max(main.shuffleSF:GetWidth() - 12, 400))
-  local width = content:GetWidth()
-  local flipsView = main.view == "flips"
-  local y, nRows, nDetails = 0, 0, 0
-  -- Recipes don't matter for vendor flips, so only the Shuffles tab has the checkboxes.
-  if flipsView then
-    if main.charLabel then main.charLabel:Hide() end
+  local f, data = main.table, main.shuffles
+  if not data then return end
+  local flips = main.view == "flips"
+  local view = flips and "flips" or "shuffles"
+  local width = math.max(f:GetWidth(), 500)
+  local top = 0
+
+  -- Sub-tabs with counts, and "use recipes from" (Shuffles only)
+  for key, b in pairs(f.subtabs) do
+    b:SetShown(not flips)
+    b:SetText(("%s  %s"):format(b.base, dim(#data[key])))
+    b:SetWidth(b:GetFontString():GetStringWidth() + 24)
+    b:SetSelected(key == subtab)
+  end
+  f.charLabel:SetShown(not flips)
+  if flips then
     for _, cb in ipairs(boxes) do cb:Hide() end
   else
-    y = layoutCharBoxes(content, width)
+    top = 34
+    f.charLabel:ClearAllPoints()
+    f.charLabel:SetPoint("TOPLEFT", 4, -(top + 1))
+    local keys = sortedCharKeys()
+    local x, y = f.charLabel:GetStringWidth() + 16, top
+    for i, key in ipairs(keys) do
+      local cb = getBox(i)
+      cb.label:SetText(classColored(ns.db.chars[key]))
+      local w = 20 + cb.label:GetStringWidth() + 18
+      if x + w > width then x, y = 4, y + 22 end
+      cb:ClearAllPoints()
+      cb:SetPoint("TOPLEFT", f, "TOPLEFT", x, -y)
+      cb:SetChecked(not ns.db.settings.skipChars[key])
+      cb.charKey = key
+      cb:Show()
+      x = x + w
+    end
+    for i = #keys + 1, #boxes do boxes[i]:Hide() end
+    top = y + 26
   end
 
-  local function row(left, right, s)
+  -- Header
+  local cols = COLUMNS[view]
+  local lay = columnLayout(cols, width - 12)
+  local sort = sortBy[view]
+  f.header:ClearAllPoints()
+  f.header:SetPoint("TOPLEFT", 0, -top)
+  f.header:SetPoint("TOPRIGHT", 0, -top)
+  for i, c in ipairs(cols) do
+    local h = getHeaderCell(i)
+    h.key = c.key
+    h:ClearAllPoints()
+    h:SetPoint("LEFT", f.header, "LEFT", lay[c.key].x, 0)
+    h:SetSize(lay[c.key].w, 22)
+    local sorted = sort.key == c.key
+    h.fs:SetJustifyH(c.width and c.key ~= "steps" and "RIGHT" or "LEFT")
+    h.fs:SetText(c.label .. (sorted and (sort.desc and " v" or " ^") or ""))
+    local col = sorted and { T.accent[1], T.accent[2], T.accent[3], 1 } or T.dim
+    h.fs:SetTextColor(col[1], col[2], col[3], col[4] or 1)
+    h:Show()
+  end
+  for i = #cols + 1, #headerCells do headerCells[i]:Hide() end
+  top = top + 24
+
+  -- Rows, sorted
+  f.sf:ClearAllPoints()
+  f.sf:SetPoint("TOPLEFT", 0, -top)
+  f.sf:SetPoint("BOTTOMRIGHT")
+  local content = f.content
+  content:SetWidth(width - 12)
+  local list = flips and data.flips or data[subtab]
+  local items = {}
+  for i, s in ipairs(list) do items[i] = s end
+  local get = SORT_VALUE[sort.key]
+  table.sort(items, function(a, b)
+    local va, vb = get(a), get(b)
+    if va == vb then return a.key < b.key end
+    if sort.desc then return va > vb end
+    return va < vb
+  end)
+
+  local y, nRows, nDetails = 0, 0, 0
+  for i = 1, math.min(#items, MAX_ROWS) do
+    local s = items[i]
     nRows = nRows + 1
     local r = getRow(nRows)
     r:ClearAllPoints()
     r:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
-    r:SetWidth(width)
-    r.left:SetText(left)
-    r.right:SetText(right or "")
-    r.shuffle = s
-    r:SetEnabled(s ~= nil)
+    fillRow(r, s, lay, i, width - 12)
     r:Show()
     y = y + ROW_HEIGHT
-  end
-
-  local function detail(text)
-    nDetails = nDetails + 1
-    local fs = getDetail(nDetails)
-    fs:ClearAllPoints()
-    fs:SetPoint("TOPLEFT", content, "TOPLEFT", 20, -(y + 2))
-    fs:SetWidth(width - 28)
-    fs:SetText(text)
-    fs:Show()
-    y = y + fs:GetStringHeight() + 12
-  end
-
-  local function section(title, list)
-    row(heading(title))
-    if #list == 0 then row(dim("  None at current prices.")) end
-    for i = 1, math.min(#list, MAX_ROWS) do
-      local s = list[i]
-      local open = openKeys[s.key]
-      row(dim(open and "-" or "+") .. " " .. ns:ShuffleTitle(s), ns:ShuffleSummary(s), s)
-      if open then detail(ns:ShuffleDetails(s)) end
+    if openKeys[s.key] then
+      nDetails = nDetails + 1
+      local d = getDetail(nDetails)
+      d:ClearAllPoints()
+      d:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
+      fillDetail(d, s, width - 12)
+      d:Show()
+      y = y + d:GetHeight() + 4
     end
-    y = y + 12
   end
-
-  if flipsView then
-    section("Buy on the auction house, sell straight to a vendor", data.flips)
-  else
-    section("Sells to a vendor (safe)", data.vendor)
-    section("Sells on the auction house (depends on buyers)", data.ah)
-    if #data.oneOff > 0 then section("Limited supply (fewer than 5 listed)", data.oneOff) end
-  end
-
   for i = nRows + 1, #rows do rows[i]:Hide() end
   for i = nDetails + 1, #details do details[i]:Hide() end
-  content:SetHeight(math.max(y, 10))
-  main.shuffleSF.UpdateScrollBar()
+  f.empty:SetShown(#items == 0)
+  content:SetHeight(math.max(y, 30))
+  f.sf.UpdateScrollBar()
 end
 
--- Item names arrive from the game a moment after they're first asked for.
--- Redraw the list once they do, so "item 4470" becomes "Simple Wood".
+-- Item names and icons arrive from the game a moment after they're first asked for.
+-- Redraw the table once they do, so "item 4470" becomes "Simple Wood".
 local redrawQueued = false
 ns:On("GET_ITEM_INFO_RECEIVED", function()
   if redrawQueued or not main or not main:IsShown() or not main.shuffles then return end
@@ -670,7 +936,7 @@ function ns:RefreshShuffles()
   end
 
   main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff, flips = flips }
-  main.shuffleInfo:SetText(("%d shuffles and %d vendor flips, worked out at %s. Click a row for details."):format(
+  main.shuffleInfo:SetText(("%d shuffles and %d vendor flips, worked out at %s. Click a column to sort, a row for details."):format(
     #vendor + #ah + #oneOff, #flips, date("%H:%M")))
   if main.view == "shuffles" or main.view == "flips" then layoutShuffles() end
 end

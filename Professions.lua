@@ -173,7 +173,7 @@ function ns:BuildUsageIndex()
           local k = (c.name or "?") .. "|" .. prof
           usage[id][k] = (usage[id][k] or 0) + 1
           byReagent[id] = byReagent[id] or {}
-          table.insert(byReagent[id], { rec = rec, key = key, who = c.name })
+          table.insert(byReagent[id], { rec = rec, key = key, who = c.name, prof = prof })
         end
       end
     end
