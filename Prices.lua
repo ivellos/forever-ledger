@@ -385,6 +385,7 @@ end)
 ns:On("AUCTION_HOUSE_CLOSED", function()
   ahOpen = false
   if Scan.active then Scan:Stop("Auction house closed, so the scan stopped.") end
+  ns:RefreshUI()   -- grey out the scan buttons
 end)
 
 ---------------------------------------------------------------------------
