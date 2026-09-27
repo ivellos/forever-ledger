@@ -171,7 +171,8 @@ local function onMoney()
     -- Commodity purchases name their item; for other purchases, use the item the
     -- auction house last showed listings for.
     local h = hints[1]
-    addLog(ns.db.purchases, { t = now, c = who, id = (h and h.item) or lastShownItem, q = h and h.qty, a = math.abs(delta) })
+    -- Non-commodity purchases (gear) are always one item.
+    addLog(ns.db.purchases, { t = now, c = who, id = (h and h.item) or lastShownItem, q = (h and h.qty) or 1, a = math.abs(delta) })
   end
   if ns.OnMoneyLogged then ns:OnMoneyLogged() end
   ns:Debug("Money", source, delta > 0 and "+" or "-", ns.Money(math.abs(delta)))

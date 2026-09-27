@@ -103,6 +103,27 @@ end
 ---------------------------------------------------------------------------
 -- Records for each sub-tab
 ---------------------------------------------------------------------------
+local GROUP_SECONDS = 60
+
+-- Combine trades of the same item, at the same price each, in the same place, by the
+-- same character, within a minute of each other (selling 10 oils one by one is one row).
+local function groupSimilar(list)
+  table.sort(list, function(a, b) return a.t < b.t end)
+  local out, last = {}, nil
+  for _, r in ipairs(list) do
+    if last and r.item == last.item and r.where == last.where and r.char == last.char and r.who == last.who
+      and r.each and last.each and math.abs(r.each - last.each) < 1 and r.t - last.t <= GROUP_SECONDS then
+      last.qty = (last.qty or 1) + (r.qty or 1)
+      last.total = last.total + r.total
+      last.t = r.t
+    else
+      last = r
+      out[#out + 1] = r
+    end
+  end
+  return out
+end
+
 local function records(tab, from, charOK, match)
   local out = {}
   local function keep(e) return (e.t or 0) >= from and charOK(e.c) end
@@ -117,7 +138,8 @@ local function records(tab, from, charOK, match)
     end
     for _, e in ipairs(ns.db.purchases) do
       if keep(e) then
-        buys[#buys + 1] = { t = e.t, item = nameOf(e.id), icon = iconOf(e.id), qty = e.q, total = e.a,
+        -- No quantity means a non-commodity purchase, which is always one item.
+        buys[#buys + 1] = { t = e.t, item = nameOf(e.id), icon = iconOf(e.id), qty = e.q or 1, total = e.a,
           where = "Auction", char = e.c }
       end
     end
@@ -131,7 +153,7 @@ local function records(tab, from, charOK, match)
       for _, r in ipairs(list) do r.each = r.qty and r.qty > 0 and r.total / r.qty or nil end
     end
 
-    if tab == "sales" then out = sales elseif tab == "purchases" then out = buys else
+    if tab == "sales" then out = groupSimilar(sales) elseif tab == "purchases" then out = groupSimilar(buys) else
       -- Resale: items both bought and sold.
       local by = {}
       local function add(r, sold)
