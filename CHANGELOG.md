@@ -5,36 +5,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-### Changed
-- Dashboard: a gold graph (hover for the amount at any point) and Sales, Expenses and Profit boxes with totals, per day and top items, for all characters or one, over a day, week, month, 3 months, year or all time. The graph is green when gold went up over the range and red when it went down. A row above the boxes shows the highest and lowest gold, auction house sales and purchases per day, and the biggest single auction house sale and purchase. Recent sessions below.
-- Auction house sales also record how many were sold and to whom.
-- Ledger tab: every sale and purchase (auction house and vendor) with time, item, quantity, price each, total, where, buyer and character; a Resale view of items both bought and sold with average buy and sell prices and profit; and Other money (fees, repairs, mail, trade, loot, quests, training, flights) by day. Filter by time, character and item name, and sort by any column. Identical trades within a minute of each other are shown as one row.
-- Sales, purchases and vendor records are kept for 12 months (up to 10,000 of each).
-- New look for the ledger window: dark and flat with an accent colour, matching EllesmereUI (and using its font and your accent colour when it's installed). Tabs across the top: Dashboard, Shuffles, Vendor flips, Characters (the old overview) and Settings. Dashboard and Settings show a summary for now; their full versions come next.
-- "One-off deals" in the Shuffles tab are now called "Limited supply".
-- The Shuffles tab is a table: sub-tabs for "Sells to a vendor", "Sells on the auction house" and "Limited supply" (with counts), and columns for steps, shuffle, profit, return, profit per hour and runs (how many times you could do it with what's listed, limited by the scarcest auction house purchase). Hover a column heading for what it means. Click a column heading to sort. Each row shows an icon per step (profession, disenchant, split, vendor or auction house) and the item's icon; hover for the steps. Click a row to open what to buy, with item icons, next to the numbered steps. Vendor flips use the same table, with "Listed" and "If all bought" columns.
-- Shuffle rows are simpler: the name is just the item or recipe, a Steps column gives the count, and hovering a step icon names that step. Runs, and "Listed" on vendor flips, count only listings cheap enough to make a profit (scans now save how many are listed at each of the cheapest 20 prices).
-- The ledger window can be resized from its bottom-right corner, and remembers its size.
-- "Work it" on each opened shuffle or vendor flip: a small window with the shopping list and steps. Click an item to search the auction house for it, or to buy it from the open vendor (choose how many runs to buy for). Each click is one search or one purchase.
-- A "Craft" button in Work it starts the shuffle's first craft as many times as the Runs number says. If that profession's window isn't open, the first click opens it (switching to the right profession if needed) and the second crafts.
-- Work it has one Runs number for what to buy, how many to craft and the session goal.
-- The ledger and Work it windows come fully to the front when clicked, instead of mixing where they overlap.
-- On the auction house, an item's buy page tints the listings worth buying (at or below its "buy at or below" price, or below what a vendor pays), with a line above saying how many are available at that price. The search results list is tinted too, each row by its own item's limit. Can be turned off in Settings.
-- Sessions with a goal play the chime and show "Goal reached" when the runs reach it.
-- The scan buttons on the auction house window moved to its bottom-right corner, where they're no longer hidden.
-- Sessions: start one from the Work it window, optionally with a goal. It counts what you spend on the shuffle's materials, what you earn selling its products, runs done (crafts, counted from "You create" messages; disenchants; or items sold), profit and profit per hour, until you stop. The Dashboard lists the running session and the last five. `/fl session` opens it.
-- The Settings tab has controls for every setting: number boxes with - and +, rows of choices, a money box and checkboxes. Changes apply straight away. The slash commands still work.
+## [0.3.0] - 2026-09-27
+
+A new look, a dashboard and a ledger, deal alerts, and tools for working a shuffle from start to finish. Tested on the Forever beta.
 
 ### Added
-- History for the coming dashboard: each character's gold over time, money in and out each day by source (auction house sales, purchases and fees, vendors, repairs, mail, trade, loot, quests, training, flights), and a log of auction house sales and purchases.
-- A log of vendor purchases and sales per item (which item, how many, how much), for the coming session tracker. Quick sales that arrive as one gold change are split back into the items sold.
-- Price history per item: daily for 30 days, weekly for 2 years, and all-time lowest and average.
-- `/fl money` shows today's money in and out for the character you're on.
-- Deal alerts after each scan (chime, on-screen message, chat list), two kinds:
-  - Below usual price: at least 20% below the item's usual price over all time, or over the last week, month, 3 months, 6 months or year. Starts once there are 3 days of price history.
-  - Below vendor price: listed at least 10% below what a vendor pays, optionally with a least profit per item.
-- Usual prices can come from TradeSkillMaster's historical prices when TSM is installed: `/fl deals history auto` (TSM where it has a price, otherwise this addon's own scans; the default), `local` or `tsm`. For a week or a month TSM's market value is used, for longer periods its historical price.
-- `/fl deals` lists current deals. `/fl deals usual 20`, `/fl deals period month`, `/fl deals history auto`, `/fl deals vendor 10%`, `/fl deals vendor 1s` and `/fl deals sound` change the settings. `/fl deals` lists current deals, `/fl deals 40` changes the threshold, `/fl deals sound` turns the chime on or off.
+- Dashboard: a gold graph for all characters or one, over a day, week, month, 3 months, year or all time (green when gold went up, red when it went down; hover for the amount at any point). Below it: highest and lowest gold, auction house sales and purchases per day, the biggest single auction house sale and purchase, and Sales, Expenses and Profit with totals, per day and top items. Recent sessions at the bottom.
+- Ledger tab: every sale and purchase (auction house and vendor) with time, item, quantity, price each, total, where, buyer and character; Resale, for items both bought and sold, with average buy and sell prices and profit; and Other money (fees, repairs, mail, trade, loot, quests, training, flights) by day. Filter by time, character and item name, sort by any column. Identical trades within a minute are one row.
+- Work it: a small window for doing one shuffle, opened from any shuffle or vendor flip. Click an item to search the auction house for it or buy it from the open vendor (one click, one purchase). A Craft button starts the first craft; if that profession's window is closed, the first click opens it and the second crafts. One Runs number sets what to buy, how many to craft and the session goal.
+- Sessions: count what you spend on a shuffle's materials, earn from its products, and runs done, with profit and profit per hour, until you stop. A chime and "Goal reached" when you hit your goal. `/fl session` opens it.
+- Deal alerts after each scan (chime, on-screen message, chat list): listings well below their usual price (percent and period of your choice, from this addon's price history or TradeSkillMaster's when installed), or below what a vendor pays. `/fl deals` lists them.
+- On the auction house: listings worth buying are tinted on an item's buy page, with "Worth buying up to …: N available" above; search results are tinted too.
+- History, recorded from now on: each character's gold, money in and out by source, auction house sales (with quantity and buyer) and purchases, vendor trades per item (12 months), and price history per item (daily for 30 days, weekly for 2 years, all-time lowest and average). `/fl money` shows today's money.
+- Settings tab with controls for every setting.
+- The ledger window can be resized, and remembers its size.
+
+### Changed
+- New look: dark and flat with an accent colour, matching EllesmereUI (its font and your accent colour are used when it's installed). Tabs: Dashboard, Shuffles, Vendor flips, Ledger, Characters, Settings.
+- Shuffles are a table with sub-tabs (Sells to a vendor, Sells on the auction house, Limited supply) and sortable columns: an icon per step, name, steps, profit, return, profit per hour, and runs (how many times you could do it profitably with what's listed now). Click a row for what to buy and every step. Vendor flips use the same table.
+- "One-off deals" are now called "Limited supply".
+- Scans save how many are listed at each of the cheapest 20 prices, so runs and vendor flips count only listings cheap enough to profit.
+- The scan buttons on the auction house sit just below its window.
 
 ## [0.2.0] - 2026-09-26
 
