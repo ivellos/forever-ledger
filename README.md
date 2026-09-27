@@ -19,7 +19,8 @@ A World of Warcraft: Forever addon for crafters who like to make gold. It rememb
 - **Character profiles that build themselves.** Level, professions, skill and every known recipe with its exact materials, saved as you play.
 - **Vendor and auction house prices.** Vendor prices read from the game and from merchant windows. A full auction house scan reads every listing in seconds (Blizzard allows one about every 15 minutes), and a materials scan checks what your recipes use in between.
 - **Works with Auctionator, TSM and Auctioneer.** Uses their prices when your own scan is out of date.
-- **Export and import.** Move data between accounts, for example to an auction house character on a second account.
+- **Live sync between accounts.** Pair your main with an auction house character on another account, and prices, recipes and vendor prices flow between them while both are online.
+- **Export and import.** Move data between accounts by copy and paste.
 - **Minimap button.** Click to open the ledger, right-click for shuffles.
 - **Looks at home with EllesmereUI.** Uses its font and your accent colour when it's installed.
 
@@ -47,6 +48,8 @@ The addon suggests; you click. Every craft, purchase and auction still needs you
 | `/fl deals` | List current deals (`/fl deals settings` for the options; they're also in the Settings tab) |
 | `/fl session` | Open the Work it window for the running session |
 | `/fl money` | Today's money in and out for this character |
+| `/fl pair First Last` | Pair with your character on another account for live sync (do it on both) |
+| `/fl sync` | Sync status; `/fl sync now` sends everything, `/fl sync ping First Last` checks whispers reach someone |
 | `/fl minimap` | Hide or show the minimap button |
 | `/fl pull` | Copy prices from Auctionator, TSM or Auctioneer |
 | `/fl source auto` | Choose where prices come from: `auto`, `own`, `auctionator`, `tsm`, `auctioneer` |
