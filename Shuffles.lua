@@ -365,7 +365,7 @@ end
 
 -- A short name for the table: the item or recipe, without the steps.
 function ns:ShuffleName(s)
-  if s.group then return ("%s (%d items)"):format(s.group, #s.members) end
+  if s.group then return ("%s (%d)"):format(s.group, #s.members) end
   if s.single then return itemName(s.id) end
   return (s.opt.rec and s.opt.rec.n) or ns:ShuffleTitle(s)
 end

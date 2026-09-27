@@ -183,7 +183,15 @@ local function buildMain()
   grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
   grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
   grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-  grip:SetScript("OnMouseDown", function() main:StartSizing("BOTTOMRIGHT") end)
+  -- Never size past the screen edge: the window is kept on screen, so the game would
+  -- push it upwards instead, a little more each time.
+  grip:SetScript("OnMouseDown", function()
+    local maxW = math.max(MIN_W, UIParent:GetRight() / main:GetEffectiveScale() * UIParent:GetEffectiveScale() - main:GetLeft())
+    local maxH = math.max(MIN_H, main:GetTop() - UIParent:GetBottom() / main:GetEffectiveScale() * UIParent:GetEffectiveScale())
+    if main.SetResizeBounds then main:SetResizeBounds(MIN_W, MIN_H, maxW, maxH)
+    elseif main.SetMaxResize then main:SetMaxResize(maxW, maxH) end
+    main:StartSizing("BOTTOMRIGHT")
+  end)
   grip:SetScript("OnMouseUp", function()
     main:StopMovingOrSizing()
     saved.w, saved.h = main:GetWidth(), main:GetHeight()
