@@ -40,7 +40,9 @@ local function eachRow(list, fn)
   return false
 end
 
--- A row's price per item and its item ID, whichever way the row stores them.
+-- A row's price per item, item ID and item key, whichever way the row stores them.
+-- Buy pages have unitPrice (commodities) or buyoutAmount (items); the search results
+-- list has minPrice.
 local function rowInfo(row, fallbackID)
   local d = row.rowData
   if not d and row.GetElementData then
@@ -53,11 +55,13 @@ local function rowInfo(row, fallbackID)
   end
   if type(d) ~= "table" then return end
   local id = d.itemID or (d.itemKey and d.itemKey.itemID) or fallbackID
-  return d.unitPrice or d.buyoutAmount, id
+  return d.unitPrice or d.buyoutAmount or d.minPrice, id, d.itemKey
 end
 
 -- How many are listed at or below a price, from the auction house's own results.
-local function availableAt(id, limit, commodity)
+-- Items with random suffixes ("of the Bear") each have their own item key, so use
+-- the key of what the page shows.
+local function availableAt(id, limit, commodity, itemKey)
   local n = 0
   if commodity then
     for i = 1, (C_AuctionHouse.GetNumCommoditySearchResults(id) or 0) do
@@ -65,7 +69,7 @@ local function availableAt(id, limit, commodity)
       if r and r.unitPrice and r.unitPrice <= limit then n = n + (r.quantity or 0) end
     end
   else
-    local key = C_AuctionHouse.MakeItemKey(id)
+    local key = itemKey or C_AuctionHouse.MakeItemKey(id)
     for i = 1, (C_AuctionHouse.GetNumItemSearchResults(key) or 0) do
       local r = C_AuctionHouse.GetItemSearchResultInfo(key, i)
       if r and r.buyoutAmount and r.buyoutAmount <= limit then n = n + math.max(r.quantity or 1, 1) end
@@ -85,9 +89,11 @@ local function tint(row, on)
   row.flTint:SetShown(on)
 end
 
--- Watch one buy page (commodities or items).
-local function watch(page, commodity)
+-- Watch one page: "commodity" or "item" buy pages (one item, with a line above the
+-- list), or "browse" (search results, each row a different item).
+local function watch(page, kind)
   if not page or page.flWatcher then return end
+  local commodity, browse = kind == "commodity", kind == "browse"
   local list = page.ItemList
   local w = CreateFrame("Frame", nil, page)
   page.flWatcher = w
@@ -108,24 +114,31 @@ local function watch(page, commodity)
       return
     end
 
-    local shownID = ns.LastShownItem and ns.LastShownItem()
-    local id, anyPrice, limit
+    local shownID = not browse and ns.LastShownItem and ns.LastShownItem() or nil
+    -- Limits per item, kept for a few seconds so a list of many items stays cheap.
+    if not w.limits or GetTime() - w.limitsTime > 5 then w.limits, w.limitsTime = {}, GetTime() end
+    local limits = w.limits
+    local function limitFor(itemID)
+      if not itemID then return end
+      if limits[itemID] == nil then limits[itemID] = ns:BuyLimit(itemID) or false end
+      return limits[itemID] or nil
+    end
+    local id, key, anyPrice
     local found = eachRow(list, function(row)
-      local price, rowID = rowInfo(row, shownID)
-      id = id or rowID
-      limit = limit or ns:BuyLimit(rowID)
+      local price, rowID, rowKey = rowInfo(row, shownID)
+      id, key = id or rowID, key or rowKey
+      local limit = limitFor(rowID)
       if price then anyPrice = true end
       tint(row, price ~= nil and limit ~= nil and price <= limit)
     end)
-    if not found then debugOnce("list" .. tostring(commodity), "Auction house: couldn't find the price list rows.") end
-    if found and not anyPrice then
-      debugOnce("price" .. tostring(commodity), "Auction house: found rows but couldn't read their prices.")
-    end
+    if not found then debugOnce("list" .. kind, "Auction house: couldn't find the rows on the", kind, "page.") end
+    if found and not anyPrice then debugOnce("price" .. kind, "Auction house: couldn't read prices on the", kind, "page.") end
 
+    if browse then return end
     id = id or shownID
-    limit = limit or ns:BuyLimit(id)
+    local limit = limitFor(id)
     if id and limit then
-      w.note:SetText(("Worth buying up to %s: %d available"):format(ns.Money(limit), availableAt(id, limit, commodity)))
+      w.note:SetText(("Worth buying up to %s: %d available"):format(ns.Money(limit), availableAt(id, limit, commodity, key)))
     else
       w.note:SetText("")
     end
@@ -135,7 +148,8 @@ end
 function ns:SetUpAuctionHighlights()
   local ah = AuctionHouseFrame
   if not ah then return end
-  watch(ah.CommoditiesBuyFrame, true)
-  watch(ah.ItemBuyFrame, false)
+  watch(ah.CommoditiesBuyFrame, "commodity")
+  watch(ah.ItemBuyFrame, "item")
+  watch(ah.BrowseResultsFrame, "browse")
 end
 ns:On("AUCTION_HOUSE_SHOW", function() C_Timer.After(0.1, function() ns:SetUpAuctionHighlights() end) end)
