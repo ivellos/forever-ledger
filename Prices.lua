@@ -266,6 +266,7 @@ function Scan:Stop(reason)
   self.active, self.pending, self.full, self.waiting = false, nil, false, false
   self.queue = {}
   if was then ns:Print(reason or ("Scan finished: %d items checked in %s."):format(self.items or self.done or 0, took())) end
+  if was and not reason and ns.CheckDeals then C_Timer.After(0.5, function() ns:CheckDeals() end) end
   ns:RefreshUI()
 end
 
@@ -374,6 +375,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       Scan.active = false
       ns:UpdateScanStatus(n, n)
       ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
+      if ns.CheckDeals then C_Timer.After(0.5, function() ns:CheckDeals() end) end
       ns:RefreshUI()
     end
   end

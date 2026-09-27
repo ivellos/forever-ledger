@@ -18,7 +18,7 @@ local DEFAULTS = {
   sales = {},       -- auction house sales: { t, c = charKey, n = item name, a = copper received, cut }
   purchases = {},   -- auction house purchases: { t, c, id, q, a }
   history = {},     -- [marketKey][itemID] = "day:cheapest:typical|..."
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200 },
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealPct = 50, dealSound = true },
 }
 
 local function copyDefaults(src, dst)
@@ -279,6 +279,17 @@ SlashCmdList.FOREVERLEDGER = function(msg)
   elseif msg == "debug" then
     ns.db.settings.debug = not ns.db.settings.debug
     ns:Print("Debug messages " .. (ns.db.settings.debug and "on." or "off."))
+  elseif msg:match("^deals") then
+    local arg = msg:match("^deals%s+(%S+)")
+    if arg == "sound" then
+      ns.db.settings.dealSound = not ns.db.settings.dealSound
+      ns:Print("Deal alert sound " .. (ns.db.settings.dealSound and "on." or "off."))
+    elseif tonumber(arg) and tonumber(arg) > 0 and tonumber(arg) < 100 then
+      ns.db.settings.dealPct = tonumber(arg)
+      ns:Print(("Deals are now listings at %g%% of their worth or less."):format(ns.db.settings.dealPct))
+    else
+      ns:PrintDeals()
+    end
   elseif msg == "money" then
     ns:PrintMoney()
   elseif msg == "minimap" then
@@ -325,6 +336,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl minimap, /fl money, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals <percent>, /fl deals sound, /fl minimap, /fl money, /fl tooltip, /fl api, /fl debug")
   end
 end

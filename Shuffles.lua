@@ -315,3 +315,74 @@ function ns:PrintShuffles(showAll)
     end
   end
 end
+
+
+---------------------------------------------------------------------------
+-- Deal alert: after a scan, flag listings far below their worth to you.
+-- A deal is a cheapest listing at or below dealPct% of the item's best value
+-- (not counting relisting it), and at least DEAL_MIN_PROFIT cheaper.
+---------------------------------------------------------------------------
+local DEAL_MIN_PROFIT = 100   -- copper
+local DEAL_RECENT = 600       -- only prices from the last 10 minutes
+local alerted = {}            -- itemID = price already alerted this session
+
+-- Returns deals, biggest saving first: { id, price, worth, listed, how }.
+function ns:FindDeals()
+  local pct = (ns.db.settings.dealPct or 50) / 100
+  local market = ns.db.prices[ns.MarketKey()] or {}
+  local now, deals = time(), {}
+  for id, rec in pairs(market) do
+    if rec.m and not rec.none and now - (rec.t or 0) <= DEAL_RECENT then
+      for _, o in ipairs(ns:Options(id)) do
+        if o.kind ~= "ah" then
+          if rec.m <= o.value * pct and o.value - rec.m >= DEAL_MIN_PROFIT then
+            deals[#deals + 1] = { id = id, price = rec.m, worth = o.value, listed = rec.q, how = ns:OptionLabel(o) }
+          end
+          break
+        end
+      end
+    end
+  end
+  table.sort(deals, function(a, b) return a.worth - a.price > b.worth - b.price end)
+  return deals
+end
+
+local function printDeal(d)
+  print(("    |cffffffff%s|r at %s, worth %s (%s). %s listed."):format(
+    itemName(d.id), ns.Money(d.price), ns.Money(d.worth), d.how, d.listed or "?"))
+end
+
+-- Called when a scan finishes. Alerts only for deals not already alerted at this price or lower.
+function ns:CheckDeals()
+  ns:InvalidateValues(true)   -- the scan just changed prices
+  local fresh = {}
+  for _, d in ipairs(ns:FindDeals()) do
+    if not alerted[d.id] or d.price < alerted[d.id] then
+      alerted[d.id] = d.price
+      fresh[#fresh + 1] = d
+    end
+  end
+  if #fresh == 0 then return end
+  local top = fresh[1]
+  local text = ("Deal: %s at %s (worth %s)"):format(itemName(top.id), ns.Money(top.price), ns.Money(top.worth))
+  if #fresh > 1 then text = text .. (" and %d more"):format(#fresh - 1) end
+  if RaidNotice_AddMessage and RaidWarningFrame then
+    RaidNotice_AddMessage(RaidWarningFrame, text, { r = 0.05, g = 0.82, b = 0.62 })
+  end
+  if ns.db.settings.dealSound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
+    PlaySound(SOUNDKIT.RAID_WARNING, "Master")
+  end
+  ns:Print(("%d new deals (listed at %d%% of their worth or less):"):format(#fresh, ns.db.settings.dealPct or 50))
+  for i = 1, math.min(10, #fresh) do printDeal(fresh[i]) end
+end
+
+-- /fl deals: list every current deal, alerted or not.
+function ns:PrintDeals()
+  local deals = ns:FindDeals()
+  if #deals == 0 then
+    ns:Print(("No deals right now (listed at %d%% of their worth or less, from scans in the last 10 minutes)."):format(ns.db.settings.dealPct or 50))
+    return
+  end
+  ns:Print(("%d deals (listed at %d%% of their worth or less):"):format(#deals, ns.db.settings.dealPct or 50))
+  for i = 1, math.min(20, #deals) do printDeal(deals[i]) end
+end

@@ -46,7 +46,7 @@ end
 ---------------------------------------------------------------------------
 -- Money in and out: money[charKey][day][source] = copper (always positive)
 ---------------------------------------------------------------------------
-local open = {}          -- which windows are open: merchant, ah, mail, trade, loot, quest, trainer, taxi
+local open = {}          -- per window: true while open, GetTime() when it closed
 local pending = {}       -- hints for the next gold change: { source, t, amount, item, log }
 local lastMoney
 
@@ -68,16 +68,24 @@ local function takeHint(delta)
   if pick then return table.remove(pending, pick) end
 end
 
+-- A window counts as open until LINGER seconds after it closes, because money can
+-- arrive a moment later (auto-loot closes the loot window before the coins land).
+local LINGER = 1.5
+local function isOpen(name)
+  local v = open[name]
+  return v == true or (v and GetTime() - v < LINGER)
+end
+
 local function sourceFor(delta)
   local gain = delta > 0
-  if open.merchant then return gain and "vendorSell" or "vendorBuy" end
-  if open.ah then return gain and "otherIn" or "ahBuy" end
-  if open.mail then return gain and "mailIn" or "mailOut" end
-  if open.trade then return gain and "tradeIn" or "tradeOut" end
-  if open.loot and gain then return "loot" end
-  if open.quest and gain then return "quest" end
-  if open.trainer and not gain then return "training" end
-  if open.taxi and not gain then return "flight" end
+  if isOpen("merchant") then return gain and "vendorSell" or "vendorBuy" end
+  if isOpen("ah") then return gain and "otherIn" or "ahBuy" end
+  if isOpen("mail") then return gain and "mailIn" or "mailOut" end
+  if isOpen("trade") then return gain and "tradeIn" or "tradeOut" end
+  if isOpen("loot") and gain then return "loot" end
+  if isOpen("quest") and gain then return "quest" end
+  if isOpen("trainer") and not gain then return "training" end
+  if isOpen("taxi") and not gain then return "flight" end
   return gain and "otherIn" or "otherOut"
 end
 
@@ -112,7 +120,7 @@ end
 -- Windows that decide where money came from.
 local function track(showEvent, hideEvent, name)
   ns:On(showEvent, function() open[name] = true end)
-  ns:On(hideEvent, function() open[name] = nil end)
+  ns:On(hideEvent, function() open[name] = GetTime() end)
 end
 track("MERCHANT_SHOW", "MERCHANT_CLOSED", "merchant")
 track("AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED", "ah")
