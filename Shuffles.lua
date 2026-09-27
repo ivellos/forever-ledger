@@ -318,55 +318,52 @@ end
 
 
 ---------------------------------------------------------------------------
--- Deal alert: after a scan, flag listings far below what that item alone is worth:
--- reselling at its usual price (stackable items only), selling to a vendor,
--- disenchanting or converting it.
--- Recipes don't count here: their profit is shared by every ingredient, and the
--- Shuffles tab covers them. A deal is a cheapest listing at or below dealPct% of that
--- worth, and at least DEAL_MIN_PROFIT cheaper.
+-- Deal alerts, two kinds:
+--   Below usual price: the cheapest listing is at least dealUsualPct% below the
+--   item's usual price over dealWindow (a week ... all time). Needs MIN_POINTS days
+--   of price history, so these start a few days after scanning begins.
+--   Below vendor price: the cheapest listing is below what a vendor pays, by at least
+--   dealVendorPct% and at least dealVendorMin copper (either can be 0 to turn it off).
+-- Recipe profits aren't deals (every ingredient shares them); the Shuffles tab has them.
 ---------------------------------------------------------------------------
-local DEAL_MIN_PROFIT = 100   -- copper
 local DEAL_RECENT = 600       -- only prices from the last 10 minutes
-local DEAL_MIN_LISTED = 5     -- listings needed before today's prices count as "usual"
-local HISTORY_DAYS = 3        -- days of history needed before it replaces today's prices
-local alerted = {}            -- itemID = price already alerted this session
+local MIN_POINTS = 3          -- days of history needed for a usual price
+local alerted = {}            -- [kind .. itemID] = price already alerted this session
 
--- The usual price: the median typical price over past days once there's enough history,
--- otherwise today's typical price if enough are listed. Stackable items only: gear
--- prices vary with random stats and hopeful sellers (a 98s shield looked "worth" 11g),
--- and unique items like recipes are just as patchy.
-local function usualPrice(id, rec)
-  local stack = select(8, ns.GetItemInfo(id))
-  if not stack or stack <= 1 then return end
-  local hist = ns:PriceHistory(id)
-  local days = {}
-  for _, h in ipairs(hist) do
-    if h[1] < math.floor(time() / 86400) then days[#days + 1] = h[3] end
-  end
-  if #days >= HISTORY_DAYS then
-    table.sort(days)
-    return days[math.floor((#days + 1) / 2)], "usual price"
-  end
-  if rec.a and (rec.q or 0) >= DEAL_MIN_LISTED then return rec.a, "today's typical price" end
+ns.WINDOW_NAMES = {
+  week = "the last week", month = "the last month", ["3months"] = "the last 3 months",
+  ["6months"] = "the last 6 months", year = "the last year", all = "all time",
+}
+
+-- The current rules in words, for messages.
+function ns:DealRules()
+  local s = ns.db.settings
+  local vendor = ("%g%% or more below vendor price"):format(s.dealVendorPct or 10)
+  if (s.dealVendorMin or 0) > 0 then vendor = vendor .. " and at least " .. ns.Money(s.dealVendorMin) .. " profit each" end
+  return ("%g%% or more below the usual price over %s, or %s"):format(
+    s.dealUsualPct or 20, ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", vendor)
 end
 
--- Returns deals, biggest saving first: { id, price, worth, listed, how }.
+-- Returns deals, biggest saving first: { kind = "usual" | "vendor", id, price, worth, listed }.
 function ns:FindDeals()
-  local pct = (ns.db.settings.dealPct or 50) / 100
+  local s = ns.db.settings
   local market = ns.db.prices[ns.MarketKey()] or {}
+  local usualPct = (s.dealUsualPct or 20) / 100
+  local vendorPct, vendorMin = (s.dealVendorPct or 10) / 100, s.dealVendorMin or 0
   local now, deals = time(), {}
   for id, rec in pairs(market) do
-    if rec.m and not rec.none and now - (rec.t or 0) <= DEAL_RECENT then
-      local worth, how
-      local usual, basis = usualPrice(id, rec)
-      if usual then worth, how = usual * (1 - ns:AHCut()), "resell at " .. basis end
-      for _, o in ipairs(ns:Options(id)) do
-        if o.kind ~= "ah" and o.kind ~= "craft" and (not worth or o.value > worth) then
-          worth, how = o.value, ns:OptionLabel(o)
+    local price = rec.m
+    if price and not rec.none and now - (rec.t or 0) <= DEAL_RECENT then
+      local sell = ns:GetSellPrice(id)
+      if sell and sell > price then
+        local profit = sell - price
+        if profit / sell >= vendorPct and profit >= vendorMin then
+          deals[#deals + 1] = { kind = "vendor", id = id, price = price, worth = sell, listed = rec.q }
         end
       end
-      if worth and rec.m <= worth * pct and worth - rec.m >= DEAL_MIN_PROFIT then
-        deals[#deals + 1] = { id = id, price = rec.m, worth = worth, listed = rec.q, how = how }
+      local usual, points = ns:UsualPrice(id, s.dealWindow)
+      if usual and points >= MIN_POINTS and price <= usual * (1 - usualPct) then
+        deals[#deals + 1] = { kind = "usual", id = id, price = price, worth = usual, listed = rec.q }
       end
     end
   end
@@ -375,8 +372,29 @@ function ns:FindDeals()
 end
 
 local function printDeal(d)
-  print(("    |cffffffff%s|r at %s, worth %s (%s). %s listed."):format(
-    itemName(d.id), ns.Money(d.price), ns.Money(d.worth), d.how, d.listed or "?"))
+  if d.kind == "vendor" then
+    print(("    |cffffffff%s|r at %s, a vendor pays %s (%s profit each). %s listed."):format(
+      itemName(d.id), ns.Money(d.price), ns.Money(d.worth), ns.Money(d.worth - d.price), d.listed or "?"))
+  else
+    print(("    |cffffffff%s|r at %s, usually %s (%d%% below). %s listed."):format(
+      itemName(d.id), ns.Money(d.price), ns.Money(d.worth),
+      math.floor((1 - d.price / d.worth) * 100 + 0.5), d.listed or "?"))
+  end
+end
+
+-- Prints deals in two groups, up to `limit` each.
+local function printGrouped(list, limit)
+  for _, kind in ipairs({ "vendor", "usual" }) do
+    local shown = 0
+    for _, d in ipairs(list) do
+      if d.kind == kind then
+        shown = shown + 1
+        if shown == 1 then print(kind == "vendor" and "  Below vendor price:" or "  Below usual price:") end
+        if shown <= limit then printDeal(d) end
+      end
+    end
+    if shown > limit then print(("    and %d more"):format(shown - limit)) end
+  end
 end
 
 -- Called when a scan finishes. Alerts only for deals not already alerted at this price or lower.
@@ -384,14 +402,16 @@ function ns:CheckDeals()
   ns:InvalidateValues(true)   -- the scan just changed prices
   local fresh = {}
   for _, d in ipairs(ns:FindDeals()) do
-    if not alerted[d.id] or d.price < alerted[d.id] then
-      alerted[d.id] = d.price
+    local key = d.kind .. d.id
+    if not alerted[key] or d.price < alerted[key] then
+      alerted[key] = d.price
       fresh[#fresh + 1] = d
     end
   end
   if #fresh == 0 then return end
   local top = fresh[1]
-  local text = ("Deal: %s at %s (worth %s)"):format(itemName(top.id), ns.Money(top.price), ns.Money(top.worth))
+  local text = ("Deal: %s at %s (%s %s)"):format(itemName(top.id), ns.Money(top.price),
+    top.kind == "vendor" and "vendor pays" or "usually", ns.Money(top.worth))
   if #fresh > 1 then text = text .. (" and %d more"):format(#fresh - 1) end
   if RaidNotice_AddMessage and RaidWarningFrame then
     RaidNotice_AddMessage(RaidWarningFrame, text, { r = 0.05, g = 0.82, b = 0.62 })
@@ -399,17 +419,17 @@ function ns:CheckDeals()
   if ns.db.settings.dealSound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
     PlaySound(SOUNDKIT.RAID_WARNING, "Master")
   end
-  ns:Print(("%d new deals (listed at %d%% of their worth or less):"):format(#fresh, ns.db.settings.dealPct or 50))
-  for i = 1, math.min(10, #fresh) do printDeal(fresh[i]) end
+  ns:Print(("%d new deals:"):format(#fresh))
+  printGrouped(fresh, 10)
 end
 
 -- /fl deals: list every current deal, alerted or not.
 function ns:PrintDeals()
   local deals = ns:FindDeals()
+  ns:Print("Deals are listings " .. ns:DealRules() .. ".")
   if #deals == 0 then
-    ns:Print(("No deals right now (listed at %d%% of their worth or less, from scans in the last 10 minutes)."):format(ns.db.settings.dealPct or 50))
+    print("  None right now, from scans in the last 10 minutes. Usual-price deals need 3 days of scans first.")
     return
   end
-  ns:Print(("%d deals (listed at %d%% of their worth or less):"):format(#deals, ns.db.settings.dealPct or 50))
-  for i = 1, math.min(20, #deals) do printDeal(deals[i]) end
+  printGrouped(deals, 20)
 end

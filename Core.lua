@@ -17,8 +17,11 @@ local DEFAULTS = {
   money = {},       -- [charKey][day][source] = copper in or out
   sales = {},       -- auction house sales: { t, c = charKey, n = item name, a = copper received, cut }
   purchases = {},   -- auction house purchases: { t, c, id, q, a }
-  history = {},     -- [marketKey][itemID] = "day:cheapest:typical|..."
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealPct = 50, dealSound = true },
+  history = {},       -- [marketKey][itemID] = "day:cheapest:typical|..." (last 30 days)
+  historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (2 years)
+  historyAll = {},    -- [marketKey][itemID] = "lowest:typicalSum:days"
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true,
+    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0 },
 }
 
 local function copyDefaults(src, dst)
@@ -58,6 +61,18 @@ function ns.Age(t)
   if d < 3600 then return math.max(1, math.floor(d / 60)) .. "m ago" end
   if d < 86400 then return math.floor(d / 3600) .. "h ago" end
   return math.floor(d / 86400) .. "d ago"
+end
+
+-- "1g50s", "25s", "75c" or plain copper ("75") to copper. nil if it isn't money.
+function ns.ParseMoney(s)
+  s = (s or ""):lower():gsub("%s+", "")
+  if s:match("^%d+$") then return tonumber(s) end
+  if s == "" or s:gsub("%d+[gsc]", "") ~= "" then return nil end
+  local total = 0
+  for n, unit in s:gmatch("(%d+)([gsc])") do
+    total = total + tonumber(n) * ((unit == "g" and 10000) or (unit == "s" and 100) or 1)
+  end
+  return total
 end
 
 function ns.ItemIDFromLink(link)
@@ -280,15 +295,28 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns.db.settings.debug = not ns.db.settings.debug
     ns:Print("Debug messages " .. (ns.db.settings.debug and "on." or "off."))
   elseif msg:match("^deals") then
-    local arg = msg:match("^deals%s+(%S+)")
-    if arg == "sound" then
-      ns.db.settings.dealSound = not ns.db.settings.dealSound
-      ns:Print("Deal alert sound " .. (ns.db.settings.dealSound and "on." or "off."))
-    elseif tonumber(arg) and tonumber(arg) > 0 and tonumber(arg) < 100 then
-      ns.db.settings.dealPct = tonumber(arg)
-      ns:Print(("Deals are now listings at %g%% of their worth or less."):format(ns.db.settings.dealPct))
-    else
+    local set = ns.db.settings
+    local cmd, arg = msg:match("^deals%s+(%S+)%s*(%S*)")
+    local pct = tonumber((arg or ""):match("^(%d+)%%?$"))
+    if not cmd then
       ns:PrintDeals()
+    elseif cmd == "sound" then
+      set.dealSound = not set.dealSound
+      ns:Print("Deal alert sound " .. (set.dealSound and "on." or "off."))
+    elseif cmd == "usual" and pct and pct < 100 then
+      set.dealUsualPct = pct
+      ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
+    elseif cmd == "period" and ns.PRICE_WINDOWS[arg] then
+      set.dealWindow = arg
+      ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
+    elseif cmd == "vendor" and arg:match("%%$") and pct and pct < 100 then
+      set.dealVendorPct = pct
+      ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
+    elseif cmd == "vendor" and ns.ParseMoney(arg) then
+      set.dealVendorMin = ns.ParseMoney(arg)
+      ns:Print("Deals are now listings " .. ns:DealRules() .. ".")
+    else
+      ns:Print("Deal settings: /fl deals usual 20 (percent below usual price), /fl deals period week|month|3months|6months|year|all, /fl deals vendor 10% (percent below vendor price), /fl deals vendor 1s (least profit each), /fl deals sound.")
     end
   elseif msg == "money" then
     ns:PrintMoney()
@@ -336,6 +364,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals <percent>, /fl deals sound, /fl minimap, /fl money, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl tooltip, /fl api, /fl debug")
   end
 end

@@ -5,7 +5,6 @@ local _, ns = ...
 -- by source, auction house sales and purchases, and daily prices.
 ---------------------------------------------------------------------------
 local HOURLY_DAYS = 14      -- keep hourly gold this long, then one value per day
-local PRICE_DAYS = 60       -- days of price history per item
 local LOG_SIZE = 500        -- auction house sales and purchases kept
 local PENDING_SECONDS = 5   -- how long a hint (repair, posting fee, mail) waits for the gold change
 
@@ -185,42 +184,112 @@ ns:OnReady(function()
 end)
 
 ---------------------------------------------------------------------------
--- Price history: history[marketKey][itemID] = "day:cheapest:typical|day:..."
--- One entry per day (lowest cheapest seen that day, latest typical), PRICE_DAYS kept.
+-- Price history, per market and item, as compact strings:
+--   history[market][id]       = "day:cheapest:typical|..."        the last DAILY_DAYS days
+--   historyWeekly[market][id] = "week:cheapest:typical:days|..."  older days, WEEKLY_WEEKS kept
+--   historyAll[market][id]    = "lowest:typicalSum:days"          all time
+-- A day keeps the lowest cheapest seen that day and the latest typical price.
 ---------------------------------------------------------------------------
-function ns:RecordPriceHistory(id, cheapest, typical)
-  if not ns.db or not cheapest then return end
+local DAILY_DAYS = 30
+local WEEKLY_WEEKS = 104
+
+local function marketTable(name)
   local key = ns.MarketKey()
-  ns.db.history[key] = ns.db.history[key] or {}
-  local hist = ns.db.history[key]
-  local d = today()
-  local s = hist[id] or ""
-  local lastDay, lastMin = s:match("(%d+):(%d+):%d+$")
-  if tonumber(lastDay) == d then
-    cheapest = math.min(cheapest, tonumber(lastMin))
-    s = s:gsub("[^|]*$", "")
-  elseif s ~= "" then
-    s = s .. "|"
-  end
-  s = s .. ("%d:%d:%d"):format(d, cheapest, typical or cheapest)
-  -- Drop entries older than PRICE_DAYS.
-  local cutoff = d - PRICE_DAYS
-  while true do
-    local first = tonumber(s:match("^(%d+):"))
-    if not first or first > cutoff or not s:find("|", 1, true) then break end
-    s = s:gsub("^[^|]*|", "")
-  end
-  hist[id] = s
+  ns.db[name][key] = ns.db[name][key] or {}
+  return ns.db[name][key]
 end
 
--- Returns a list of { day, cheapest, typical }, oldest first.
+-- Drop entries from the front of a history string while their first number is <= cutoff.
+local function dropOld(s, cutoff, onDrop)
+  while s:find("|", 1, true) do
+    local first, a, b = s:match("^(%d+):(%d+):(%d+)")
+    if not first or tonumber(first) > cutoff then break end
+    if onDrop then onDrop(tonumber(first), tonumber(a), tonumber(b)) end
+    s = s:gsub("^[^|]*|", "")
+  end
+  return s
+end
+
+-- A finished day adds to the all-time figures.
+local function addAllTime(id, cheapest, typical)
+  local all = marketTable("historyAll")
+  local lo, sum, n = (all[id] or ""):match("^(%d+):(%d+):(%d+)$")
+  lo, sum, n = tonumber(lo), tonumber(sum) or 0, tonumber(n) or 0
+  all[id] = ("%d:%d:%d"):format(lo and math.min(lo, cheapest) or cheapest, sum + typical, n + 1)
+end
+
+-- A day older than DAILY_DAYS is folded into its week.
+local function addWeek(id, day, cheapest, typical)
+  local weekly = marketTable("historyWeekly")
+  local w = math.floor(day / 7)
+  local s = weekly[id] or ""
+  local lw, lmin, ltyp, ln = s:match("(%d+):(%d+):(%d+):(%d+)$")
+  if tonumber(lw) == w then
+    ln = tonumber(ln)
+    cheapest = math.min(cheapest, tonumber(lmin))
+    typical = math.floor((tonumber(ltyp) * ln + typical) / (ln + 1) + 0.5)
+    s = s:gsub("[^|]*$", "") .. ("%d:%d:%d:%d"):format(w, cheapest, typical, ln + 1)
+  else
+    s = (s ~= "" and (s .. "|") or "") .. ("%d:%d:%d:1"):format(w, cheapest, typical)
+  end
+  weekly[id] = dropOld(s, w - WEEKLY_WEEKS)
+end
+
+function ns:RecordPriceHistory(id, cheapest, typical)
+  if not ns.db or not cheapest then return end
+  typical = typical or cheapest
+  local hist = marketTable("history")
+  local d = today()
+  local s = hist[id] or ""
+  local lastDay, lastMin, lastTyp = s:match("(%d+):(%d+):(%d+)$")
+  lastDay = tonumber(lastDay)
+  if lastDay == d then
+    cheapest = math.min(cheapest, tonumber(lastMin))
+    s = s:gsub("[^|]*$", "")
+  else
+    -- The previous day is finished.
+    if lastDay then addAllTime(id, tonumber(lastMin), tonumber(lastTyp)) end
+    if s ~= "" then s = s .. "|" end
+  end
+  s = s .. ("%d:%d:%d"):format(d, cheapest, typical)
+  hist[id] = dropOld(s, d - DAILY_DAYS, function(day, m, a) addWeek(id, day, m, a) end)
+end
+
+-- Returns a list of { day, cheapest, typical } for the last DAILY_DAYS days, oldest first.
 function ns:PriceHistory(id)
-  local hist = ns.db.history[ns.MarketKey()]
   local out = {}
-  for d, m, a in ((hist and hist[id]) or ""):gmatch("(%d+):(%d+):(%d+)") do
+  for d, m, a in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
     out[#out + 1] = { tonumber(d), tonumber(m), tonumber(a) }
   end
   return out
+end
+
+-- Periods for "usual price", in days.
+ns.PRICE_WINDOWS = { week = 7, month = 30, ["3months"] = 91, ["6months"] = 182, year = 365, all = math.huge }
+
+-- The usual price over a period: the median of the daily (and weekly, for older
+-- times) typical prices, leaving today out. Returns the price and how many points it used.
+function ns:UsualPrice(id, window)
+  local d = today()
+  local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
+  local points = {}
+  for day, _, typ in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
+    day = tonumber(day)
+    if day < d and day >= from then points[#points + 1] = tonumber(typ) end
+  end
+  for w, _, typ in (marketTable("historyWeekly")[id] or ""):gmatch("(%d+):(%d+):(%d+):%d+") do
+    if (tonumber(w) + 1) * 7 > from then points[#points + 1] = tonumber(typ) end
+  end
+  if #points == 0 then return nil, 0 end
+  table.sort(points)
+  return points[math.floor((#points + 1) / 2)], #points
+end
+
+-- All time: lowest price ever seen and the average typical price, or nil.
+function ns:AllTimePrice(id)
+  local lo, sum, n = (marketTable("historyAll")[id] or ""):match("^(%d+):(%d+):(%d+)$")
+  if not lo then return end
+  return tonumber(lo), tonumber(sum) / tonumber(n), tonumber(n)
 end
 
 ---------------------------------------------------------------------------

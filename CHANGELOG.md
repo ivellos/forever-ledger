@@ -6,9 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- History for the coming dashboard: each character's gold over time, money in and out each day by source (auction house sales, purchases and fees, vendors, repairs, mail, trade, loot, quests, training, flights), a log of auction house sales and purchases, and 60 days of daily prices per item.
+- History for the coming dashboard: each character's gold over time, money in and out each day by source (auction house sales, purchases and fees, vendors, repairs, mail, trade, loot, quests, training, flights), and a log of auction house sales and purchases.
+- Price history per item: daily for 30 days, weekly for 2 years, and all-time lowest and average.
 - `/fl money` shows today's money in and out for the character you're on.
-- Deal alert: after a scan, a chime, an on-screen message and a chat list when something is listed far below what it alone is worth: its usual auction house price (stackable items only; from price history once there are 3 days of it), its vendor price, its disenchant value or an essence conversion (default: half or less, and at least 1s cheaper). Recipe profits don't count as deals; they're in the Shuffles tab. `/fl deals` lists current deals, `/fl deals 40` changes the threshold, `/fl deals sound` turns the chime on or off.
+- Deal alerts after each scan (chime, on-screen message, chat list), two kinds:
+  - Below usual price: at least 20% below the item's usual price over all time, or over the last week, month, 3 months, 6 months or year. Starts once there are 3 days of price history.
+  - Below vendor price: listed at least 10% below what a vendor pays, optionally with a least profit per item.
+- `/fl deals` lists current deals. `/fl deals usual 20`, `/fl deals period month`, `/fl deals vendor 10%`, `/fl deals vendor 1s` and `/fl deals sound` change the settings. `/fl deals` lists current deals, `/fl deals 40` changes the threshold, `/fl deals sound` turns the chime on or off.
 
 ## [0.2.0] - 2026-09-26
 
