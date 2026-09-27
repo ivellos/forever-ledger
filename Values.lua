@@ -142,25 +142,40 @@ end
 
 local best
 
--- All options for `id` with `depth` steps already taken. `path` holds the items
--- earlier in this chain, which can't appear again.
-local function options(id, depth, path)
+-- True if the chain `o` passes through item `id`. Used to stop loops such as
+-- splitting an essence and combining it straight back.
+local function passesThrough(o, id)
+  if o.id == id then return true end
+  if o.next then return passesThrough(o.next, id) end
+  for _, m in ipairs(o.mats or {}) do
+    if passesThrough(m.opt, id) then return true end
+  end
+  return false
+end
+
+-- Best option for the next item in a chain, unless it leads back to `from`.
+local function follow(nextID, depth, from)
+  local o = best(nextID, depth + 1)
+  if o and not passesThrough(o, from) then return o end
+end
+
+-- All options for `id` with `depth` steps already taken. Results don't depend on
+-- the chain they're part of, so the cache always gives the same answer.
+local function options(id, depth)
   local list = {}
   local function add(o)
-    if o.value and o.value > 0 then list[#list + 1] = o end
+    if o.value and o.value > 0 then o.id = id; list[#list + 1] = o end
   end
 
   add({ kind = "ah", value = ahSale(id, depth > 0) })
   add({ kind = "vendor", value = vendorSale(id) })
 
   if depth < MAX_STEPS then
-    path[id] = true
-
     local yield = canDisenchant() and ns:DisenchantYield(id)
     if yield then
       local total, mats = 0, {}
       for _, y in ipairs(yield) do
-        local o = not path[y[1]] and best(y[1], depth + 1, path)
+        local o = follow(y[1], depth, id)
         if o then
           total = total + o.value * y[2]
           mats[#mats + 1] = { id = y[1], count = y[2], opt = o }
@@ -170,14 +185,14 @@ local function options(id, depth, path)
     end
 
     for _, conv in ipairs(CONVERSIONS[id] or {}) do
-      local o = not path[conv.out] and best(conv.out, depth + 1, path)
+      local o = follow(conv.out, depth, id)
       if o then add({ kind = "convert", value = o.value * conv.per, step = conv.label, next = o, per = conv.per }) end
     end
 
     local me = ns.CharKey()
     for _, use in ipairs(ns.recipesByReagent and ns.recipesByReagent[id] or {}) do
       local rec = use.rec
-      local o = counts(use.key) and rec.out and not path[rec.out] and best(rec.out, depth + 1, path)
+      local o = counts(use.key) and rec.out and rec.out ~= id and follow(rec.out, depth, id)
       if o then
         -- Pay for every other material; what's left is shared across the units of `id`.
         local left, units, buys = o.value * (rec.oq or 1), 0, {}
@@ -200,18 +215,21 @@ local function options(id, depth, path)
       end
     end
 
-    path[id] = nil
   end
 
-  table.sort(list, function(a, b) return a.value > b.value end)
+  -- Ties are broken by name, so the same prices always give the same order.
+  table.sort(list, function(a, b)
+    if a.value ~= b.value then return a.value > b.value end
+    return (a.step or a.kind) < (b.step or b.kind)
+  end)
   return list
 end
 
-best = function(id, depth, path)
+best = function(id, depth)
   local key = id .. ":" .. depth
   local hit = cache[key]
   if hit == nil then
-    hit = options(id, depth, path)[1] or false
+    hit = options(id, depth)[1] or false
     cache[key] = hit
   end
   return hit or nil
@@ -226,7 +244,7 @@ end
 function ns:BestOption(id)
   if not id or not ns.db then return end
   freshCache()
-  return best(id, 0, {})
+  return best(id, 0)
 end
 
 -- The most worth paying for an item: its best value without relisting it on the
@@ -249,7 +267,7 @@ end
 function ns:Options(id)
   if not id or not ns.db then return {} end
   freshCache()
-  return options(id, 0, {})
+  return options(id, 0)
 end
 
 ---------------------------------------------------------------------------
@@ -290,7 +308,7 @@ function ns:GetValue(id)
   if not id or not ns.db then return end
   freshCache()
   local list, crafts, seen = {}, 0, {}
-  for _, o in ipairs(options(id, 0, {})) do
+  for _, o in ipairs(options(id, 0)) do
     if o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
       if o.kind == "craft" then seen[o.step] = true; crafts = crafts + 1 end
       o.label = ns:OptionLabel(o)
