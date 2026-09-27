@@ -36,7 +36,21 @@ local function probeChat()
     local id, name = GetChannelName and GetChannelName(i)
     if id and id > 0 and name then names[#names + 1] = ("%d. %s"):format(id, name) end
   end
-  say("Chat channels you're in: %s", #names > 0 and table.concat(names, ", ") or "none found")
+  say("Chat channels (GetChannelName): %s", #names > 0 and table.concat(names, ", ") or "none found")
+  -- Two more ways, since Forever reported none the other ways.
+  local shown = {}
+  if GetNumDisplayChannels and GetChannelDisplayInfo then
+    for i = 1, (GetNumDisplayChannels() or 0) do
+      local name, header, _, number = GetChannelDisplayInfo(i)
+      if name and not header then shown[#shown + 1] = ("%s. %s"):format(tostring(number), name) end
+    end
+  end
+  say("Chat channels (channel list window): %s", #shown > 0 and table.concat(shown, ", ") or "none found")
+  local server = {}
+  if EnumerateServerChannels then
+    for _, name in ipairs({ EnumerateServerChannels() }) do server[#server + 1] = tostring(name) end
+  end
+  say("Server channels: %s", #server > 0 and table.concat(server, ", ") or "none found")
   say("SendChatMessage: %s. C_TradeSkillUI.GetTradeSkillListLink: %s.",
     exists("SendChatMessage") and "yes" or "no", exists("C_TradeSkillUI.GetTradeSkillListLink") and "yes" or "no")
   if exists("C_TradeSkillUI.GetTradeSkillListLink") then
@@ -93,7 +107,10 @@ local function readTrade()
   end
   t.myMoney = GetPlayerTradeMoney and GetPlayerTradeMoney() or 0
   t.theirMoney = GetTargetTradeMoney and GetTargetTradeMoney() or 0
-  t.partner = UnitName("NPC") or (TradeFrameRecipientNameText and TradeFrameRecipientNameText:GetText())
+  -- Forever names are "First Last"; UnitName's second value is the last name.
+  local first, last = UnitName("NPC")
+  t.partner = (first and last and last ~= "" and (first .. " " .. last)) or first
+    or (TradeFrameRecipientNameText and TradeFrameRecipientNameText:GetText())
   return t
 end
 
@@ -106,7 +123,9 @@ ns:On("UI_INFO_MESSAGE", function(_, msg)
   if not armed.trade or not lastTrade then return end
   if msg ~= ERR_TRADE_COMPLETE and msg ~= ERR_TRADE_CANCELLED then return end
   local t = lastTrade
-  armed.trade, lastTrade = false, nil
+  lastTrade = nil
+  -- Keep listening until a trade completes.
+  if msg == ERR_TRADE_COMPLETE then armed.trade = false end
   ns:Print(("Probe: trade %s with %s."):format(msg == ERR_TRADE_COMPLETE and "completed" or "cancelled", tostring(t.partner)))
   say("You gave: %s; gold %s", #t.me > 0 and table.concat(t.me, "; ") or "nothing", ns.Money(t.myMoney))
   say("They gave: %s; gold %s", #t.them > 0 and table.concat(t.them, "; ") or "nothing", ns.Money(t.theirMoney))
