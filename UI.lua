@@ -497,19 +497,19 @@ local SUBTABS = {
 }
 local COLUMNS = {
   shuffles = {
-    { key = "steps", label = "Steps", width = 116 },
-    { key = "name", label = "Shuffle" },
-    { key = "profit", label = "Profit", width = 90 },
-    { key = "ret", label = "Return", width = 58 },
-    { key = "hour", label = "Per hour", width = 96 },
-    { key = "supply", label = "Supply", width = 62 },
+    { key = "steps", label = "Steps", width = 116, tip = "Each step in order. Hover a row to read them." },
+    { key = "name", label = "Shuffle", tip = "What you buy or craft first." },
+    { key = "profit", label = "Profit", width = 90, tip = "Profit each time you do it (per craft, or per item bought)." },
+    { key = "ret", label = "Return", width = 58, tip = "Profit as a share of what you spend." },
+    { key = "hour", label = "Per hour", width = 96, tip = "Rough profit per hour, counting only crafting time (see Seconds per craft in Settings)." },
+    { key = "runs", label = "Runs", width = 62, tip = "How many times you could do it with what's listed now, limited by the scarcest thing you buy on the auction house. \"no limit\" when everything comes from vendors. Counts every listing, not only the cheap ones." },
   },
   flips = {
-    { key = "name", label = "Item" },
-    { key = "profit", label = "Profit each", width = 90 },
-    { key = "ret", label = "Return", width = 58 },
-    { key = "supply", label = "Listed", width = 62 },
-    { key = "total", label = "If all bought", width = 110 },
+    { key = "name", label = "Item", tip = "Listed for less than a vendor pays." },
+    { key = "profit", label = "Profit each", width = 90, tip = "What a vendor pays, minus what it costs." },
+    { key = "ret", label = "Return", width = 58, tip = "Profit as a share of what you spend." },
+    { key = "runs", label = "Listed", width = 62, tip = "How many are listed. Counts every listing, not only the cheap ones." },
+    { key = "total", label = "If all bought", width = 110, tip = "Profit each times the number listed: the most you could make." },
   },
 }
 local SORT_VALUE = {
@@ -518,8 +518,8 @@ local SORT_VALUE = {
   profit = function(s) return s.profit end,
   ret = function(s) return ns:ShuffleReturn(s) end,
   hour = function(s) return s.perHour end,
-  supply = function(s) return ns:ShuffleSupply(s) or 0 end,
-  total = function(s) return s.profit * (ns:ShuffleSupply(s) or 0) end,
+  runs = function(s) return ns:ShuffleRuns(s) or math.huge end,
+  total = function(s) return s.profit * (ns:ShuffleRuns(s) or 0) end,
 }
 local sortBy = { shuffles = { key = "hour", desc = true }, flips = { key = "total", desc = true } }
 local subtab = "vendor"
@@ -593,6 +593,15 @@ local function getHeaderCell(i)
     h = CreateFrame("Button", nil, main.table.header)
     h.fs = T:Text(h, 11, T.dim)
     h.fs:SetAllPoints()
+    h:SetScript("OnEnter", function(self)
+      if not self.tip then return end
+      GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+      GameTooltip:AddLine(self.label, 1, 1, 1)
+      GameTooltip:AddLine(self.tip, 0.85, 0.85, 0.85, true)
+      GameTooltip:AddLine("Click to sort.", T.accent[1], T.accent[2], T.accent[3])
+      GameTooltip:Show()
+    end)
+    h:SetScript("OnLeave", function() GameTooltip:Hide() end)
     h:SetScript("OnClick", function(self)
       local sort = sortBy[main.view == "flips" and "flips" or "shuffles"]
       if sort.key == self.key then
@@ -690,13 +699,13 @@ local function fillRow(r, s, lay, index, width)
   r.name:SetWidth(lay.name.w - 26)
   r.name:SetText(ns:ShuffleTitle(s))
 
-  local supply = ns:ShuffleSupply(s)
+  local runs = ns:ShuffleRuns(s)
   local values = {
     profit = "|cff7fd39c" .. ns.Money(s.profit) .. "|r",
     ret = ("%d%%"):format(math.floor(ns:ShuffleReturn(s) * 100 + 0.5)),
     hour = ns.Money(math.floor(s.perHour / 100) * 100),
-    supply = supply and tostring(supply) or "vendor",
-    total = supply and ns.Money(s.profit * supply) or "",
+    runs = runs and tostring(runs) or dim("no limit"),
+    total = runs and ns.Money(s.profit * runs) or "",
   }
   for key, fs in pairs(r.cells) do fs:SetShown(lay[key] ~= nil) end
   for key, text in pairs(values) do
@@ -747,9 +756,12 @@ end
 
 local MAX_BUY_LINES = 12
 
-local function fillDetail(d, s, width)
+-- noSteps: vendor flips, where the only step is always "sell to a vendor".
+local function fillDetail(d, s, width, noSteps)
   d:SetWidth(width)
-  local half = math.floor(width * 0.5)
+  local half = noSteps and (width - 8) or math.floor(width * 0.5)
+  d.stepTitle:SetShown(not noSteps)
+  d.steps:SetShown(not noSteps)
   d.buyTitle:ClearAllPoints()
   d.buyTitle:SetPoint("TOPLEFT", 14, -8)
   d.stepTitle:ClearAllPoints()
@@ -788,9 +800,9 @@ local function fillDetail(d, s, width)
   d.steps:ClearAllPoints()
   d.steps:SetPoint("TOPLEFT", half + 8, -26)
   d.steps:SetWidth(width - half - 20)
-  d.steps:SetText(ns:ShuffleSteps(s))
+  d.steps:SetText(noSteps and "" or ns:ShuffleSteps(s))
 
-  local h = math.max(y, 26 + d.steps:GetStringHeight()) + 8
+  local h = math.max(y, noSteps and 0 or (26 + d.steps:GetStringHeight())) + 8
   d.profit:ClearAllPoints()
   d.profit:SetPoint("TOPLEFT", 14, -h)
   d.profit:SetWidth(width - 28)
@@ -847,7 +859,7 @@ layoutShuffles = function()
   f.header:SetPoint("TOPRIGHT", 0, -top)
   for i, c in ipairs(cols) do
     local h = getHeaderCell(i)
-    h.key = c.key
+    h.key, h.label, h.tip = c.key, c.label, c.tip
     h:ClearAllPoints()
     h:SetPoint("LEFT", f.header, "LEFT", lay[c.key].x, 0)
     h:SetSize(lay[c.key].w, 22)
@@ -893,7 +905,7 @@ layoutShuffles = function()
       local d = getDetail(nDetails)
       d:ClearAllPoints()
       d:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
-      fillDetail(d, s, width - 12)
+      fillDetail(d, s, width - 12, flips)
       d:Show()
       y = y + d:GetHeight() + 4
     end

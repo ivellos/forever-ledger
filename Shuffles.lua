@@ -340,14 +340,24 @@ function ns:ShuffleProfitLine(s)
     limit, ns.Money(s.profit), s.single and "each" or "per craft", returnPct(s), hour)
 end
 
--- How many of the main thing to buy are listed (for a group, all members together).
-function ns:ShuffleSupply(s)
+-- How many times the shuffle could be done with what's listed now: limited by the
+-- scarcest thing bought on the auction house (listed / needed per run). For a group,
+-- every listed member counts. nil when everything comes from vendors (no limit).
+-- Counts every listing, not only the cheap ones.
+function ns:ShuffleRuns(s)
   if s.group then
     local n = 0
     for _, m in ipairs(s.members) do n = n + (m.buys[1].listed or 0) end
     return n
   end
-  return s.buys[1] and s.buys[1].listed
+  local runs
+  for _, b in ipairs(s.buys) do
+    if b.listed then
+      local r = math.floor(b.listed / math.max(b.qty or 1, 1))
+      runs = runs and math.min(runs, r) or r
+    end
+  end
+  return runs
 end
 
 function ns:ShuffleReturn(s) return s.cost > 0 and s.profit / s.cost or 0 end
