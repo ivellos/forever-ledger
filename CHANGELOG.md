@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Disenchant recorder: every disenchant is logged (the item, its level and what it gave). `/fl de` shows the totals per group next to what the addon's yield table expects; `/fl de reset` starts a fresh count.
+
 ## [0.4.0] - 2026-09-27
 
 Live sync between two accounts, so an auction house character's scans reach your main. The whisper route was checked in the beta; syncing two of your own accounts can only be tried at launch.

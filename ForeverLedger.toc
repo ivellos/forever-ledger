@@ -11,6 +11,7 @@ History.lua
 Professions.lua
 Values.lua
 Shuffles.lua
+Disenchant.lua
 Tooltip.lua
 Theme.lua
 Dashboard.lua
