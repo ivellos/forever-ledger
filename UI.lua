@@ -1,4 +1,7 @@
 local _, ns = ...
+local T = ns.Theme
+
+local CLASS_COLORS = RAID_CLASS_COLORS or {}
 
 local KEY_ITEMS = {
   { 2589, "Linen Cloth" }, { 2592, "Wool Cloth" }, { 10940, "Strange Dust" },
@@ -6,34 +9,23 @@ local KEY_ITEMS = {
   { 10998, "Lesser Astral Essence" }, { 11082, "Greater Astral Essence" }, { 10978, "Small Glimmering Shard" },
 }
 
-local function makeWindow(name, w, h, titleText)
-  local ok, f = pcall(CreateFrame, "Frame", name, UIParent, "BasicFrameTemplateWithInset")
-  if not ok or not f then
-    f = CreateFrame("Frame", name, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-    if f.SetBackdrop then
-      f:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", edgeSize = 24, insets = { left = 6, right = 6, top = 6, bottom = 6 } })
-    end
-    local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -2, -2)
-  end
-  f:SetSize(w, h)
-  f:SetPoint("CENTER")
-  f:SetFrameStrata("DIALOG")
-  f:SetMovable(true)
-  f:EnableMouse(true)
-  f:RegisterForDrag("LeftButton")
-  f:SetScript("OnDragStart", f.StartMoving)
-  f:SetScript("OnDragStop", f.StopMovingOrSizing)
-  f:SetClampedToScreen(true)
-  f:Hide()
-  tinsert(UISpecialFrames, name)
-  f.title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  if f.TitleBg then f.title:SetPoint("LEFT", f.TitleBg, "LEFT", 6, 0) else f.title:SetPoint("TOP", 0, -12) end
-  f.title:SetText(titleText)
-  return f
+local function heading(text) return T:AccentCode() .. text .. "|r" end
+local function dim(text) return "|cff888888" .. text .. "|r" end
+
+local function classColored(c)
+  local cc = CLASS_COLORS[c.class or ""]
+  return cc and ("|c" .. (cc.colorStr or "ffffffff") .. (c.name or "?") .. "|r") or (c.name or "?")
 end
 
-local function button(parent, label, width, onClick)
+local function sortedCharKeys()
+  local keys = {}
+  for k in pairs(ns.db.chars) do keys[#keys + 1] = k end
+  table.sort(keys)
+  return keys
+end
+
+-- Blizzard-style button, used on Blizzard's own auction house window.
+local function blizzButton(parent, label, width, onClick)
   local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
   b:SetSize(width, 24)
   b:SetText(label)
@@ -41,97 +33,300 @@ local function button(parent, label, width, onClick)
   return b
 end
 
+-- A dark, flat window with a title bar you can drag and a close button.
+local function themedWindow(name, w, h, titleText)
+  local f = CreateFrame("Frame", name, UIParent)
+  f:SetSize(w, h)
+  f:SetPoint("CENTER")
+  f:SetFrameStrata("DIALOG")
+  f:SetMovable(true)
+  f:EnableMouse(true)
+  f:SetClampedToScreen(true)
+  f:Hide()
+  tinsert(UISpecialFrames, name)
+  T:Fill(f, T.bg)
+  T:Border(f)
+
+  local bar = CreateFrame("Frame", nil, f)
+  bar:SetPoint("TOPLEFT")
+  bar:SetPoint("TOPRIGHT")
+  bar:SetHeight(30)
+  T:Fill(bar, T.header)
+  bar:EnableMouse(true)
+  bar:RegisterForDrag("LeftButton")
+  bar:SetScript("OnDragStart", function() f:StartMoving() end)
+  bar:SetScript("OnDragStop", function() f:StopMovingOrSizing() end)
+
+  f.title = T:Text(bar, 14)
+  f.title:SetPoint("LEFT", 12, 0)
+  f.title:SetText(titleText)
+
+  local close = CreateFrame("Button", nil, bar)
+  close:SetSize(30, 30)
+  close:SetPoint("RIGHT")
+  local x = T:Text(close, 16, T.dim)
+  x:SetPoint("CENTER")
+  x:SetText("x")
+  close:SetScript("OnEnter", function() x:SetTextColor(T.accent[1], T.accent[2], T.accent[3], 1) end)
+  close:SetScript("OnLeave", function() x:SetTextColor(T.dim[1], T.dim[2], T.dim[3], T.dim[4]) end)
+  close:SetScript("OnClick", function() f:Hide() end)
+  f.bar = bar
+  return f
+end
+
+-- A thin horizontal line.
+local function rule(parent, anchor, y)
+  local t = parent:CreateTexture(nil, "BORDER")
+  t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4])
+  t:SetPoint("LEFT", parent, "LEFT", 1, 0)
+  t:SetPoint("RIGHT", parent, "RIGHT", -1, 0)
+  t:SetPoint("TOP", parent, anchor, 0, y)
+  t:SetHeight(1)
+  return t
+end
+
 ---------------------------------------------------------------------------
--- Main window: an Overview tab and a Shuffles tab
+-- Main window: title bar, tabs, a content area and a footer with buttons
 ---------------------------------------------------------------------------
 local main
-local setView, layoutShuffles
+local setView, layoutShuffles, refreshText
 
-local function scrollArea(bottom)
-  local sf = CreateFrame("ScrollFrame", nil, main, "UIPanelScrollFrameTemplate")
-  sf:SetPoint("TOPLEFT", 14, -58)
-  sf:SetPoint("BOTTOMRIGHT", -32, bottom)
-  local content = CreateFrame("Frame", nil, sf)
-  content:SetSize(480, 10)
-  sf:SetScrollChild(content)
-  return sf, content
+local TABS = {
+  { key = "dashboard", label = "Dashboard" },
+  { key = "shuffles", label = "Shuffles" },
+  { key = "flips", label = "Vendor flips" },
+  { key = "characters", label = "Characters" },
+  { key = "settings", label = "Settings" },
+}
+
+-- A scroll area filling the content area, with one text block in it.
+local function textArea()
+  local sf, content = T:Scroll(main.body)
+  sf:SetAllPoints()
+  local text = T:Text(content, 12)
+  text:SetPoint("TOPLEFT", 2, -2)
+  text:SetPoint("RIGHT", content, "RIGHT", -4, 0)
+  text:SetJustifyH("LEFT")
+  text:SetJustifyV("TOP")
+  text:SetSpacing(4)
+  sf.text, sf.content = text, content
+  return sf
 end
 
 local function buildMain()
   if main then return main end
-  main = makeWindow("ForeverLedgerFrame", 540, 470, "Forever Ledger " .. ns.VERSION)
+  main = themedWindow("ForeverLedgerFrame", 760, 520,
+    T:AccentCode() .. "Forever Ledger|r  " .. dim(ns.VERSION))
 
-  main.tabOverview = button(main, "Overview", 100, function() setView("overview") end)
-  main.tabOverview:SetPoint("TOPLEFT", 14, -28)
-  main.tabShuffles = button(main, "Shuffles", 100, function() setView("shuffles") end)
-  main.tabShuffles:SetPoint("LEFT", main.tabOverview, "RIGHT", 4, 0)
-  main.tabFlips = button(main, "Vendor flips", 110, function() setView("flips") end)
-  main.tabFlips:SetPoint("LEFT", main.tabShuffles, "RIGHT", 4, 0)
+  -- Tabs
+  main.tabs = {}
+  local prev
+  for _, tab in ipairs(TABS) do
+    local b = T:Tab(main, tab.label, function() setView(tab.key) end)
+    if prev then b:SetPoint("LEFT", prev, "RIGHT", 0, 0) else b:SetPoint("TOPLEFT", 6, -32) end
+    main.tabs[tab.key] = b
+    prev = b
+  end
+  rule(main, "TOP", -61)
 
-  -- Overview
-  local sf, content = scrollArea(66)
-  local text = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  text:SetPoint("TOPLEFT")
-  text:SetWidth(480)
-  text:SetJustifyH("LEFT")
-  text:SetJustifyV("TOP")
-  text:SetSpacing(3)
-  main.sf, main.text, main.content = sf, text, content
+  -- Content area and footer
+  main.body = CreateFrame("Frame", nil, main)
+  main.body:SetPoint("TOPLEFT", 14, -72)
+  main.body:SetPoint("BOTTOMRIGHT", -10, 52)
+  rule(main, "BOTTOM", 46)
 
-  main.status = main:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  main.status:SetPoint("BOTTOMLEFT", 16, 44)
-  main.status:SetText("")
+  main.views = {
+    dashboard = textArea(),
+    characters = textArea(),
+    settings = textArea(),
+  }
+  main.shuffleSF, main.shuffleContent = T:Scroll(main.body)
+  main.shuffleSF:SetAllPoints()
+  main.views.shuffles, main.views.flips = main.shuffleSF, main.shuffleSF
 
-  local full = button(main, "Full scan", 130, function() ns.Scan:Start("full") end)
-  full:SetPoint("BOTTOMLEFT", 14, 14)
-  local scan = button(main, "Scan materials", 120, function() ns.Scan:Start("watch") end)
+  -- Footer buttons. Scan buttons show on Dashboard and Characters.
+  local full = T:Button(main, "Full scan", 140, function() ns.Scan:Start("full") end)
+  full:SetPoint("BOTTOMLEFT", 12, 12)
+  local scan = T:Button(main, "Scan materials", 120, function() ns.Scan:Start("watch") end)
   scan:SetPoint("LEFT", full, "RIGHT", 6, 0)
-  local exp = button(main, "Export", 65, function() ns:ShowExport() end)
-  exp:SetPoint("LEFT", scan, "RIGHT", 6, 0)
-  local imp = button(main, "Import", 65, function() ns:ShowImport() end)
+  local exp = T:Button(main, "Export", 70, function() ns:ShowExport() end)
+  exp:SetPoint("LEFT", scan, "RIGHT", 18, 0)
+  local imp = T:Button(main, "Import", 70, function() ns:ShowImport() end)
   imp:SetPoint("LEFT", exp, "RIGHT", 6, 0)
-  local csv = button(main, "Prices as text", 100, function() ns:ShowPricesCSV() end)
+  local csv = T:Button(main, "Prices as text", 110, function() ns:ShowPricesCSV() end)
   csv:SetPoint("LEFT", imp, "RIGHT", 6, 0)
   main.scanBtn, main.fullBtn = scan, full
-  main.overviewButtons = { full, scan, exp, imp, csv }
+  main.footer = {
+    dashboard = { full, scan },
+    characters = { full, scan, exp, imp, csv },
+  }
 
-  -- Shuffles
-  main.shuffleSF, main.shuffleContent = scrollArea(62)
-  main.refreshBtn = button(main, "Refresh", 90, function() ns:RefreshShuffles() end)
-  main.refreshBtn:SetPoint("BOTTOMLEFT", 14, 14)
-  main.shuffleInfo = main:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  main.shuffleInfo:SetPoint("LEFT", main.refreshBtn, "RIGHT", 10, 0)
-  main.shuffleInfo:SetPoint("RIGHT", main, "RIGHT", -16, 0)
-  main.shuffleInfo:SetJustifyH("LEFT")
+  main.refreshBtn = T:Button(main, "Refresh", 90, function() ns:RefreshShuffles() end)
+  main.refreshBtn:SetPoint("BOTTOMLEFT", 12, 12)
+  main.footer.shuffles = { main.refreshBtn }
+  main.footer.flips = { main.refreshBtn }
+  main.shuffleInfo = T:Text(main, 11, T.dim)
+  main.shuffleInfo:SetPoint("LEFT", main.refreshBtn, "RIGHT", 12, 0)
 
-  setView("overview")
+  main.status = T:Text(main, 11, T.accent)
+  main.status:SetPoint("BOTTOMRIGHT", -14, 18)
+
+  setView("dashboard")
   return main
 end
 
 setView = function(view)
   main.view = view
-  local overview = view == "overview"
-  main.sf:SetShown(overview)
-  for _, b in ipairs(main.overviewButtons) do b:SetShown(overview) end
-  main.shuffleSF:SetShown(not overview)
-  main.refreshBtn:SetShown(not overview)
-  main.shuffleInfo:SetShown(not overview)
-  -- The tab you're on stays highlighted.
-  for tab, name in pairs({ [main.tabOverview] = "overview", [main.tabShuffles] = "shuffles", [main.tabFlips] = "flips" }) do
-    if name == view then tab:LockHighlight() else tab:UnlockHighlight() end
+  for key, tab in pairs(main.tabs) do tab:SetSelected(key == view) end
+  local shown = main.views[view]
+  for _, v in pairs(main.views) do v:SetShown(v == shown) end
+  local wanted = {}
+  for _, b in ipairs(main.footer[view] or {}) do wanted[b] = true end
+  for _, list in pairs(main.footer) do
+    for _, b in ipairs(list) do b:SetShown(wanted[b] or false) end
   end
-  if overview then
-    ns:RefreshUI()
-  elseif main.shuffles then
-    layoutShuffles()
+  main.shuffleInfo:SetShown(view == "shuffles" or view == "flips")
+  if view == "shuffles" or view == "flips" then
+    if main.shuffles then layoutShuffles() else ns:RefreshShuffles() end
   else
-    ns:RefreshShuffles()
+    ns:RefreshUI()
   end
 end
 
-function ns:ToggleUI()
+function ns:ToggleUI(view)
   local f = buildMain()
-  if f:IsShown() then f:Hide() else ns:ScanSkillLines(); f:Show(); ns:RefreshUI() end
+  if f:IsShown() and not view then f:Hide(); return end
+  ns:ScanSkillLines()
+  T:Refresh()
+  f:Show()
+  setView(view or f.view or "dashboard")
+end
+
+---------------------------------------------------------------------------
+-- Text views: Dashboard (for now), Characters, Settings
+---------------------------------------------------------------------------
+local function dashboardText(add)
+  add(heading("Dashboard"))
+  add("A gold graph and sales, expenses and profit are coming here.")
+  local since = ns:RecordingSince()
+  add(dim(since and ("History has been recorded since " .. since .. ".") or "History starts recording now."))
+  add("")
+
+  add(heading("Gold"))
+  local total = 0
+  for _, key in ipairs(sortedCharKeys()) do
+    local hours, latest, gold = ns.db.gold[key], nil, nil
+    for h, g in pairs(hours or {}) do if not latest or h > latest then latest, gold = h, g end end
+    if gold then
+      total = total + gold
+      add(("  %s: %s"):format(classColored(ns.db.chars[key]), ns.Money(gold)))
+    end
+  end
+  add(("  All characters: %s"):format(ns.Money(total)))
+  add("")
+
+  add(heading("Today for " .. (UnitName("player") or "?")))
+  local lines, net = ns:MoneyToday()
+  if lines then
+    for _, line in ipairs(lines) do add("  " .. line) end
+    add(("  Net: %s%s"):format(net >= 0 and "+" or "-", ns.Money(math.abs(net))))
+  else
+    add(dim("  Nothing in or out yet today."))
+  end
+end
+
+local function charactersText(add)
+  add(heading("Your characters"))
+  local keys = sortedCharKeys()
+  if #keys == 0 then add("  None yet. Log in on each character once.") end
+  for _, k in ipairs(keys) do
+    local c = ns.db.chars[k]
+    add(("  %s, level %s %s"):format(classColored(c), c.level or "?", c.faction or ""))
+    local profNames = {}
+    for p in pairs(c.profs or {}) do profNames[#profNames + 1] = p end
+    table.sort(profNames)
+    if #profNames == 0 then add("      No professions saved yet.") end
+    for _, p in ipairs(profNames) do
+      local info = c.profs[p]
+      local n = info.recipeCount or 0
+      local recipes = n > 0 and (n .. " recipes saved") or "|cffee8597open this profession's window to save its recipes|r"
+      add(("      %s %s/%s, %s"):format(p, info.rank or "?", info.max or "?", recipes))
+    end
+  end
+
+  add("")
+  add(heading("Key prices") .. "  " .. dim("(" .. ns.MarketKey() .. ")"))
+  for _, item in ipairs(KEY_ITEMS) do
+    local price, src, t = ns:GetPrice(item[1])
+    if price then
+      add(("  %s: %s %s"):format(item[2], ns.Money(price), dim((src or "") .. " " .. (t and ns.Age(t) or ""))))
+    else
+      add(("  %s: %s"):format(item[2], dim("no price yet")))
+    end
+  end
+
+  add("")
+  add(heading("Price data"))
+  local market = ns.db.prices[ns.MarketKey()] or {}
+  local count, newest, oldest = 0, 0, nil
+  for _, rec in pairs(market) do
+    count = count + 1
+    if rec.t then
+      newest = math.max(newest, rec.t)
+      oldest = oldest and math.min(oldest, rec.t) or rec.t
+    end
+  end
+  add(("  %d items priced. Newest %s, oldest %s."):format(count, newest > 0 and ns.Age(newest) or "never", oldest and ns.Age(oldest) or "never"))
+  local ext = ns:ExternalSources()
+  add("  Other auction addons: " .. (#ext > 0 and table.concat(ext, ", ") or "none found"))
+  add("  Price source: " .. ns.db.settings.source)
+  local vb = 0
+  for _ in pairs(ns.db.vendorBuy) do vb = vb + 1 end
+  add(("  %d vendor prices saved. Open any vendor to add theirs."):format(vb))
+end
+
+local function settingsText(add)
+  local s = ns.db.settings
+  add(heading("Settings"))
+  add(dim("Buttons and sliders are coming here. For now, change these with the commands shown."))
+  add("")
+  add(heading("Values and shuffles"))
+  add(("  Auction house cut: %g%%   %s"):format(s.ahCut or 5, dim("/fl cut 5")))
+  add(("  Safety margin: %g%%   %s"):format(s.margin or 10, dim("/fl margin 10")))
+  add(("  Seconds per craft: %g   %s"):format(s.actionSeconds or 3, dim("/fl seconds 3")))
+  add(("  Price source: %s   %s"):format(s.source or "auto", dim("/fl source auto|own|auctionator|tsm|auctioneer")))
+  add("")
+  add(heading("Deal alerts"))
+  add("  Deals are listings " .. ns:DealRules() .. ".")
+  add(("  Below usual price: %g%%   %s"):format(s.dealUsualPct or 20, dim("/fl deals usual 20")))
+  add(("  Period: %s   %s"):format(ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", dim("/fl deals period week|month|3months|6months|year|all")))
+  add(("  History from: %s   %s"):format(s.dealHistory or "auto", dim("/fl deals history auto|local|tsm")))
+  add(("  Below vendor price: %g%%   %s"):format(s.dealVendorPct or 10, dim("/fl deals vendor 10%")))
+  add(("  Least vendor profit each: %s   %s"):format((s.dealVendorMin or 0) > 0 and ns.Money(s.dealVendorMin) or "off", dim("/fl deals vendor 1s")))
+  add(("  Chime: %s   %s"):format(s.dealSound and "on" or "off", dim("/fl deals sound")))
+  add("")
+  add(heading("Other"))
+  add(("  Minimap button: %s   %s"):format(s.minimap and "shown" or "hidden", dim("/fl minimap")))
+  add(("  Tooltip lines: %s   %s"):format(s.tooltip and "on" or "off", dim("/fl tooltip")))
+  add(("  Debug messages: %s   %s"):format(s.debug and "on" or "off", dim("/fl debug")))
+end
+
+local TEXT_VIEWS = { dashboard = dashboardText, characters = charactersText, settings = settingsText }
+
+function ns:RefreshUI()
+  if not main or not main:IsShown() or not ns.db then return end
+  local build = TEXT_VIEWS[main.view]
+  if build then
+    local L = {}
+    build(function(s) L[#L + 1] = s or "" end)
+    local sf = main.views[main.view]
+    sf.content:SetWidth(math.max(sf:GetWidth() - 12, 300))
+    sf.text:SetText(table.concat(L, "\n"))
+    sf.content:SetHeight(sf.text:GetStringHeight() + 12)
+    sf.UpdateScrollBar()
+  end
+  main.scanBtn:SetEnabled(ns:IsAHOpen() and not ns.Scan.active)
+  ns:UpdateFullScanButtons()
 end
 
 ---------------------------------------------------------------------------
@@ -170,13 +365,7 @@ local function buildMinimapButton()
   border:SetPoint("TOPLEFT")
 
   mm:SetScript("OnClick", function(_, which)
-    if which == "RightButton" then
-      local f = buildMain()
-      if not f:IsShown() then ns:ScanSkillLines(); f:Show() end
-      setView("shuffles")
-    else
-      ns:ToggleUI()
-    end
+    if which == "RightButton" then ns:ToggleUI("shuffles") else ns:ToggleUI() end
   end)
   mm:SetScript("OnDragStart", function(self)
     self:SetScript("OnUpdate", function()
@@ -211,23 +400,26 @@ end
 ns:OnReady(function() ns:UpdateMinimapButton() end)
 
 ---------------------------------------------------------------------------
--- Shuffles tab: a list of rows; click one to show its steps underneath
+-- Shuffles and Vendor flips: a list of rows; click one to show its steps underneath
 ---------------------------------------------------------------------------
 local MAX_ROWS = 25       -- per section
+local ROW_HEIGHT = 22
 local rows, details, openKeys = {}, {}, {}
 
 local function getRow(i)
   local r = rows[i]
   if not r then
     r = CreateFrame("Button", nil, main.shuffleContent)
-    r:SetHeight(18)
-    r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-    r.right = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    r.right:SetPoint("RIGHT", -2, 0)
+    r:SetHeight(ROW_HEIGHT)
+    local hl = r:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.10)
+    r.right = T:Text(r, 12)
+    r.right:SetPoint("RIGHT", -4, 0)
     r.right:SetJustifyH("RIGHT")
-    r.left = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    r.left:SetPoint("LEFT", 2, 0)
-    r.left:SetPoint("RIGHT", r.right, "LEFT", -8, 0)
+    r.left = T:Text(r, 12)
+    r.left:SetPoint("LEFT", 4, 0)
+    r.left:SetPoint("RIGHT", r.right, "LEFT", -12, 0)
     r.left:SetJustifyH("LEFT")
     r.left:SetWordWrap(false)
     r:SetScript("OnClick", function(self)
@@ -244,11 +436,10 @@ end
 local function getDetail(i)
   local fs = details[i]
   if not fs then
-    fs = main.shuffleContent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    fs:SetWidth(456)
+    fs = T:Text(main.shuffleContent, 11, { 1, 1, 1, 0.85 })
     fs:SetJustifyH("LEFT")
     fs:SetJustifyV("TOP")
-    fs:SetSpacing(2)
+    fs:SetSpacing(3)
     details[i] = fs
   end
   return fs
@@ -259,12 +450,7 @@ local boxes = {}
 local function getBox(i)
   local cb = boxes[i]
   if not cb then
-    cb = CreateFrame("CheckButton", nil, main.shuffleContent, "UICheckButtonTemplate")
-    cb:SetSize(22, 22)
-    cb.label = cb.Text or cb.text or cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    cb.label:ClearAllPoints()
-    cb.label:SetPoint("LEFT", cb, "RIGHT", 1, 0)
-    cb:SetScript("OnClick", function(self)
+    cb = T:Check(main.shuffleContent, function(self)
       ns.db.settings.skipChars[self.charKey] = (not self:GetChecked()) or nil
       ns:InvalidateValues(true)
       ns:RefreshShuffles()
@@ -275,30 +461,28 @@ local function getBox(i)
 end
 
 -- Returns the height used.
-local function layoutCharBoxes(content)
+local function layoutCharBoxes(content, width)
   if not main.charLabel then
-    main.charLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    main.charLabel = T:Text(content, 12, T.dim)
     main.charLabel:SetText("Use recipes from:")
   end
   main.charLabel:ClearAllPoints()
-  main.charLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 2, -5)
+  main.charLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 4, -4)
+  main.charLabel:Show()
 
-  local keys = {}
-  for k in pairs(ns.db.chars) do keys[#keys + 1] = k end
-  table.sort(keys)
-  local x, y = main.charLabel:GetStringWidth() + 10, 0
+  local keys = sortedCharKeys()
+  local x, y = main.charLabel:GetStringWidth() + 16, 0
   for i, key in ipairs(keys) do
-    local c, cb = ns.db.chars[key], getBox(i)
-    local cc = CLASS_COLORS[c.class or ""]
-    cb.label:SetText(cc and ("|c" .. (cc.colorStr or "ffffffff") .. (c.name or "?") .. "|r") or (c.name or "?"))
-    local width = 22 + cb.label:GetStringWidth() + 14
-    if x + width > 470 then x, y = 0, y + 24 end
+    local cb = getBox(i)
+    cb.label:SetText(classColored(ns.db.chars[key]))
+    local w = 14 + 6 + cb.label:GetStringWidth() + 18
+    if x + w > width then x, y = 4, y + 22 end
     cb:ClearAllPoints()
-    cb:SetPoint("TOPLEFT", content, "TOPLEFT", x, -y)
+    cb:SetPoint("TOPLEFT", content, "TOPLEFT", x, -(y + 2))
     cb:SetChecked(not ns.db.settings.skipChars[key])
     cb.charKey = key
     cb:Show()
-    x = x + width
+    x = x + w
   end
   for i = #keys + 1, #boxes do boxes[i]:Hide() end
   return y + 30
@@ -306,6 +490,8 @@ end
 
 layoutShuffles = function()
   local content, data = main.shuffleContent, main.shuffles
+  content:SetWidth(math.max(main.shuffleSF:GetWidth() - 12, 400))
+  local width = content:GetWidth()
   local flipsView = main.view == "flips"
   local y, nRows, nDetails = 0, 0, 0
   -- Recipes don't matter for vendor flips, so only the Shuffles tab has the checkboxes.
@@ -313,8 +499,7 @@ layoutShuffles = function()
     if main.charLabel then main.charLabel:Hide() end
     for _, cb in ipairs(boxes) do cb:Hide() end
   else
-    y = layoutCharBoxes(content)
-    main.charLabel:Show()
+    y = layoutCharBoxes(content, width)
   end
 
   local function row(left, right, s)
@@ -322,35 +507,36 @@ layoutShuffles = function()
     local r = getRow(nRows)
     r:ClearAllPoints()
     r:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
-    r:SetWidth(476)
+    r:SetWidth(width)
     r.left:SetText(left)
     r.right:SetText(right or "")
     r.shuffle = s
     r:SetEnabled(s ~= nil)
     r:Show()
-    y = y + 18
+    y = y + ROW_HEIGHT
   end
 
   local function detail(text)
     nDetails = nDetails + 1
     local fs = getDetail(nDetails)
     fs:ClearAllPoints()
-    fs:SetPoint("TOPLEFT", content, "TOPLEFT", 16, -y)
+    fs:SetPoint("TOPLEFT", content, "TOPLEFT", 20, -(y + 2))
+    fs:SetWidth(width - 28)
     fs:SetText(text)
     fs:Show()
-    y = y + fs:GetStringHeight() + 8
+    y = y + fs:GetStringHeight() + 12
   end
 
   local function section(title, list)
-    row("|cffb9a2ff" .. title .. "|r")
-    if #list == 0 then row("|cff999999  None at current prices.|r") end
+    row(heading(title))
+    if #list == 0 then row(dim("  None at current prices.")) end
     for i = 1, math.min(#list, MAX_ROWS) do
       local s = list[i]
       local open = openKeys[s.key]
-      row((open and "|cff999999-|r " or "|cff999999+|r ") .. ns:ShuffleTitle(s), ns:ShuffleSummary(s), s)
+      row(dim(open and "-" or "+") .. " " .. ns:ShuffleTitle(s), ns:ShuffleSummary(s), s)
       if open then detail(ns:ShuffleDetails(s)) end
     end
-    y = y + 10
+    y = y + 12
   end
 
   if flipsView then
@@ -358,23 +544,25 @@ layoutShuffles = function()
   else
     section("Sells to a vendor (safe)", data.vendor)
     section("Sells on the auction house (depends on buyers)", data.ah)
-    if #data.oneOff > 0 then section("One-off deals (fewer than 5 listed)", data.oneOff) end
+    if #data.oneOff > 0 then section("Limited supply (fewer than 5 listed)", data.oneOff) end
   end
 
   for i = nRows + 1, #rows do rows[i]:Hide() end
   for i = nDetails + 1, #details do details[i]:Hide() end
   content:SetHeight(math.max(y, 10))
+  main.shuffleSF.UpdateScrollBar()
 end
 
 -- Item names arrive from the game a moment after they're first asked for.
 -- Redraw the list once they do, so "item 4470" becomes "Simple Wood".
 local redrawQueued = false
 ns:On("GET_ITEM_INFO_RECEIVED", function()
-  if redrawQueued or not main or not main:IsShown() or main.view ~= "shuffles" or not main.shuffles then return end
+  if redrawQueued or not main or not main:IsShown() or not main.shuffles then return end
+  if main.view ~= "shuffles" and main.view ~= "flips" then return end
   redrawQueued = true
   C_Timer.After(0.5, function()
     redrawQueued = false
-    if main:IsShown() and main.view == "shuffles" then layoutShuffles() end
+    if main:IsShown() and (main.view == "shuffles" or main.view == "flips") then layoutShuffles() end
   end)
 end)
 
@@ -398,77 +586,12 @@ function ns:RefreshShuffles()
   main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff, flips = flips }
   main.shuffleInfo:SetText(("%d shuffles and %d vendor flips, worked out at %s. Click a row for details."):format(
     #vendor + #ah + #oneOff, #flips, date("%H:%M")))
-  layoutShuffles()
+  if main.view == "shuffles" or main.view == "flips" then layoutShuffles() end
 end
 
-local CLASS_COLORS = RAID_CLASS_COLORS or {}
-
-function ns:RefreshUI()
-  if not main or not main:IsShown() or not ns.db then return end
-  local L = {}
-  local function add(s) L[#L + 1] = s or "" end
-
-  add("|cffb9a2ffYour characters|r")
-  local keys = {}
-  for k in pairs(ns.db.chars) do keys[#keys + 1] = k end
-  table.sort(keys)
-  if #keys == 0 then add("  None yet. Log in on each character once.") end
-  for _, k in ipairs(keys) do
-    local c = ns.db.chars[k]
-    local cc = CLASS_COLORS[c.class or ""]
-    local nameStr = cc and ("|c" .. (cc.colorStr or "ffffffff") .. (c.name or "?") .. "|r") or (c.name or "?")
-    add(("  %s, level %s %s"):format(nameStr, c.level or "?", c.faction or ""))
-    local profNames = {}
-    for p in pairs(c.profs or {}) do profNames[#profNames + 1] = p end
-    table.sort(profNames)
-    if #profNames == 0 then add("      No professions saved yet.") end
-    for _, p in ipairs(profNames) do
-      local info = c.profs[p]
-      local n = info.recipeCount or 0
-      local recipes = n > 0 and (n .. " recipes saved") or "|cffee8597open this profession's window to save its recipes|r"
-      add(("      %s %s/%s, %s"):format(p, info.rank or "?", info.max or "?", recipes))
-    end
-  end
-
-  add("")
-  add("|cffb9a2ffKey prices|r  |cff999999(" .. ns.MarketKey() .. ")|r")
-  for _, item in ipairs(KEY_ITEMS) do
-    local price, src, t = ns:GetPrice(item[1])
-    if price then
-      add(("  %s: %s |cff999999%s %s|r"):format(item[2], ns.Money(price), src or "", t and ns.Age(t) or ""))
-    else
-      add(("  %s: |cff999999no price yet|r"):format(item[2]))
-    end
-  end
-
-  add("")
-  add("|cffb9a2ffPrice data|r")
-  local market = ns.db.prices[ns.MarketKey()] or {}
-  local count, newest, oldest = 0, 0, nil
-  for _, rec in pairs(market) do
-    count = count + 1
-    if rec.t then
-      newest = math.max(newest, rec.t)
-      oldest = oldest and math.min(oldest, rec.t) or rec.t
-    end
-  end
-  add(("  %d items priced. Newest %s, oldest %s."):format(count, newest > 0 and ns.Age(newest) or "never", oldest and ns.Age(oldest) or "never"))
-  local ext = ns:ExternalSources()
-  add("  Other auction addons: " .. (#ext > 0 and table.concat(ext, ", ") or "none found"))
-  add("  Price source: " .. ns.db.settings.source .. " (change with /fl source)")
-  local vb = 0
-  for _ in pairs(ns.db.vendorBuy) do vb = vb + 1 end
-  add(("  %d vendor prices saved. Open any vendor to add theirs."):format(vb))
-
-  add("")
-  add("|cff999999Scan while the auction house is open. Hover any item to see its ledger price. Type /fl help for commands.|r")
-
-  main.text:SetText(table.concat(L, "\n"))
-  main.content:SetHeight(main.text:GetStringHeight() + 10)
-  main.scanBtn:SetEnabled(ns:IsAHOpen())
-  ns:UpdateFullScanButtons()
-end
-
+---------------------------------------------------------------------------
+-- Scan buttons and status
+---------------------------------------------------------------------------
 -- "Full scan: Ready", or a countdown until Blizzard allows the next one.
 function ns:UpdateFullScanButtons()
   if not ns.db then return end
@@ -505,13 +628,13 @@ function ns:UpdateScanStatus(done, total)
   end
 end
 
--- A scan button on the auction house window itself.
+-- Scan buttons on the auction house window itself, in Blizzard's style to match it.
 function ns:OnAHShow()
   local ah = AuctionHouseFrame or AuctionFrame
   if ah and not ns.ahButton then
-    ns.ahButton = button(ah, "Scan materials", 120, function() ns.Scan:Start("watch") end)
+    ns.ahButton = blizzButton(ah, "Scan materials", 120, function() ns.Scan:Start("watch") end)
     ns.ahButton:SetPoint("TOPRIGHT", ah, "TOPRIGHT", -30, -28)
-    ns.ahFullButton = button(ah, "Full scan", 130, function() ns.Scan:Start("full") end)
+    ns.ahFullButton = blizzButton(ah, "Full scan", 130, function() ns.Scan:Start("full") end)
     ns.ahFullButton:SetPoint("RIGHT", ns.ahButton, "LEFT", -4, 0)
   end
   ns:UpdateFullScanButtons()
@@ -524,27 +647,27 @@ end
 local io
 local function ioWindow()
   if io then return io end
-  io = makeWindow("ForeverLedgerIO", 560, 380, "Forever Ledger")
-  io.help = io:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  io.help:SetPoint("TOPLEFT", 16, -32)
-  io.help:SetWidth(520)
+  io = themedWindow("ForeverLedgerIO", 580, 400, "Forever Ledger")
+  io.help = T:Text(io, 12, T.dim)
+  io.help:SetPoint("TOPLEFT", 14, -42)
+  io.help:SetPoint("RIGHT", io, "RIGHT", -14, 0)
   io.help:SetJustifyH("LEFT")
 
   local sf = CreateFrame("ScrollFrame", nil, io, "UIPanelScrollFrameTemplate")
-  sf:SetPoint("TOPLEFT", 16, -64)
-  sf:SetPoint("BOTTOMRIGHT", -34, 48)
+  sf:SetPoint("TOPLEFT", 14, -72)
+  sf:SetPoint("BOTTOMRIGHT", -32, 48)
   local eb = CreateFrame("EditBox", nil, sf)
   eb:SetMultiLine(true)
   eb:SetFontObject(ChatFontNormal)
-  eb:SetWidth(500)
+  eb:SetWidth(520)
   eb:SetAutoFocus(false)
   eb:SetMaxLetters(0)
   eb:SetScript("OnEscapePressed", function() io:Hide() end)
   sf:SetScrollChild(eb)
   io.eb = eb
 
-  io.action = button(io, "Import", 110, function() end)
-  io.action:SetPoint("BOTTOMRIGHT", -16, 14)
+  io.action = T:Button(io, "Import", 110, function() end)
+  io.action:SetPoint("BOTTOMRIGHT", -14, 12)
   return io
 end
 
@@ -577,7 +700,7 @@ end
 
 -- Readable price list for the web calculator or a chat with Claude.
 function ns:PricesCSV()
-  local rows = { "item_id,name,price_copper,cheapest_copper,listed,source,age_minutes,vendor_pays_copper,vendor_charges_copper" }
+  local lines = { "item_id,name,price_copper,cheapest_copper,listed,source,age_minutes,vendor_pays_copper,vendor_charges_copper" }
   local market = ns.db.prices[ns.MarketKey()] or {}
   local ids, seen = {}, {}
   for id in pairs(market) do if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
@@ -589,7 +712,7 @@ function ns:PricesCSV()
     local sell = ns:GetSellPrice(id)
     local buy = ns.db.vendorBuy[id]
     if rec or buy then
-      rows[#rows + 1] = table.concat({
+      lines[#lines + 1] = table.concat({
         id, (name:gsub(",", "")),
         rec and rec.a or "", rec and rec.m or "", rec and rec.q or "",
         rec and rec.src or "", rec and rec.t and math.floor((time() - rec.t) / 60) or "",
@@ -597,7 +720,7 @@ function ns:PricesCSV()
       }, ",")
     end
   end
-  return table.concat(rows, "\n")
+  return table.concat(lines, "\n")
 end
 
 function ns:ShowPricesCSV()

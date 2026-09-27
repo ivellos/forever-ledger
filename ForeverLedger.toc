@@ -12,4 +12,5 @@ Professions.lua
 Values.lua
 Shuffles.lua
 Tooltip.lua
+Theme.lua
 UI.lua

@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- New look for the ledger window: dark and flat with an accent colour, matching EllesmereUI (and using its font and your accent colour when it's installed). Tabs across the top: Dashboard, Shuffles, Vendor flips, Characters (the old overview) and Settings. Dashboard and Settings show a summary for now; their full versions come next.
+- "One-off deals" in the Shuffles tab are now called "Limited supply".
+
 ### Added
 - History for the coming dashboard: each character's gold over time, money in and out each day by source (auction house sales, purchases and fees, vendors, repairs, mail, trade, loot, quests, training, flights), and a log of auction house sales and purchases.
 - A log of vendor purchases and sales per item (which item, how many, how much), for the coming session tracker. Quick sales that arrive as one gold change are split back into the items sold.

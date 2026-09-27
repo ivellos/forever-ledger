@@ -367,18 +367,35 @@ local LABELS = {
 }
 local INCOME = { ahSale = true, vendorSell = true, mailIn = true, tradeIn = true, loot = true, quest = true, otherIn = true }
 
-function ns:PrintMoney()
+-- Today's money for this character as lines ("Sold to vendors: +5s"), plus the net.
+function ns:MoneyToday()
   local totals = (ns.db.money[ns.CharKey()] or {})[today()]
-  if not totals or not next(totals) then ns:Print("No money in or out recorded today yet."); return end
-  ns:Print("Money today for " .. (UnitName("player") or "?") .. ":")
+  if not totals or not next(totals) then return nil end
   local keys = {}
   for k in pairs(totals) do keys[#keys + 1] = k end
   table.sort(keys)
-  local net = 0
+  local lines, net = {}, 0
   for _, k in ipairs(keys) do
     local sign = INCOME[k] and 1 or -1
     net = net + sign * totals[k]
-    print(("    %s: %s%s"):format(LABELS[k] or k, sign > 0 and "+" or "-", ns.Money(totals[k])))
+    lines[#lines + 1] = ("%s: %s%s"):format(LABELS[k] or k, sign > 0 and "+" or "-", ns.Money(totals[k]))
   end
+  return lines, net
+end
+
+-- The first day anything was recorded, as text, or nil.
+function ns:RecordingSince()
+  local first
+  for _, hours in pairs(ns.db.gold) do
+    for h in pairs(hours) do if not first or h < first then first = h end end
+  end
+  return first and date("%B %d", first * 3600)
+end
+
+function ns:PrintMoney()
+  local lines, net = ns:MoneyToday()
+  if not lines then ns:Print("No money in or out recorded today yet."); return end
+  ns:Print("Money today for " .. (UnitName("player") or "?") .. ":")
+  for _, line in ipairs(lines) do print("    " .. line) end
   print(("    Net: %s%s"):format(net >= 0 and "+" or "-", ns.Money(math.abs(net))))
 end
