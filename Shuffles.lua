@@ -396,6 +396,25 @@ function ns:ShuffleItems(s)
   return inputs, products, run
 end
 
+-- The items this shuffle disenchants (a group's members, the item itself, or what a
+-- craft makes right before disenchanting), as a set of item IDs, or nil if none.
+function ns:ShuffleDisenchantTargets(s)
+  local set, any = {}, false
+  if s.group then
+    for _, m in ipairs(s.members) do set[m.id] = true; any = true end
+  elseif s.opt.kind == "disenchant" then
+    set[s.id] = true; any = true
+  end
+  local o = s.opt
+  while o and (o.kind == "craft" or o.kind == "convert") do
+    if o.kind == "craft" and o.next and o.next.kind == "disenchant" and o.rec.out then
+      set[o.rec.out] = true; any = true
+    end
+    o = o.next
+  end
+  return any and set or nil
+end
+
 -- A short name for the table: the item or recipe, without the steps.
 function ns:ShuffleName(s)
   if s.group then return ("%s (%d)"):format(s.group, #s.members) end

@@ -7,7 +7,7 @@ local T = ns.Theme
 -- purchase). A session tracks what you spend on the shuffle's materials, what you
 -- earn from its products, and how many runs you do.
 ---------------------------------------------------------------------------
-local MAX_LINES = 10
+local MAX_LINES = 8
 local MAX_SESSIONS = 100
 
 local win, current
@@ -240,12 +240,92 @@ ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
 end)
 
 ---------------------------------------------------------------------------
+-- Disenchant button: a secure button (the only kind allowed to cast a spell) set to
+-- "Disenchant this bag slot". It only ever points at the current shuffle's items, and
+-- can't be changed in combat, so it's updated out of combat when bags change.
+---------------------------------------------------------------------------
+local DISENCHANT_SPELL = 13262
+local deButton, deTargets
+
+local function nextTarget()
+  if not deTargets or not (C_Container and C_Container.GetContainerNumSlots) then return end
+  local found, count
+  for bag = 0, (NUM_BAG_SLOTS or 4) + 1 do
+    for slot = 1, (C_Container.GetContainerNumSlots(bag) or 0) do
+      local info = C_Container.GetContainerItemInfo(bag, slot)
+      if info and info.itemID and deTargets[info.itemID] then
+        count = (count or 0) + (info.stackCount or 1)
+        if not found and not info.isLocked then found = { bag = bag, slot = slot, id = info.itemID } end
+      end
+    end
+  end
+  return found, count or 0
+end
+
+local function updateDisenchantButton()
+  if not deButton then return end
+  if InCombatLockdown() then deButton.pending = true; return end
+  deButton.pending = false
+  if not deTargets then deButton:Hide(); return end
+  local target, count = nextTarget()
+  if target then
+    deButton:SetAttribute("type", "spell")
+    deButton:SetAttribute("spell", ns.SpellName(DISENCHANT_SPELL) or "Disenchant")
+    deButton:SetAttribute("target-bag", target.bag)
+    deButton:SetAttribute("target-slot", target.slot)
+    deButton.text:SetText(("Disenchant: %s (%d left)"):format((ns.GetItemInfo(target.id)) or "?", count))
+    deButton.icon:SetTexture(ns:ItemIcon(target.id))
+    deButton.icon:Show()
+    deButton:SetAlpha(1)
+  else
+    deButton:SetAttribute("type", nil)
+    deButton.text:SetText("Nothing from this shuffle to disenchant in your bags")
+    deButton.icon:Hide()
+    deButton:SetAlpha(0.6)
+  end
+  deButton:Show()
+end
+
+ns:On("BAG_UPDATE_DELAYED", function() if deButton and deButton:IsVisible() then updateDisenchantButton() end end)
+ns:On("PLAYER_REGEN_ENABLED", function() if deButton and deButton.pending then updateDisenchantButton() end end)
+
+local function buildDisenchantButton(parent)
+  local b = CreateFrame("Button", "ForeverLedgerDisenchantButton", parent, "SecureActionButtonTemplate")
+  b:SetSize(300, 26)
+  b:RegisterForClicks("AnyUp", "AnyDown")
+  local c = T.button
+  T:Fill(b, c)
+  T:Border(b, { T.accent[1], T.accent[2], T.accent[3], 0.6 })
+  local hl = b:CreateTexture(nil, "HIGHLIGHT")
+  hl:SetAllPoints()
+  hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.15)
+  b.icon = b:CreateTexture(nil, "ARTWORK")
+  b.icon:SetSize(18, 18)
+  b.icon:SetPoint("LEFT", 5, 0)
+  b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  b.text = T:Text(b, 12)
+  b.text:SetPoint("LEFT", b.icon, "RIGHT", 6, 0)
+  b.text:SetPoint("RIGHT", -6, 0)
+  b.text:SetJustifyH("LEFT")
+  b.text:SetWordWrap(false)
+  b:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Disenchants the next item from this shuffle in your bags", 1, 1, 1, true)
+    GameTooltip:AddLine("One click, one disenchant. Only this shuffle's items are ever picked.", 0.85, 0.85, 0.85, true)
+    GameTooltip:Show()
+  end)
+  b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  b:Hide()
+  return b
+end
+
+---------------------------------------------------------------------------
 -- The window
 ---------------------------------------------------------------------------
 local function money(v) return (v < 0 and "-" or "") .. ns.Money(math.abs(v)) end
 
 local function buildWindow()
-  win = ns.ThemedWindow("ForeverLedgerWork", 440, 540, T:AccentCode() .. "Work it|r")
+  win = ns.ThemedWindow("ForeverLedgerWork", 440, 620, T:AccentCode() .. "Work it|r")
   win:ClearAllPoints()
   win:SetPoint("RIGHT", UIParent, "RIGHT", -60, 0)
 
@@ -327,6 +407,7 @@ local function buildWindow()
     GameTooltip:Show()
   end)
   win.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  deButton = buildDisenchantButton(win)
   win.craftNote = T:Text(win, 10, T.dim)
   win.craftNote:SetPoint("TOPRIGHT", win.craft, "BOTTOMRIGHT", 0, -3)
   win.craftNote:SetJustifyH("RIGHT")
@@ -358,6 +439,8 @@ local function buildWindow()
       self.steps:Hide()
       self.craft:Hide()
       self.craftNote:Hide()
+      deTargets = nil
+      updateDisenchantButton()
       return
     end
     local runs = self.runs.value or 1
@@ -392,6 +475,15 @@ local function buildWindow()
     self.steps:SetPoint("RIGHT", self, "RIGHT", -14, 0)
     self.steps:SetText(ns:ShuffleSteps(current) .. "\n\n" .. ns:ShuffleProfitLine(current))
     self.steps:Show()
+
+    -- The Disenchant button sits under the steps (moved only out of combat).
+    deTargets = ns:ShuffleDisenchantTargets(current)
+    if not InCombatLockdown() then
+      deButton:ClearAllPoints()
+      deButton:SetPoint("TOPLEFT", self.steps, "BOTTOMLEFT", 0, -10)
+      deButton:SetPoint("RIGHT", self, "RIGHT", -14, 0)
+    end
+    updateDisenchantButton()
   end
 
   function win:RefreshSession()

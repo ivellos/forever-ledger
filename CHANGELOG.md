@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - Disenchant recorder: every disenchant is logged (the item, its level and what it gave). `/fl de` shows the totals per group next to what the addon's yield table expects; `/fl de reset` starts a fresh count.
+- Disenchant button in Work it, for shuffles that disenchant: "Disenchant: <item> (N left)" disenchants the next of that shuffle's items in your bags with one click. It only ever picks the shuffle's own items (a group's greens, or what you crafted for it), and updates between clicks out of combat.
 - Disenchant finder: a panel beside the auction house (button below it) listing green armor and weapons from your last scan, filtered by item level band (checkboxes), armor or weapons, and "only worth disenchanting", with price, disenchant value and profit. Click an item to search for it.
 
 ### Changed
