@@ -268,6 +268,7 @@ function ns:ApiReport()
     "TooltipDataProcessor.AddTooltipPostCall", "C_Item.GetItemInfo",
     "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
     "BuyMerchantItem", "GetMerchantItemID", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
+    "C_TradeSkillUI.CraftRecipe", "LOOT_ITEM_CREATED_SELF",
     "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
   }

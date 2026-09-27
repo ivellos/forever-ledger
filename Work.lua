@@ -24,10 +24,10 @@ end
 ---------------------------------------------------------------------------
 -- Actions (each runs from one click)
 ---------------------------------------------------------------------------
--- Search the open auction house for an item by its exact name. With a quantity,
--- also fill in the Quantity box once the item's buy page opens (you still click Buy).
-local pendingQty
-function ns:SearchAuctionHouse(id, qty)
+-- Search the open auction house for an item by its exact name. (Filling in the
+-- Quantity box was tried and removed: the auction house kept its old amount and price,
+-- so purchases failed with "no longer available".)
+function ns:SearchAuctionHouse(id)
   local ah, name = AuctionHouseFrame, ns.GetItemInfo(id)
   if not (ah and ah:IsShown() and name) then return false end
   if ah.SetDisplayMode and AuctionHouseFrameDisplayMode and AuctionHouseFrameDisplayMode.Buy then
@@ -37,36 +37,25 @@ function ns:SearchAuctionHouse(id, qty)
   if not (bar and bar.SearchBox) then return false end
   bar.SearchBox:SetText('"' .. name .. '"')
   if bar.StartSearch then pcall(bar.StartSearch, bar) end
-  pendingQty = qty and { id = id, qty = qty, t = GetTime() } or nil
   return true
 end
 
--- Put a number in the commodity buy page's Quantity box, the way typing it would.
-local function fillQuantity(qty)
-  local buy = AuctionHouseFrame and AuctionHouseFrame.CommoditiesBuyFrame
-  local display = buy and buy.BuyDisplay
-  local input = display and display.QuantityInput
-  local box = input and (input.InputBox or input)
-  if not (box and box.SetText) then return false end
-  if input.SetQuantity then
-    pcall(input.SetQuantity, input, qty)
-  else
-    box:SetText(tostring(qty))
-    local changed = box:GetScript("OnTextChanged")
-    if changed then pcall(changed, box, true) end
+-- Start crafting a recipe from a click. Only works while that profession's window is open.
+function ns:CraftFromClick(opt, count)
+  local TS = C_TradeSkillUI
+  if not (TS and TS.CraftRecipe and opt.recipeID) then
+    ns:Print("This game client can't start crafts from an addon.")
+    return
   end
-  return true
+  local base = TS.GetBaseProfessionInfo and TS.GetBaseProfessionInfo()
+  local openProf = type(base) == "table" and base.professionName
+  if not openProf or (opt.prof and openProf ~= opt.prof) then
+    ns:Print(("Open your %s window first, then click Craft."):format(opt.prof or "profession"))
+    return
+  end
+  local ok, err = pcall(TS.CraftRecipe, opt.recipeID, count)
+  if not ok then ns:Print("Couldn't start the craft: " .. tostring(err)) end
 end
-
-ns:On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
-  local p = pendingQty
-  if not p or p.id ~= itemID or GetTime() - p.t > 10 then return end
-  pendingQty = nil
-  -- Let the buy page finish opening first.
-  C_Timer.After(0.2, function()
-    if not fillQuantity(p.qty) then ns:Debug("Couldn't find the auction house Quantity box.") end
-  end)
-end)
 
 -- Buy from the open vendor. Returns true, or false and why.
 function ns:BuyFromVendor(id, qty)
@@ -104,7 +93,8 @@ function ns:StartSession(s, goal)
   ns.db.session = {
     key = s.key, name = ns:ShuffleName(s), t = time(), goal = goal ~= 0 and goal or nil, char = ns.CharKey(),
     inputs = inputs, products = products, names = names, spell = run.spell, spellName = spellName,
-    sellItem = run.sellItem, runs = 0,
+    sellItem = run.sellItem, kind = s.opt.kind, craftItem = s.opt.kind == "craft" and s.opt.rec and s.opt.rec.out or nil,
+    runs = 0,
   }
   ns:Print(("Session started: %s. Buy, craft and sell as usual; the ledger keeps count."):format(ns.db.session.name))
 end
@@ -157,16 +147,33 @@ function ns.SpellName(spellID)
   if GetSpellInfo then return (GetSpellInfo(spellID)) end
 end
 
--- Count runs: each successful cast of the first craft, or of Disenchant.
+local function addRuns(n)
+  local sess = ns.db.session
+  sess.runs = sess.runs + n
+  if win and win:IsShown() then win:RefreshSession() end
+end
+
+-- Crafts: count "You create: [item]." (or "[item]x5") for the shuffle's first product.
+-- This doesn't depend on spell or recipe numbers, which differ in Forever.
+local CREATED = LOOT_ITEM_CREATED_SELF and LOOT_ITEM_CREATED_SELF:match("^(.-)%%s") or "You create: "
+local function onCreated(msg)
+  local sess = ns.db and ns.db.session
+  if not (sess and sess.craftItem and type(msg) == "string") then return end
+  if msg:sub(1, #CREATED) ~= CREATED then return end
+  local id = ns.ItemIDFromLink(msg)
+  ns:Debug("Created", id or "?", "- session counts", sess.craftItem)
+  if id == sess.craftItem then addRuns(tonumber(msg:match("x(%d+)%.?$")) or 1) end
+end
+ns:On("CHAT_MSG_LOOT", onCreated)
+ns:On("CHAT_MSG_TRADESKILLS", onCreated)
+
+-- Disenchanting: count each successful Disenchant cast.
 ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
   local sess = ns.db and ns.db.session
-  if unit ~= "player" or not sess then return end
+  if unit ~= "player" or not sess or sess.kind ~= "disenchant" then return end
   local name = ns.SpellName(spellID)
-  ns:Debug("Cast", spellID, name or "?", "- session counts", sess.spell or "?", sess.spellName or "?")
-  if (sess.spell and spellID == sess.spell) or (sess.spellName and name == sess.spellName) then
-    sess.runs = sess.runs + 1
-    if win and win:IsShown() then win:RefreshSession() end
-  end
+  ns:Debug("Cast", spellID, name or "?")
+  if spellID == sess.spell or (sess.spellName and name == sess.spellName) then addRuns(1) end
 end)
 
 ---------------------------------------------------------------------------
@@ -218,7 +225,7 @@ local function buildWindow()
     b.text:SetWordWrap(false)
     b:SetScript("OnClick", function(self)
       local qty = self.qty * (win.runs.value or 1)
-      if ns:SearchAuctionHouse(self.id, qty) then return end
+      if ns:SearchAuctionHouse(self.id) then return end
       local ok, why = ns:BuyFromVendor(self.id, qty)
       if ok then return end
       ns:Print(why or "Open the auction house or a vendor first, then click an item.")
@@ -227,7 +234,7 @@ local function buildWindow()
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       GameTooltip:SetItemByID(self.id)
       GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(("At the auction house: click to search for it (quantity %d)."):format(self.qty * (win.runs.value or 1)), T.accent[1], T.accent[2], T.accent[3])
+      GameTooltip:AddLine(("At the auction house: click to search for it, then buy %d."):format(self.qty * (win.runs.value or 1)), T.accent[1], T.accent[2], T.accent[3])
       GameTooltip:AddLine(("At a vendor: click to buy %d."):format(self.qty * (win.runs.value or 1)), T.accent[1], T.accent[2], T.accent[3])
       GameTooltip:Show()
     end)
@@ -237,6 +244,17 @@ local function buildWindow()
 
   win.stepsTitle = T:Text(win, 12, T.accent)
   win.stepsTitle:SetText("Steps")
+  -- Starts the first craft, as many times as "Buy for" says. Needs its profession window open.
+  win.craft = T:Button(win, "Craft", 120, function()
+    if current and current.opt.kind == "craft" then ns:CraftFromClick(current.opt, win.runs.value or 1) end
+  end, 22)
+  win.craft:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Starts the first craft", 1, 1, 1)
+    GameTooltip:AddLine(("Open your %s window first."):format(current and current.opt.prof or "profession"), 0.85, 0.85, 0.85, true)
+    GameTooltip:Show()
+  end)
+  win.craft:SetScript("OnLeave", function() GameTooltip:Hide() end)
   win.steps = T:Text(win, 11, { 1, 1, 1, 0.85 })
   win.steps:SetJustifyH("LEFT")
   win.steps:SetJustifyV("TOP")
@@ -269,6 +287,7 @@ local function buildWindow()
       for _, b in ipairs(self.lines) do b:Hide() end
       self.stepsTitle:Hide()
       self.steps:Hide()
+      self.craft:Hide()
       return
     end
     local runs = self.runs.value or 1
@@ -291,6 +310,11 @@ local function buildWindow()
     self.stepsTitle:ClearAllPoints()
     self.stepsTitle:SetPoint("TOPLEFT", 14, -y)
     self.stepsTitle:Show()
+    local canCraft = current.opt.kind == "craft" and current.opt.recipeID ~= nil
+    self.craft:ClearAllPoints()
+    self.craft:SetPoint("TOPRIGHT", self, "TOPRIGHT", -14, -(y - 4))
+    self.craft:SetText(("Craft %d"):format(runs))
+    self.craft:SetShown(canCraft)
     self.steps:ClearAllPoints()
     self.steps:SetPoint("TOPLEFT", 14, -(y + 18))
     self.steps:SetPoint("RIGHT", self, "RIGHT", -14, 0)
