@@ -340,24 +340,34 @@ function ns:ShuffleProfitLine(s)
     limit, ns.Money(s.profit), s.single and "each" or "per craft", returnPct(s), hour)
 end
 
--- How many times the shuffle could be done with what's listed now: limited by the
--- scarcest thing bought on the auction house (listed / needed per run). For a group,
--- every listed member counts. nil when everything comes from vendors (no limit).
--- Counts every listing, not only the cheap ones.
+-- How many times the shuffle could be done profitably with what's listed now, limited
+-- by the scarcest thing bought on the auction house. Only listings cheap enough count:
+-- up to "buy at up to" for the main item, up to the price the sums assumed for other
+-- materials. For a group, every member listed cheaply enough counts. nil when
+-- everything comes from vendors (no limit).
 function ns:ShuffleRuns(s)
   if s.group then
     local n = 0
-    for _, m in ipairs(s.members) do n = n + (m.buys[1].listed or 0) end
+    for _, m in ipairs(s.members) do n = n + (ns:ListedAtOrBelow(m.id, s.maxBuy) or 0) end
     return n
   end
   local runs
-  for _, b in ipairs(s.buys) do
+  for i, b in ipairs(s.buys) do
     if b.listed then
-      local r = math.floor(b.listed / math.max(b.qty or 1, 1))
+      local limit = (i == 1) and s.maxBuy or b.price
+      local avail = ns:ListedAtOrBelow(b.id, limit) or b.listed
+      local r = math.floor(avail / math.max(b.qty or 1, 1))
       runs = runs and math.min(runs, r) or r
     end
   end
   return runs
+end
+
+-- A short name for the table: the item or recipe, without the steps.
+function ns:ShuffleName(s)
+  if s.group then return ("%s (%d items)"):format(s.group, #s.members) end
+  if s.single then return itemName(s.id) end
+  return (s.opt.rec and s.opt.rec.n) or ns:ShuffleTitle(s)
 end
 
 function ns:ShuffleReturn(s) return s.cost > 0 and s.profit / s.cost or 0 end

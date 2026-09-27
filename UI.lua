@@ -168,7 +168,36 @@ local function buildMain()
   main.shuffleInfo:SetPoint("LEFT", main.refreshBtn, "RIGHT", 12, 0)
 
   main.status = T:Text(main, 11, T.accent)
-  main.status:SetPoint("BOTTOMRIGHT", -14, 18)
+  main.status:SetPoint("BOTTOMRIGHT", -26, 18)
+
+  -- Resizing: drag the grip in the bottom-right corner. The starting size is the smallest.
+  local MIN_W, MIN_H = 760, 520
+  main:SetResizable(true)
+  if main.SetResizeBounds then main:SetResizeBounds(MIN_W, MIN_H, 1800, 1300)
+  elseif main.SetMinResize then main:SetMinResize(MIN_W, MIN_H) end
+  local saved = ns.db.settings.window
+  if saved.w and saved.h then main:SetSize(math.max(saved.w, MIN_W), math.max(saved.h, MIN_H)) end
+  local grip = CreateFrame("Button", nil, main)
+  grip:SetSize(16, 16)
+  grip:SetPoint("BOTTOMRIGHT", -2, 2)
+  grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+  grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+  grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+  grip:SetScript("OnMouseDown", function() main:StartSizing("BOTTOMRIGHT") end)
+  grip:SetScript("OnMouseUp", function()
+    main:StopMovingOrSizing()
+    saved.w, saved.h = main:GetWidth(), main:GetHeight()
+  end)
+  -- Lay the current tab out again while the size changes, at most every 0.1 seconds.
+  local queued = false
+  main:SetScript("OnSizeChanged", function()
+    if queued or not main.view then return end
+    queued = true
+    C_Timer.After(0.1, function()
+      queued = false
+      if main.view == "shuffles" or main.view == "flips" then layoutShuffles() else ns:RefreshUI() end
+    end)
+  end)
 
   setView("dashboard")
   return main
@@ -497,24 +526,26 @@ local SUBTABS = {
 }
 local COLUMNS = {
   shuffles = {
-    { key = "steps", label = "Steps", width = 116, tip = "Each step in order. Hover a row to read them." },
-    { key = "name", label = "Shuffle", tip = "What you buy or craft first." },
+    { key = "route", label = "Route", width = 116, tip = "An icon for each step. Hover an icon to read that step." },
+    { key = "name", label = "Shuffle", tip = "What you buy or craft first. Click a row for what to buy and every step." },
+    { key = "steps", label = "Steps", width = 44, tip = "How many steps, including the sale." },
     { key = "profit", label = "Profit", width = 90, tip = "Profit each time you do it (per craft, or per item bought)." },
     { key = "ret", label = "Return", width = 58, tip = "Profit as a share of what you spend." },
     { key = "hour", label = "Per hour", width = 96, tip = "Rough profit per hour, counting only crafting time (see Seconds per craft in Settings)." },
-    { key = "runs", label = "Runs", width = 62, tip = "How many times you could do it with what's listed now, limited by the scarcest thing you buy on the auction house. \"no limit\" when everything comes from vendors. Counts every listing, not only the cheap ones." },
+    { key = "runs", label = "Runs", width = 62, tip = "How many times you could do it profitably with what's listed now: only listings cheap enough count, and the scarcest thing you buy on the auction house sets the limit. \"no limit\" when everything comes from vendors." },
   },
   flips = {
     { key = "name", label = "Item", tip = "Listed for less than a vendor pays." },
     { key = "profit", label = "Profit each", width = 90, tip = "What a vendor pays, minus what it costs." },
     { key = "ret", label = "Return", width = 58, tip = "Profit as a share of what you spend." },
-    { key = "runs", label = "Listed", width = 62, tip = "How many are listed. Counts every listing, not only the cheap ones." },
-    { key = "total", label = "If all bought", width = 110, tip = "Profit each times the number listed: the most you could make." },
+    { key = "runs", label = "Listed", width = 62, tip = "How many are listed cheaply enough to make a profit." },
+    { key = "total", label = "If all bought", width = 110, tip = "Profit each times the number listed cheaply enough: about the most you could make." },
   },
 }
 local SORT_VALUE = {
+  route = function(s) return #ns:StepIcons(s.opt) end,
   steps = function(s) return #ns:StepIcons(s.opt) end,
-  name = function(s) return ns:ShuffleTitle(s):lower() end,
+  name = function(s) return ns:ShuffleName(s):lower() end,
   profit = function(s) return s.profit end,
   ret = function(s) return ns:ShuffleReturn(s) end,
   hour = function(s) return s.perHour end,
@@ -642,24 +673,27 @@ local function getRow(i)
     openKeys[self.shuffle.key] = not openKeys[self.shuffle.key]
     layoutShuffles()
   end)
-  r:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-    GameTooltip:AddLine(ns:ShuffleTitle(self.shuffle), 1, 1, 1)
-    for line in ns:ShuffleSteps(self.shuffle):gmatch("[^\n]+") do GameTooltip:AddLine(line, 0.85, 0.85, 0.85, true) end
-    GameTooltip:AddLine("Click to show what to buy.", T.accent[1], T.accent[2], T.accent[3])
-    GameTooltip:Show()
-  end)
-  r:SetScript("OnLeave", function() GameTooltip:Hide() end)
   rows[i] = r
   return r
 end
 
+-- A step icon. Hovering it names that step; clicking it opens the row like the rest.
 local function stepIcon(r, j)
   if not r.steps[j] then
-    local t = r:CreateTexture(nil, "ARTWORK")
-    t:SetSize(16, 16)
-    t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    r.steps[j] = t
+    local b = CreateFrame("Frame", nil, r)
+    b:SetSize(16, 16)
+    b:EnableMouse(true)
+    b.tex = b:CreateTexture(nil, "ARTWORK")
+    b.tex:SetAllPoints()
+    b.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine(self.text or "", 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnMouseUp", function() r:Click() end)
+    r.steps[j] = b
   end
   return r.steps[j]
 end
@@ -680,14 +714,15 @@ local function fillRow(r, s, lay, index, width)
   r.stripe:SetShown(index % 2 == 0)
   r.openBar:SetShown(openKeys[s.key] or false)
 
-  local icons = lay.steps and ns:StepIcons(s.opt) or {}
-  local fit = lay.steps and math.floor(lay.steps.w / 19) or 0
+  local icons = lay.route and ns:StepIcons(s.opt) or {}
+  local fit = lay.route and math.floor(lay.route.w / 19) or 0
   for j, st in ipairs(icons) do
-    local t = stepIcon(r, j)
-    t:SetTexture(st[1])
-    t:ClearAllPoints()
-    t:SetPoint("LEFT", r, "LEFT", lay.steps.x + (j - 1) * 19, 0)
-    t:SetShown(j <= fit)
+    local b = stepIcon(r, j)
+    b.tex:SetTexture(st[1])
+    b.text = ("%d. %s"):format(j, st[2])
+    b:ClearAllPoints()
+    b:SetPoint("LEFT", r, "LEFT", lay.route.x + (j - 1) * 19, 0)
+    b:SetShown(j <= fit)
   end
   for j = #icons + 1, #r.steps do r.steps[j]:Hide() end
 
@@ -697,10 +732,11 @@ local function fillRow(r, s, lay, index, width)
   r.name:ClearAllPoints()
   r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
   r.name:SetWidth(lay.name.w - 26)
-  r.name:SetText(ns:ShuffleTitle(s))
+  r.name:SetText(ns:ShuffleName(s))
 
   local runs = ns:ShuffleRuns(s)
   local values = {
+    steps = tostring(#ns:StepIcons(s.opt)),
     profit = "|cff7fd39c" .. ns.Money(s.profit) .. "|r",
     ret = ("%d%%"):format(math.floor(ns:ShuffleReturn(s) * 100 + 0.5)),
     hour = ns.Money(math.floor(s.perHour / 100) * 100),
@@ -864,7 +900,7 @@ layoutShuffles = function()
     h:SetPoint("LEFT", f.header, "LEFT", lay[c.key].x, 0)
     h:SetSize(lay[c.key].w, 22)
     local sorted = sort.key == c.key
-    h.fs:SetJustifyH(c.width and c.key ~= "steps" and "RIGHT" or "LEFT")
+    h.fs:SetJustifyH(c.width and c.key ~= "route" and "RIGHT" or "LEFT")
     h.fs:SetText(c.label .. (sorted and (sort.desc and " v" or " ^") or ""))
     local col = sorted and { T.accent[1], T.accent[2], T.accent[3], 1 } or T.dim
     h.fs:SetTextColor(col[1], col[2], col[3], col[4] or 1)

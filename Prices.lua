@@ -130,6 +130,22 @@ function ns:WatchList()
   return list
 end
 
+local LADDER_LEVELS = 20
+
+-- How many are listed at or below a price, from the last scan's price ladder.
+-- Older scans without a ladder give the total listed. nil if never scanned.
+function ns:ListedAtOrBelow(id, price)
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if not rec or rec.none then return rec and 0 or nil end
+  if not rec.l then return rec.q end
+  local n = 0
+  for p, c in rec.l:gmatch("(%d+):(%d+)") do
+    if tonumber(p) > price then break end
+    n = tonumber(c)
+  end
+  return n
+end
+
 -- units: list of { unitPrice, quantity }
 local function record(id, units, src)
   if ns.InvalidateValues then ns:InvalidateValues() end
@@ -149,10 +165,26 @@ local function record(id, units, src)
       qty = qty + take
     end
   end
+  -- Price ladder: how many are listed at or below each of the cheapest price levels,
+  -- as "price:count,price:count" (count is running total). Lets "runs" count only
+  -- listings cheap enough to be worth buying.
+  local ladder, cum, lastPrice = {}, 0, nil
+  for _, u in ipairs(units) do
+    cum = cum + u[2]
+    if u[1] == lastPrice then
+      ladder[#ladder] = math.floor(u[1]) .. ":" .. cum
+    elseif #ladder < LADDER_LEVELS then
+      ladder[#ladder + 1] = math.floor(u[1]) .. ":" .. cum
+      lastPrice = u[1]
+    else
+      break
+    end
+  end
   local rec = {
     m = units[1][1],
     a = math.floor(total / math.max(qty, 1) + 0.5),
     q = listed,
+    l = table.concat(ladder, ","),
     t = time(),
     src = src or "scan",
   }
