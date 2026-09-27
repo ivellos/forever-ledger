@@ -30,9 +30,12 @@ local function probeFavor()
 end
 
 local function probeChat()
-  local list = { GetChannelList and GetChannelList() }
+  -- GetChannelList came back empty in Forever; ask for each channel number instead.
   local names = {}
-  for i = 1, #list, 3 do names[#names + 1] = ("%s. %s"):format(tostring(list[i]), tostring(list[i + 1])) end
+  for i = 1, 20 do
+    local id, name = GetChannelName and GetChannelName(i)
+    if id and id > 0 and name then names[#names + 1] = ("%d. %s"):format(id, name) end
+  end
   say("Chat channels you're in: %s", #names > 0 and table.concat(names, ", ") or "none found")
   say("SendChatMessage: %s. C_TradeSkillUI.GetTradeSkillListLink: %s.",
     exists("SendChatMessage") and "yes" or "no", exists("C_TradeSkillUI.GetTradeSkillListLink") and "yes" or "no")
