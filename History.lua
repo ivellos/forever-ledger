@@ -30,9 +30,13 @@ end
 ---------------------------------------------------------------------------
 -- Gold over time: gold[charKey][hour] = copper
 ---------------------------------------------------------------------------
+-- Around login and logout the game can briefly report 0 gold; those readings are
+-- skipped (they made the Dashboard graph dip to 0c).
 local function snapshotGold()
   if not ns.db or not GetMoney then return end
-  charTable(ns.db.gold)[thisHour()] = GetMoney()
+  local g = GetMoney()
+  if not g or g <= 0 then return end
+  charTable(ns.db.gold)[thisHour()] = g
 end
 
 -- Older than HOURLY_DAYS: keep only the last value of each day.
@@ -194,7 +198,9 @@ track("TAXIMAP_OPENED", "TAXIMAP_CLOSED", "taxi")
 
 ns:On("PLAYER_MONEY", onMoney)
 ns:On("PLAYER_ENTERING_WORLD", function()
-  lastMoney = GetMoney()
+  -- A 0 here may be the game not having loaded gold yet; the next change sets it.
+  local g = GetMoney()
+  lastMoney = g and g > 0 and g or nil
   snapshotGold()
 end)
 ns:On("PLAYER_LOGOUT", snapshotGold)
@@ -261,6 +267,15 @@ ns:OnReady(function()
     if itemKey and itemKey.itemID and not (ns.Scan and ns.Scan.active) then lastShownItem = itemKey.itemID end
   end)
   pruneGold()
+  -- Remove bad 0-gold readings saved before they were skipped, for characters that
+  -- have real readings too.
+  for _, hours in pairs(ns.db.gold) do
+    local real = false
+    for _, g in pairs(hours) do if g > 0 then real = true; break end end
+    if real then
+      for h, g in pairs(hours) do if g <= 0 then hours[h] = nil end end
+    end
+  end
   -- Drop log entries older than LOG_DAYS (the logs are oldest first).
   local cutoff = time() - LOG_DAYS * 86400
   for _, list in ipairs({ ns.db.sales, ns.db.purchases, ns.db.vendorLog }) do

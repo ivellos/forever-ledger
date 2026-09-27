@@ -6,7 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Live sync between two characters on different accounts, while both are online: `/fl pair Name` on each. Prices (last 48 hours), characters and recipes, and vendor prices are sent a few seconds after they change; newer data wins, as with Import. `/fl sync` shows the status, `/fl sync now` sends everything, `/fl sync test` sends your data to yourself to check it works. The Characters tab shows the sync status.
+- Live sync between two characters on different accounts, while both are online: `/fl pair Name` on each. Prices (last 48 hours), characters and recipes, and vendor prices are sent a few seconds after they change; newer data wins, as with Import. `/fl sync` shows the status, `/fl sync now` sends everything, `/fl sync test` sends your data to yourself to check it works. The Characters tab shows the sync status. Whispers use the full "Name-Server" and stop at the first "no player named".
+
+### Fixed
+- The Dashboard gold graph no longer dips to 0c: 0-gold readings the game gives around login and logout are skipped, and ones already saved are removed.
 
 ## [0.3.0] - 2026-09-27
 

@@ -24,6 +24,16 @@ local counter = 0
 local function me() return UnitName("player") end
 local function partner() return ns.db.settings.syncPartner end
 
+-- Whispers need "Name-Server" in Forever (plain "Iveilos" got "No player named").
+-- Names without a server get this character's server.
+local function fullName(name)
+  if not name or name:find("-", 1, true) then return name end
+  local realm = GetNormalizedRealmName and GetNormalizedRealmName()
+  if not realm or realm == "" then realm = (GetRealmName() or ""):gsub("[%s%-]", "") end
+  return realm ~= "" and (name .. "-" .. realm) or name
+end
+local function shortName(name) return name and name:match("^[^-]+") end
+
 local function state()
   local p = (partner() or ""):lower()
   ns.db.sync[p] = ns.db.sync[p] or {}
@@ -46,12 +56,13 @@ local function pump()
     C_Timer.After(THROTTLE_WAIT, pump)
     return
   end
-  if test and m.to == me() then test.sent = test.sent + 1 end
+  if test and m.to == fullName(me()) then test.sent = test.sent + 1 end
   C_Timer.After(SEND_GAP, pump)
 end
 
 local function send(payload, to)
   if not to then return 0 end
+  to = fullName(to)
   counter = counter + 1
   local id = ("%d%d"):format(time() % 100000, counter)
   local text = ns.Serialize(payload)
@@ -63,18 +74,35 @@ local function send(payload, to)
   return n
 end
 
--- Hide the game's "No player named X is currently playing" right after we whispered
--- the partner (they're offline); note that they're offline.
-if ChatFrame_AddMessageEventFilter and ERR_CHAT_PLAYER_NOT_FOUND_S then
-  ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", function(_, _, msg)
-    local p = partner()
-    if p and lastSentTo and GetTime() - lastSentTo < 5 and msg == ERR_CHAT_PLAYER_NOT_FOUND_S:format(p) then
-      partnerOnline = false
-      queue = {}
-      return true
-    end
-  end)
+-- The game's "No player named X is currently playing", right after we whispered X:
+-- stop sending (once is enough), note they're offline, and hide the message.
+local NOT_FOUND = ERR_CHAT_PLAYER_NOT_FOUND_S and ERR_CHAT_PLAYER_NOT_FOUND_S:match("^(.-)%%s") or "No player named "
+local function notFound(msg)
+  if not (lastSentTo and GetTime() - lastSentTo < 5 and type(msg) == "string") then return false end
+  if msg:sub(1, #NOT_FOUND) ~= NOT_FOUND then return false end
+  local target = test and me() or shortName(partner())
+  return target ~= nil and msg:find(target, 1, true) ~= nil
 end
+
+local function failed()
+  queue = {}
+  sending = false
+  if test then
+    ns:Print(("Sync test stopped: the game says there's no player named %s, so addon whispers to %s don't arrive."):format(
+      me(), fullName(me())))
+    test = nil
+  elseif partnerOnline then
+    partnerOnline = false
+    ns:Print(("Sync: %s went offline."):format(partner()))
+  end
+end
+
+if ChatFrame_AddMessageEventFilter then
+  ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", function(_, _, msg) return notFound(msg) end)
+end
+ns:On("CHAT_MSG_SYSTEM", function(msg)
+  if notFound(msg) and (test or #queue > 0 or partnerOnline) then failed() end
+end)
 
 ---------------------------------------------------------------------------
 -- What to send
@@ -168,8 +196,8 @@ end
 
 ns:On("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
   if prefix ~= PREFIX or channel ~= "WHISPER" then return end
-  local name = Ambiguate and Ambiguate(sender, "none") or sender:match("^[^-]+")
-  local fromPartner = partner() and name:lower() == partner():lower()
+  local name = shortName(Ambiguate and Ambiguate(sender, "none") or sender)
+  local fromPartner = partner() and name:lower() == shortName(partner()):lower()
   local fromSelf = test and name == me()
   if not fromPartner and not fromSelf then return end
 
