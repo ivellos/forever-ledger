@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- History for the coming dashboard: each character's gold over time, money in and out each day by source (auction house sales, purchases and fees, vendors, repairs, mail, trade, loot, quests, training, flights), a log of auction house sales and purchases, and 60 days of daily prices per item.
+- `/fl money` shows today's money in and out for the character you're on.
+
 ## [0.2.0] - 2026-09-26
 
 Value engine, shuffle finder and vendor flips. Tested on the Forever beta. The item level 16-20 disenchant table is still the Classic one and hasn't been checked in Forever yet.

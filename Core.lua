@@ -13,6 +13,11 @@ local DEFAULTS = {
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
   vendorBuy = {},   -- [itemID] = { p = copper you pay, t = time, src, lim = limited supply }
+  gold = {},        -- [charKey][hour] = copper (History.lua)
+  money = {},       -- [charKey][day][source] = copper in or out
+  sales = {},       -- auction house sales: { t, c = charKey, n = item name, a = copper received, cut }
+  purchases = {},   -- auction house purchases: { t, c, id, q, a }
+  history = {},     -- [marketKey][itemID] = "day:cheapest:typical|..."
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200 },
 }
 
@@ -233,6 +238,8 @@ function ns:ApiReport()
     "C_AuctionHouse.SendSearchQuery", "C_AuctionHouse.ReplicateItems", "C_AuctionHouse.GetCommoditySearchResultInfo",
     "C_AuctionHouse.GetItemSearchResultInfo", "C_MerchantFrame.GetItemInfo", "GetMerchantItemInfo",
     "TooltipDataProcessor.AddTooltipPostCall", "C_Item.GetItemInfo",
+    "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
+    "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
   }
   ns:Print("API check (send this to Claude if something isn't working):")
@@ -272,6 +279,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
   elseif msg == "debug" then
     ns.db.settings.debug = not ns.db.settings.debug
     ns:Print("Debug messages " .. (ns.db.settings.debug and "on." or "off."))
+  elseif msg == "money" then
+    ns:PrintMoney()
   elseif msg == "minimap" then
     ns.db.settings.minimap = not ns.db.settings.minimap
     ns:UpdateMinimapButton()
@@ -316,6 +325,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl minimap, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl minimap, /fl money, /fl tooltip, /fl api, /fl debug")
   end
 end

@@ -149,13 +149,15 @@ local function record(id, units, src)
       qty = qty + take
     end
   end
-  ns.db.prices[key][id] = {
+  local rec = {
     m = units[1][1],
     a = math.floor(total / math.max(qty, 1) + 0.5),
     q = listed,
     t = time(),
     src = src or "scan",
   }
+  ns.db.prices[key][id] = rec
+  if ns.RecordPriceHistory then ns:RecordPriceHistory(id, rec.m, rec.a) end
 end
 ns.RecordPrice = record
 
