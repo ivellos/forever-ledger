@@ -21,6 +21,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl cut` shows or changes the auction house cut used in values (default 5%).
 
 ### Changed
+- The scan buttons and `/fl scan` now do a full scan when Blizzard allows one (about every 15 minutes), which reads everything in seconds. Otherwise they scan your materials, and say when the next full scan is possible. `/fl scan materials` forces the materials scan.
+- The materials scan tries items that got no reply once more at the end.
 - The "scan finished" and "full scan done" messages say how long the scan took.
 
 ### Fixed

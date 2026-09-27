@@ -252,6 +252,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
   if msg == "" then
     ns:ToggleUI()
   elseif msg == "scan" then
+    ns.Scan:Start("auto")
+  elseif msg == "scan materials" then
     ns.Scan:Start("watch")
   elseif msg == "scan full" then
     ns.Scan:Start("full")
@@ -310,6 +312,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl tooltip, /fl api, /fl debug")
   end
 end

@@ -177,13 +177,34 @@ local function sorts()
   return SORTS or {}
 end
 
+local FULL_COOLDOWN = 15 * 60   -- Blizzard allows a full scan about every 15 minutes
+
+-- Seconds until a full scan is allowed again (0 if it is now).
+function Scan:FullWait()
+  if not C_AuctionHouse.ReplicateItems then return math.huge end
+  return math.max(0, (ns.db.lastFullScan or 0) + FULL_COOLDOWN - time())
+end
+
+-- mode: "auto" (full scan if allowed, otherwise materials), "full" or "watch" (materials only).
 function Scan:Start(mode)
   if not C_AuctionHouse then ns:Print("This client has no auction house scanning."); return end
   if not ahOpen then ns:Print("Open the auction house first."); return end
   if self.active then ns:Print("A scan is already running. Type /fl stop to cancel it."); return end
   self.started = GetTime()
-  if mode == "full" then return self:StartFull() end
+  if mode == "full" then return self:StartFull(false) end
+  if mode == "auto" then
+    local wait = self:FullWait()
+    if wait == 0 then return self:StartFull(true) end
+    if wait < math.huge then
+      ns:Print(("A full scan is possible again in %d min. Scanning your materials instead."):format(math.ceil(wait / 60)))
+    end
+  end
+  self:StartWatch()
+end
+
+function Scan:StartWatch()
   self.queue = ns:WatchList()
+  self.items, self.retry, self.retrying = #self.queue, {}, false
   self.total, self.done, self.active, self.pending = #self.queue, 0, true, nil
   ns:Print(("Scanning %d items. Keep the auction house open."):format(self.total))
   self:Next()
@@ -191,7 +212,17 @@ end
 
 function Scan:Next()
   if not self.active then return end
-  if #self.queue == 0 then self:Stop(); return end
+  if #self.queue == 0 then
+    -- Give items that got no reply one more try at the end.
+    if #self.retry > 0 and not self.retrying then
+      ns:Debug("Trying again:", #self.retry, "items")
+      self.queue, self.retry, self.retrying = self.retry, {}, true
+      self.total = self.total + #self.queue
+    else
+      self:Stop()
+      return
+    end
+  end
   if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then
     self.waiting = true
     C_Timer.After(0.5, function()
@@ -214,6 +245,7 @@ function Scan:Next()
     if self.active and self.token == tok and self.pending == id then
       local units = self:ReadWaiting(id)
       ns:Debug(units and "Read waiting results for item" or "No reply for item", id)
+      if not units and not self.retrying then table.insert(self.retry, id) end
       self:Finish(id, units)
     end
   end)
@@ -231,7 +263,7 @@ function Scan:Stop(reason)
   local was = self.active
   self.active, self.pending, self.full, self.waiting = false, nil, false, false
   self.queue = {}
-  if was then ns:Print(reason or ("Scan finished: %d items checked in %s."):format(self.done or 0, took())) end
+  if was then ns:Print(reason or ("Scan finished: %d items checked in %s."):format(self.items or self.done or 0, took())) end
   ns:RefreshUI()
 end
 
@@ -287,14 +319,30 @@ ns:On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
 end)
 
 -- Full scan of every listing. Blizzard only allows this about every 15 minutes.
-function Scan:StartFull()
+-- fallback: scan materials instead if the auction house doesn't send the full scan.
+local FULL_TIMEOUT = 30
+function Scan:StartFull(fallback)
   if not C_AuctionHouse.ReplicateItems then
-    ns:Print("Full scans aren't available in this client. Use /fl scan instead.")
+    ns:Print("Full scans aren't available in this client. Use /fl scan materials instead.")
     return
   end
   self.active, self.full, self.done, self.total = true, true, 0, 0
-  ns:Print("Requesting a full scan. This can take a minute and only works about every 15 minutes.")
+  self.fullToken = (self.fullToken or 0) + 1
+  local tok = self.fullToken
+  ns:Print("Requesting a full scan of the auction house. This usually takes a few seconds.")
   C_AuctionHouse.ReplicateItems()
+  -- Nothing comes back if Blizzard's 15-minute limit hasn't passed (for example after
+  -- a full scan on another character).
+  C_Timer.After(FULL_TIMEOUT, function()
+    if not (self.active and self.full and self.fullToken == tok) then return end
+    self.active, self.full = false, false
+    if fallback then
+      ns:Print("The auction house didn't send a full scan yet. Scanning your materials instead.")
+      self:StartWatch()
+    else
+      ns:Print("The auction house didn't send a full scan. It allows one about every 15 minutes, so try again later, or use /fl scan materials.")
+    end
+  end)
 end
 
 ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
@@ -320,6 +368,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
     else
       local items = 0
       for id, units in pairs(byItem) do record(id, units, "full"); items = items + 1 end
+      ns.db.lastFullScan = time()
       Scan.active = false
       ns:UpdateScanStatus(n, n)
       ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))

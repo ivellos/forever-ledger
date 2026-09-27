@@ -82,7 +82,7 @@ local function buildMain()
   main.status:SetPoint("BOTTOMLEFT", 16, 44)
   main.status:SetText("")
 
-  local scan = button(main, "Scan auction house", 150, function() ns.Scan:Start("watch") end)
+  local scan = button(main, "Scan auction house", 150, function() ns.Scan:Start("auto") end)
   scan:SetPoint("BOTTOMLEFT", 14, 14)
   local exp = button(main, "Export", 90, function() ns:ShowExport() end)
   exp:SetPoint("LEFT", scan, "RIGHT", 6, 0)
@@ -389,7 +389,7 @@ end
 function ns:OnAHShow()
   local ah = AuctionHouseFrame or AuctionFrame
   if ah and not ns.ahButton then
-    ns.ahButton = button(ah, "Ledger scan", 110, function() ns.Scan:Start("watch") end)
+    ns.ahButton = button(ah, "Ledger scan", 110, function() ns.Scan:Start("auto") end)
     ns.ahButton:SetPoint("TOPRIGHT", ah, "TOPRIGHT", -30, -28)
   end
   ns:RefreshUI()
