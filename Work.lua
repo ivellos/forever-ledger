@@ -104,10 +104,20 @@ function ns:CraftFromClick(opt, count)
     end
     return
   end
-  -- No count: as many as the materials in the bags allow.
+  -- No count: as many as the materials in the bags allow. Counted from the saved recipe
+  -- (the game's numAvailable said 0 for Minor Wizard Oil with the materials in bags).
   if not count then
     local info = TS.GetRecipeInfo and TS.GetRecipeInfo(opt.recipeID)
-    count = info and info.numAvailable or 0
+    local fromGame = info and info.numAvailable or 0
+    local fromBags
+    local countItem = (C_Item and C_Item.GetItemCount) or GetItemCount
+    for _, r in ipairs(opt.rec and opt.rec.r or {}) do
+      local have = countItem and countItem(r[1], false, false, true) or 0
+      local n = math.floor(have / math.max(r[2], 1))
+      fromBags = fromBags and math.min(fromBags, n) or n
+    end
+    ns:Debug("Craft", opt.rec and opt.rec.n or "?", "game says", fromGame, "bags say", fromBags or "?")
+    count = math.max(fromGame, fromBags or 0)
     if count <= 0 then
       ns:Print(("No materials for %s in your bags yet."):format(opt.rec and opt.rec.n or "that craft"))
       return
@@ -304,9 +314,21 @@ local useButtons = {}
 local function updateUseButton(b)
   if InCombatLockdown() then b.pending = true; return end
   b.pending = false
-  local n = GetItemCount and GetItemCount(b.item) or 0
-  b:SetAttribute("type", "item")
-  b:SetAttribute("item", "item:" .. b.item)
+  local countItem = (C_Item and C_Item.GetItemCount) or GetItemCount
+  local n = countItem and countItem(b.item) or 0
+  -- Point at a bag slot ("4 8") rather than "item:10939": using by name set off an
+  -- error in Wowhead Looter, which hooks that route.
+  local where
+  if C_Container and C_Container.GetContainerNumSlots then
+    for bag = 0, (NUM_BAG_SLOTS or 4) + 1 do
+      for slot = 1, (C_Container.GetContainerNumSlots(bag) or 0) do
+        local info = C_Container.GetContainerItemInfo(bag, slot)
+        if not where and info and info.itemID == b.item and not info.isLocked then where = bag .. " " .. slot end
+      end
+    end
+  end
+  b:SetAttribute("type", where and "item" or nil)
+  b:SetAttribute("item", where)
   b.text:SetText(("%s (%d %s in bags)"):format(b.label, n, ns.ItemName(b.item)))
   b.icon:SetTexture(ns:ItemIcon(b.item))
   b:SetAlpha(n > 0 and 1 or 0.6)

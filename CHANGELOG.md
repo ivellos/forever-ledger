@@ -14,6 +14,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl probe` reports what the game gives for planned features: Merchant's Favor, chat channels and profession links, Waylaid Crate and Writ tooltips in your bags, then the next trade and the next vendor that sells for a currency. It only reads and prints.
 
 ### Fixed
+- "Craft all you can" said there were no materials when there were: it now counts the materials in your bags from the saved recipe.
+- The split button set off an error in Wowhead Looter; it now uses the item's bag slot instead.
 - Opening Work it gave an error ("Cannot anchor protected frames to regions") after the Disenchant button was added.
 - Item names in lists no longer flicker between "item 727" and the name (and the redrawing this caused made the game lag): names are remembered once the game has given them.
 - Less lag: after small changes, item values are rebuilt at most every 30 seconds instead of every 2, and each item's full list of options is remembered for tooltips and the finder. `/fl perf` shows which parts of the addon take the most time (`/fl perf reset` to start over). The addon now only hears your own spell casts, not everyone's nearby.
