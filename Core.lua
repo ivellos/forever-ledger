@@ -13,7 +13,7 @@ local DEFAULTS = {
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
   vendorBuy = {},   -- [itemID] = { p = copper you pay, t = time, src, lim = limited supply }
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {} },
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200 },
 }
 
 local function copyDefaults(src, dst)
@@ -272,6 +272,10 @@ SlashCmdList.FOREVERLEDGER = function(msg)
   elseif msg == "debug" then
     ns.db.settings.debug = not ns.db.settings.debug
     ns:Print("Debug messages " .. (ns.db.settings.debug and "on." or "off."))
+  elseif msg == "minimap" then
+    ns.db.settings.minimap = not ns.db.settings.minimap
+    ns:UpdateMinimapButton()
+    ns:Print("Minimap button " .. (ns.db.settings.minimap and "shown." or "hidden. Type /fl minimap to bring it back."))
   elseif msg == "tooltip" then
     ns.db.settings.tooltip = not ns.db.settings.tooltip
     ns:Print("Tooltip lines " .. (ns.db.settings.tooltip and "on." or "off."))
@@ -312,6 +316,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto|own|auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl minimap, /fl tooltip, /fl api, /fl debug")
   end
 end

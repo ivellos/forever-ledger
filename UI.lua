@@ -135,6 +135,82 @@ function ns:ToggleUI()
 end
 
 ---------------------------------------------------------------------------
+-- Minimap button: click to open the ledger, right-click for shuffles, drag to move
+---------------------------------------------------------------------------
+local mm
+
+local function placeMinimapButton()
+  local a = math.rad(ns.db.settings.minimapAngle or 200)
+  local r = Minimap:GetWidth() / 2 + 5
+  mm:ClearAllPoints()
+  mm:SetPoint("CENTER", Minimap, "CENTER", math.cos(a) * r, math.sin(a) * r)
+end
+
+local function buildMinimapButton()
+  if mm or not Minimap then return end
+  mm = CreateFrame("Button", "ForeverLedgerMinimapButton", Minimap)
+  mm:SetSize(31, 31)
+  mm:SetFrameStrata("MEDIUM")
+  mm:SetFrameLevel(Minimap:GetFrameLevel() + 8)
+  mm:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  mm:RegisterForDrag("LeftButton")
+  mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+  local bg = mm:CreateTexture(nil, "BACKGROUND")
+  bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+  bg:SetSize(20, 20)
+  bg:SetPoint("TOPLEFT", 7, -5)
+  local icon = mm:CreateTexture(nil, "ARTWORK")
+  icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
+  icon:SetSize(17, 17)
+  icon:SetPoint("TOPLEFT", 7, -6)
+  local border = mm:CreateTexture(nil, "OVERLAY")
+  border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+  border:SetSize(53, 53)
+  border:SetPoint("TOPLEFT")
+
+  mm:SetScript("OnClick", function(_, which)
+    if which == "RightButton" then
+      local f = buildMain()
+      if not f:IsShown() then ns:ScanSkillLines(); f:Show() end
+      setView("shuffles")
+    else
+      ns:ToggleUI()
+    end
+  end)
+  mm:SetScript("OnDragStart", function(self)
+    self:SetScript("OnUpdate", function()
+      local mx, my = Minimap:GetCenter()
+      local px, py = GetCursorPosition()
+      local scale = Minimap:GetEffectiveScale()
+      ns.db.settings.minimapAngle = math.deg(math.atan2(py / scale - my, px / scale - mx))
+      placeMinimapButton()
+    end)
+  end)
+  mm:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
+  mm:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:AddLine("Forever Ledger")
+    GameTooltip:AddLine("Click to open or close.", 1, 1, 1)
+    GameTooltip:AddLine("Right-click for shuffles.", 1, 1, 1)
+    GameTooltip:AddLine("Drag to move. /fl minimap hides it.", 0.7, 0.7, 0.7)
+    GameTooltip:Show()
+  end)
+  mm:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  placeMinimapButton()
+end
+
+function ns:UpdateMinimapButton()
+  if ns.db.settings.minimap then
+    buildMinimapButton()
+    if mm then mm:Show() end
+  elseif mm then
+    mm:Hide()
+  end
+end
+ns:OnReady(function() ns:UpdateMinimapButton() end)
+
+---------------------------------------------------------------------------
 -- Shuffles tab: a list of rows; click one to show its steps underneath
 ---------------------------------------------------------------------------
 local MAX_ROWS = 25       -- per section
