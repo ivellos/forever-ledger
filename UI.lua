@@ -552,7 +552,7 @@ local subtab = "vendor"
 local openKeys = {}
 local rows, details, boxes, headerCells = {}, {}, {}, {}
 
-local function itemName(id) return (ns.GetItemInfo(id)) or ("item " .. id) end
+local function itemName(id) return ns.ItemName(id) end
 
 -- x position and width of each column for a table this wide.
 local function columnLayout(cols, width)
@@ -954,7 +954,9 @@ end
 -- Item names and icons arrive from the game a moment after they're first asked for.
 -- Redraw the table once they do, so "item 4470" becomes "Simple Wood".
 local redrawQueued = false
-ns:On("GET_ITEM_INFO_RECEIVED", function()
+ns:On("GET_ITEM_INFO_RECEIVED", function(id)
+  -- Only for names this addon showed as "item N" (other addons load items all the time).
+  if not ns.nameWanted[id] then return end
   if redrawQueued or not main or not main:IsShown() or not main.shuffles then return end
   if main.view ~= "shuffles" and main.view ~= "flips" then return end
   redrawQueued = true

@@ -8,12 +8,7 @@ local OVERHEAD = 0.1    -- actions per unit for buying and selling
 local MIN_LISTED = 5    -- fewer listed than this counts as a one-off deal
 local SHOWN = 5         -- shuffles shown per section
 
-local function itemName(id)
-  local name = ns.GetItemInfo(id)
-  if name then return name end
-  if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
-  return "item " .. id
-end
+local function itemName(id) return ns.ItemName(id) end
 
 -- Crafts, disenchants and conversions per unit of the item, for per-hour estimates.
 local function actions(o)

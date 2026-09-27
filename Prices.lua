@@ -43,6 +43,34 @@ local function getItemInfo(id)
 end
 ns.GetItemInfo = getItemInfo
 
+-- Item names, remembered in saved data once the game has given them. The game keeps
+-- only so many item details in memory, and asking for hundreds (the Disenchant finder)
+-- pushed out names already shown, so lists flickered between "item 727" and the name.
+ns.nameWanted = {}      -- itemID = true while a name we showed as "item N" is on its way
+function ns.ItemName(id)
+  if not id then return "?" end
+  local names = ns.db and ns.db.itemNames
+  local name = names and names[id]
+  if name then return name end
+  name = getItemInfo(id)
+  if name then
+    if names then names[id] = name end
+    return name
+  end
+  if not ns.nameWanted[id] then
+    ns.nameWanted[id] = true
+    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+  end
+  return "item " .. id
+end
+
+ns:On("GET_ITEM_INFO_RECEIVED", function(id, success)
+  if id and ns.nameWanted[id] and success then
+    local name = getItemInfo(id)
+    if name and ns.db then ns.db.itemNames[id] = name end
+  end
+end)
+
 local waiting = {}
 function ns:RememberItem(id)
   if not id or not ns.db or ns.db.vendorSell[id] ~= nil then return end

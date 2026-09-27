@@ -18,6 +18,7 @@ local DEFAULTS = {
   sales = {},       -- auction house sales: { t, c = charKey, n = item name, a = copper received, cut }
   purchases = {},   -- auction house purchases: { t, c, id, q, a }
   vendorLog = {},   -- vendor buys and sells: { t, c, id, q, a, s = "buy" | "sell" }
+  itemNames = {},   -- [itemID] = name, remembered so lists don't flicker (Prices.lua ns.ItemName)
   disenchants = {}, -- { t, id, ilvl, q, cls, mats = { [itemID] = count } } (Disenchant.lua, last 1000)
   sync = {},        -- [partner name lowercased] = { sentUpTo = time } (Sync.lua; partner in settings.syncPartner)
   sessions = {},    -- finished sessions: { name, t, stop, spent, earned, runs, goal } (the running one is `session`)

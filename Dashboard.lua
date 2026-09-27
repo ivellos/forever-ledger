@@ -86,7 +86,7 @@ local function goldSeries(keys, from, to)
   return pts
 end
 
-local function itemLabel(id) return id and ((ns.GetItemInfo(id)) or ("item " .. id)) or "Unknown item" end
+local function itemLabel(id) return id and ns.ItemName(id) or "Unknown item" end
 
 -- Sales, expenses, days covered, and the top items for each.
 local function totals(keys, from, to)

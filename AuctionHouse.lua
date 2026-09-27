@@ -337,7 +337,7 @@ function ns:RefreshDisenchantFinder()
     r.stripe:SetShown(i % 2 == 0)
     r.id, r.locked = it.id, it.locked
     r.icon:SetTexture(ns:ItemIcon(it.id))
-    r.name:SetText(("%s |cff888888(%d)|r"):format((ns.GetItemInfo(it.id)) or "?", it.ilvl or 0))
+    r.name:SetText(("%s |cff888888(%d)|r"):format(ns.ItemName(it.id), it.ilvl or 0))
     r.price:SetText(ns.Money(it.price))
     r.worth:SetText(it.locked and "|cffee8597skill|r" or (it.worth and ns.Money(math.floor(it.worth)) or "?"))
     local p = it.profit

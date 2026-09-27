@@ -82,7 +82,7 @@ local function charName(key)
   return (c and c.name) or (key and key:match("^[^-]+")) or "?"
 end
 
-local function nameOf(id) return id and ((ns.GetItemInfo(id)) or ("item " .. id)) or "Unknown item" end
+local function nameOf(id) return id and ns.ItemName(id) or "Unknown item" end
 
 -- An item's icon from its ID or name (names only work once the game knows the item).
 local function iconOf(idOrName)

@@ -12,7 +12,7 @@ local MAX_SESSIONS = 100
 
 local win, current
 
-local function itemName(id) return (ns.GetItemInfo(id)) or ("item " .. id) end
+local function itemName(id) return ns.ItemName(id) end
 local function dim(t) return "|cff888888" .. t .. "|r" end
 
 local function duration(secs)
@@ -477,10 +477,12 @@ local function buildWindow()
     self.steps:Show()
 
     -- The Disenchant button sits under the steps (moved only out of combat).
+    -- Secure buttons can only be anchored to frames, not to text, so place it on the
+    -- window at the height where the steps end.
     deTargets = ns:ShuffleDisenchantTargets(current)
     if not InCombatLockdown() then
       deButton:ClearAllPoints()
-      deButton:SetPoint("TOPLEFT", self.steps, "BOTTOMLEFT", 0, -10)
+      deButton:SetPoint("TOPLEFT", self, "TOPLEFT", 14, -(y + 18 + self.steps:GetStringHeight() + 10))
       deButton:SetPoint("RIGHT", self, "RIGHT", -14, 0)
     end
     updateDisenchantButton()
