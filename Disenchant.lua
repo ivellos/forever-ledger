@@ -93,7 +93,7 @@ local function onLoot()
     log[#log + 1] = { t = time(), id = id, ilvl = ilvl, q = quality, cls = classID, mats = mats }
     while #log > LOG_SIZE do table.remove(log, 1) end
     local parts = {}
-    for m, n in pairs(mats) do parts[#parts + 1] = n .. " " .. ((ns.GetItemInfo(m)) or ("item " .. m)) end
+    for m, n in pairs(mats) do parts[#parts + 1] = n .. " " .. ns:DisenchantMaterialName(m) end
     ns:Debug("Disenchanted", id and ((ns.GetItemInfo(id)) or id) or "unknown item", "item level", ilvl or "?",
       "->", table.concat(parts, ", "))
   end)
@@ -142,7 +142,7 @@ function ns:PrintDisenchants(reset)
     local function line(m)
       local got = g.mats[m] or 0
       local exp = expected[m]
-      print(("      %s: %d (%.2f each%s)"):format((ns.GetItemInfo(m)) or ("item " .. m), got, got / g.n,
+      print(("      %s: %d (%.2f each%s)"):format(ns:DisenchantMaterialName(m), got, got / g.n,
         exp and (", table says %.2f"):format(exp) or ""))
       seen[m] = true
     end

@@ -167,6 +167,8 @@ ns:On("AUCTION_HOUSE_SHOW", function() C_Timer.After(0.1, function() ns:SetUpAuc
 ---------------------------------------------------------------------------
 local finder
 local FINDER_ROWS = 200
+local asked = {}        -- itemID = when item details were requested (asked once per session)
+local GIVE_UP = 10      -- seconds before an item that never loads stops counting as "loading"
 
 local function finderSettings()
   local s = ns.db.settings.deFinder
@@ -182,13 +184,17 @@ local function finderItems()
   local s = finderSettings()
   local market = ns.db.prices[ns.MarketKey()] or {}
   local skill = ns.EnchantingSkill and ns.EnchantingSkill() or 0
-  local out, waiting = {}, 0
+  local out, waiting, now = {}, 0, GetTime()
   for id, rec in pairs(market) do
     if rec.m and not rec.none then
       local name, _, _, ilvl = ns.GetItemInfo(id)
       if not name then
-        waiting = waiting + 1
-        if waiting <= 100 and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+        -- Ask once; some items never load, and asking again every refresh made the game lag.
+        if not asked[id] then
+          asked[id] = now
+          if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+        end
+        if now - asked[id] < GIVE_UP then waiting = waiting + 1 end
       else
         local yield = ns:DisenchantYield(id)
         if yield and s.bands[yield.band] and s[yield.kind] then
@@ -347,12 +353,13 @@ function ns:RefreshDisenchantFinder()
   finder.count:SetText(("%d items%s"):format(#items, waiting > 0 and (", %d still loading"):format(waiting) or ""))
 end
 
--- Item details arrive a moment after they're asked for; redraw once they do.
+-- Item details arrive a moment after they're asked for; redraw once some of ours have,
+-- at most every 3 seconds.
 local finderQueued = false
-ns:On("GET_ITEM_INFO_RECEIVED", function()
-  if finderQueued or not finder or not finder:IsShown() then return end
+ns:On("GET_ITEM_INFO_RECEIVED", function(id)
+  if finderQueued or not asked[id] or not finder or not finder:IsShown() then return end
   finderQueued = true
-  C_Timer.After(1, function() finderQueued = false; ns:RefreshDisenchantFinder() end)
+  C_Timer.After(3, function() finderQueued = false; ns:RefreshDisenchantFinder() end)
 end)
 
 ns:On("AUCTION_HOUSE_SHOW", function()
