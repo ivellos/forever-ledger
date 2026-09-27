@@ -25,7 +25,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Auction house scans read prices for items sold one at a time (bags, oils, rods) far too low, for example Linen Reagent Bags at 19c instead of 13s. Forever already reports these per item. Full scans weren't affected.
-- Scans wait 3 seconds instead of 6 for items with no reply, so they finish faster.
+- Scans wait 3 seconds instead of 6 for items with no reply, so they finish faster. Before giving up on an item, they read any results the auction house already has, which caught items like Bolt of Linen Cloth being skipped right after a full scan.
 - Crafted wands, and anything else made by Enchanting, no longer count as disenchantable. Forever doesn't allow it.
 - The "Scanning" line in the ledger window now clears after a full scan finishes.
 

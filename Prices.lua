@@ -212,8 +212,9 @@ function Scan:Next()
   -- Items with nothing listed may never get a reply, so don't wait long.
   C_Timer.After(3, function()
     if self.active and self.token == tok and self.pending == id then
-      ns:Debug("No reply for item", id)
-      self:Finish(id, nil)
+      local units = self:ReadWaiting(id)
+      ns:Debug(units and "Read waiting results for item" or "No reply for item", id)
+      self:Finish(id, units)
     end
   end)
 end
@@ -238,20 +239,18 @@ ns:On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function()
   if Scan.waiting then Scan.waiting = false; Scan:Next() end
 end)
 
-ns:On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
-  if not Scan.active or Scan.pending ~= itemID then return end
+-- Read search results as { unit price, quantity } lists.
+local function commodityUnits(itemID)
   local n = C_AuctionHouse.GetNumCommoditySearchResults(itemID) or 0
   local units = {}
   for i = 1, n do
     local r = C_AuctionHouse.GetCommoditySearchResultInfo(itemID, i)
     if r and r.unitPrice then units[#units + 1] = { r.unitPrice, r.quantity or 1 } end
   end
-  Scan:Finish(itemID, units)
-end)
+  return units, n
+end
 
-ns:On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
-  local id = itemKey and itemKey.itemID
-  if not Scan.active or Scan.pending ~= id then return end
+local function itemUnits(itemKey)
   local n = C_AuctionHouse.GetNumItemSearchResults(itemKey) or 0
   local units = {}
   for i = 1, n do
@@ -262,6 +261,27 @@ ns:On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
       units[#units + 1] = { r.buyoutAmount, math.max(r.quantity or 1, 1) }
     end
   end
+  return units, n
+end
+
+-- Sometimes the auction house already has results (for example right after a full
+-- scan) and never sends the "updated" event. Read whatever is there.
+function Scan:ReadWaiting(id)
+  local ok, units, n = pcall(commodityUnits, id)
+  if ok and n > 0 then return units end
+  ok, units, n = pcall(itemUnits, C_AuctionHouse.MakeItemKey(id))
+  if ok and n > 0 then return units end
+end
+
+ns:On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
+  if not Scan.active or Scan.pending ~= itemID then return end
+  Scan:Finish(itemID, (commodityUnits(itemID)))
+end)
+
+ns:On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
+  local id = itemKey and itemKey.itemID
+  if not Scan.active or Scan.pending ~= id then return end
+  local units, n = itemUnits(itemKey)
   if n > 0 then ns:Debug("Item search sample", id, n, units[1] and units[1][1]) end
   Scan:Finish(id, units)
 end)
