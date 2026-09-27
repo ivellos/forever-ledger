@@ -8,7 +8,16 @@ local HOURLY_DAYS = 14      -- keep hourly gold this long, then one value per da
 local LOG_SIZE = 500        -- auction house sales and purchases kept
 local PENDING_SECONDS = 5   -- how long a hint (repair, posting fee, mail) waits for the gold change
 
-local function today() return math.floor(time() / 86400) end
+-- Days follow the player's own clock (a UTC day would start in the US evening).
+local function localDay(t)
+  t = t or time()
+  local utc = date("!*t", t)
+  utc.isdst = date("*t", t).isdst
+  local offset = t - time(utc)   -- seconds ahead of UTC, summer time included
+  return math.floor((t + offset) / 86400)
+end
+ns.LocalDay = localDay
+local function today() return localDay() end
 local function thisHour() return math.floor(time() / 3600) end
 
 local function charTable(root)
