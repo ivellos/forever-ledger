@@ -40,6 +40,12 @@ function ns:SearchAuctionHouse(id)
   return true
 end
 
+-- Profession skill line numbers, for opening a profession window.
+local SKILL_LINES = {
+  Alchemy = 171, Blacksmithing = 164, Enchanting = 333, Engineering = 202, Leatherworking = 165,
+  Tailoring = 197, Cooking = 185, ["First Aid"] = 129, Mining = 186, Fishing = 356,
+}
+
 -- Start crafting a recipe from a click. Only works while that profession's window is open.
 function ns:CraftFromClick(opt, count)
   local TS = C_TradeSkillUI
@@ -49,8 +55,18 @@ function ns:CraftFromClick(opt, count)
   end
   local base = TS.GetBaseProfessionInfo and TS.GetBaseProfessionInfo()
   local openProf = type(base) == "table" and base.professionName
-  if not openProf or (opt.prof and openProf ~= opt.prof) then
-    ns:Print(("Open your %s window first, then click Craft."):format(opt.prof or "profession"))
+  -- If the window's name isn't one we know, trust GetBaseProfessionInfo alone.
+  local frame = ProfessionsFrame or TradeSkillFrame
+  local windowOpen = not frame or frame:IsShown()
+  if not windowOpen or not openProf or (opt.prof and openProf ~= opt.prof) then
+    -- Open the profession for the player; crafting waits for a second click, since a
+    -- craft started after the window loads wouldn't count as coming from their click.
+    local line = SKILL_LINES[opt.prof or ""]
+    if line and TS.OpenTradeSkill and pcall(TS.OpenTradeSkill, line) then
+      ns:Print(("Opening %s. Click Craft again once it's open."):format(opt.prof))
+    else
+      ns:Print(("Open your %s window first, then click Craft."):format(opt.prof or "profession"))
+    end
     return
   end
   local ok, err = pcall(TS.CraftRecipe, opt.recipeID, count)
@@ -150,6 +166,18 @@ end
 local function addRuns(n)
   local sess = ns.db.session
   sess.runs = sess.runs + n
+  -- Tell the player when the goal is reached, once.
+  if sess.goal and not sess.goalDone and sess.runs >= sess.goal then
+    sess.goalDone = true
+    local text = ("Goal reached: %d %s"):format(sess.runs, sess.name)
+    if RaidNotice_AddMessage and RaidWarningFrame then
+      RaidNotice_AddMessage(RaidWarningFrame, text, { r = T.accent[1], g = T.accent[2], b = T.accent[3] })
+    end
+    if ns.db.settings.dealSound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
+      PlaySound(SOUNDKIT.RAID_WARNING, "Master")
+    end
+    ns:Print(text .. ".")
+  end
   if win and win:IsShown() then win:RefreshSession() end
 end
 
