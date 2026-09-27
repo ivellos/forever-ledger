@@ -49,6 +49,18 @@ local MAT_NAMES = {
   [STRANGE_DUST] = "Strange Dust", [LESSER_MAGIC] = "Lesser Magic Essence",
   [GREATER_MAGIC] = "Greater Magic Essence", [SMALL_GLIMMERING] = "Small Glimmering Shard",
 }
+MAT_NAMES[10998], MAT_NAMES[11082], MAT_NAMES[11083], MAT_NAMES[11084] =
+  "Lesser Astral Essence", "Greater Astral Essence", "Soul Dust", "Large Glimmering Shard"
+
+-- Green items. Up to 20 from the owner's capes test; 21-25 matched the owner's first
+-- disenchants (4-6 Strange Dust, sometimes 1-2 Lesser Astral Essence). The rest are
+-- Classic's table, assumed until tested. Averages: dust or essence 75% of the time
+-- (the other 20%), shard 5%. Weapons swap the dust and essence chances.
+local function row(maxLevel, dust, dustAvg, essence, essAvg, shard)
+  return { maxLevel = maxLevel,
+    armor  = { { dust, 0.75 * dustAvg }, { essence, 0.20 * essAvg }, { shard, 0.05 } },
+    weapon = { { dust, 0.20 * dustAvg }, { essence, 0.75 * essAvg }, { shard, 0.05 } } }
+end
 local DISENCHANT = {
   { maxLevel = 15,
     armor  = { { STRANGE_DUST, 1.18 }, { LESSER_MAGIC, 0.31 } },
@@ -56,7 +68,17 @@ local DISENCHANT = {
   { maxLevel = 20,
     armor  = { { STRANGE_DUST, 1.875 }, { GREATER_MAGIC, 0.30 }, { SMALL_GLIMMERING, 0.05 } },
     weapon = { { STRANGE_DUST, 0.50 }, { GREATER_MAGIC, 1.125 }, { SMALL_GLIMMERING, 0.05 } } },
+  row(25, STRANGE_DUST, 5, 10998, 1.5, SMALL_GLIMMERING),   -- Lesser Astral Essence
+  row(30, 11083, 1.5, 11082, 1.5, 11084),                   -- Soul Dust, Greater Astral, Large Glimmering
+  row(35, 11083, 3.5, 11134, 1.5, 11138),                   -- Lesser Mystic, Small Glowing Shard
+  row(40, 11137, 1.5, 11135, 1.5, 11139),                   -- Vision Dust, Greater Mystic, Large Glowing
+  row(45, 11137, 3.5, 11174, 1.5, 11177),                   -- Lesser Nether, Small Radiant Shard
+  row(50, 11176, 1.5, 11175, 1.5, 11178),                   -- Dream Dust, Greater Nether, Large Radiant
+  row(55, 11176, 3.5, 16202, 1.5, 14343),                   -- Lesser Eternal, Small Brilliant Shard
+  row(60, 16204, 1.5, 16203, 1.5, 14344),                   -- Illusion Dust, Greater Eternal, Large Brilliant
+  row(65, 16204, 3.5, 16203, 2.5, 14344),
 }
+ns.DISENCHANT_BANDS = {}
 -- Names for each row of the table, used to group shuffles ("Item level 16-20 green armor").
 do
   local low = 1
@@ -64,6 +86,12 @@ do
     local levels = low == 1 and ("up to " .. band.maxLevel) or (low .. "-" .. band.maxLevel)
     band.armor.label = "Item level " .. levels .. " green armor"
     band.weapon.label = "Item level " .. levels .. " green weapons"
+    band.armor.band, band.weapon.band = band.maxLevel, band.maxLevel
+    band.armor.kind, band.weapon.kind = "armor", "weapon"
+    -- Enchanting skill needed (Classic: 1 up to level 20, then 25 more per 5 levels).
+    local skill = band.maxLevel <= 20 and 1 or (band.maxLevel - 20) * 5
+    band.armor.skill, band.weapon.skill = skill, skill
+    ns.DISENCHANT_BANDS[#ns.DISENCHANT_BANDS + 1] = { key = band.maxLevel, label = levels }
     low = band.maxLevel + 1
   end
 end
@@ -83,7 +111,8 @@ local function madeByEnchanting(id)
 end
 
 -- Returns a list of { itemID, average count }, or nil if the item can't be disenchanted
--- (or isn't covered by the table yet).
+-- (or isn't covered by the table yet). The list also has .label, .band (highest item
+-- level of its row) and .kind ("armor" or "weapon").
 function ns:DisenchantYield(id)
   if CRAFTED_WANDS[id] or madeByEnchanting(id) then return end
   local _, _, quality, ilvl, _, _, _, _, equipLoc, _, _, classID = ns.GetItemInfo(id)
@@ -104,11 +133,16 @@ local function counts(charKey)
   return not ns.db.settings.skipChars[charKey]
 end
 
+-- The highest Enchanting skill among counted characters, or nil if none enchant.
 local function canDisenchant()
+  local best
   for key, c in pairs(ns.db.chars) do
-    if counts(key) and c.profs and c.profs.Enchanting then return true end
+    local p = counts(key) and c.profs and c.profs.Enchanting
+    if p then best = math.max(best or 0, p.rank or 1) end
   end
+  return best
 end
+ns.EnchantingSkill = canDisenchant
 
 -- What a material costs to buy: the vendor price when a vendor sells it, otherwise
 -- the auction house price.
@@ -171,8 +205,9 @@ local function options(id, depth)
   add({ kind = "vendor", value = vendorSale(id) })
 
   if depth < MAX_STEPS then
-    local yield = canDisenchant() and ns:DisenchantYield(id)
-    if yield then
+    local skill = canDisenchant()
+    local yield = skill and ns:DisenchantYield(id)
+    if yield and skill >= (yield.skill or 1) then
       local total, mats = 0, {}
       for _, y in ipairs(yield) do
         local o = follow(y[1], depth, id)
