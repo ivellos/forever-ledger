@@ -400,6 +400,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:SyncCommand(msg:gsub("^pair%s*", "pair "))
   elseif msg:match("^sync") then
     ns:SyncCommand(msg:match("^sync%s*(.*)$"))
+  elseif msg == "probe" then
+    ns:Probe()
   elseif msg == "perf" or msg == "perf reset" then
     ns:PrintPerf(msg == "perf reset")
   elseif msg == "de" or msg == "de reset" then

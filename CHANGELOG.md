@@ -10,6 +10,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Disenchant button in Work it, for shuffles that disenchant: "Disenchant: <item> (N left)" disenchants the next of that shuffle's items in your bags with one click. It only ever picks the shuffle's own items (a group's greens, or what you crafted for it), and updates between clicks out of combat.
 - Disenchant finder: a panel beside the auction house (button below it) listing green armor and weapons from your last scan, filtered by item level band (checkboxes), armor or weapons, and "only worth disenchanting", with price, disenchant value and profit. Click an item to search for it. Items the game never loads are asked for once and then left out, so the list doesn't keep reloading (that caused lag).
 
+- `/fl probe` reports what the game gives for planned features: Merchant's Favor, chat channels and profession links, Waylaid Crate and Writ tooltips in your bags, then the next trade and the next vendor that sells for a currency. It only reads and prints.
+
 ### Fixed
 - Opening Work it gave an error ("Cannot anchor protected frames to regions") after the Disenchant button was added.
 - Item names in lists no longer flicker between "item 727" and the name (and the redrawing this caused made the game lag): names are remembered once the game has given them.

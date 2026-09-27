@@ -20,3 +20,4 @@ UI.lua
 Work.lua
 Sync.lua
 AuctionHouse.lua
+Probe.lua
