@@ -57,6 +57,16 @@ local DISENCHANT = {
     armor  = { { STRANGE_DUST, 1.875 }, { GREATER_MAGIC, 0.30 }, { SMALL_GLIMMERING, 0.05 } },
     weapon = { { STRANGE_DUST, 0.50 }, { GREATER_MAGIC, 1.125 }, { SMALL_GLIMMERING, 0.05 } } },
 }
+-- Names for each row of the table, used to group shuffles ("Item level 16-20 green armor").
+do
+  local low = 1
+  for _, band in ipairs(DISENCHANT) do
+    local levels = low == 1 and ("up to " .. band.maxLevel) or (low .. "-" .. band.maxLevel)
+    band.armor.label = "Item level " .. levels .. " green armor"
+    band.weapon.label = "Item level " .. levels .. " green weapons"
+    low = band.maxLevel + 1
+  end
+end
 local WEAPON, ARMOR, UNCOMMON = 2, 4, 2   -- item class IDs and quality
 local NOT_DISENCHANTABLE = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 -- Crafted wands can't be disenchanted in Forever (owner's test); wands found in the world can.

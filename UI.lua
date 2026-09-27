@@ -112,9 +112,12 @@ setView = function(view)
   main.shuffleSF:SetShown(not overview)
   main.refreshBtn:SetShown(not overview)
   main.shuffleInfo:SetShown(not overview)
-  -- The tab you're on is greyed out.
-  main.tabOverview:SetEnabled(not overview)
-  main.tabShuffles:SetEnabled(overview)
+  -- The tab you're on stays highlighted.
+  if overview then
+    main.tabOverview:LockHighlight(); main.tabShuffles:UnlockHighlight()
+  else
+    main.tabShuffles:LockHighlight(); main.tabOverview:UnlockHighlight()
+  end
   if overview then
     ns:RefreshUI()
   elseif main.shuffles then

@@ -126,6 +126,36 @@ local function build(id, o, cost, listed, market, margin, secs)
   return s
 end
 
+-- Items that disenchant the same way (same row of the disenchant table) are one
+-- shuffle: "buy any of these and disenchant". Folds them into a single group entry,
+-- using the numbers of the cheapest member.
+local function groupDisenchants(list)
+  local groups, out = {}, {}
+  for _, s in ipairs(list) do
+    local yield = s.single and s.opt.kind == "disenchant" and ns:DisenchantYield(s.id)
+    if yield then
+      groups[yield] = groups[yield] or {}
+      table.insert(groups[yield], s)
+    else
+      out[#out + 1] = s
+    end
+  end
+  for yield, members in pairs(groups) do
+    if #members == 1 then
+      out[#out + 1] = members[1]
+    else
+      table.sort(members, function(a, b) return a.cost < b.cost end)
+      local g = {}
+      for k, v in pairs(members[1]) do g[k] = v end
+      g.key = "group:" .. (yield.label or "?")
+      g.group = yield.label or "Similar items"
+      g.members = members
+      out[#out + 1] = g
+    end
+  end
+  return out
+end
+
 -- Returns three lists, best profit per hour first: shuffles that end with vendor sales,
 -- ones that end with auction house sales, and one-off deals.
 function ns:FindShuffles()
@@ -165,6 +195,7 @@ function ns:FindShuffles()
   end
 
   local function byHour(a, b) return a.perHour > b.perHour end
+  vendor, ah = groupDisenchants(vendor), groupDisenchants(ah)
   table.sort(vendor, byHour)
   table.sort(ah, byHour)
   table.sort(oneOff, byHour)
@@ -181,6 +212,7 @@ end
 
 -- Short one-line name, for example "Raider's Cloak: Disenchant".
 function ns:ShuffleTitle(s)
+  if s.group then return ("%s (%d items): %s"):format(s.group, #s.members, ns:OptionLabel(s.opt)) end
   if s.single then return itemName(s.id) .. ": " .. ns:OptionLabel(s.opt) end
   return ns:OptionLabel(s.opt)
 end
@@ -194,7 +226,16 @@ end
 -- Everything needed to do a shuffle, one line per step.
 function ns:ShuffleDetails(s)
   local lines = {}
-  if s.single then
+  if s.group then
+    lines[#lines + 1] = ("Buy any of these at up to %s, cheapest first:"):format(ns.Money(s.maxBuy))
+    for i, m in ipairs(s.members) do
+      if i > 12 then
+        lines[#lines + 1] = ("      and %d more"):format(#s.members - 12)
+        break
+      end
+      lines[#lines + 1] = ("      %s at %s (%s)"):format(itemName(m.id), ns.Money(m.cost), where(m.buys[1]))
+    end
+  elseif s.single then
     local b = s.buys[1]
     lines[#lines + 1] = ("Buy %s at up to %s (now %s, %s)."):format(
       itemName(s.id), ns.Money(s.maxBuy), ns.Money(b.price), where(b))
@@ -212,7 +253,14 @@ function ns:ShuffleDetails(s)
 end
 
 local function printShuffle(i, s)
-  if s.single then
+  if s.group then
+    print(("%d. |cffffffff%s|r"):format(i, ns:ShuffleTitle(s)))
+    local names = {}
+    for j = 1, math.min(5, #s.members) do names[j] = itemName(s.members[j].id) end
+    print(("    Buy any at up to %s, for example %s."):format(ns.Money(s.maxBuy), table.concat(names, ", ")))
+    print(("    Profit %s each at %s (%d%%), about %s an hour."):format(
+      ns.Money(s.profit), ns.Money(s.cost), math.floor(s.profit / s.cost * 100 + 0.5), ns.Money(s.perHour)))
+  elseif s.single then
     local b = s.buys[1]
     print(("%d. |cffffffff%s|r: %s"):format(i, itemName(s.id), describe(s.opt)))
     print(("    Buy at up to %s (now %s, %s)"):format(ns.Money(s.maxBuy), ns.Money(b.price), where(b)))
