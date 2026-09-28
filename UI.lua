@@ -103,6 +103,7 @@ local TABS = {
   { key = "flips", label = "Vendor flips" },
   { key = "ledger", label = "Ledger" },
   { key = "crates", label = "Crates", setting = "crates" },
+  { key = "recipes", label = "Recipes" },
   { key = "characters", label = "Characters" },
   { key = "settings", label = "Settings" },
 }
@@ -161,6 +162,7 @@ local function buildMain()
     dashboard = ns:BuildDashboard(main.body),
     ledger = ns:BuildLedger(main.body),
     crates = ns:BuildCrates(main.body),
+    recipes = ns:BuildRecipes(main.body),
     characters = textArea(),
   }
   main.views.settings = buildSettings()
@@ -445,6 +447,8 @@ function ns:RefreshUI()
     ns:RefreshLedger()
   elseif main.view == "crates" then
     ns:RefreshCrates()
+  elseif main.view == "recipes" then
+    ns:RefreshRecipes()
   elseif build then
     local L = {}
     build(function(s) L[#L + 1] = s or "" end)

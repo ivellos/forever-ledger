@@ -21,6 +21,7 @@ local DEFAULTS = {
   recipeBook = {},  -- [profession][recipeID] = { n, out, oq, r } every recipe, learned or not (RecipeBook.lua)
   recipeSources = {}, -- [recipe name lowercased][kind..npc] = { kind, conf = "seen", npc, npcID, mapID, x, y, zone, cost, currency, skill, limited, t }
   vendors = {},     -- [npcID] = { name, mapID, x, y, zone, t, trainer }
+  recipeTypes = {}, -- [recipeID] = "shuffle" | "sells" | "notsale" | "loss", the player's own choice (RecipesTab.lua)
   crates = {},      -- [crate itemID] = { name, level, bundles = { { { qty, name }, ... } } } read from tooltips
   crateFavor = {},  -- [crate name] = { sum, n } Favor paid, learned from turn-ins
   favor = {},       -- [charKey] = Merchant's Favor held
@@ -33,7 +34,7 @@ local DEFAULTS = {
   historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (2 years)
   historyAll = {},    -- [marketKey][itemID] = "lowest:typicalSum:days"
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true,
-    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true },
+    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {} },
 }
 
 local function copyDefaults(src, dst)
