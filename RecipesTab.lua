@@ -237,7 +237,19 @@ local function sourceText(s)
   local where = s.zone and (", " .. s.zone) or ""
   local text
   if s.kind == "trainer" then
-    text = ("Trainer %s%s%s"):format(s.npc or "?", where, s.skill and (" (skill " .. s.skill .. ")") or "")
+    -- Every trainer of a tier teaches the same list (owner, beta), and higher tiers teach
+    -- the lower ones' too, so name the tier and give the one seen as an example.
+    local v = s.npcID and ns.db.vendors[s.npcID]
+    local prof, tier = v and v.profession, v and v.tier
+    if v and not (prof and tier) then
+      local p2, t2 = ns.TrainerFromTitle(v.title)   -- defined further down
+      prof, tier = prof or p2, tier or t2
+    end
+    if tier and prof then
+      text = ("Any %s+ %s trainer, e.g. %s%s"):format(tier, prof, s.npc or "?", where)
+    else
+      text = ("Trainer %s%s"):format(s.npc or "?", where)
+    end
   elseif s.kind == "vendor" then
     local price = s.currency or (s.cost and ns.Money(s.cost)) or ""
     local side = (classic and s.otherSide) and otherSideText() or ""
@@ -604,6 +616,7 @@ local function fromTitle(title)
   return prof, TIERS[first or ""] and first or nil
 end
 function ns.ProfessionFromTitle(title) return (fromTitle(title)) end
+ns.TrainerFromTitle = fromTitle
 
 local function trainerRows(width, lay)
   local list, seen = {}, {}
