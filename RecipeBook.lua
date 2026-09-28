@@ -109,7 +109,7 @@ ns:On("MERCHANT_SHOW", function() C_Timer.After(0.6, captureVendor) end)
 -- The trainer window hides what you already know or can't learn yet. Show every kind
 -- while reading, then put the player's filter back as it was.
 local FILTERS = { "available", "unavailable", "used" }
-local reading = false
+local reading, lastRead = false, 0
 local function captureTrainer()
   if reading or not (GetNumTrainerServices and GetTrainerServiceInfo) then return end
   local npcID, name = npcInfo("npc")
@@ -138,6 +138,7 @@ local function captureTrainer()
     if not on then pcall(SetTrainerServiceTypeFilter, f, 0) end
   end
   reading = false
+  lastRead = GetTime()
   if found > 0 then ns:Debug("Recipe book:", found, "trainer recipes from", name or "?") end
 end
 
@@ -145,7 +146,8 @@ end
 -- once, a moment after the last one.
 local trainerTimer
 local function queueTrainer()
-  if reading then return end
+  -- Changing the filter while reading sends updates too; don't read again because of those.
+  if reading or GetTime() - lastRead < 2 then return end
   if trainerTimer then trainerTimer:Cancel() end
   trainerTimer = C_Timer.NewTimer(0.8, function() trainerTimer = nil; captureTrainer() end)
 end
