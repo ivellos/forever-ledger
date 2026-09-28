@@ -80,11 +80,50 @@ local function probeCrates()
   if found == 0 then say("No Waylaid Crates or Writs in your bags. Put one in your bags and probe again.") end
 end
 
+-- Recipe book: are unlearned recipes listed, and do they say where they come from?
+local function probeRecipes()
+  local TS = C_TradeSkillUI
+  local base = TS and TS.GetBaseProfessionInfo and TS.GetBaseProfessionInfo()
+  local prof = type(base) == "table" and base.professionName
+  if not (prof and TS.GetAllRecipeIDs) then say("Recipes: open a profession window and probe again."); return end
+  local learned, unlearned, samples = 0, 0, {}
+  for _, id in ipairs(TS.GetAllRecipeIDs() or {}) do
+    local ok, info = pcall(TS.GetRecipeInfo, id)
+    if ok and info then
+      if info.learned then learned = learned + 1 else
+        unlearned = unlearned + 1
+        if #samples < 6 then samples[#samples + 1] = { id = id, name = info.name } end
+      end
+    end
+  end
+  say("Recipes in %s: %d learned, %d not learned. GetRecipeSourceText: %s.", prof, learned, unlearned,
+    TS.GetRecipeSourceText and "yes" or "no")
+  for _, s in ipairs(samples) do
+    local ok, src = pcall(TS.GetRecipeSourceText, s.id)
+    local text = ok and src and src:gsub("|", "||"):gsub("\n", " / ") or "no source text"
+    say("  %s: %s", tostring(s.name), text)
+  end
+  if unlearned == 0 then say("  None listed as not learned. Check whether the profession window has a filter hiding them.") end
+end
+
+-- Map pins, for "locate this vendor".
+local function probeMap()
+  local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+  local pos = mapID and C_Map.GetPlayerMapPosition and C_Map.GetPlayerMapPosition(mapID, "player")
+  local x, y = pos and pos.GetXY and pos:GetXY()
+  local info = mapID and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+  say("Map: %s (map %s) at %s, %s. Map pins: %s, pin tracking: %s.", tostring(info and info.name), tostring(mapID),
+    x and ("%.1f"):format(x * 100) or "?", y and ("%.1f"):format(y * 100) or "?",
+    exists("C_Map.SetUserWaypoint") and "yes" or "no", exists("C_SuperTrack.SetSuperTrackedUserWaypoint") and "yes" or "no")
+end
+
 function ns:Probe()
-  ns:Print("Probe: what the game gives us for crafting ads, trades, Merchant's Favor and crates.")
+  ns:Print("Probe: what the game gives us for crafting ads, trades, Merchant's Favor, crates and the recipe book.")
   probeFavor()
   probeChat()
   probeCrates()
+  probeRecipes()
+  probeMap()
   armed.trade, armed.merchant = true, true
   say("Waiting for your next trade and the next vendor that sells for a currency; those will be reported too.")
 end
