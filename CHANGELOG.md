@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-28
+
+Fixes from the first testers.
+
 ### Fixed
 - Vendor flips and "below vendor price" deal alerts now agree. Flips count only the listings cheap enough to profit, at their own prices (they used the average of the cheapest 20, which hid flips like a few cheap Dirty Blunderbusses), and deal alerts say how many are listed at the deal price instead of everything listed (it said 935 Okra when only 23 were cheap enough).
 - With Auctionator installed, the Disenchant finder, Full scan and Scan materials buttons covered Auctionator's tabs at the bottom of the auction house. They now sit one row lower.
