@@ -469,6 +469,9 @@ ns:On("AUCTION_HOUSE_SHOW", function()
   ahOpen = true
   local ok, neutral = pcall(ns.IsNeutralAuctioneer)
   ns.neutralAH = ok and neutral or nil
+  -- For checking which auction houses are neutral (/fl debug).
+  ns:Debug("Auction house:", GetSubZoneText() or "?", "/", GetZoneText() or "?", "auctioneer faction:",
+    tostring(UnitFactionGroup("npc")), ns.neutralAH and "neutral" or "faction")
   if ns.neutralAH then
     ns:Print("Neutral auction house: prices seen here are kept separate from your faction's.")
   end

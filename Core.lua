@@ -115,8 +115,11 @@ function ns.MarketKey()
   return (GetRealmName() or "?") .. "|" .. (ns.neutralAH and "Neutral" or UnitFactionGroup("player") or "?")
 end
 
--- The auctioneer has no faction and stands in Booty Bay, Gadgetzan or Everlook.
-local NEUTRAL_TOWNS = { ["Booty Bay"] = true, ["Gadgetzan"] = true, ["Everlook"] = true }
+-- The auctioneer has no faction and stands in a town with a neutral auction house:
+-- Classic's goblin towns, and Forever's trade posts by the Waylaid Crate turn-ins
+-- (Three Corners in Redridge; the Crossroads in the Barrens, owner's recollection).
+local NEUTRAL_TOWNS = { ["Booty Bay"] = true, ["Gadgetzan"] = true, ["Everlook"] = true,
+  ["Three Corners"] = true, ["The Crossroads"] = true }
 function ns.IsNeutralAuctioneer()
   if not UnitExists("npc") or UnitFactionGroup("npc") then return false end
   return NEUTRAL_TOWNS[GetSubZoneText() or ""] or NEUTRAL_TOWNS[GetMinimapZoneText and GetMinimapZoneText() or ""] or false
