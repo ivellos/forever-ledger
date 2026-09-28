@@ -30,10 +30,53 @@ local function bagCounts()
   return counts
 end
 
+---------------------------------------------------------------------------
+-- Arcane Salvager (Forever camping object, Enchanting 140): "more efficient
+-- disenchanting" for 15 minutes, no numbers published. Disenchants done while one is
+-- up are logged apart, so /fl de can show what it really adds.
+---------------------------------------------------------------------------
+local SALVAGER_TIME = 15 * 60
+local salvagerPlaced = 0
+
+-- Names of the player's buffs.
+local function buffNames()
+  local names = {}
+  for i = 1, 40 do
+    local name
+    if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+      local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, "player", i, "HELPFUL")
+      name = ok and aura and aura.name
+    elseif UnitBuff then
+      name = UnitBuff("player", i)
+    end
+    if not name then break end
+    names[#names + 1] = name
+  end
+  return names
+end
+
+-- "buff" if a Salvager buff is on you, "placed" if you placed one in the last 15
+-- minutes (you may have walked away), nil otherwise.
+local function salvagerState()
+  for _, name in ipairs(buffNames()) do
+    if name:find("Salvager", 1, true) then return "buff" end
+  end
+  if GetTime() - salvagerPlaced < SALVAGER_TIME then return "placed" end
+end
+
+ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
+  local name = unit == "player" and ns.SpellName and ns.SpellName(spellID)
+  if name and name:find("Arcane Salvager", 1, true) then
+    salvagerPlaced = GetTime()
+    -- Which buff it gives isn't known yet: show them once, for checking (/fl debug).
+    C_Timer.After(2, function() ns:Debug("Arcane Salvager placed. Your buffs now:", table.concat(buffNames(), ", ")) end)
+  end
+end)
+
 ns:On("UNIT_SPELLCAST_START", function(unit, _, spellID)
   if unit == "player" and isDisenchant(spellID) then
     local item = pending and pending.item   -- may already be known from the lock below
-    pending = { bags = bagCounts(), start = GetTime(), item = item }
+    pending = { bags = bagCounts(), start = GetTime(), item = item, salv = salvagerState() }
   end
 end)
 
@@ -90,7 +133,7 @@ local function onLoot()
       _, _, quality, ilvl, _, _, _, _, _, _, _, classID = ns.GetItemInfo(id)
     end
     local log = ns.db.disenchants
-    log[#log + 1] = { t = time(), id = id, ilvl = ilvl, q = quality, cls = classID, mats = mats }
+    log[#log + 1] = { t = time(), id = id, ilvl = ilvl, q = quality, cls = classID, mats = mats, salv = p.salv }
     while #log > LOG_SIZE do table.remove(log, 1) end
     local parts = {}
     for m, n in pairs(mats) do parts[#parts + 1] = n .. " " .. ns:DisenchantMaterialName(m) end
@@ -105,11 +148,14 @@ ns:On("LOOT_OPENED", onLoot)
 -- /fl de: totals per group, next to what the table expects
 ---------------------------------------------------------------------------
 local function groupFor(e)
+  -- With an Arcane Salvager up, a group of its own, next to the same items without.
+  local salv = e.salv == "buff" and " |cff66bbffwith Arcane Salvager|r"
+    or e.salv == "placed" and " |cff66bbffwith Arcane Salvager (placed nearby, no buff seen)|r" or ""
   local yield = e.id and ns:DisenchantYield(e.id)
-  if yield then return yield.label, yield end
+  if yield then return yield.label .. salv, yield end
   local kind = e.cls == 2 and "weapons" or "armor"
   local quality = e.q == 3 and "blue" or (e.q == 4 and "purple" or "green")
-  return ("Item level %s %s %s (not in the table)"):format(e.ilvl or "?", quality, kind), nil
+  return ("Item level %s %s %s (not in the table)"):format(e.ilvl or "?", quality, kind) .. salv, nil
 end
 
 function ns:PrintDisenchants(reset)

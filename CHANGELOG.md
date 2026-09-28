@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Arcane Salvager: disenchants done while one is up are logged separately, so `/fl de` shows what it adds next to the same items without it.
+
 ## [0.6.0] - 2026-09-28
 
 A Recipes tab with where to get every recipe, a Waylaid Crates tab, and better auction house handling. Recipe sources from original Classic are marked "(Classic)" until you see them in game.
