@@ -448,6 +448,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       for id, units in pairs(byItem) do record(id, units, "full"); items = items + 1 end
       ns.db.lastFullScan = time()
       readingFull = false
+      if not ahOpen then ns.neutralAH = nil end
       if mine then Scan.active = false end
       ns:UpdateScanStatus(n, n)
       local secs = math.floor(GetTime() - started + 0.5)
@@ -466,10 +467,17 @@ end)
 
 ns:On("AUCTION_HOUSE_SHOW", function()
   ahOpen = true
+  local ok, neutral = pcall(ns.IsNeutralAuctioneer)
+  ns.neutralAH = ok and neutral or nil
+  if ns.neutralAH then
+    ns:Print("Neutral auction house: prices seen here are kept separate from your faction's.")
+  end
   if ns.OnAHShow then ns:OnAHShow() end
 end)
 ns:On("AUCTION_HOUSE_CLOSED", function()
   ahOpen = false
+  -- A full scan still being read keeps its market until it's saved.
+  if not readingFull then ns.neutralAH = nil end
   if Scan.active then Scan:Stop("Auction house closed, so the scan stopped.") end
   ns:RefreshUI()   -- grey out the scan buttons
 end)

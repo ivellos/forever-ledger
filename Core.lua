@@ -109,8 +109,17 @@ function ns.CharKey()
 end
 
 -- Forever is realmless: the "realm" is the ruleset, and each ruleset + faction is one auction house.
+-- While a neutral (goblin) auction house is open, its prices are kept apart, since in
+-- Classic it's a separate market shared with the other faction, with a 15% cut.
 function ns.MarketKey()
-  return (GetRealmName() or "?") .. "|" .. (UnitFactionGroup("player") or "?")
+  return (GetRealmName() or "?") .. "|" .. (ns.neutralAH and "Neutral" or UnitFactionGroup("player") or "?")
+end
+
+-- The auctioneer has no faction and stands in Booty Bay, Gadgetzan or Everlook.
+local NEUTRAL_TOWNS = { ["Booty Bay"] = true, ["Gadgetzan"] = true, ["Everlook"] = true }
+function ns.IsNeutralAuctioneer()
+  if not UnitExists("npc") or UnitFactionGroup("npc") then return false end
+  return NEUTRAL_TOWNS[GetSubZoneText() or ""] or NEUTRAL_TOWNS[GetMinimapZoneText and GetMinimapZoneText() or ""] or false
 end
 
 -- Placeholders; UI.lua replaces these.
