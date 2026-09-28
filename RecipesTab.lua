@@ -28,8 +28,9 @@ end
 
 local function settings()
   local s = ns.db.settings.recipes
-  s.show = s.show or "all"
+  s.view = s.view or "known"   -- "view", not the first test's "show", so everyone starts on Known
   s.type = s.type or "all"
+  if s.custom == nil then s.custom = true end
   return s
 end
 
@@ -149,14 +150,24 @@ function ns:BuildRecipes(parent)
 
   local s = settings()
   f.show = T:Choice(f.second, { { value = "all", label = "All" }, { value = "unknown", label = "Not known" }, { value = "known", label = "Known" } },
-    function(v) s.show = v; ns:RefreshRecipes() end)
+    function(v) s.view = v; ns:RefreshRecipes() end)
   f.show:SetPoint("LEFT", 0, 0)
+  f.custom = T:Check(f.second, function(self) s.custom = self:GetChecked(); ns:RefreshRecipes() end)
+  f.custom.label:SetText("Use my types")
+  f.custom:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Use my types", 1, 1, 1)
+    GameTooltip:AddLine("On: recipes you right-clicked keep the type you gave them. Off: every recipe uses the automatic type (your choices are kept for later).", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  f.custom:SetScript("OnLeave", function() GameTooltip:Hide() end)
   local typeOpts = { { value = "all", label = "Every type" } }
   for _, k in ipairs(ORDER) do typeOpts[#typeOpts + 1] = { value = k, label = TYPES[k].label } end
   f.type = T:Choice(f.second, typeOpts, function(v) s.type = v; ns:RefreshRecipes() end)
   f.type:SetPoint("LEFT", f.show, "RIGHT", 14, 0)
   f.search = T:EditBox(f.second, 140, "LEFT")
   f.search:SetPoint("LEFT", f.type, "RIGHT", 14, 0)
+  f.custom:SetPoint("LEFT", f.search, "RIGHT", 14, 0)
   f.search:SetScript("OnTextChanged", function() ns:RefreshRecipes() end)
   f.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
 
@@ -237,6 +248,10 @@ local function getRow(i)
   -- Right-click: set your own type (cycles through the types, then back to automatic).
   r:SetScript("OnClick", function(self, button)
     if button ~= "RightButton" or not self.recipeID then return end
+    if not settings().custom then
+      ns:Print("Tick \"Use my types\" first to set your own types.")
+      return
+    end
     local overrides = ns.db.recipeTypes
     local now = overrides[self.recipeID]
     local nextType
@@ -276,15 +291,20 @@ local function recipeRows(prof, width, lay)
   for id, r in pairs(ns.db.recipeBook[prof] or {}) do
     local names = knownBy(prof, id)
     local known = #names > 0
-    if (s.show == "all" or (s.show == "known") == known) and (match == "" or (r.n or ""):lower():find(match, 1, true)) then
+    if (s.view == "all" or (s.view == "known") == known) and (match == "" or (r.n or ""):lower():find(match, 1, true)) then
       local auto, profit = autoType(r)
-      local t = ns.db.recipeTypes[id] or auto
+      local mine = s.custom and ns.db.recipeTypes[id] or nil
+      local t = mine or auto
       if s.type == "all" or s.type == t then
-        list[#list + 1] = { id = id, r = r, names = names, type = t, override = ns.db.recipeTypes[id] ~= nil, profit = profit }
+        list[#list + 1] = { id = id, r = r, names = names, type = t, override = mine ~= nil, profit = profit }
       end
     end
   end
+  -- Grouped by type (flip or shuffle first), then most profit first.
+  local rank = {}
+  for i, k in ipairs(ORDER) do rank[k] = i end
   table.sort(list, function(a, b)
+    if a.type ~= b.type then return rank[a.type] < rank[b.type] end
     if (a.profit ~= nil) ~= (b.profit ~= nil) then return a.profit ~= nil end
     if a.profit and b.profit and a.profit ~= b.profit then return a.profit > b.profit end
     return (a.r.n or "") < (b.r.n or "")
@@ -383,7 +403,8 @@ end
 function ns:RefreshRecipes()
   if not f or not f:IsShown() then return end
   local s = settings()
-  f.show:SetValue(s.show)
+  f.show:SetValue(s.view)
+  f.custom:SetChecked(s.custom)
   f.type:SetValue(s.type)
   layoutTabs(professions())
   local trainers = current == "trainers"
