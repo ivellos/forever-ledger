@@ -106,11 +106,23 @@ ns:On("MERCHANT_SHOW", function() C_Timer.After(0.6, captureVendor) end)
 ---------------------------------------------------------------------------
 -- Trainers: what they teach
 ---------------------------------------------------------------------------
+-- The trainer window hides what you already know or can't learn yet. Show every kind
+-- while reading, then put the player's filter back as it was.
+local FILTERS = { "available", "unavailable", "used" }
+local reading = false
 local function captureTrainer()
-  if not (GetNumTrainerServices and GetTrainerServiceInfo) then return end
+  if reading or not (GetNumTrainerServices and GetTrainerServiceInfo) then return end
   local npcID, name = npcInfo("npc")
   local mapID, x, y, zone = here()
   if npcID then ns.db.vendors[npcID] = { name = name, mapID = mapID, x = x, y = y, zone = zone, t = time(), trainer = true } end
+  reading = true
+  local saved = {}
+  if GetTrainerServiceTypeFilter and SetTrainerServiceTypeFilter then
+    for _, f in ipairs(FILTERS) do
+      saved[f] = GetTrainerServiceTypeFilter(f)
+      if not saved[f] then pcall(SetTrainerServiceTypeFilter, f, 1) end
+    end
+  end
   local found = 0
   for i = 1, (GetNumTrainerServices() or 0) do
     local service, _, category = GetTrainerServiceInfo(i)
@@ -122,10 +134,23 @@ local function captureTrainer()
       found = found + 1
     end
   end
+  for f, on in pairs(saved) do
+    if not on then pcall(SetTrainerServiceTypeFilter, f, 0) end
+  end
+  reading = false
   if found > 0 then ns:Debug("Recipe book:", found, "trainer recipes from", name or "?") end
 end
-ns:On("TRAINER_SHOW", function() C_Timer.After(0.6, captureTrainer) end)
-ns:On("TRAINER_UPDATE", function() C_Timer.After(0.6, captureTrainer) end)
+
+-- The trainer sends many updates in a row (each purchase, each filter change): read
+-- once, a moment after the last one.
+local trainerTimer
+local function queueTrainer()
+  if reading then return end
+  if trainerTimer then trainerTimer:Cancel() end
+  trainerTimer = C_Timer.NewTimer(0.8, function() trainerTimer = nil; captureTrainer() end)
+end
+ns:On("TRAINER_SHOW", queueTrainer)
+ns:On("TRAINER_UPDATE", queueTrainer)
 
 ---------------------------------------------------------------------------
 -- Drops: a recipe in a loot window, with the mob it came from
