@@ -18,6 +18,9 @@ local DEFAULTS = {
   sales = {},       -- auction house sales: { t, c = charKey, n = item name, a = copper received, cut }
   purchases = {},   -- auction house purchases: { t, c, id, q, a }
   vendorLog = {},   -- vendor buys and sells: { t, c, id, q, a, s = "buy" | "sell" }
+  recipeBook = {},  -- [profession][recipeID] = { n, out, oq, r } every recipe, learned or not (RecipeBook.lua)
+  recipeSources = {}, -- [recipe name lowercased][kind..npc] = { kind, conf = "seen", npc, npcID, mapID, x, y, zone, cost, currency, skill, limited, t }
+  vendors = {},     -- [npcID] = { name, mapID, x, y, zone, t, trainer }
   crates = {},      -- [crate itemID] = { name, level, bundles = { { { qty, name }, ... } } } read from tooltips
   crateFavor = {},  -- [crate name] = { sum, n } Favor paid, learned from turn-ins
   favor = {},       -- [charKey] = Merchant's Favor held
@@ -331,7 +334,9 @@ function ns:ApiReport()
     "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
     "BuyMerchantItem", "GetMerchantItemID", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
     "C_TradeSkillUI.CraftRecipe", "C_TradeSkillUI.OpenTradeSkill", "LOOT_ITEM_CREATED_SELF",
-    "GetNumLootItems", "GetLootSlotInfo", "GetLootSlotLink", "C_Container.GetContainerNumSlots",
+    "GetNumLootItems", "GetLootSlotInfo", "GetLootSlotLink", "GetLootSourceInfo", "C_Container.GetContainerNumSlots",
+    "GetNumTrainerServices", "GetTrainerServiceInfo", "GetTrainerServiceSkillReq", "GetTrainerServiceCost",
+    "C_Map.GetBestMapForUnit", "C_Map.SetUserWaypoint",
     "C_ChatInfo.SendAddonMessage", "C_ChatInfo.RegisterAddonMessagePrefix", "ChatFrame_AddMessageEventFilter",
     "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
@@ -404,6 +409,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:SyncCommand(msg:gsub("^pair%s*", "pair "))
   elseif msg:match("^sync") then
     ns:SyncCommand(msg:match("^sync%s*(.*)$"))
+  elseif msg == "book" then
+    ns:PrintRecipeBook()
   elseif msg == "probe" then
     ns:Probe()
   elseif msg == "perf" or msg == "perf reset" then

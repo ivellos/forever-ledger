@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Recipe book groundwork: every recipe of each profession you open is recorded (learned or not, with what it makes and its materials), and so are recipe sources as you meet them: vendors that sell recipes (name, position, price or Favor cost, limited stock), trainers (what they teach, skill, cost) and recipe drops (mob and zone). `/fl book` shows what's gathered so far. The Recipe book tab comes later.
+
 ### Fixed
 - A full scan stopped with "integer overflow" when something was listed at the maximum price (9,999,999g 99s 99c). Price history now handles any amount, and a problem saving history can no longer stop a scan.
 

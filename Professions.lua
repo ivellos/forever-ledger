@@ -138,6 +138,7 @@ function ns:CaptureTradeSkill()
     end
   end
   p.recipeCount = count
+  if ns.CaptureRecipeBook then ns:CaptureRecipeBook(profName) end
   if count ~= (p.lastAnnounced or -1) then
     ns:Print(("Saved %d %s recipes for %s."):format(count, profName, c.name or "?"))
     p.lastAnnounced = count

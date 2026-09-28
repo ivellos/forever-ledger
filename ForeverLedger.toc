@@ -10,6 +10,7 @@ Prices.lua
 History.lua
 Inventory.lua
 Professions.lua
+RecipeBook.lua
 Values.lua
 Shuffles.lua
 Disenchant.lua
