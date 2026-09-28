@@ -414,10 +414,19 @@ function Scan:StartFull(fallback)
   end)
 end
 
+-- The results arrive for every addon, so a full scan started by another addon
+-- (Auctionator, TSM...) is read too. They share Blizzard's 15-minute limit.
+local readingFull, lastFullRead = false, 0
 ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
-  if not (Scan.active and Scan.full) then return end
-  Scan.full = false
+  local mine = Scan.active and Scan.full
+  if readingFull and GetTime() - lastFullRead < 120 then return end   -- (unstick after an error)
+  -- Another addon's scan: once per scan (ignore repeat events for a minute).
+  if not mine and GetTime() - lastFullRead < 60 then return end
+  readingFull, lastFullRead = true, GetTime()
+  if mine then Scan.full = false end
+  local started = mine and Scan.started or GetTime()
   local n = C_AuctionHouse.GetNumReplicateItems() or 0
+  if not mine then ns:Debug("Reading another addon's full scan:", n, "listings") end
   local byItem, i = {}, 0
   local function chunk()
     local stop = math.min(i + 2000, n)
@@ -438,9 +447,15 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       local items = 0
       for id, units in pairs(byItem) do record(id, units, "full"); items = items + 1 end
       ns.db.lastFullScan = time()
-      Scan.active = false
+      readingFull = false
+      if mine then Scan.active = false end
       ns:UpdateScanStatus(n, n)
-      ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
+      local secs = math.floor(GetTime() - started + 0.5)
+      if mine then
+        ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
+      else
+        ns:Print(("Another addon ran a full scan; Forever Ledger read it too: %d listings across %d items in %ds."):format(n, items, secs))
+      end
       if ns.CheckDeals then C_Timer.After(0.5, function() ns:CheckDeals() end) end
       if ns.SyncSoon then ns:SyncSoon() end
       ns:RefreshUI()
