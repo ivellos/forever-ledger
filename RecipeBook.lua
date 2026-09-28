@@ -114,7 +114,12 @@ local function captureTrainer()
   if reading or not (GetNumTrainerServices and GetTrainerServiceInfo) then return end
   local npcID, name = npcInfo("npc")
   local mapID, x, y, zone = here()
-  if npcID then ns.db.vendors[npcID] = { name = name, mapID = mapID, x = x, y = y, zone = zone, t = time(), trainer = true } end
+  -- Keep what an earlier visit learned (title, profession, tier) if this read misses it.
+  local old = npcID and ns.db.vendors[npcID] or {}
+  if npcID then
+    ns.db.vendors[npcID] = { name = name or old.name, mapID = mapID, x = x, y = y, zone = zone, t = time(), trainer = true,
+      title = old.title, profession = old.profession, tier = old.tier }
+  end
   reading = true
   local saved = {}
   if GetTrainerServiceTypeFilter and SetTrainerServiceTypeFilter then
@@ -148,13 +153,15 @@ local function captureTrainer()
   for p, n in pairs(profCount) do if n > most then prof, most = p, n end end
   local v = npcID and ns.db.vendors[npcID]
   if v then
-    v.profession, v.tier = prof, tier
+    v.profession, v.tier = prof or v.profession, tier or v.tier
     -- The title under the name, e.g. "Tailoring Trainer" or "Artisan Enchanter".
     if C_TooltipInfo and C_TooltipInfo.GetUnit then
       local ok, data = pcall(C_TooltipInfo.GetUnit, "npc")
       local line = ok and data and data.lines and data.lines[2]
-      v.title = line and line.leftText
+      if line and line.leftText and line.leftText ~= "" then v.title = line.leftText end
     end
+    -- Forever's trainer list may not name the skill, so the title fills in the profession.
+    if not v.profession and ns.ProfessionFromTitle then v.profession = ns.ProfessionFromTitle(v.title) end
     -- Forever shows the rank in the window's header, not in the list, so the title
     -- ("Expert Tailor") is the reliable place for the tier.
     local fromTitle = v.title and v.title:match("^(%a+)")

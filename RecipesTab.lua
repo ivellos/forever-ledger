@@ -116,6 +116,15 @@ local function friendly(npc)
   return not npc.fac or npc.fac:find(myFaction, 1, true) ~= nil
 end
 
+function ns.OtherFaction()
+  return UnitFactionGroup("player") == "Horde" and "Alliance" or "Horde"
+end
+
+-- Only the other faction can get it: for you, the neutral auction house is the way.
+local function otherSideText()
+  return (" |cffee8597%s only: neutral AH|r"):format(ns.OtherFaction())
+end
+
 -- An NPC from the Classic data as a source table.
 local function classicNPC(id, kind)
   local n = ns.CLASSIC_NPCS and ns.CLASSIC_NPCS[id]
@@ -140,14 +149,14 @@ function ns:ClassicSource(name)
     end
     s = best or { kind = "vendor", conf = "classic" }
     s.cost = e.cost
-    s.hordeOnly = best and not friendly(best) or nil
+    s.otherSide = best and not friendly(best) or nil
   elseif e.kind == "mob" or e.kind == "drop" then
     local top = e.mobs and e.mobs[1]
     s = top and classicNPC(top[1], e.kind) or { kind = e.kind, conf = "classic" }
     s.chance = top and top[2] or e.chance
     s.mobCount = e.kind == "drop" and (e.mobCount or (e.mobs and #e.mobs)) or nil
   else
-    s = { kind = e.kind, conf = "classic", quest = e.quest, hordeOnly = e.faction == "Horde" or nil }
+    s = { kind = e.kind, conf = "classic", quest = e.quest, otherSide = e.faction == ns.OtherFaction() or nil }
   end
   s.entry = e
   return s
@@ -163,7 +172,7 @@ function ns:AddClassicSourceLines(tt, name)
     local v = classicNPC(id, "vendor")
     if v then
       tt:AddDoubleLine("Sold by " .. v.npc, (v.zone or "?") .. (v.x and (" %.0f, %.0f"):format(v.x * 100, v.y * 100) or "")
-        .. (friendly(v) and "" or " (Horde)"), 1, 1, 1, 0.8, 0.8, 0.8)
+        .. (friendly(v) and "" or (" (%s only)"):format(ns.OtherFaction())), 1, 1, 1, 0.8, 0.8, 0.8)
     end
   end
   for _, m in ipairs(e.mobs or {}) do
@@ -177,6 +186,11 @@ function ns:AddClassicSourceLines(tt, name)
     tt:AddLine(("...and %d more kinds of mob."):format(e.mobCount - #(e.mobs or {})), 0.8, 0.8, 0.8)
   end
   if e.quest then tt:AddLine("Quest: " .. e.quest, 1, 1, 1) end
+  local s = ns:ClassicSource(name)
+  if s and s.otherSide then
+    tt:AddLine(("Only the %s can get this recipe. For you, the way is the neutral auction house (Booty Bay, Gadgetzan, Everlook)."):format(
+      ns.OtherFaction()), 0.93, 0.52, 0.59, true)
+  end
 end
 
 -- The most useful source: seen in game first (vendor or trainer with a position best),
@@ -226,7 +240,7 @@ local function sourceText(s)
     text = ("Trainer %s%s%s"):format(s.npc or "?", where, s.skill and (" (skill " .. s.skill .. ")") or "")
   elseif s.kind == "vendor" then
     local price = s.currency or (s.cost and ns.Money(s.cost)) or ""
-    local side = (classic and s.hordeOnly) and dim(" Horde only") or ""
+    local side = (classic and s.otherSide) and otherSideText() or ""
     text = ("Vendor %s%s  %s%s%s"):format(s.npc or "?", where, price, s.limited and dim(" limited") or "", side)
   elseif s.kind == "mob" then
     text = ("Drops from %s%s"):format(s.npc or "?", where) .. percent(s.chance) .. ahText(s)
@@ -240,7 +254,7 @@ local function sourceText(s)
     end
     text = text .. ahText(s)
   elseif s.kind == "quest" then
-    text = ("Quest: %s"):format(s.quest or "?") .. (s.hordeOnly and dim(" Horde only") or "")
+    text = ("Quest: %s"):format(s.quest or "?") .. (s.otherSide and otherSideText() or "")
   else
     text = s.kind or "?"
   end
@@ -589,6 +603,7 @@ local function fromTitle(title)
   local first = title:match("^(%a+)")
   return prof, TIERS[first or ""] and first or nil
 end
+function ns.ProfessionFromTitle(title) return (fromTitle(title)) end
 
 local function trainerRows(width, lay)
   local list, seen = {}, {}
