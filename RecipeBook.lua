@@ -155,6 +155,10 @@ local function captureTrainer()
       local line = ok and data and data.lines and data.lines[2]
       v.title = line and line.leftText
     end
+    -- Forever shows the rank in the window's header, not in the list, so the title
+    -- ("Expert Tailor") is the reliable place for the tier.
+    local fromTitle = v.title and v.title:match("^(%a+)")
+    if fromTitle and TIERS[fromTitle] then v.tier = fromTitle end
     ns:Debug("Trainer", name or "?", "teaches", prof or "?", "up to", tier or "?", "title", v.title or "?")
   end
   reading = false
