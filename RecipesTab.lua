@@ -195,6 +195,21 @@ local function percent(p)
   return dim((" (%s%%)"):format(p >= 1 and ("%.0f"):format(p) or p >= 0.1 and ("%.1f"):format(p) or ("%.2f"):format(p)))
 end
 
+-- The recipe item's cheapest auction house listing: price, record (or nil).
+local function recipeAH(s)
+  local item = s and (s.item or (s.entry and s.entry.item))
+  local rec = item and (ns.db.prices[ns.MarketKey()] or {})[item]
+  if rec and rec.m and not rec.none then return rec.m, rec end
+  return nil, rec
+end
+
+local function ahText(s)
+  local price, rec = recipeAH(s)
+  if price then return "  |cffffd100AH " .. ns.Money(price) .. "|r" end
+  if rec and rec.none then return dim("  none on AH") end
+  return ""
+end
+
 local function sourceText(s)
   -- Recipes with no recipe item to find were taught by trainers in Classic.
   if not s then return dim("probably a trainer") end
@@ -208,14 +223,16 @@ local function sourceText(s)
     local side = (classic and s.hordeOnly) and dim(" Horde only") or ""
     text = ("Vendor %s%s  %s%s%s"):format(s.npc or "?", where, price, s.limited and dim(" limited") or "", side)
   elseif s.kind == "mob" then
-    text = ("Drops from %s%s"):format(s.npc or "?", where) .. percent(s.chance)
+    text = ("Drops from %s%s"):format(s.npc or "?", where) .. percent(s.chance) .. ahText(s)
   elseif s.kind == "drop" then
     if s.mobCount then
-      text = ("World drop: %d kinds of mob, best %s%s"):format(s.mobCount, s.npc or "?", where) .. percent(s.chance)
+      -- Kept short so the price fits; the mobs are in the hover.
+      text = ("World drop, %d kinds of mob"):format(s.mobCount)
     else
       text = (s.npc and ("Drops from %s%s"):format(s.npc, where) or (s.zone and ("World drop in " .. s.zone) or "World drop, rare"))
         .. percent(s.chance)
     end
+    text = text .. ahText(s)
   elseif s.kind == "quest" then
     text = ("Quest: %s"):format(s.quest or "?") .. (s.hordeOnly and dim(" Horde only") or "")
   else
@@ -407,6 +424,15 @@ local function getRow(i)
     GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetItemByID(self.out)
     ns:AddClassicSourceLines(GameTooltip, self.recipeName)
+    local price, rec = recipeAH(self.src)
+    if price then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddDoubleLine("Recipe on the auction house", ns.Money(price), 1, 0.82, 0, 1, 1, 1)
+      GameTooltip:AddLine(("%d listed, scanned %s"):format(rec.q or 0, ns.Age(rec.t)), 0.8, 0.8, 0.8)
+    elseif rec and rec.none then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(("Recipe not on the auction house (scanned %s)"):format(ns.Age(rec.t)), 0.8, 0.8, 0.8)
+    end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("Right-click to set your own type, shift-right-click for automatic.", T.accent[1], T.accent[2], T.accent[3])
     GameTooltip:Show()
