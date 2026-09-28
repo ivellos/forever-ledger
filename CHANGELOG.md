@@ -5,27 +5,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-28
+
+A Recipes tab with where to get every recipe, a Waylaid Crates tab, and better auction house handling. Recipe sources from original Classic are marked "(Classic)" until you see them in game.
+
 ### Added
-- Recipes tab: a sub-tab for each profession your characters have, plus Cooking, First Aid and Fishing (anyone can learn those). Every recipe with who knows it, where it comes from (as seen in game so far), a type (Flip or shuffle, Crafts that sell, Not for sale, Not profitable) and profit per craft at today's prices, even for recipes nobody knows yet. Filter by known or not, by type, or by name. Right-click a recipe to set your own type. A Pin button puts a map pin on the vendor or trainer. The Trainers view lists every trainer you've visited, with profession, tier and a pin. Recipes are grouped by type, best first, and the list starts on Known. A "Use my types" checkbox switches between your own types and the automatic ones. Shift-right-click a recipe to put it back to automatic, or "Clear my types" (with a confirmation) to clear them all.
-- Classic recipe sources on the Recipes tab: for Tailoring, Enchanting, Cooking, First Aid and Fishing, where each recipe came from in original Classic (vendor and price, the mob or zone it drops in with the drop chance, or quest), marked "Classic, unconfirmed" until you see it in game. Horde-only sources are marked. Recipes with no recipe item show "probably a trainer". The Trainers view also lists known Classic trainers for these professions (Alliance and neutral) until you visit them.
-- Classic vendors, mobs and trainers now have positions, so the Pin button works before you've visited them (it shows where they stood in Classic). Hover a recipe for every vendor that sold it and the mobs it drops from, with zones and drop chances. A vendor of your own faction is shown first. NPC positions and drops come from pfQuest's database (MIT licence).
-- Prices seen at a neutral auction house (Booty Bay, Gadgetzan, Everlook) are kept separate from your faction's, so they don't mix. A chat message says so when you open one.
-- The Favor estimate for crates you haven't turned in yet counts green crates as double (Apprentice white 5, green 10; Journeyman white 10, green 20, from beta data).
-- When another addon (Auctionator, TSM and others) runs a full auction house scan, Forever Ledger reads the results too, so you don't need a second full scan. Both share Blizzard's 15-minute limit.
-- Recipes tab fixes after the first test: enchants (which make no item) get their own type, "Enchant service", instead of "Not for sale"; recipes that drop from one mob now show its drop chance (they showed 0.00%); recipes with no known source say "trainer, or new in Forever"; "Classic, unconfirmed" is shortened to "(Classic)" so prices fit; shorter type filter buttons. Trainers view: wider Title column, and trainers whose window didn't say their profession get it from their title or the Classic list, with unknown ones listed last.
-- Recipes taught by trainers say which tier teaches them, "Any Journeyman+ Tailoring trainer, e.g. Sellandus", since every trainer of a tier teaches the same list.
-- Recipes only the other faction can buy or earn are marked "Horde only: neutral AH" (or "Alliance only" for Horde players), with a note in the hover that the neutral auction house is the way to get them.
-- Trainers keep their title, profession and tier from an earlier visit if a later read misses them, and the profession is taken from the title ("Journeyman Enchanter") when the trainer list doesn't say.
-- A Skill column on the Recipes tab: the skill needed to learn each recipe (from a trainer you visited, or Classic's for recipe items), green when one of your characters has it, red when not yet.
-- Recipes that drop show the recipe's cheapest auction house price from your last full scan (or "none on AH"). Hovering any recipe shows its auction house price, how many are listed and when it was scanned.
-- Recipe book groundwork: every recipe of each profession you open is recorded (learned or not, with what it makes and its materials), and so are recipe sources as you meet them: vendors that sell recipes (name, position, price or Favor cost, limited stock), trainers (what they teach, skill, cost) and recipe drops (mob and zone). `/fl book` shows what's gathered so far. The Recipe book tab comes later.
+- Recipes tab: a sub-tab for each profession your characters have, plus Cooking, First Aid and Fishing (anyone can learn those). Every recipe with the skill needed (green when one of your characters has it), who knows it, where it comes from, a type and profit per craft at today's prices, even for recipes nobody knows yet. Types: Flip or shuffle, Crafts that sell, Enchant service, Not for sale, Not profitable. Filter by known or not, by type, or by name. The list starts on Known, grouped by type, best first.
+- Your own types: right-click a recipe to set its type, shift-right-click to put it back to automatic, "Clear my types" (asks first) to clear them all, and "Use my types" to switch between yours and the automatic ones.
+- Where recipes come from: vendors, trainers and drops you see in game are recorded (with position), and original Classic data fills in the rest for Tailoring, Enchanting, Cooking, First Aid and Fishing: every vendor that sold it, the mobs it drops from with zones and drop chances, and quests. Hover a recipe for all of them. Trainer recipes say which tier teaches them ("Any Journeyman+ Tailoring trainer"). Recipes only the other faction can get are marked "Horde only: neutral AH". Drop recipes show their auction house price.
+- Map pins: a Pin button on every vendor, trainer or mob with a position, including Classic ones you haven't visited yet.
+- Trainers view: every trainer you've visited, plus Classic trainers for these professions (Alliance and neutral), with profession, tier, notes and a pin.
+- Waylaid Crates tab: every crate seen in your scans or bags, its cheapest bundle at today's prices (buying 20 counts the real cost across the cheapest listings), the crate's own price, the total, Favor it pays and gold per Favor, best first. Click a crate for every bundle and what you already have. Bundles are read from the crate's tooltip. Favor is estimated per tier (green crates double) and learned from your turn-ins. Crate tooltips show the cheapest fill. Can be turned off in Settings.
+- The addon remembers what each character on this account has in their bags and bank. The Crates tab shows "you have N (bags, bank, alts)"; hover for which alt has what.
+- When another addon (Auctionator, TSM and others) runs a full auction house scan, Forever Ledger reads it too.
+- Prices seen at a neutral auction house (Booty Bay, Gadgetzan, Everlook, and the Waylaid Crate trade posts if theirs are neutral) are kept separate from your faction's.
+- `/fl book` shows how much recipe data has been gathered.
 
 ### Fixed
-- A full scan stopped with "integer overflow" when something was listed at the maximum price (9,999,999g 99s 99c). Price history now handles any amount, and a problem saving history can no longer stop a scan.
-
-### Added
-- Waylaid Crates: a Crates tab listing every crate seen in your scans or bags, with its cheapest bundle at today's prices (buying 20 counts the real cost across the cheapest listings), the crate's own price, the total, Favor it pays and gold per Favor, best first. Click a crate for every bundle and what you already have; click an item to search the auction house. Bundles are read from the crate's own tooltip. Favor per crate starts as an estimate per tier and is learned from your turn-ins. Crate tooltips show the cheapest fill. It can be turned off in Settings.
-- The addon remembers what each character on this account has in their bags and bank (bank as of the last visit). The Crates tab shows "you have N (bags, bank, alts)"; hover for which alt has what. Not shared with other accounts.
+- A full scan stopped with "integer overflow" when something was listed at the maximum price. Price history now handles any amount, and a problem saving history can no longer stop a scan.
+- Trainers keep their title, profession and tier from an earlier visit, and the profession is taken from the title ("Journeyman Enchanter") when the trainer list doesn't say.
 
 ## [0.5.0] - 2026-09-28
 
