@@ -86,29 +86,48 @@ local function autoType(r)
   return "shuffle", profit
 end
 
--- The most useful source seen: vendor or trainer with a position first.
+-- The most useful source: seen in game first (vendor or trainer with a position best),
+-- otherwise where it came from in original Classic (ClassicRecipes.lua, unconfirmed).
 local function bestSource(name)
-  local list = name and ns.db.recipeSources[name:lower()]
+  if not name then return end
   local pick
-  for _, s in pairs(list or {}) do
+  for _, s in pairs(ns.db.recipeSources[name:lower()] or {}) do
     local score = (s.mapID and 2 or 0) + ((s.kind == "vendor" or s.kind == "trainer") and 1 or 0)
     if not pick or score > pick.score then pick = { s = s, score = score } end
   end
-  return pick and pick.s
+  if pick then return pick.s end
+  return ns.CLASSIC_RECIPES and ns.CLASSIC_RECIPES[name:lower()]
+end
+
+local function percent(chance)
+  if not chance then return "" end
+  local p = chance * 100
+  return dim((" (%s%%)"):format(p >= 1 and ("%.0f"):format(p) or p >= 0.1 and ("%.1f"):format(p) or ("%.2f"):format(p)))
 end
 
 local function sourceText(s)
-  if not s then return dim("not seen yet") end
+  -- Recipes with no recipe item to find were taught by trainers in Classic.
+  if not s then return dim("probably a trainer") end
+  local classic = s.conf ~= "seen"
   local where = s.zone and (", " .. s.zone) or ""
+  local text
   if s.kind == "trainer" then
-    return ("Trainer %s%s%s"):format(s.npc or "?", where, s.skill and (" (skill " .. s.skill .. ")") or "")
+    text = ("Trainer %s%s%s"):format(s.npc or "?", where, s.skill and (" (skill " .. s.skill .. ")") or "")
   elseif s.kind == "vendor" then
     local price = s.currency or (s.cost and ns.Money(s.cost)) or ""
-    return ("Vendor %s%s  %s%s"):format(s.npc or "?", where, price, s.limited and dim(" limited") or "")
+    local side = (classic and s.faction == "Horde") and dim(" Horde only") or ""
+    text = ("Vendor %s%s  %s%s%s"):format(s.npc or "?", where, price, s.limited and dim(" limited") or "", side)
+  elseif s.kind == "mob" then
+    text = ("Drops from %s%s"):format(s.npc or "?", where) .. percent(s.chance)
   elseif s.kind == "drop" then
-    return ("Drop: %s%s"):format(s.npc or "unknown mob", where)
+    text = (s.npc and ("Drops from %s%s"):format(s.npc, where) or (s.zone and ("World drop in " .. s.zone) or "World drop, rare"))
+      .. percent(s.chance)
+  elseif s.kind == "quest" then
+    text = ("Quest: %s"):format(s.quest or "?") .. ((s.faction == "Horde") and dim(" Horde only") or "")
+  else
+    text = s.kind or "?"
   end
-  return s.kind or "?"
+  return text .. (classic and dim("  Classic, unconfirmed") or "")
 end
 
 ---------------------------------------------------------------------------
@@ -382,10 +401,50 @@ local function recipeRows(prof, width, lay)
   return n
 end
 
+-- Classic trainers for the owner's professions and the secondary ones, Alliance and
+-- neutral only. From memory of original Classic, so unconfirmed: a trainer seen in
+-- game replaces its entry here. tier is only given where it's well known.
+local CLASSIC_TRAINERS = {
+  { name = "Georgio Bolero", profession = "Tailoring", zone = "Stormwind City", tier = "Artisan" },
+  { name = "Timothy Worthington", profession = "Tailoring", zone = "Dustwallow Marsh (Theramore)", tier = "Artisan" },
+  { name = "Sellandus", profession = "Tailoring", zone = "Stormwind City" },
+  { name = "Jormund Stonebrow", profession = "Tailoring", zone = "Ironforge" },
+  { name = "Me'lynn", profession = "Tailoring", zone = "Darnassus" },
+  { name = "Eldrin", profession = "Tailoring", zone = "Elwynn Forest (Goldshire)" },
+  { name = "Annora", profession = "Enchanting", zone = "Badlands (inside Uldaman)", tier = "Artisan" },
+  { name = "Kitta Firewind", profession = "Enchanting", zone = "Elwynn Forest (Tower of Azora)", tier = "Expert" },
+  { name = "Lucan Cordell", profession = "Enchanting", zone = "Stormwind City" },
+  { name = "Gimble Thistlefuzz", profession = "Enchanting", zone = "Ironforge" },
+  { name = "Dirge Quikcleave", profession = "Cooking", zone = "Tanaris (Gadgetzan)", tier = "Artisan" },
+  { name = "Stephen Ryback", profession = "Cooking", zone = "Stormwind City" },
+  { name = "Daryl Riknussun", profession = "Cooking", zone = "Ironforge" },
+  { name = "Alegorn", profession = "Cooking", zone = "Darnassus" },
+  { name = "Tomas", profession = "Cooking", zone = "Elwynn Forest (Goldshire)" },
+  { name = "Doctor Gustaf VanHowzen", profession = "First Aid", zone = "Dustwallow Marsh (Theramore)", tier = "Artisan" },
+  { name = "Deneb Walker", profession = "First Aid", zone = "Arathi Highlands", tier = "Expert", title = "sells the Expert First Aid book" },
+  { name = "Shaina Fuller", profession = "First Aid", zone = "Stormwind City" },
+  { name = "Nissa Firestone", profession = "First Aid", zone = "Ironforge" },
+  { name = "Michelle Belle", profession = "First Aid", zone = "Elwynn Forest (Goldshire)" },
+  { name = "Nat Pagle", profession = "Fishing", zone = "Dustwallow Marsh", tier = "Artisan", title = "through his quests" },
+  { name = "Old Man Heming", profession = "Fishing", zone = "Stranglethorn Vale (Booty Bay)", tier = "Expert", title = "sells the Expert Fishing book" },
+  { name = "Arnold Leland", profession = "Fishing", zone = "Stormwind City" },
+  { name = "Grimnur Stonebrand", profession = "Fishing", zone = "Ironforge" },
+}
+
 local function trainerRows(width, lay)
-  local list = {}
+  local list, seen = {}, {}
   for npcID, v in pairs(ns.db.vendors) do
-    if v.trainer then list[#list + 1] = { id = npcID, v = v } end
+    if v.trainer then
+      list[#list + 1] = { id = npcID, v = v }
+      if v.name then seen[v.name:lower()] = true end
+    end
+  end
+  local classicCount = 0
+  for _, v in ipairs(CLASSIC_TRAINERS) do
+    if not seen[v.name:lower()] then
+      list[#list + 1] = { v = v, classic = true }
+      classicCount = classicCount + 1
+    end
   end
   local TIER = { Apprentice = 1, Journeyman = 2, Expert = 3, Artisan = 4 }
   table.sort(list, function(a, b)
@@ -406,7 +465,8 @@ local function trainerRows(width, lay)
     local values = {
       name = e.v.name or "?",
       known = e.v.profession or "?",
-      source = ("%s%s"):format(e.v.zone or "?", e.v.x and ("  (%.1f, %.1f)"):format(e.v.x * 100, e.v.y * 100) or ""),
+      source = ("%s%s%s"):format(e.v.zone or "?", e.v.x and ("  (%.1f, %.1f)"):format(e.v.x * 100, e.v.y * 100) or "",
+        e.classic and dim("  Classic, unconfirmed") or ""),
       type = e.v.tier or dim("?"),
       profit = e.v.title and dim(e.v.title) or "",
     }
@@ -424,7 +484,8 @@ local function trainerRows(width, lay)
     row.pin:SetShown(e.v.mapID and e.v.x and true or false)
     row:Show()
   end
-  f.summary:SetText(("%d trainers seen. Trainers you visit are added here with their position; Classic locations for the rest come later."):format(#list))
+  f.summary:SetText(("%d trainers seen, %d more from Classic (unconfirmed). Visit one to confirm it and get a map pin."):format(
+    #list - classicCount, classicCount))
   return #list
 end
 

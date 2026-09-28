@@ -19,6 +19,7 @@ Theme.lua
 Dashboard.lua
 Ledger.lua
 Crates.lua
+ClassicRecipes.lua
 RecipesTab.lua
 UI.lua
 Work.lua
