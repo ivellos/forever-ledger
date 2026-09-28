@@ -250,6 +250,7 @@ local current     -- profession shown, or "Trainers:<profession>"
 
 local COLS = {
   { key = "name", label = "Recipe" },
+  { key = "skill", label = "Skill", w = 36 },
   { key = "known", label = "Known by", w = 120 },
   { key = "source", label = "Where from (hover for all)", w = 300 },
   { key = "type", label = "Type", w = 104 },
@@ -452,7 +453,35 @@ local function knownBy(prof, recipeID)
   return names
 end
 
+-- Skill needed to learn a recipe: from a trainer seen in game, else Classic's.
+local function skillFor(name)
+  if not name then return end
+  for _, s in pairs(ns.db.recipeSources[name:lower()] or {}) do
+    if s.skill and s.skill > 0 then return s.skill end
+  end
+  local e = ns.CLASSIC_RECIPES and ns.CLASSIC_RECIPES[name:lower()]
+  return e and e.skill
+end
+
+-- Highest skill any of your characters has in a profession.
+local function bestRank(prof)
+  local best
+  for _, c in pairs(ns.db.chars) do
+    local p = c.profs and c.profs[prof]
+    if p and p.rank then best = math.max(best or 0, p.rank) end
+  end
+  return best
+end
+
+-- Green: one of your characters has the skill; red: not yet.
+local function skillText(skill, rank)
+  if not skill then return dim("?") end
+  if not rank then return tostring(skill) end
+  return (rank >= skill and "|cff7fd39c%d|r" or "|cffee8597%d|r"):format(skill)
+end
+
 local function recipeRows(prof, width, lay)
+  local rank = bestRank(prof)
   local s = settings()
   local match = (f.search:GetText() or ""):lower()
   local list = {}
@@ -469,10 +498,10 @@ local function recipeRows(prof, width, lay)
     end
   end
   -- Grouped by type (flip or shuffle first), then most profit first.
-  local rank = {}
-  for i, k in ipairs(ORDER) do rank[k] = i end
+  local typeRank = {}
+  for i, k in ipairs(ORDER) do typeRank[k] = i end
   table.sort(list, function(a, b)
-    if a.type ~= b.type then return rank[a.type] < rank[b.type] end
+    if a.type ~= b.type then return typeRank[a.type] < typeRank[b.type] end
     if (a.profit ~= nil) ~= (b.profit ~= nil) then return a.profit ~= nil end
     if a.profit and b.profit and a.profit ~= b.profit then return a.profit > b.profit end
     return (a.r.n or "") < (b.r.n or "")
@@ -493,6 +522,7 @@ local function recipeRows(prof, width, lay)
     local tinfo = TYPES[e.type]
     local values = {
       name = e.r.n or "?",
+      skill = skillText(skillFor(e.r.n), rank),
       known = #e.names > 0 and table.concat(e.names, ", ") or (SECONDARY[prof] and "|cff7fd39canyone can learn|r" or dim("nobody yet")),
       source = sourceText(src),
       type = ("|cff%s%s|r%s"):format(tinfo.color, tinfo.label, e.override and dim(" (yours)") or ""),
@@ -558,6 +588,7 @@ local function trainerRows(width, lay)
     row.src = e.v
     local values = {
       name = e.v.name or "?",
+      skill = "",
       known = e.v.profession or "?",
       source = ("%s%s%s"):format(e.v.zone or "?", e.v.x and ("  (%.1f, %.1f)"):format(e.v.x * 100, e.v.y * 100) or "",
         e.classic and dim("  Classic, unconfirmed") or ""),
@@ -595,7 +626,7 @@ function ns:RefreshRecipes()
 
   local width = f:GetWidth() - 12
   local lay = layout(COLS, width)
-  local labels = trainers and { name = "Trainer", known = "Profession", source = "Where", type = "Tier", profit = "Title", pin = "" }
+  local labels = trainers and { name = "Trainer", skill = "", known = "Profession", source = "Where", type = "Tier", profit = "Title", pin = "" }
   for i, c in ipairs(COLS) do
     local h = f.heads[i]
     if not h then h = T:Text(f.header, 11, T.dim); f.heads[i] = h end
