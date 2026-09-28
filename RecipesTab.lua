@@ -139,6 +139,21 @@ local function professions()
   return list
 end
 
+StaticPopupDialogs["FOREVER_LEDGER_CLEAR_TYPES"] = {
+  text = "Clear the types you set on %d recipes? They go back to automatic. This can't be undone.",
+  button1 = YES or "Yes",
+  button2 = NO or "No",
+  OnAccept = function()
+    wipe(ns.db.recipeTypes)
+    ns:Print("Your recipe types are cleared.")
+    ns:RefreshRecipes()
+  end,
+  timeout = 0,
+  whileDead = true,
+  hideOnEscape = true,
+  preferredIndex = 3,
+}
+
 function ns:BuildRecipes(parent)
   f = CreateFrame("Frame", nil, parent)
   f:SetAllPoints()
@@ -168,6 +183,13 @@ function ns:BuildRecipes(parent)
   f.search = T:EditBox(f.second, 140, "LEFT")
   f.search:SetPoint("LEFT", f.type, "RIGHT", 14, 0)
   f.custom:SetPoint("LEFT", f.search, "RIGHT", 14, 0)
+  f.clear = T:Button(f.second, "Clear my types", 110, function()
+    local n = 0
+    for _ in pairs(ns.db.recipeTypes) do n = n + 1 end
+    if n == 0 then ns:Print("You haven't set any types yet."); return end
+    StaticPopup_Show("FOREVER_LEDGER_CLEAR_TYPES", n)
+  end, 22)
+  f.clear:SetPoint("LEFT", f.custom.label, "RIGHT", 14, 0)
   f.search:SetScript("OnTextChanged", function() ns:RefreshRecipes() end)
   f.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
 
@@ -253,6 +275,12 @@ local function getRow(i)
       return
     end
     local overrides = ns.db.recipeTypes
+    -- Shift-right-click: back to the automatic type.
+    if IsShiftKeyDown() then
+      overrides[self.recipeID] = nil
+      ns:RefreshRecipes()
+      return
+    end
     local now = overrides[self.recipeID]
     local nextType
     if not now then nextType = ORDER[1] else
@@ -266,7 +294,7 @@ local function getRow(i)
     GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetItemByID(self.out)
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Right-click to set your own type.", T.accent[1], T.accent[2], T.accent[3])
+    GameTooltip:AddLine("Right-click to set your own type, shift-right-click for automatic.", T.accent[1], T.accent[2], T.accent[3])
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
