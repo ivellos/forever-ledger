@@ -86,23 +86,31 @@ local function probeRecipes()
   local base = TS and TS.GetBaseProfessionInfo and TS.GetBaseProfessionInfo()
   local prof = type(base) == "table" and base.professionName
   if not (prof and TS.GetAllRecipeIDs) then say("Recipes: open a profession window and probe again."); return end
-  local learned, unlearned, samples = 0, 0, {}
+  -- Check every unlearned recipe; show examples that do have source text, grouped by
+  -- the first word ("Vendor:", "Drop:", "Trainer:", …) so each kind is shown.
+  local learned, unlearned, withText, kinds, examples = 0, 0, 0, {}, {}
   for _, id in ipairs(TS.GetAllRecipeIDs() or {}) do
     local ok, info = pcall(TS.GetRecipeInfo, id)
     if ok and info then
       if info.learned then learned = learned + 1 else
         unlearned = unlearned + 1
-        if #samples < 6 then samples[#samples + 1] = { id = id, name = info.name } end
+        local ok2, src = pcall(TS.GetRecipeSourceText or function() end, id)
+        if ok2 and type(src) == "string" and src ~= "" then
+          withText = withText + 1
+          local clean = src:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|n", " / "):gsub("\n", " / ")
+          local kind = clean:match("^%s*([^:]+):") or "other"
+          kinds[kind] = (kinds[kind] or 0) + 1
+          if kinds[kind] <= 2 and #examples < 12 then examples[#examples + 1] = ("%s: %s"):format(tostring(info.name), clean) end
+        end
       end
     end
   end
-  say("Recipes in %s: %d learned, %d not learned. GetRecipeSourceText: %s.", prof, learned, unlearned,
-    TS.GetRecipeSourceText and "yes" or "no")
-  for _, s in ipairs(samples) do
-    local ok, src = pcall(TS.GetRecipeSourceText, s.id)
-    local text = ok and src and src:gsub("|", "||"):gsub("\n", " / ") or "no source text"
-    say("  %s: %s", tostring(s.name), text)
-  end
+  say("Recipes in %s: %d learned, %d not learned, %d of those have source text. GetRecipeSourceText: %s.",
+    prof, learned, unlearned, withText, TS.GetRecipeSourceText and "yes" or "no")
+  local list = {}
+  for k, n in pairs(kinds) do list[#list + 1] = ("%s %d"):format(k, n) end
+  say("  Kinds of source: %s", #list > 0 and table.concat(list, ", ") or "none")
+  for _, e in ipairs(examples) do say("  %s", e) end
   if unlearned == 0 then say("  None listed as not learned. Check whether the profession window has a filter hiding them.") end
 end
 
@@ -110,7 +118,8 @@ end
 local function probeMap()
   local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
   local pos = mapID and C_Map.GetPlayerMapPosition and C_Map.GetPlayerMapPosition(mapID, "player")
-  local x, y = pos and pos.GetXY and pos:GetXY()
+  local x, y
+  if pos and pos.GetXY then x, y = pos:GetXY() end
   local info = mapID and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
   say("Map: %s (map %s) at %s, %s. Map pins: %s, pin tracking: %s.", tostring(info and info.name), tostring(mapID),
     x and ("%.1f"):format(x * 100) or "?", y and ("%.1f"):format(y * 100) or "?",
