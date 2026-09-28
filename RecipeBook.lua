@@ -124,10 +124,17 @@ local function captureTrainer()
     end
   end
   local found = 0
+  -- Which profession this trainer teaches (most common skill needed) and their tier
+  -- (the highest rank spell they offer: Apprentice, Journeyman, Expert, Artisan).
+  local TIERS = { Apprentice = 1, Journeyman = 2, Expert = 3, Artisan = 4 }
+  local profCount, tier = {}, nil
   for i = 1, (GetNumTrainerServices() or 0) do
     local service, _, category = GetTrainerServiceInfo(i)
     if service and category ~= "header" then
-      local _, skill = GetTrainerServiceSkillReq and GetTrainerServiceSkillReq(i)
+      local reqName, skill = GetTrainerServiceSkillReq and GetTrainerServiceSkillReq(i)
+      if reqName and reqName ~= "" then profCount[reqName] = (profCount[reqName] or 0) + 1 end
+      local t = service:match("^(%a+)")
+      if TIERS[t] and (not tier or TIERS[t] > TIERS[tier]) then tier = t end
       local cost = GetTrainerServiceCost and GetTrainerServiceCost(i)
       addSource(service:lower(), { kind = "trainer", npc = name, npcID = npcID, mapID = mapID, x = x, y = y,
         zone = zone, skill = skill, cost = cost })
@@ -136,6 +143,19 @@ local function captureTrainer()
   end
   for f, on in pairs(saved) do
     if not on then pcall(SetTrainerServiceTypeFilter, f, 0) end
+  end
+  local prof, most = nil, 0
+  for p, n in pairs(profCount) do if n > most then prof, most = p, n end end
+  local v = npcID and ns.db.vendors[npcID]
+  if v then
+    v.profession, v.tier = prof, tier
+    -- The title under the name, e.g. "Tailoring Trainer" or "Artisan Enchanter".
+    if C_TooltipInfo and C_TooltipInfo.GetUnit then
+      local ok, data = pcall(C_TooltipInfo.GetUnit, "npc")
+      local line = ok and data and data.lines and data.lines[2]
+      v.title = line and line.leftText
+    end
+    ns:Debug("Trainer", name or "?", "teaches", prof or "?", "up to", tier or "?", "title", v.title or "?")
   end
   reading = false
   lastRead = GetTime()
