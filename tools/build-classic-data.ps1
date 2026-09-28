@@ -60,7 +60,7 @@ $unitBlock = Blocks $pfUnits
 function Pairs($block, $key) {
   $out = @()
   $m = [regex]::Match($block, "(?s)\[`"$key`"\] = \{(.*?)\n    \},")
-  if ($m.Success) { foreach ($p in [regex]::Matches($m.Groups[1].Value, '\[(\d+)\] = ([\d.]+)')) { $out += , @([int]$p.Groups[1].Value, [double]$p.Groups[2].Value) } }
+  if ($m.Success) { foreach ($p in [regex]::Matches($m.Groups[1].Value, '\[(\d+)\] = ([\d.]+)')) { $out += [pscustomobject]@{ id = [int]$p.Groups[1].Value; v = [double]$p.Groups[2].Value } } }
   , $out
 }
 function UnitInfo($id) {
@@ -94,7 +94,7 @@ foreach ($r in $recipes) {
   if ($vendors.Count -gt 0) {
     $f += 'kind = "vendor"'
     if ($s -and $s.category -eq "Vendor" -and $s.cost) { $f += "cost = $($s.cost)" }
-    $ids = $vendors | ForEach-Object { $_[0] } | Where-Object { $unitName[$_] }
+    $ids = @($vendors | ForEach-Object { $_.id } | Where-Object { $unitName[$_] })
     $f += "vendors = { $(($ids | ForEach-Object { $_ }) -join ', ') }"
     foreach ($id in $ids) { $npcs[$id] = $true }
   } elseif ($s -and $s.category -eq "Quest") {
@@ -103,11 +103,12 @@ foreach ($r in $recipes) {
     if ($q) { $f += "quest = $(Q $q.name)"; if ($q.faction) { $f += "faction = $(Q $q.faction)" } }
   } elseif ($drops.Count -gt 0) {
     # Few mobs with a real chance: a mob drop. Many with tiny chances: a world drop.
-    $top = $drops | Sort-Object { - $_[1] } | Where-Object { $unitName[$_[0]] } | Select-Object -First 5
-    $f += $(if ($drops.Count -le 5 -or $top[0][1] -ge 3) { 'kind = "mob"' } else { 'kind = "drop"' })
-    $f += "mobs = { $(($top | ForEach-Object { "{ $($_[0]), $(Num $_[1]) }" }) -join ', ') }"
+    # Objects, not pairs: a single [id, chance] pair would be unrolled by the pipeline.
+    $top = @($drops | Sort-Object { - $_.v } | Where-Object { $unitName[$_.id] } | Select-Object -First 5)
+    $f += $(if ($drops.Count -le 5 -or $top[0].v -ge 3) { 'kind = "mob"' } else { 'kind = "drop"' })
+    $f += "mobs = { $(($top | ForEach-Object { "{ $($_.id), $(Num $_.v) }" }) -join ', ') }"
     if ($drops.Count -gt 5) { $f += "mobCount = $($drops.Count)" }
-    foreach ($t in $top) { $npcs[$t[0]] = $true }
+    foreach ($t in $top) { $npcs[$t.id] = $true }
   } elseif ($s) {
     $f += 'kind = "drop"'
     if ($s.dropChance) { $f += "chance = $(Num ([math]::Round([double]$s.dropChance * 100, 2)))" }
@@ -159,4 +160,5 @@ $out = @(
 ) + $lines + @("}", "", "ns.CLASSIC_NPCS = {") + $npcLines + @("}", "", "ns.CLASSIC_TRAINERS = {") + $trainerLines + @("}")
 [IO.File]::WriteAllLines((Join-Path (Get-Location) "ClassicRecipes.lua"), $out, (New-Object Text.UTF8Encoding $false))
 "Wrote $($lines.Count) recipes, $($npcLines.Count) NPCs, $($trainerLines.Count) trainers to ClassicRecipes.lua"
+
 

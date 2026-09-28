@@ -13,12 +13,13 @@ local MIN_LISTED = 5
 local MAX_ROWS = 300
 local ROW = 22
 local TYPES = {
-  shuffle = { label = "Flip or shuffle", color = "7fd39c" },
-  sells = { label = "Crafts that sell", color = "ffd100" },
-  notsale = { label = "Not for sale", color = "888888" },
-  loss = { label = "Not profitable", color = "ee8597" },
+  shuffle = { label = "Flip or shuffle", short = "Shuffle", color = "7fd39c" },
+  sells = { label = "Crafts that sell", short = "Sells", color = "ffd100" },
+  enchant = { label = "Enchant service", short = "Enchants", color = "66bbff" },   -- no item to sell; sold as a service
+  notsale = { label = "Not for sale", short = "Not for sale", color = "888888" },
+  loss = { label = "Not profitable", short = "Loss", color = "ee8597" },
 }
-local ORDER = { "shuffle", "sells", "notsale", "loss" }
+local ORDER = { "shuffle", "sells", "enchant", "notsale", "loss" }
 
 local function dim(t) return "|cff888888" .. t .. "|r" end
 local function money(v)
@@ -74,6 +75,8 @@ end
 
 local function autoType(r)
   if ALWAYS_SHUFFLE[r.out or 0] then return "shuffle" end
+  -- Enchants make no item: their value is what players pay for the service.
+  if not r.out and (r.n or ""):find("^Enchant ") then return "enchant" end
   local _, _, _, _, _, _, _, _, _, _, sell, _, _, bind = ns.GetItemInfo(r.out or 0)
   local profit, best = craftValue(r)
   if bind == 1 or not best then return "notsale", profit end
@@ -192,7 +195,9 @@ end
 -- Chance is in percent.
 local function percent(p)
   if not p then return "" end
-  return dim((" (%s%%)"):format(p >= 1 and ("%.0f"):format(p) or p >= 0.1 and ("%.1f"):format(p) or ("%.2f"):format(p)))
+  if p <= 0 then return "" end
+  return dim((" (%s%%)"):format(p >= 1 and ("%.0f"):format(p) or p >= 0.1 and ("%.1f"):format(p)
+    or p >= 0.01 and ("%.2f"):format(p) or "<0.01"))
 end
 
 -- The recipe item's cheapest auction house listing: price, record (or nil).
@@ -212,7 +217,8 @@ end
 
 local function sourceText(s)
   -- Recipes with no recipe item to find were taught by trainers in Classic.
-  if not s then return dim("probably a trainer") end
+  -- Forever also adds recipes Classic never had (Favor vendors, camping).
+  if not s then return dim("trainer, or new in Forever") end
   local classic = s.conf ~= "seen"
   local where = s.zone and (", " .. s.zone) or ""
   local text
@@ -238,7 +244,8 @@ local function sourceText(s)
   else
     text = s.kind or "?"
   end
-  return text .. (classic and dim("  Classic, unconfirmed") or "")
+  -- Short, so prices fit; the hover and summary line explain it.
+  return text .. (classic and dim("  (Classic)") or "")
 end
 
 ---------------------------------------------------------------------------
@@ -307,8 +314,9 @@ function ns:BuildRecipes(parent)
     GameTooltip:Show()
   end)
   f.custom:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  local typeOpts = { { value = "all", label = "Every type" } }
-  for _, k in ipairs(ORDER) do typeOpts[#typeOpts + 1] = { value = k, label = TYPES[k].label } end
+  -- Short labels so the row fits the window.
+  local typeOpts = { { value = "all", label = "Any type" } }
+  for _, k in ipairs(ORDER) do typeOpts[#typeOpts + 1] = { value = k, label = TYPES[k].short } end
   f.type = T:Choice(f.second, typeOpts, function(v) s.type = v; ns:RefreshRecipes() end)
   f.type:SetPoint("LEFT", f.show, "RIGHT", 14, 0)
   f.search = T:EditBox(f.second, 140, "LEFT")
@@ -514,6 +522,7 @@ local function recipeRows(prof, width, lay)
     row:SetWidth(width)
     row.stripe:SetShown(i % 2 == 0)
     row.recipeID, row.out, row.recipeName = e.id, e.r.out, e.r.n
+    row.cells.profit:SetJustifyH("RIGHT")
     row.icon:SetTexture(e.r.out and ns:ItemIcon(e.r.out) or "Interface\\Icons\\INV_Misc_QuestionMark")
     row.icon:ClearAllPoints()
     row.icon:SetPoint("LEFT", row, "LEFT", lay.name.x, 0)
@@ -547,16 +556,51 @@ local function recipeRows(prof, width, lay)
     total = total + 1
     if #knownBy(prof, id) > 0 then knownCount = knownCount + 1 end
   end
-  f.summary:SetText(("%s: %d recipes, %d known. Showing %d%s. Sources fill in as you visit vendors and trainers."):format(
+  f.summary:SetText(("%s: %d recipes, %d known. Showing %d%s. (Classic) = original Classic data, unconfirmed in Forever until you see it."):format(
     prof, total, knownCount, n, #list > MAX_ROWS and (" of " .. #list) or ""))
   return n
 end
 
+-- The Trainers view has its own column widths (same keys, so rows can be shared).
+local TRAINER_COLS = {
+  { key = "name", label = "Trainer" },
+  { key = "skill", label = "", w = 0 },
+  { key = "known", label = "Profession", w = 110 },
+  { key = "source", label = "Where", w = 330 },
+  { key = "type", label = "Tier", w = 90 },
+  { key = "profit", label = "Title or note", w = 230 },
+  { key = "pin", label = "", w = 36 },
+}
+
+-- Profession and tier from a trainer's title: "Expert Tailor", "Tailoring Trainer".
+local TITLE_PROF = {
+  { "Tailor", "Tailoring" }, { "Enchant", "Enchanting" }, { "Cook", "Cooking" }, { "First Aid", "First Aid" },
+  { "Physician", "First Aid" }, { "Fish", "Fishing" }, { "Alchemist", "Alchemy" }, { "Alchemy", "Alchemy" },
+  { "Blacksmith", "Blacksmithing" }, { "Leatherwork", "Leatherworking" }, { "Engineer", "Engineering" },
+  { "Herbalis", "Herbalism" }, { "Miner", "Mining" }, { "Mining", "Mining" }, { "Skinn", "Skinning" },
+}
+local TIERS = { Apprentice = true, Journeyman = true, Expert = true, Artisan = true }
+local function fromTitle(title)
+  if not title then return end
+  local prof
+  for _, p in ipairs(TITLE_PROF) do
+    if title:find(p[1], 1, true) then prof = p[2]; break end
+  end
+  local first = title:match("^(%a+)")
+  return prof, TIERS[first or ""] and first or nil
+end
+
 local function trainerRows(width, lay)
   local list, seen = {}, {}
+  local classicByName = {}
+  for _, t in ipairs(ns.CLASSIC_TRAINERS or {}) do classicByName[t.name:lower()] = t end
   for npcID, v in pairs(ns.db.vendors) do
     if v.trainer then
-      list[#list + 1] = { id = npcID, v = v }
+      -- Fill what the trainer window didn't give: from the title, then the Classic list.
+      local prof, tier = fromTitle(v.title)
+      local c = v.name and classicByName[v.name:lower()]
+      list[#list + 1] = { id = npcID, v = v, profession = v.profession or prof or (c and c.profession),
+        tier = v.tier or tier or (c and c.tier) }
       if v.name then seen[v.name:lower()] = true end
     end
   end
@@ -565,15 +609,19 @@ local function trainerRows(width, lay)
   for _, t in ipairs(ns.CLASSIC_TRAINERS or {}) do
     if not seen[t.name:lower()] then
       local n = t.npc and classicNPC(t.npc, "trainer") or {}
-      list[#list + 1] = { classic = true, v = { name = t.name, profession = t.profession, tier = t.tier, title = t.title,
-        zone = n.zone or t.zone, x = n.x, y = n.y, mapID = n.mapID } }
+      list[#list + 1] = { classic = true, profession = t.profession, tier = t.tier,
+        v = { name = t.name, title = t.title, zone = n.zone or t.zone, x = n.x, y = n.y, mapID = n.mapID } }
       classicCount = classicCount + 1
     end
   end
   local TIER = { Apprentice = 1, Journeyman = 2, Expert = 3, Artisan = 4 }
   table.sort(list, function(a, b)
-    if (a.v.profession or "") ~= (b.v.profession or "") then return (a.v.profession or "") < (b.v.profession or "") end
-    return (TIER[a.v.tier or ""] or 0) > (TIER[b.v.tier or ""] or 0)
+    -- Unknown professions last.
+    local pa, pb = a.profession or "~", b.profession or "~"
+    if pa ~= pb then return pa < pb end
+    local ta, tb = TIER[a.tier or ""] or 0, TIER[b.tier or ""] or 0
+    if ta ~= tb then return ta > tb end
+    return (a.v.name or "") < (b.v.name or "")
   end)
   for i, e in ipairs(list) do
     local row = getRow(i)
@@ -582,6 +630,7 @@ local function trainerRows(width, lay)
     row:SetWidth(width)
     row.stripe:SetShown(i % 2 == 0)
     row.recipeID, row.out, row.recipeName = nil, nil, nil
+    row.cells.profit:SetJustifyH("LEFT")
     row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
     row.icon:ClearAllPoints()
     row.icon:SetPoint("LEFT", row, "LEFT", lay.name.x, 0)
@@ -589,10 +638,10 @@ local function trainerRows(width, lay)
     local values = {
       name = e.v.name or "?",
       skill = "",
-      known = e.v.profession or "?",
+      known = e.profession or dim("?"),
       source = ("%s%s%s"):format(e.v.zone or "?", e.v.x and ("  (%.1f, %.1f)"):format(e.v.x * 100, e.v.y * 100) or "",
-        e.classic and dim("  Classic, unconfirmed") or ""),
-      type = e.v.tier or dim("?"),
+        e.classic and dim("  (Classic)") or ""),
+      type = e.tier or dim("?"),
       profit = e.v.title and dim(e.v.title) or "",
     }
     for key, fs in pairs(row.cells) do
@@ -625,16 +674,16 @@ function ns:RefreshRecipes()
   f.second:SetShown(not trainers)
 
   local width = f:GetWidth() - 12
-  local lay = layout(COLS, width)
-  local labels = trainers and { name = "Trainer", skill = "", known = "Profession", source = "Where", type = "Tier", profit = "Title", pin = "" }
-  for i, c in ipairs(COLS) do
+  local cols = trainers and TRAINER_COLS or COLS
+  local lay = layout(cols, width)
+  for i, c in ipairs(cols) do
     local h = f.heads[i]
     if not h then h = T:Text(f.header, 11, T.dim); f.heads[i] = h end
     h:ClearAllPoints()
     h:SetPoint("LEFT", f.header, "LEFT", lay[c.key].x, 0)
-    h:SetWidth(lay[c.key].w)
+    h:SetWidth(math.max(lay[c.key].w, 1))
     h:SetJustifyH(c.key == "profit" and not trainers and "RIGHT" or "LEFT")
-    h:SetText(labels and labels[c.key] or c.label)
+    h:SetText(c.label)
   end
 
   f.content:SetWidth(width)
