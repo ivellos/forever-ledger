@@ -320,7 +320,7 @@ local function addAllTime(id, cheapest, typical)
   local all = marketTable("historyAll")
   local lo, sum, n = (all[id] or ""):match("^(%d+):(%d+):(%d+)$")
   lo, sum, n = tonumber(lo), tonumber(sum) or 0, tonumber(n) or 0
-  all[id] = ("%d:%d:%d"):format(lo and math.min(lo, cheapest) or cheapest, sum + typical, n + 1)
+  all[id] = ("%.0f:%.0f:%.0f"):format(lo and math.min(lo, cheapest) or cheapest, sum + typical, n + 1)
 end
 
 -- A day older than DAILY_DAYS is folded into its week.
@@ -333,9 +333,9 @@ local function addWeek(id, day, cheapest, typical)
     ln = tonumber(ln)
     cheapest = math.min(cheapest, tonumber(lmin))
     typical = math.floor((tonumber(ltyp) * ln + typical) / (ln + 1) + 0.5)
-    s = s:gsub("[^|]*$", "") .. ("%d:%d:%d:%d"):format(w, cheapest, typical, ln + 1)
+    s = s:gsub("[^|]*$", "") .. ("%.0f:%.0f:%.0f:%.0f"):format(w, cheapest, typical, ln + 1)
   else
-    s = (s ~= "" and (s .. "|") or "") .. ("%d:%d:%d:1"):format(w, cheapest, typical)
+    s = (s ~= "" and (s .. "|") or "") .. ("%.0f:%.0f:%.0f:1"):format(w, cheapest, typical)
   end
   weekly[id] = dropOld(s, w - WEEKLY_WEEKS)
 end
@@ -356,7 +356,7 @@ function ns:RecordPriceHistory(id, cheapest, typical)
     if lastDay then addAllTime(id, tonumber(lastMin), tonumber(lastTyp)) end
     if s ~= "" then s = s .. "|" end
   end
-  s = s .. ("%d:%d:%d"):format(d, cheapest, typical)
+  s = s .. ("%.0f:%.0f:%.0f"):format(d, cheapest, typical)
   hist[id] = dropOld(s, d - DAILY_DAYS, function(day, m, a) addWeek(id, day, m, a) end)
 end
 

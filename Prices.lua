@@ -218,7 +218,11 @@ local function record(id, units, src)
     src = src or "scan",
   }
   ns.db.prices[key][id] = rec
-  if ns.RecordPriceHistory then ns:RecordPriceHistory(id, rec.m, rec.a) end
+  -- History is a bonus: a problem there must never stop a scan from saving prices.
+  if ns.RecordPriceHistory then
+    local ok, err = pcall(ns.RecordPriceHistory, ns, id, rec.m, rec.a)
+    if not ok then ns:Debug("Price history skipped for", id, err) end
+  end
 end
 ns.RecordPrice = record
 

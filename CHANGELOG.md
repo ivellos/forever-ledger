@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- A full scan stopped with "integer overflow" when something was listed at the maximum price (9,999,999g 99s 99c). Price history now handles any amount, and a problem saving history can no longer stop a scan.
+
 ### Added
 - Waylaid Crates: a Crates tab listing every crate seen in your scans or bags, with its cheapest bundle at today's prices (buying 20 counts the real cost across the cheapest listings), the crate's own price, the total, Favor it pays and gold per Favor, best first. Click a crate for every bundle and what you already have; click an item to search the auction house. Bundles are read from the crate's own tooltip. Favor per crate starts as an estimate per tier and is learned from your turn-ins. Crate tooltips show the cheapest fill. It can be turned off in Settings.
 - The addon remembers what each character on this account has in their bags and bank (bank as of the last visit). The Crates tab shows "you have N (bags, bank, alts)"; hover for which alt has what. Not shared with other accounts.
