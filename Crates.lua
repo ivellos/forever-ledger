@@ -109,11 +109,16 @@ local function bagCount(id)
   return id and count and count(id, false, false, true) or 0
 end
 
--- Favor a crate pays: learned from turn-ins, otherwise the tier estimate.
-local function favorFor(name)
+-- Favor a crate pays: learned from turn-ins, otherwise the tier estimate. Green crates
+-- pay double (foreverchanges.pro, from beta data: Apprentice white 5, green 10;
+-- Journeyman white 10, green 20).
+local function favorFor(name, id)
   local learned = ns.db.crateFavor[name]
   if learned and learned.n > 0 then return learned.sum / learned.n, true end
-  return TIER_FAVOR[tierOf(name) or ""], false
+  local base = TIER_FAVOR[tierOf(name) or ""]
+  local quality = id and select(3, ns.GetItemInfo(id))
+  if base and quality and quality >= 2 then base = base * 2 end
+  return base, false
 end
 
 -- Everything about one crate: bundles with costs, the cheapest, totals.
@@ -139,7 +144,7 @@ function ns:CrateReport(id)
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   r.owned = bagCount(id) > 0
   r.cratePrice = (not r.owned) and rec and not rec.none and rec.m or nil
-  r.favor, r.learned = favorFor(info.name)
+  r.favor, r.learned = favorFor(info.name, id)
   if r.cheapest then
     r.total = r.cheapest.cost + (r.cratePrice or 0)
     if r.favor and r.favor > 0 then r.perFavor = r.total / r.favor end
