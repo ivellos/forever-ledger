@@ -30,9 +30,13 @@ The addon suggests; you click. Every craft, purchase and auction still needs you
 
 ## Install
 
-1. Download the latest `ForeverLedger-x.y.z.zip` from [Releases](../../releases).
-2. Unzip it into your Forever client's `Interface\AddOns` folder, so you end up with `Interface\AddOns\ForeverLedger\ForeverLedger.toc`.
-3. Start the game and make sure Forever Ledger is ticked in the AddOns list.
+1. Download the latest `ForeverLedger-x.y.z.zip` from [Releases](../../releases), the file under "Assets", not "Source code".
+2. Open the zip and drag the **ForeverLedger** folder inside it into your Forever client's `Interface\AddOns` folder, so you end up with `Interface\AddOns\ForeverLedger\ForeverLedger.toc`. The folder must be named exactly `ForeverLedger`, with no version number and no extra folder in between, or the game won't see it.
+3. Start the game and make sure Forever Ledger is ticked in the AddOns list, then type `/fl`.
+
+## What's next
+
+See the [roadmap](ROADMAP.md) for planned features. Ideas are welcome in [Issues](../../issues).
 
 ## Commands
 
