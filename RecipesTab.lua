@@ -86,6 +86,96 @@ local function autoType(r)
   return "shuffle", profit
 end
 
+---------------------------------------------------------------------------
+-- Classic data (ClassicRecipes.lua): turn an entry into a source like the ones seen
+-- in game, with a map for pins.
+---------------------------------------------------------------------------
+-- Zone name -> map ID, from the game's own map list (Classic zone and city maps are
+-- numbered 1411-1458; Stormwind City is 1453).
+local mapByName
+function ns:MapIDForZone(zone)
+  if not zone then return end
+  if not mapByName then
+    mapByName = {}
+    if C_Map and C_Map.GetMapInfo then
+      for id = 1400, 1460 do
+        local ok, info = pcall(C_Map.GetMapInfo, id)
+        if ok and info and info.name then mapByName[info.name] = mapByName[info.name] or id end
+      end
+    end
+  end
+  return mapByName[zone]
+end
+
+local myFaction
+local function friendly(npc)
+  myFaction = myFaction or ((UnitFactionGroup("player") == "Horde") and "H" or "A")
+  return not npc.fac or npc.fac:find(myFaction, 1, true) ~= nil
+end
+
+-- An NPC from the Classic data as a source table.
+local function classicNPC(id, kind)
+  local n = ns.CLASSIC_NPCS and ns.CLASSIC_NPCS[id]
+  if not n then return end
+  return { kind = kind, conf = "classic", npc = n.name, npcID = id, zone = n.zone,
+    x = n.x and n.x / 100, y = n.y and n.y / 100, mapID = ns:MapIDForZone(n.zone), fac = n.fac }
+end
+
+function ns:ClassicSource(name)
+  local e = ns.CLASSIC_RECIPES and ns.CLASSIC_RECIPES[name:lower()]
+  if not e then return end
+  local s
+  if e.kind == "vendor" then
+    -- A vendor of your own faction (or neutral) with a position first.
+    local best, bestScore
+    for _, id in ipairs(e.vendors or {}) do
+      local v = classicNPC(id, "vendor")
+      if v then
+        local score = (friendly(v) and 2 or 0) + (v.mapID and 1 or 0)
+        if not best or score > bestScore then best, bestScore = v, score end
+      end
+    end
+    s = best or { kind = "vendor", conf = "classic" }
+    s.cost = e.cost
+    s.hordeOnly = best and not friendly(best) or nil
+  elseif e.kind == "mob" or e.kind == "drop" then
+    local top = e.mobs and e.mobs[1]
+    s = top and classicNPC(top[1], e.kind) or { kind = e.kind, conf = "classic" }
+    s.chance = top and top[2] or e.chance
+    s.mobCount = e.kind == "drop" and (e.mobCount or (e.mobs and #e.mobs)) or nil
+  else
+    s = { kind = e.kind, conf = "classic", quest = e.quest, hordeOnly = e.faction == "Horde" or nil }
+  end
+  s.entry = e
+  return s
+end
+
+-- Tooltip lines for every Classic source of a recipe: all vendors, the top mobs.
+function ns:AddClassicSourceLines(tt, name)
+  local e = name and ns.CLASSIC_RECIPES and ns.CLASSIC_RECIPES[name:lower()]
+  if not e then return end
+  tt:AddLine(" ")
+  tt:AddLine("In original Classic (unconfirmed in Forever):", 1, 0.82, 0)
+  for _, id in ipairs(e.vendors or {}) do
+    local v = classicNPC(id, "vendor")
+    if v then
+      tt:AddDoubleLine("Sold by " .. v.npc, (v.zone or "?") .. (v.x and (" %.0f, %.0f"):format(v.x * 100, v.y * 100) or "")
+        .. (friendly(v) and "" or " (Horde)"), 1, 1, 1, 0.8, 0.8, 0.8)
+    end
+  end
+  for _, m in ipairs(e.mobs or {}) do
+    local v = classicNPC(m[1], "mob")
+    if v then
+      tt:AddDoubleLine(("%s (%s%%)"):format(v.npc, m[2] >= 1 and ("%.0f"):format(m[2]) or ("%.2f"):format(m[2])),
+        v.zone or "?", 1, 1, 1, 0.8, 0.8, 0.8)
+    end
+  end
+  if e.mobCount and e.mobCount > #(e.mobs or {}) then
+    tt:AddLine(("...and %d more kinds of mob."):format(e.mobCount - #(e.mobs or {})), 0.8, 0.8, 0.8)
+  end
+  if e.quest then tt:AddLine("Quest: " .. e.quest, 1, 1, 1) end
+end
+
 -- The most useful source: seen in game first (vendor or trainer with a position best),
 -- otherwise where it came from in original Classic (ClassicRecipes.lua, unconfirmed).
 local function bestSource(name)
@@ -96,12 +186,12 @@ local function bestSource(name)
     if not pick or score > pick.score then pick = { s = s, score = score } end
   end
   if pick then return pick.s end
-  return ns.CLASSIC_RECIPES and ns.CLASSIC_RECIPES[name:lower()]
+  return ns:ClassicSource(name)
 end
 
-local function percent(chance)
-  if not chance then return "" end
-  local p = chance * 100
+-- Chance is in percent.
+local function percent(p)
+  if not p then return "" end
   return dim((" (%s%%)"):format(p >= 1 and ("%.0f"):format(p) or p >= 0.1 and ("%.1f"):format(p) or ("%.2f"):format(p)))
 end
 
@@ -115,15 +205,19 @@ local function sourceText(s)
     text = ("Trainer %s%s%s"):format(s.npc or "?", where, s.skill and (" (skill " .. s.skill .. ")") or "")
   elseif s.kind == "vendor" then
     local price = s.currency or (s.cost and ns.Money(s.cost)) or ""
-    local side = (classic and s.faction == "Horde") and dim(" Horde only") or ""
+    local side = (classic and s.hordeOnly) and dim(" Horde only") or ""
     text = ("Vendor %s%s  %s%s%s"):format(s.npc or "?", where, price, s.limited and dim(" limited") or "", side)
   elseif s.kind == "mob" then
     text = ("Drops from %s%s"):format(s.npc or "?", where) .. percent(s.chance)
   elseif s.kind == "drop" then
-    text = (s.npc and ("Drops from %s%s"):format(s.npc, where) or (s.zone and ("World drop in " .. s.zone) or "World drop, rare"))
-      .. percent(s.chance)
+    if s.mobCount then
+      text = ("World drop: %d kinds of mob, best %s%s"):format(s.mobCount, s.npc or "?", where) .. percent(s.chance)
+    else
+      text = (s.npc and ("Drops from %s%s"):format(s.npc, where) or (s.zone and ("World drop in " .. s.zone) or "World drop, rare"))
+        .. percent(s.chance)
+    end
   elseif s.kind == "quest" then
-    text = ("Quest: %s"):format(s.quest or "?") .. ((s.faction == "Horde") and dim(" Horde only") or "")
+    text = ("Quest: %s"):format(s.quest or "?") .. (s.hordeOnly and dim(" Horde only") or "")
   else
     text = s.kind or "?"
   end
@@ -140,7 +234,7 @@ local current     -- profession shown, or "Trainers:<profession>"
 local COLS = {
   { key = "name", label = "Recipe" },
   { key = "known", label = "Known by", w = 120 },
-  { key = "source", label = "Where from (seen in game)", w = 300 },
+  { key = "source", label = "Where from (hover for all)", w = 300 },
   { key = "type", label = "Type", w = 104 },
   { key = "profit", label = "Per craft", w = 80 },
   { key = "pin", label = "", w = 36 },
@@ -312,6 +406,7 @@ local function getRow(i)
     if not self.out then return end
     GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetItemByID(self.out)
+    ns:AddClassicSourceLines(GameTooltip, self.recipeName)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("Right-click to set your own type, shift-right-click for automatic.", T.accent[1], T.accent[2], T.accent[3])
     GameTooltip:Show()
@@ -363,7 +458,7 @@ local function recipeRows(prof, width, lay)
     row:SetPoint("TOPLEFT", f.content, "TOPLEFT", 0, -(i - 1) * ROW)
     row:SetWidth(width)
     row.stripe:SetShown(i % 2 == 0)
-    row.recipeID, row.out = e.id, e.r.out
+    row.recipeID, row.out, row.recipeName = e.id, e.r.out, e.r.n
     row.icon:SetTexture(e.r.out and ns:ItemIcon(e.r.out) or "Interface\\Icons\\INV_Misc_QuestionMark")
     row.icon:ClearAllPoints()
     row.icon:SetPoint("LEFT", row, "LEFT", lay.name.x, 0)
@@ -401,36 +496,6 @@ local function recipeRows(prof, width, lay)
   return n
 end
 
--- Classic trainers for the owner's professions and the secondary ones, Alliance and
--- neutral only. From memory of original Classic, so unconfirmed: a trainer seen in
--- game replaces its entry here. tier is only given where it's well known.
-local CLASSIC_TRAINERS = {
-  { name = "Georgio Bolero", profession = "Tailoring", zone = "Stormwind City", tier = "Artisan" },
-  { name = "Timothy Worthington", profession = "Tailoring", zone = "Dustwallow Marsh (Theramore)", tier = "Artisan" },
-  { name = "Sellandus", profession = "Tailoring", zone = "Stormwind City" },
-  { name = "Jormund Stonebrow", profession = "Tailoring", zone = "Ironforge" },
-  { name = "Me'lynn", profession = "Tailoring", zone = "Darnassus" },
-  { name = "Eldrin", profession = "Tailoring", zone = "Elwynn Forest (Goldshire)" },
-  { name = "Annora", profession = "Enchanting", zone = "Badlands (inside Uldaman)", tier = "Artisan" },
-  { name = "Kitta Firewind", profession = "Enchanting", zone = "Elwynn Forest (Tower of Azora)", tier = "Expert" },
-  { name = "Lucan Cordell", profession = "Enchanting", zone = "Stormwind City" },
-  { name = "Gimble Thistlefuzz", profession = "Enchanting", zone = "Ironforge" },
-  { name = "Dirge Quikcleave", profession = "Cooking", zone = "Tanaris (Gadgetzan)", tier = "Artisan" },
-  { name = "Stephen Ryback", profession = "Cooking", zone = "Stormwind City" },
-  { name = "Daryl Riknussun", profession = "Cooking", zone = "Ironforge" },
-  { name = "Alegorn", profession = "Cooking", zone = "Darnassus" },
-  { name = "Tomas", profession = "Cooking", zone = "Elwynn Forest (Goldshire)" },
-  { name = "Doctor Gustaf VanHowzen", profession = "First Aid", zone = "Dustwallow Marsh (Theramore)", tier = "Artisan" },
-  { name = "Deneb Walker", profession = "First Aid", zone = "Arathi Highlands", tier = "Expert", title = "sells the Expert First Aid book" },
-  { name = "Shaina Fuller", profession = "First Aid", zone = "Stormwind City" },
-  { name = "Nissa Firestone", profession = "First Aid", zone = "Ironforge" },
-  { name = "Michelle Belle", profession = "First Aid", zone = "Elwynn Forest (Goldshire)" },
-  { name = "Nat Pagle", profession = "Fishing", zone = "Dustwallow Marsh", tier = "Artisan", title = "through his quests" },
-  { name = "Old Man Heming", profession = "Fishing", zone = "Stranglethorn Vale (Booty Bay)", tier = "Expert", title = "sells the Expert Fishing book" },
-  { name = "Arnold Leland", profession = "Fishing", zone = "Stormwind City" },
-  { name = "Grimnur Stonebrand", profession = "Fishing", zone = "Ironforge" },
-}
-
 local function trainerRows(width, lay)
   local list, seen = {}, {}
   for npcID, v in pairs(ns.db.vendors) do
@@ -440,9 +505,12 @@ local function trainerRows(width, lay)
     end
   end
   local classicCount = 0
-  for _, v in ipairs(CLASSIC_TRAINERS) do
-    if not seen[v.name:lower()] then
-      list[#list + 1] = { v = v, classic = true }
+  -- Classic trainers (ClassicRecipes.lua, positions from pfQuest) not visited yet.
+  for _, t in ipairs(ns.CLASSIC_TRAINERS or {}) do
+    if not seen[t.name:lower()] then
+      local n = t.npc and classicNPC(t.npc, "trainer") or {}
+      list[#list + 1] = { classic = true, v = { name = t.name, profession = t.profession, tier = t.tier, title = t.title,
+        zone = n.zone or t.zone, x = n.x, y = n.y, mapID = n.mapID } }
       classicCount = classicCount + 1
     end
   end
@@ -457,7 +525,7 @@ local function trainerRows(width, lay)
     row:SetPoint("TOPLEFT", f.content, "TOPLEFT", 0, -(i - 1) * ROW)
     row:SetWidth(width)
     row.stripe:SetShown(i % 2 == 0)
-    row.recipeID, row.out = nil, nil
+    row.recipeID, row.out, row.recipeName = nil, nil, nil
     row.icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
     row.icon:ClearAllPoints()
     row.icon:SetPoint("LEFT", row, "LEFT", lay.name.x, 0)
@@ -484,7 +552,7 @@ local function trainerRows(width, lay)
     row.pin:SetShown(e.v.mapID and e.v.x and true or false)
     row:Show()
   end
-  f.summary:SetText(("%d trainers seen, %d more from Classic (unconfirmed). Visit one to confirm it and get a map pin."):format(
+  f.summary:SetText(("%d trainers seen, %d more from Classic (unconfirmed; pins show where they stood in Classic). Visit one to confirm it."):format(
     #list - classicCount, classicCount))
   return #list
 end
