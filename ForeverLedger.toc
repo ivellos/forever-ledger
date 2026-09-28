@@ -8,6 +8,7 @@
 Core.lua
 Prices.lua
 History.lua
+Inventory.lua
 Professions.lua
 Values.lua
 Shuffles.lua

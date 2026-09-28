@@ -126,8 +126,10 @@ function ns:CrateReport(id)
     for _, p in ipairs(parts) do
       local pid = idForName(p.name)
       local cost = pid and ns:CostToBuy(pid, p.qty)
-      local owned = bagCount(pid)
-      b.parts[#b.parts + 1] = { id = pid, name = p.name, qty = p.qty, cost = cost, owned = owned }
+      local bags, bank, alts, byAlt = ns:ItemLocations(pid)
+      local owned = bags + bank + alts
+      b.parts[#b.parts + 1] = { id = pid, name = p.name, qty = p.qty, cost = cost, owned = owned,
+        bags = bags, bank = bank, alts = alts, byAlt = byAlt }
       if cost then b.cost = b.cost + cost else b.cost = nil end
       if owned < p.qty then b.have = false end
     end
@@ -353,6 +355,19 @@ local function detailLine(d, j)
       ns:Print("Open the auction house, then click an item to search for it.")
     end
   end)
+  -- Hover: which alts have it.
+  b:SetScript("OnEnter", function(self)
+    local p = self.part
+    if not p then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(p.name, 1, 1, 1)
+    GameTooltip:AddDoubleLine("In your bags", tostring(p.bags or 0), 0.85, 0.85, 0.85, 1, 1, 1)
+    GameTooltip:AddDoubleLine("In your bank", tostring(p.bank or 0), 0.85, 0.85, 0.85, 1, 1, 1)
+    for name, n in pairs(p.byAlt or {}) do GameTooltip:AddDoubleLine(name, tostring(n), 0.85, 0.85, 0.85, 1, 1, 1) end
+    GameTooltip:AddLine("Bank and alts as of their last visit. Click to search the auction house.", T.accent[1], T.accent[2], T.accent[3], true)
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
   d.lines[j] = b
   return b
 end
@@ -436,11 +451,12 @@ function ns:RefreshCrates()
           line:ClearAllPoints()
           line:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(4 + (j - 1) * 20))
           line:SetWidth(width)
-          line.itemID = p.id
+          line.itemID, line.part = p.id, p
           line.icon:SetTexture(p.id and ns:ItemIcon(p.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
           local mark = (b == r.cheapest and k == 1) and (T:AccentCode() .. "cheapest|r  ") or ""
           line.text:SetText(("%s%d x %s  %s"):format(mark, p.qty, p.name,
-            dim(("you have %d%s"):format(p.owned, p.id and "" or ", price unknown"))))
+            dim(("you have %d (bags %d, bank %d, alts %d)%s"):format(p.owned, p.bags or 0, p.bank or 0, p.alts or 0,
+              p.id and "" or ", price unknown"))))
           line.right:SetText(k == 1 and (b.cost and money(b.cost) or dim("?")) or "")
           line:Show()
         end

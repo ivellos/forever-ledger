@@ -21,6 +21,7 @@ local DEFAULTS = {
   crates = {},      -- [crate itemID] = { name, level, bundles = { { { qty, name }, ... } } } read from tooltips
   crateFavor = {},  -- [crate name] = { sum, n } Favor paid, learned from turn-ins
   favor = {},       -- [charKey] = Merchant's Favor held
+  inventory = {},   -- [charKey] = { bags = { [itemID] = count }, bank = { ... }, t, bankT } (Inventory.lua, not synced)
   itemNames = {},   -- [itemID] = name, remembered so lists don't flicker (Prices.lua ns.ItemName)
   disenchants = {}, -- { t, id, ilvl, q, cls, mats = { [itemID] = count } } (Disenchant.lua, last 1000)
   sync = {},        -- [partner name lowercased] = { sentUpTo = time } (Sync.lua; partner in settings.syncPartner)
