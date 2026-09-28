@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- With Auctionator installed, the Disenchant finder, Full scan and Scan materials buttons covered Auctionator's tabs at the bottom of the auction house. They now sit one row lower.
+
 ### Added
 - Arcane Salvager: disenchants done while one is up are logged separately, so `/fl de` shows what it adds next to the same items without it.
 

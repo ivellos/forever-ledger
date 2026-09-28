@@ -1059,7 +1059,11 @@ function ns:OnAHShow()
     -- Just below the window's bottom-right corner, level with Blizzard's Buy/Sell/Auctions
     -- tabs. Inside the window they covered the bid and buyout boxes on item pages.
     ns.ahButton = blizzButton(ah, "Scan materials", 120, function() ns.Scan:Start("watch") end)
-    ns.ahButton:SetPoint("TOPRIGHT", ah, "BOTTOMRIGHT", -4, -2)
+    -- Auctionator adds its own tabs (Shopping, Selling, Cancelling, Auctionator) along the
+    -- bottom, reaching the right side: go one row lower so we don't cover them.
+    local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+    local auctionator = Auctionator ~= nil or (isLoaded and isLoaded("Auctionator"))
+    ns.ahButton:SetPoint("TOPRIGHT", ah, "BOTTOMRIGHT", -4, auctionator and -34 or -2)
     ns.ahButton:SetFrameLevel(ah:GetFrameLevel() + 20)
     ns.ahFullButton = blizzButton(ah, "Full scan", 130, function() ns.Scan:Start("full") end)
     ns.ahFullButton:SetPoint("RIGHT", ns.ahButton, "LEFT", -4, 0)
