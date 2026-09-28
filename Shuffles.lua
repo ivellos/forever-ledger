@@ -173,7 +173,8 @@ function ns:FindShuffles()
       -- mostly on the auction house. Relisting the item itself doesn't count.
       local done = {}
       for _, o in ipairs(ns:Options(id)) do
-        if o.kind ~= "ah" then
+        -- Selling the item itself to a vendor is a vendor flip, worked out below.
+        if o.kind ~= "ah" and o.kind ~= "vendor" then
           local section = ahShare(o) >= 0.5 and "ah" or "vendor"
           if not done[section] then
             done[section] = true
@@ -181,12 +182,31 @@ function ns:FindShuffles()
             if s and not seen[s.key] then
               seen[s.key] = true
               -- Buying and selling straight to a vendor is a vendor flip, not a shuffle.
-              local list = (o.kind == "vendor" and flips) or (s.oneOff and oneOff) or (section == "ah" and ah) or vendor
+              local list = (s.oneOff and oneOff) or (section == "ah" and ah) or vendor
               list[#list + 1] = s
             end
           end
           if done.ah and done.vendor then break end
         end
+      end
+    end
+  end
+
+  -- Vendor flips: only the listings cheap enough to profit after the safety margin
+  -- count, at their own prices (the same listings a deal alert reports). Averaging in
+  -- dearer listings used to hide flips that deal alerts found.
+  for id, rec in pairs(market) do
+    local sell = rec.m and not rec.none and ns:GetSellPrice(id)
+    if sell and sell > rec.m and not ns:GetVendorBuyPrice(id) then
+      local maxBuy = sell * (1 - margin)
+      local n, avg = ns:CheapListings(id, maxBuy)
+      if n and n > 0 and avg then
+        flips[#flips + 1] = {
+          id = id, key = "item:" .. id .. ":vendor", single = true, units = 1,
+          opt = { kind = "vendor", value = sell, id = id }, share = 0,
+          buys = { { id = id, qty = 1, price = avg, listed = n } },
+          cost = avg, profit = sell - avg, maxBuy = maxBuy, perHour = 0,
+        }
       end
     end
   end
@@ -580,12 +600,15 @@ function ns:FindDeals()
       if sell and sell > price then
         local profit = sell - price
         if profit / sell >= vendorPct and profit >= vendorMin then
-          deals[#deals + 1] = { kind = "vendor", id = id, price = price, worth = sell, listed = rec.q }
+          -- How many are cheap enough for this deal, not everything listed.
+          local n = ns:CheapListings(id, math.min(sell * (1 - vendorPct), sell - vendorMin))
+          deals[#deals + 1] = { kind = "vendor", id = id, price = price, worth = sell, listed = n or rec.q }
         end
       end
       local usual, basis = ns:DealUsualPrice(id)
       if usual and price <= usual * (1 - usualPct) then
-        deals[#deals + 1] = { kind = "usual", id = id, price = price, worth = usual, listed = rec.q, basis = basis }
+        local n = ns:CheapListings(id, usual * (1 - usualPct))
+        deals[#deals + 1] = { kind = "usual", id = id, price = price, worth = usual, listed = n or rec.q, basis = basis }
       end
     end
   end

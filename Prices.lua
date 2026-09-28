@@ -175,6 +175,27 @@ function ns:ListedAtOrBelow(id, price)
   return n
 end
 
+-- The listings at or below a price: how many, and their average price. Uses the price
+-- ladder (the ladder's counts are running totals). Without a ladder, the cheapest price
+-- if it qualifies. Returns 0 when none qualify, nil if never scanned.
+function ns:CheapListings(id, price)
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if not rec then return nil end
+  if rec.none or not rec.m then return 0 end
+  if not rec.l then
+    if rec.m <= price then return rec.q or 1, rec.m end
+    return 0
+  end
+  local n, cost, prev = 0, 0, 0
+  for p, c in rec.l:gmatch("(%d+):(%d+)") do
+    p, c = tonumber(p), tonumber(c)
+    if p > price then break end
+    cost = cost + p * (c - prev)
+    n, prev = c, c
+  end
+  return n, n > 0 and cost / n or nil
+end
+
 -- units: list of { unitPrice, quantity }
 local function record(id, units, src)
   if ns.InvalidateValues then ns:InvalidateValues() end
