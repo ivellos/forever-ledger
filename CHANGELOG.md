@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Vendor flips are quicker to buy: click a flip and the auction house searches for it straight away (right-click, or shift-click, for the details and Work it). When a scan finds items below vendor price, the Vendor flips tab opens instead of a list in chat (can be turned off in Settings: "Open Vendor flips after a scan").
+
+### Fixed
+- The auction house's "Worth buying up to" for items a vendor buys now uses the same safety margin as Vendor flips, so both show the same price (it said 49c where the flip said 45c).
+
 ## [0.6.1] - 2026-09-28
 
 Fixes from the first testers.

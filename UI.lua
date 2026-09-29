@@ -255,6 +255,12 @@ setView = function(view)
   end
 end
 
+-- After a scan finds vendor flips: open the Vendor flips tab, worked out afresh.
+function ns:OpenFlips()
+  ns:ToggleUI("flips")
+  ns:RefreshShuffles()
+end
+
 function ns:ToggleUI(view)
   local f = buildMain()
   if f:IsShown() and not view then f:Hide(); return end
@@ -359,6 +365,8 @@ local SETTINGS = {
     help = "The Crates tab and the \"cheapest fill\" line on crate tooltips." },
   { key = "ahHighlight", label = "Tint good buys on the auction house", kind = "check",
     help = "On an item's buy page, listings at or below its buy limit get a tint." },
+  { key = "openFlips", label = "Open Vendor flips after a scan", kind = "check",
+    help = "When a scan finds items below vendor price, open the Vendor flips tab instead of listing them in chat." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
 
@@ -688,8 +696,22 @@ local function getRow(i)
   r.name:SetJustifyH("LEFT")
   r.name:SetWordWrap(false)
   r.cells = {}
-  r:SetScript("OnClick", function(self)
-    openKeys[self.shuffle.key] = not openKeys[self.shuffle.key]
+  r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  r:SetScript("OnClick", function(self, button)
+    -- Vendor flips: the only step is buying, so a click goes straight to the item on
+    -- the auction house. Right-click (or shift-click) opens the details as before.
+    local s = self.shuffle
+    if main.view == "flips" and button == "LeftButton" and not IsShiftKeyDown() and s.buys and s.buys[1] then
+      local b = s.buys[1]
+      if ns:SearchAuctionHouse(b.id) then
+        ns:Print(("%s: buy up to %s at %s or less each."):format(ns.ItemName(b.id) or "?", b.listed or "?",
+          ns.Money(s.maxBuy or b.price)))
+      else
+        ns:Print("Open the auction house, then click a flip to search for it. Right-click a flip for details.")
+      end
+      return
+    end
+    openKeys[s.key] = not openKeys[s.key]
     layoutShuffles()
   end)
   rows[i] = r
@@ -1008,8 +1030,9 @@ function ns:RefreshShuffles()
   end
 
   main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff, flips = flips }
-  main.shuffleInfo:SetText(("%d shuffles and %d vendor flips, worked out at %s. Click a column to sort, a row for details."):format(
-    #vendor + #ah + #oneOff, #flips, date("%H:%M")))
+  main.shuffleInfo:SetText(("%d shuffles and %d vendor flips, worked out at %s. Click a column to sort, a row for details%s."):format(
+    #vendor + #ah + #oneOff, #flips, date("%H:%M"),
+    main.view == "flips" and " (flips: click to search the auction house, right-click for details)" or ""))
   if main.view == "shuffles" or main.view == "flips" then layoutShuffles() end
 end
 

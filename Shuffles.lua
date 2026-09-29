@@ -664,6 +664,22 @@ function ns:CheckDeals()
   if ns.db.settings.dealSound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
     PlaySound(SOUNDKIT.RAID_WARNING, "Master")
   end
+  -- Below-vendor-price deals are exactly the Vendor flips tab, so open it instead of
+  -- listing them in chat (setting "openFlips"). Other deals still go to chat.
+  local vendorDeals, others = 0, {}
+  for _, d in ipairs(fresh) do
+    if d.kind == "vendor" then vendorDeals = vendorDeals + 1 else others[#others + 1] = d end
+  end
+  if vendorDeals > 0 and ns.db.settings.openFlips and ns.OpenFlips then
+    ns:OpenFlips()
+    ns:Print(("%d new vendor %s: opened the Vendor flips tab. Click one to find it on the auction house."):format(
+      vendorDeals, vendorDeals == 1 and "flip" or "flips"))
+    if #others > 0 then
+      ns:Print(("%d new deals:"):format(#others))
+      printGrouped(others, 10)
+    end
+    return
+  end
   ns:Print(("%d new deals:"):format(#fresh))
   printGrouped(fresh, 10)
 end

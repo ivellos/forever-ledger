@@ -19,8 +19,11 @@ end
 function ns:BuyLimit(id)
   if not id then return end
   local limit = ns:BuyAtOrBelow(id)
+  -- Selling to a vendor: the same safety margin as vendor flips and deal alerts, so the
+  -- auction house and the Vendor flips tab give the same "buy up to" (was vendor price - 1c).
   local sell = ns:GetSellPrice(id)
-  if sell and sell > 1 and (not limit or sell - 1 > limit) then limit = sell - 1 end
+  local vendorLimit = sell and math.floor(sell * (1 - (ns.db.settings.margin or 10) / 100))
+  if vendorLimit and vendorLimit > 0 and (not limit or vendorLimit > limit) then limit = vendorLimit end
   return limit
 end
 
