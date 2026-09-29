@@ -647,13 +647,25 @@ local function trainerRows(width, lay)
   local PROFS = { Alchemy = true, Blacksmithing = true, Enchanting = true, Engineering = true, Herbalism = true,
     Leatherworking = true, Mining = true, Skinning = true, Tailoring = true, Cooking = true, ["First Aid"] = true,
     Fishing = true }
+  -- When the flag names a trainer we know (Lucan Cordell), their profession wins over the
+  -- option recorded: early tests sometimes recorded the option next to the one picked.
+  local knownProf = {}
+  for _, t in ipairs(ns.CLASSIC_TRAINERS or {}) do knownProf[t.name:lower()] = t.profession end
+  for _, v in pairs(ns.db.vendors) do
+    if v.trainer and v.name then
+      local p = v.profession or (ns.ProfessionFromTitle and ns.ProfessionFromTitle(v.title))
+      if p then knownProf[v.name:lower()] = p end
+    end
+  end
   local guardCount, latest = 0, {}
   for _, g in ipairs(ns.db.guardPOIs or {}) do
-    if g.option and PROFS[g.option] and g.mapID and g.x then latest[g.option .. ":" .. g.mapID] = g end
+    local prof = (g.name and knownProf[g.name:lower()]) or g.option
+    if prof and PROFS[prof] and g.mapID and g.x then latest[prof .. ":" .. g.mapID] = { g = g, prof = prof } end
   end
-  for _, g in pairs(latest) do
+  for _, entry in pairs(latest) do
+    local g = entry.g
     local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(g.mapID)
-    list[#list + 1] = { guard = true, profession = g.option,
+    list[#list + 1] = { guard = true, profession = entry.prof,
       v = { name = g.name or "?", title = "from " .. (g.npc or "a city guard"), zone = info and info.name or "?",
         x = g.x, y = g.y, mapID = g.mapID } }
     guardCount = guardCount + 1

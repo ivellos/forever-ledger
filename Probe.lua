@@ -144,20 +144,27 @@ end
 -- page may already have replaced them. Forever's gossip window may pick by ID or by
 -- position, so both are watched. (Test 1: hooking SelectOption alone caught nothing.)
 local pageOptions = {}
-local function remember(match)
-  for i, o in ipairs(pageOptions) do
-    if match(o, i) then lastOption = o.name; return end
-  end
-end
+local byIDTime = 0
 if C_GossipInfo and hooksecurefunc then
+  -- By option ID: exact, so it wins over the by-position report of the same click.
   if C_GossipInfo.SelectOption then
     hooksecurefunc(C_GossipInfo, "SelectOption", function(optionID)
-      remember(function(o) return o.gossipOptionID == optionID end)
+      for _, o in ipairs(pageOptions) do
+        if o.gossipOptionID == optionID then lastOption, byIDTime = o.name, GetTime(); return end
+      end
     end)
   end
+  -- By position: orderIndex counts from 0, so only fall back to the list position when
+  -- the options don't say. (Test 2: matching the position first labelled Lucan Cordell,
+  -- the Enchanting trainer, as "Mining", the option before it.)
   if C_GossipInfo.SelectOptionByIndex then
     hooksecurefunc(C_GossipInfo, "SelectOptionByIndex", function(index)
-      remember(function(o, i) return o.orderIndex == index or i == index end)
+      if GetTime() - byIDTime < 0.5 then return end
+      for _, o in ipairs(pageOptions) do
+        if o.orderIndex ~= nil and o.orderIndex == index then lastOption = o.name; return end
+      end
+      local o = pageOptions[index + 1] or pageOptions[index]
+      if o then lastOption = o.name end
     end)
   end
 end
