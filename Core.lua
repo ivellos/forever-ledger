@@ -382,6 +382,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:ToggleFlipWatch()
   elseif msg == "customers" then
     ns:ShowCustomers()
+  elseif msg == "work" or msg == "worklog" then
+    ns:ShowWorkLog()
   elseif msg:match("^customer ") then
     ns:TestCustomer(msg:match("^customer (.+)$"))
   elseif msg == "stop" then

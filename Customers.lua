@@ -227,8 +227,140 @@ local function ago(t)
   return math.floor(d / 3600) .. "h"
 end
 
-local function refresh()
+---------------------------------------------------------------------------
+-- Work log: every completed trade that looks like a job (you enchanted something in
+-- the "will not be traded" slot, were paid, or traded with someone who asked in chat):
+-- who, what, and the money. A matching request in the list is marked done.
+---------------------------------------------------------------------------
+local WORK_LOG = 500
+local trade
+
+local function tradeName()
+  local first, last = UnitName("NPC")
+  return (first and last and last ~= "" and (first .. " " .. last)) or first
+    or (TradeFrameRecipientNameText and TradeFrameRecipientNameText:GetText())
+end
+
+-- Everything on both sides of the trade window right now.
+local function readTrade()
+  local t = { give = {}, get = {} }
+  for i = 1, 6 do
+    if GetTradePlayerItemInfo then
+      local name, _, qty = GetTradePlayerItemInfo(i)
+      if name then t.give[#t.give + 1] = { name = name, qty = qty or 1, link = GetTradePlayerItemLink and GetTradePlayerItemLink(i) } end
+    end
+    if GetTradeTargetItemInfo then
+      local name, _, qty = GetTradeTargetItemInfo(i)
+      if name then t.get[#t.get + 1] = { name = name, qty = qty or 1, link = GetTradeTargetItemLink and GetTradeTargetItemLink(i) } end
+    end
+  end
+  -- Slot 7 on their side holds the item you enchant; the last value is the enchant.
+  if GetTradeTargetItemInfo then
+    local name, _, _, _, _, enchant = GetTradeTargetItemInfo(7)
+    t.enchantItem, t.enchant = name, enchant
+  end
+  t.gave = GetPlayerTradeMoney and GetPlayerTradeMoney() or 0
+  t.got = GetTargetTradeMoney and GetTargetTradeMoney() or 0
+  t.who = tradeName()
+  return t
+end
+
+local function snapshot() trade = readTrade() end
+ns:On("TRADE_SHOW", snapshot)
+ns:On("TRADE_PLAYER_ITEM_CHANGED", snapshot)
+ns:On("TRADE_TARGET_ITEM_CHANGED", snapshot)
+ns:On("TRADE_MONEY_CHANGED", snapshot)
+ns:On("TRADE_ACCEPT_UPDATE", snapshot)
+
+local refresh
+ns:On("UI_INFO_MESSAGE", function(_, msg)
+  if msg ~= ERR_TRADE_COMPLETE or not trade then return end
+  local t = trade
+  trade = nil
+  -- A request from this player in the last two hours makes it a job too.
+  local request
+  for i = #(ns.db.customers or {}), 1, -1 do
+    local e = ns.db.customers[i]
+    if e.who == t.who and time() - e.t < 7200 then request = e; break end
+  end
+  if not (t.enchant or t.got > 0 or request) then return end
+  local entry = { t = time(), c = ns.CharKey(), who = t.who, got = t.got, gave = t.gave,
+    enchant = t.enchant, enchantItem = t.enchantItem, give = t.give, get = t.get, what = request and request.what }
+  local log = ns.db.workLog or {}
+  ns.db.workLog = log
+  log[#log + 1] = entry
+  while #log > WORK_LOG do table.remove(log, 1) end
+  if request then request.done, request.paid = true, t.got end
+  local what = t.enchant or (#t.give > 0 and t.give[1].name) or entry.what or "trade"
+  ns:Print(("Work log: %s for %s%s."):format(what, t.who or "?", t.got > 0 and (", paid " .. ns.Money(t.got)) or ""))
+  if refresh then refresh() end
+end)
+
+-- Totals for the footer: money received minus money given, and jobs.
+local function workTotals(since)
+  local net, jobs = 0, 0
+  for _, e in ipairs(ns.db.workLog or {}) do
+    if e.t >= since then net, jobs = net + (e.got or 0) - (e.gave or 0), jobs + 1 end
+  end
+  return net, jobs
+end
+
+local workRows = {}
+local function refreshWork()
+  local T = ns.Theme
+  local list, log = {}, ns.db.workLog or {}
+  for i = #log, math.max(1, #log - 99), -1 do list[#list + 1] = log[i] end
+  local width = win.content:GetWidth()
+  for i, e in ipairs(list) do
+    local r = workRows[i]
+    if not r then
+      r = CreateFrame("Frame", nil, win.content)
+      r:SetHeight(ROW)
+      r.stripe = T:Fill(r, { 1, 1, 1, 0.03 })
+      r.head = T:Text(r, 12)
+      r.head:SetPoint("TOPLEFT", 8, -5)
+      r.head:SetJustifyH("LEFT")
+      r.money = T:Text(r, 12)
+      r.money:SetPoint("TOPRIGHT", -8, -5)
+      r.money:SetJustifyH("RIGHT")
+      r.detail = T:Text(r, 11, T.dim)
+      r.detail:SetPoint("TOPLEFT", 8, -21)
+      r.detail:SetJustifyH("LEFT")
+      r.detail:SetWordWrap(false)
+      workRows[i] = r
+    end
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", win.content, "TOPLEFT", 0, -(i - 1) * ROW)
+    r:SetWidth(width)
+    r.stripe:SetShown(i % 2 == 0)
+    local what = e.enchant and ("Enchanted " .. (e.enchantItem or "an item") .. ": " .. e.enchant)
+      or (#(e.give or {}) > 0 and ("Gave " .. e.give[1].qty .. " " .. e.give[1].name .. (#e.give > 1 and (" and " .. (#e.give - 1) .. " more") or "")))
+      or e.what or "Trade"
+    r.head:SetText(("%s  |cff888888%s|r"):format(e.who or "?", date("%b %d %H:%M", e.t)))
+    local net = (e.got or 0) - (e.gave or 0)
+    r.money:SetText(net > 0 and ("|cff7fd39c+" .. ns.Money(net) .. "|r") or net < 0 and ("|cffee8597-" .. ns.Money(-net) .. "|r") or "|cff888888no gold|r")
+    r.detail:SetWidth(width - 16)
+    r.detail:SetText(what)
+    r:Show()
+  end
+  for i = #list + 1, #workRows do workRows[i]:Hide() end
+  for _, r in ipairs(rows) do r:Hide() end
+  win.empty:SetShown(#list == 0)
+  win.empty:SetText("No jobs yet. Trades where you enchant something, get paid, or trade with someone from Requests are logged here.")
+  win.content:SetHeight(math.max(#list * ROW, 20))
+  local now, d = time(), date("*t")
+  local today, tj = workTotals(time({ year = d.year, month = d.month, day = d.day, hour = 0 }))
+  local week, wj = workTotals(now - 7 * 86400)
+  win.foot:SetText(("Today: %s from %d jobs.   Last 7 days: %s from %d jobs."):format(ns.Money(today), tj, ns.Money(week), wj))
+  if win.sf.UpdateScrollBar then win.sf.UpdateScrollBar() end
+end
+
+refresh = function()
   if not (win and win:IsShown()) then return end
+  if win.mode == "work" then return refreshWork() end
+  for _, r in ipairs(workRows) do r:Hide() end
+  win.empty:SetText("No requests in the last hour. They appear here as soon as someone asks for what you do.")
+  win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
   local T = ns.Theme
   local list = {}
   local log = ns.db.customers or {}
@@ -322,6 +454,13 @@ function ns:ShowCustomers(quiet)
       mage:SetPoint("LEFT", ad, "RIGHT", 6, 0)
     end
 
+    -- Requests (people asking now) or Work done (the work log).
+    win.mode = "requests"
+    win.modeChoice = T:Choice(win, { { value = "requests", label = "Requests" }, { value = "work", label = "Work done" } },
+      function(v) win.mode = v; refresh() end)
+    win.modeChoice:SetPoint("TOPRIGHT", -10, -39)
+    win.modeChoice:SetValue("requests")
+
     win.sf, win.content = T:Scroll(win)
     win.sf:SetPoint("TOPLEFT", 8, -70)
     win.sf:SetPoint("BOTTOMRIGHT", -8, 30)
@@ -335,7 +474,17 @@ function ns:ShowCustomers(quiet)
     C_Timer.NewTicker(30, refresh)   -- keep the "3m" ages current (does nothing while hidden)
   end
   if quiet and win:IsShown() then refresh(); return end
+  -- A new request opens it on Requests.
+  if quiet then win.mode = "requests"; win.modeChoice:SetValue("requests") end
   win:Show()
+  refresh()
+end
+
+-- /fl work: open straight on Work done.
+function ns:ShowWorkLog()
+  ns:ShowCustomers()
+  win.mode = "work"
+  win.modeChoice:SetValue("work")
   refresh()
 end
 
