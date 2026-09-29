@@ -25,7 +25,9 @@ local ASKING = { "lf", "lfm", "looking for", "need", "needs", "anyone", "any", "
 -- Crafters advertising: skip these.
 -- ("anyone need water?" is a Mage selling, not asking: seen in beta trade chat.)
 local OFFERING = { "lfw", "wts", "selling", "can make", "can craft", "offering", "my services", "have all",
-  "anyone need", "anybody need", "who needs", "does anyone need", "need any" }
+  "anyone need", "anybody need", "who needs", "does anyone need", "need any",
+  -- Crafters spelling it out ("[Enchanting] LF Work - come buy your BIS weapon enchant").
+  "lf work", "looking for work", "lf job", "lf jobs", "come buy", "for hire", "your mats", "tips appreciated" }
 -- Mage services, for Mages.
 local MAGE = { "water", "portal", "port", "food", "mage table" }
 
