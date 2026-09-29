@@ -51,13 +51,15 @@ Everything the addon does, at a high level. The same text is in the game under *
 - **Where from**: what you've seen in game first, otherwise original Classic data marked "(Classic)". **Pin** puts a map pin on the vendor, trainer or mob.
 - **Trainers view**: trainers you've visited, Classic ones, and the spots city guards mark when you ask them for a profession trainer (marked "guard").
 
-<!-- image: images/recipes.png and images/trainers.png -->
+![Recipes tab, Cooking recipes not known yet](images/recipes.png)
+
+<!-- image: images/trainers.png -->
 
 ## Waylaid Crates
 
 - **Crates tab**: the cheapest way to fill each crate at today's prices, with the crate's own price and gold per Merchant's Favor. Click a crate for every bundle and what you already have in bags, bank and alts.
 
-<!-- image: images/crates.png -->
+![Crates tab](images/crates.png)
 
 ## Customers and work
 
