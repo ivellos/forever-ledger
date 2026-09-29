@@ -11,6 +11,7 @@ History.lua
 Inventory.lua
 Professions.lua
 RecipeBook.lua
+Customers.lua
 Values.lua
 Shuffles.lua
 Disenchant.lua

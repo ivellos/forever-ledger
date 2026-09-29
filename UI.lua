@@ -367,6 +367,9 @@ local SETTINGS = {
     help = "On an item's buy page, listings at or below its buy limit get a tint." },
   { key = "openFlips", label = "Open Vendor flips after a scan", kind = "check",
     help = "When a scan finds items below vendor price, open the Vendor flips tab instead of listing them in chat." },
+  { key = "customers", label = "Customer finder", kind = "check",
+    help = "Tell me when someone in chat asks for something this character can do (LF enchanter, WTB an item you craft, Mage water or portals)." },
+  { key = "customerSound", label = "Customer finder sound", kind = "check", help = "Play the whisper sound with each customer alert." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
 
