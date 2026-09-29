@@ -92,6 +92,94 @@ local function onChat(msg, sender, channel)
 end
 
 ---------------------------------------------------------------------------
+-- Ads: one click posts a line to Trade (Services), or Trade. {professions} becomes your
+-- profession links (saved when you open each profession window, since the game only
+-- gives a link while it's open). Right-click a button to change its text.
+---------------------------------------------------------------------------
+local AD_COOLDOWN = 60      -- seconds between posts, so the button can't spam
+local DEFAULT_ADS = {
+  crafting = "{professions} looking for work, your mats or mine. Whisper me!",
+  mage = "Selling Mage water and food. Whisper me!",
+}
+local GATHERING = { Herbalism = true, Mining = true, Skinning = true, Fishing = true, Cooking = true, ["First Aid"] = true }
+local lastAd = 0
+
+ns:On("TRADE_SKILL_SHOW", function()
+  C_Timer.After(1, function()
+    local TS = C_TradeSkillUI
+    if not (TS and TS.GetTradeSkillListLink and TS.GetBaseProfessionInfo) then return end
+    local okLink, link = pcall(TS.GetTradeSkillListLink)
+    local okInfo, info = pcall(TS.GetBaseProfessionInfo)
+    local name = okInfo and info and info.professionName
+    if okLink and link and name then
+      local links = ns.db.profLinks or {}
+      ns.db.profLinks = links
+      links[ns.CharKey()] = links[ns.CharKey()] or {}
+      links[ns.CharKey()][name] = link
+    end
+  end)
+end)
+
+local function adText(kind)
+  local text = (ns.db.settings.ads or {})[kind] or DEFAULT_ADS[kind]
+  if text:find("{professions}", 1, true) then
+    local c = ns.db.chars[ns.CharKey()]
+    local saved = (ns.db.profLinks or {})[ns.CharKey()] or {}
+    local parts = {}
+    for prof in pairs(c and c.profs or {}) do
+      if not GATHERING[prof] then parts[#parts + 1] = saved[prof] or ("[" .. prof .. "]") end
+    end
+    table.sort(parts)
+    text = text:gsub("{professions}", (table.concat(parts, " "):gsub("%%", "%%%%")))
+  end
+  return text
+end
+
+-- Trade (Services) if you've joined it, otherwise Trade: its channel number.
+local function adChannel()
+  local found
+  for i = 1, (GetNumDisplayChannels and GetNumDisplayChannels() or 0) do
+    local name, header, _, number = GetChannelDisplayInfo(i)
+    if not header and name and number then
+      if name:find("Services", 1, true) then return number, name end
+      if not found and name:find("^Trade") and not name:find("Local", 1, true) then found = { number, name } end
+    end
+  end
+  if found then return found[1], found[2] end
+end
+
+function ns:PostAd(kind)
+  local wait = AD_COOLDOWN - (GetTime() - lastAd)
+  if wait > 0 then ns:Print(("Wait %d seconds before posting again."):format(math.ceil(wait))); return end
+  local number, name = adChannel()
+  if not number then ns:Print("You're not in the Trade or Services channel. Join it in a city first."); return end
+  local text = adText(kind)
+  if #text > 255 then ns:Print("That ad is too long for chat (255 letters). Right-click the button to shorten it."); return end
+  SendChatMessage(text, "CHANNEL", nil, number)
+  lastAd = GetTime()
+  ns:Debug("Posted to", name, ":", text)
+end
+
+StaticPopupDialogs["FOREVER_LEDGER_EDIT_AD"] = {
+  text = "Ad text. {professions} becomes your profession links.",
+  button1 = SAVE or "Save", button2 = CANCEL or "Cancel", button3 = "Default",
+  hasEditBox = true, editBoxWidth = 350, maxLetters = 255,
+  OnShow = function(self, kind)
+    local box = self.editBox or self.EditBox
+    box:SetText((ns.db.settings.ads or {})[kind] or DEFAULT_ADS[kind])
+  end,
+  OnAccept = function(self, kind)
+    local box = self.editBox or self.EditBox
+    ns.db.settings.ads = ns.db.settings.ads or {}
+    ns.db.settings.ads[kind] = box:GetText()
+  end,
+  OnAlt = function(_, kind)
+    if ns.db.settings.ads then ns.db.settings.ads[kind] = nil end
+  end,
+  timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+}
+
+---------------------------------------------------------------------------
 -- The Customers window: requests newest first, with Whisper, Invite and dismiss.
 -- Opens by itself on a new request (Settings), without taking the keyboard.
 ---------------------------------------------------------------------------
@@ -172,15 +260,41 @@ end
 function ns:ShowCustomers(quiet)
   local T = ns.Theme
   if not win then
-    win = ns.ThemedWindow("ForeverLedgerCustomers", 520, 300, T:AccentCode() .. "Customers|r")
+    win = ns.ThemedWindow("ForeverLedgerCustomers", 520, 330, T:AccentCode() .. "Customers|r")
     win:ClearAllPoints()
     win:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -260, -160)
+    -- Ad buttons: left-click posts, right-click edits the text.
+    local function adButton(kind, label, width)
+      local b = T:Button(win, label, width, nil, 24)
+      b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+      b:SetScript("OnClick", function(_, button)
+        if button == "RightButton" then StaticPopup_Show("FOREVER_LEDGER_EDIT_AD", nil, nil, kind)
+        else ns:PostAd(kind) end
+      end)
+      b:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine(label, 1, 1, 1)
+        GameTooltip:AddLine(adText(kind), 0.9, 0.9, 0.9, true)
+        GameTooltip:AddLine("Click to post it in Trade (Services). Right-click to change the text.", T.accent[1], T.accent[2], T.accent[3], true)
+        GameTooltip:Show()
+      end)
+      b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+      return b
+    end
+    local ad = adButton("crafting", "Advertise my crafting", 170)
+    ad:SetPoint("TOPLEFT", 10, -38)
+    local _, class = UnitClass("player")
+    if class == "MAGE" then
+      local mage = adButton("mage", "Sell food and water", 150)
+      mage:SetPoint("LEFT", ad, "RIGHT", 6, 0)
+    end
+
     win.sf, win.content = T:Scroll(win)
-    win.sf:SetPoint("TOPLEFT", 8, -38)
+    win.sf:SetPoint("TOPLEFT", 8, -70)
     win.sf:SetPoint("BOTTOMRIGHT", -8, 30)
     win.empty = T:Text(win.content, 12, T.dim)
     win.empty:SetPoint("TOPLEFT", 8, -8)
-    win.empty:SetText("No requests in the last hour. They appear here when someone asks for what you do.")
+    win.empty:SetText("No requests in the last hour. They appear here as soon as someone asks for what you do.")
     win.foot = T:Text(win, 11, T.dim)
     win.foot:SetPoint("BOTTOMLEFT", 10, 10)
     win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
