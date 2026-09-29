@@ -129,7 +129,7 @@ ns:On("PLAYER_ENTERING_WORLD", function()
   C_Timer.After(5, function() bestConjured("water"); bestConjured("food") end)
 end)
 local GATHERING = { Herbalism = true, Mining = true, Skinning = true, Fishing = true, Cooking = true, ["First Aid"] = true }
-local lastAd = 0
+local lastAd = {}           -- per ad kind, so crafting and food ads have their own wait
 
 ns:On("TRADE_SKILL_SHOW", function()
   C_Timer.After(1, function()
@@ -182,14 +182,14 @@ local function adChannel()
 end
 
 function ns:PostAd(kind)
-  local wait = AD_COOLDOWN - (GetTime() - lastAd)
+  local wait = AD_COOLDOWN - (GetTime() - (lastAd[kind] or 0))
   if wait > 0 then ns:Print(("Wait %d seconds before posting again."):format(math.ceil(wait))); return end
   local number, name = adChannel()
   if not number then ns:Print("You're not in the Trade or Services channel. Join it in a city first."); return end
   local text = adText(kind)
   if #text > 255 then ns:Print("That ad is too long for chat (255 letters). Right-click the button to shorten it."); return end
   SendChatMessage(text, "CHANNEL", nil, number)
-  lastAd = GetTime()
+  lastAd[kind] = GetTime()
   ns:Debug("Posted to", name, ":", text)
 end
 
