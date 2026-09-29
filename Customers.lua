@@ -80,12 +80,116 @@ local function onChat(msg, sender, channel)
   if lastAlert[sender] and GetTime() - lastAlert[sender] < THROTTLE then return end
   lastAlert[sender] = GetTime()
   local where = channel and channel ~= "" and channel:match("^(%S+)") or "chat"
-  ns:Print(("Customer? |Hplayer:%s|h[%s]|h (%s, %s): %s"):format(sender, sender, where, what, msg))
+  if s.customerChat then
+    ns:Print(("Customer? |Hplayer:%s|h[%s]|h (%s, %s): %s"):format(sender, sender, where, what, msg))
+  end
   if s.customerSound and PlaySound and SOUNDKIT and SOUNDKIT.TELL_MESSAGE then PlaySound(SOUNDKIT.TELL_MESSAGE) end
   local log = ns.db.customers or {}
   ns.db.customers = log
-  log[#log + 1] = { t = time(), who = sender, what = what, msg = msg, c = ns.CharKey() }
+  log[#log + 1] = { t = time(), who = sender, what = what, msg = msg, where = where, c = ns.CharKey() }
   while #log > LOG_SIZE do table.remove(log, 1) end
+  if s.customerWindow then ns:ShowCustomers(true) end
+end
+
+---------------------------------------------------------------------------
+-- The Customers window: requests newest first, with Whisper, Invite and dismiss.
+-- Opens by itself on a new request (Settings), without taking the keyboard.
+---------------------------------------------------------------------------
+local win
+local ROW = 40
+local rows = {}
+
+local function ago(t)
+  local d = time() - t
+  if d < 60 then return "now" end
+  if d < 3600 then return math.floor(d / 60) .. "m" end
+  return math.floor(d / 3600) .. "h"
+end
+
+local function refresh()
+  if not (win and win:IsShown()) then return end
+  local T = ns.Theme
+  local list = {}
+  local log = ns.db.customers or {}
+  for i = #log, 1, -1 do
+    local e = log[i]
+    if not e.done and time() - e.t < 3600 then list[#list + 1] = e end
+  end
+  local width = win.content:GetWidth()
+  for i, e in ipairs(list) do
+    local r = rows[i]
+    if not r then
+      r = CreateFrame("Frame", nil, win.content)
+      r:SetHeight(ROW)
+      r:EnableMouse(true)
+      r.stripe = T:Fill(r, { 1, 1, 1, 0.03 })
+      r.head = T:Text(r, 12)
+      r.head:SetPoint("TOPLEFT", 8, -5)
+      r.head:SetJustifyH("LEFT")
+      r.msg = T:Text(r, 11, T.dim)
+      r.msg:SetPoint("TOPLEFT", 8, -21)
+      r.msg:SetJustifyH("LEFT")
+      r.msg:SetWordWrap(false)
+      r.done = T:Button(r, "x", 22, function(self) self:GetParent().entry.done = true; refresh() end, 20)
+      r.done:SetPoint("RIGHT", -6, 0)
+      r.invite = T:Button(r, "Invite", 54, function(self)
+        local who = self:GetParent().entry.who
+        if C_PartyInfo and C_PartyInfo.InviteUnit then C_PartyInfo.InviteUnit(who) elseif InviteUnit then InviteUnit(who) end
+      end, 20)
+      r.invite:SetPoint("RIGHT", r.done, "LEFT", -4, 0)
+      r.whisper = T:Button(r, "Whisper", 64, function(self)
+        local who = self:GetParent().entry.who
+        if ChatFrame_SendTell then ChatFrame_SendTell(who) end
+      end, 20)
+      r.whisper:SetPoint("RIGHT", r.invite, "LEFT", -4, 0)
+      -- Hover for the whole message.
+      r:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine(self.entry.who, 1, 1, 1)
+        GameTooltip:AddLine(self.entry.msg, 0.9, 0.9, 0.9, true)
+        GameTooltip:Show()
+      end)
+      r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      rows[i] = r
+    end
+    r.entry = e
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", win.content, "TOPLEFT", 0, -(i - 1) * ROW)
+    r:SetWidth(width)
+    r.stripe:SetShown(i % 2 == 0)
+    r.head:SetText(("%s  %s%s|r  |cff888888%s, %s|r"):format(e.who, T:AccentCode(), e.what, e.where or "chat", ago(e.t)))
+    r.msg:SetWidth(width - 170)
+    r.msg:SetText(e.msg)
+    r:Show()
+  end
+  for i = #list + 1, #rows do rows[i]:Hide() end
+  win.empty:SetShown(#list == 0)
+  win.content:SetHeight(math.max(#list * ROW, 20))
+  if win.sf.UpdateScrollBar then win.sf.UpdateScrollBar() end
+end
+
+-- quiet: opened by a new request (don't raise it over what you're doing if already open).
+function ns:ShowCustomers(quiet)
+  local T = ns.Theme
+  if not win then
+    win = ns.ThemedWindow("ForeverLedgerCustomers", 520, 300, T:AccentCode() .. "Customers|r")
+    win:ClearAllPoints()
+    win:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -260, -160)
+    win.sf, win.content = T:Scroll(win)
+    win.sf:SetPoint("TOPLEFT", 8, -38)
+    win.sf:SetPoint("BOTTOMRIGHT", -8, 30)
+    win.empty = T:Text(win.content, 12, T.dim)
+    win.empty:SetPoint("TOPLEFT", 8, -8)
+    win.empty:SetText("No requests in the last hour. They appear here when someone asks for what you do.")
+    win.foot = T:Text(win, 11, T.dim)
+    win.foot:SetPoint("BOTTOMLEFT", 10, 10)
+    win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
+    win:SetScript("OnShow", function(self) self:Raise(); refresh() end)
+    C_Timer.NewTicker(30, refresh)   -- keep the "3m" ages current (does nothing while hidden)
+  end
+  if quiet and win:IsShown() then refresh(); return end
+  win:Show()
+  refresh()
 end
 
 -- The 9th value is the channel's plain name ("Trade", "Services").

@@ -370,6 +370,9 @@ local SETTINGS = {
   { key = "customers", label = "Customer finder", kind = "check",
     help = "Tell me when someone in chat asks for something this character can do (LF enchanter, WTB an item you craft, Mage water or portals)." },
   { key = "customerSound", label = "Customer finder sound", kind = "check", help = "Play the whisper sound with each customer alert." },
+  { key = "customerWindow", label = "Open the Customers window on a request", kind = "check",
+    help = "A small window listing requests with Whisper and Invite buttons (/fl customers opens it any time)." },
+  { key = "customerChat", label = "Customer requests in chat too", kind = "check", help = "Also print each request in chat." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
 
