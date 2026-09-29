@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Disenchant finder: hover an item level band for what one item gives, for armor and/or weapons (whichever are ticked): the chance of each material and how many, what that's worth per item at today's prices, your own disenchant results for that band, whether it's tested in Forever or Classic's table, and the Enchanting skill needed.
 - Flip watch: a "Watch flips" button on the auction house (or `/fl watch`). While the auction house stays open it runs a full scan whenever one is allowed (about every 15 minutes) and quietly re-checks the items closest to their vendor price in between. A new flip chimes and opens the Vendor flips tab. It only looks; buying is always your click. It stops when the auction house closes, with `/fl watch` again, or by clicking "Stop watching". While it runs, an animated eye (like the group finder's) shows on the button.
 
 ### Changed

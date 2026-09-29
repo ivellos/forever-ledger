@@ -242,6 +242,44 @@ local function buildFinder()
   local s = finderSettings()
   local function changed() ns:RefreshDisenchantFinder() end
 
+  -- Hovering a band: what one item gives, for the kinds ticked (both if neither is).
+  local function bandTooltip(cb, b)
+    GameTooltip:SetOwner(cb, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Item level " .. b.label .. " greens", 1, 1, 1)
+    local both = not s.armor and not s.weapon
+    for _, kind in ipairs({ "armor", "weapon" }) do
+      local yield = b[kind]
+      if yield and (both or s[kind]) then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine((kind == "armor" and "Armor" or "Weapons") ..
+          (yield.tested and "  |cff7fd39c(tested in Forever)|r" or "  |cff888888(Classic's table)|r"), T.accent[1], T.accent[2], T.accent[3])
+        local worth = 0
+        for _, o in ipairs(yield.odds or {}) do
+          local range = o[3] == o[4] and tostring(o[3]) or (o[3] .. "-" .. o[4])
+          GameTooltip:AddDoubleLine(("%d%%   %s %s"):format(o[2], range, ns:DisenchantMaterialName(o[1])), "", 1, 1, 1)
+        end
+        for _, y in ipairs(yield) do
+          local best = ns:BestOption(y[1])
+          if best then worth = worth + best.value * y[2] end
+        end
+        if worth > 0 then GameTooltip:AddDoubleLine("Worth about, per item", ns.Money(worth), 0.8, 0.8, 0.8, 1, 1, 1) end
+        -- Your own disenchants of this kind, per item.
+        local n, mats = ns:ObservedDisenchants(yield.label)
+        if n > 0 then
+          local parts = {}
+          for m, c in pairs(mats) do parts[#parts + 1] = ("%.2f %s"):format(c / n, ns:DisenchantMaterialName(m)) end
+          table.sort(parts)
+          GameTooltip:AddLine(("Your %d disenchants: %s each"):format(n, table.concat(parts, ", ")), 0.8, 0.8, 0.8, true)
+        end
+      end
+    end
+    if (b.armor and b.armor.skill or 1) > 1 then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(("Needs Enchanting %d."):format(b.armor.skill), 0.8, 0.8, 0.8)
+    end
+    GameTooltip:Show()
+  end
+
   -- Item level band checkboxes, four to a row.
   local y = 52
   for i, b in ipairs(ns.DISENCHANT_BANDS) do
@@ -249,6 +287,10 @@ local function buildFinder()
     cb:SetPoint("TOPLEFT", 12 + ((i - 1) % 4) * 100, -(y + math.floor((i - 1) / 4) * 20))
     cb.label:SetText(b.label)
     cb:SetChecked(s.bands[b.key])
+    -- The label counts as part of the checkbox, so hovering the text shows the tooltip.
+    cb:SetHitRectInsets(0, -(cb.label:GetStringWidth() + 8), 0, 0)
+    cb:SetScript("OnEnter", function(self) bandTooltip(self, b) end)
+    cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end
   y = y + math.ceil(#ns.DISENCHANT_BANDS / 4) * 20 + 6
 

@@ -158,6 +158,20 @@ local function groupFor(e)
   return ("Item level %s %s %s (not in the table)"):format(e.ilvl or "?", quality, kind) .. salv, nil
 end
 
+-- Your own results for one row of the table (label like "Item level 16-20 green armor"),
+-- without Arcane Salvager ones: count, and { [itemID] = total }.
+function ns:ObservedDisenchants(label)
+  local n, mats = 0, {}
+  for _, e in ipairs(ns.db.disenchants or {}) do
+    local yield = not e.salv and e.id and ns:DisenchantYield(e.id)
+    if yield and yield.label == label then
+      n = n + 1
+      for m, c in pairs(e.mats) do mats[m] = (mats[m] or 0) + c end
+    end
+  end
+  return n, mats
+end
+
 function ns:PrintDisenchants(reset)
   local log = ns.db.disenchants
   if reset then
