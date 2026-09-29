@@ -479,6 +479,8 @@ function ns:ShowCustomers(quiet)
     win.sf:SetPoint("BOTTOMRIGHT", -8, 30)
     win.empty = T:Text(win.content, 12, T.dim)
     win.empty:SetPoint("TOPLEFT", 8, -8)
+    win.empty:SetPoint("RIGHT", win.content, "RIGHT", -8, 0)   -- wrap instead of running off the edge
+    win.empty:SetJustifyH("LEFT")
     win.empty:SetText("No requests in the last hour. They appear here as soon as someone asks for what you do.")
     win.foot = T:Text(win, 11, T.dim)
     win.foot:SetPoint("BOTTOMLEFT", 10, 10)

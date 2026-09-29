@@ -53,7 +53,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 ![Recipes tab, Cooking recipes not known yet](images/recipes.png)
 
-<!-- image: images/trainers.png -->
+![Trainers view with visited, guard-marked and Classic trainers](images/trainers.png)
 
 ## Waylaid Crates
 
@@ -67,7 +67,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 - **Ad buttons** post your crafting (with profession links) or, on a Mage, food and water (with links) to Trade. Right-click to change the text.
 - **Work done** (`/fl work`): enchants and paid trades, with today's and this week's earnings.
 
-<!-- image: images/customers.png -->
+![Customers window, Work done view](images/work-done.png)
 
 ## Your gold
 
