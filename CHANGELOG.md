@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Customers: someone asking again moves their request to the top with the newest message instead of adding a second row.
 - Dashboard: the gold graph's scale shows silver under 100g (it read "11g" on every line when gold only moved by a few silver).
 
+### Changed
+- Dashboard gold graph: the scale always starts at 0g, and each step is coloured by its own direction (green up, red down) instead of the whole graph taking one colour.
+
 ### Added
 - Help tab: every feature explained in short, and the commands. The same guide is on GitHub (docs/GUIDE.md), with pictures to come.
 - If you run TSM or Auctionator, a one-time question at login offers the one-line tooltip (Shift for more), since those addons already show prices in tooltips.

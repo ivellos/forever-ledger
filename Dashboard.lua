@@ -216,10 +216,9 @@ local function drawGraph(g, pts, from, to, rangeKey)
     end
   end
   g.empty:SetShown(lo == nil)
-  -- Green when gold went up over the range, red when it went down (as in TSM).
-  local c = T.accent
-  if first and last and last > first then c = { 0.5, 0.83, 0.61 }
-  elseif first and last and last < first then c = { 0.93, 0.52, 0.59 } end
+  -- Each step is coloured by its own direction: green where gold went up, red where it
+  -- went down, the accent where it stayed the same (owner: not the whole graph one colour).
+  local UP, DOWN, FLAT = { 0.5, 0.83, 0.61 }, { 0.93, 0.52, 0.59 }, T.accent
   local nextCol, doneCols = pool(g, "cols", function()
     local t = g:CreateTexture(nil, "ARTWORK")
     t:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
@@ -239,9 +238,8 @@ local function drawGraph(g, pts, from, to, rangeKey)
   end)
 
   if lo then
-    if hi == lo then lo, hi = math.max(0, lo - 10000), hi + 10000 end
-    local span = hi - lo
-    lo, hi = math.max(0, lo - span * 0.1), hi + span * 0.1
+    -- The scale always starts at 0g (owner's choice), so small moves look small.
+    lo, hi = 0, math.max(hi * 1.1, 10000)
     g.scale = { lo = lo, hi = hi }
     local function y(v) return PAD_BOTTOM + (v - lo) / (hi - lo) * plotH end
     local function x(i) return PAD_LEFT + (i - 1) / (#pts - 1) * plotW end
@@ -261,9 +259,11 @@ local function drawGraph(g, pts, from, to, rangeKey)
 
     -- Filled columns and the line
     local colW = math.max(1, plotW / #pts)
-    local prevX, prevY
+    local prevX, prevY, prevV
     for i, p in ipairs(pts) do
       if p.v then
+        local c = (prevV and p.v > prevV and UP) or (prevV and p.v < prevV and DOWN) or FLAT
+        prevV = p.v
         local col = nextCol()
         col:SetColorTexture(c[1], c[2], c[3], 0.18)
         col:ClearAllPoints()
