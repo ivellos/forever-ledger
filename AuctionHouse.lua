@@ -243,51 +243,114 @@ local function buildFinder()
   local function changed() ns:RefreshDisenchantFinder() end
 
   -- Hovering a band: what one item gives, for the kinds ticked (both if neither is).
-  -- One compact table, armor and weapons side by side, shown beside the finder panel so
-  -- it never covers the checkboxes.
-  local function bandTooltip(cb, b)
-    GameTooltip:SetOwner(finder, "ANCHOR_NONE")
-    GameTooltip:ClearAllPoints()
-    GameTooltip:SetPoint("TOPLEFT", finder, "TOPRIGHT", 4, 0)
+  -- A small panel of our own beside the finder (a tooltip can't line up columns): each
+  -- number sits under its Armor or Weapons heading, and it never covers the checkboxes.
+  local LABEL_W, COL_W, ROW_H, PAD = 190, 90, 17, 10
+  local tip
+  local function tipRow(i)
+    local r = tip.rows[i]
+    if not r then
+      r = { label = T:Text(tip, 12), cols = {} }
+      r.label:SetJustifyH("LEFT")
+      r.label:SetWordWrap(false)
+      r.label:SetWidth(LABEL_W)
+      for c = 1, 2 do
+        local fs = T:Text(tip, 12)
+        fs:SetJustifyH("RIGHT")
+        fs:SetWidth(COL_W)
+        r.cols[c] = fs
+      end
+      tip.rows[i] = r
+    end
+    return r
+  end
+  local function bandTooltip(b)
+    if not tip then
+      tip = CreateFrame("Frame", nil, finder)
+      tip:SetFrameStrata("TOOLTIP")
+      tip:SetPoint("TOPLEFT", finder, "TOPRIGHT", 4, 0)
+      T:Fill(tip, { 0.05, 0.05, 0.05, 0.97 })
+      T:Border(tip)
+      tip.rows, tip.notes = {}, {}
+    end
     local kinds = {}
     for _, kind in ipairs({ "armor", "weapon" }) do
       if b[kind] and (s[kind] or (not s.armor and not s.weapon)) then kinds[#kinds + 1] = kind end
     end
-    local function each(fn) local out = {}; for _, k in ipairs(kinds) do out[#out + 1] = fn(b[k], k) end; return table.concat(out, "  /  ") end
-    local tested = b.armor and b.armor.tested
-    GameTooltip:AddDoubleLine("Item level " .. b.label .. " greens",
-      tested and "|cff7fd39carmor tested in Forever|r" or "|cff888888Classic's table|r", 1, 1, 1)
-    GameTooltip:AddDoubleLine("Chance per item", each(function(_, k) return k == "armor" and "Armor" or "Weapons" end),
-      T.accent[1], T.accent[2], T.accent[3], T.accent[1], T.accent[2], T.accent[3])
+    local width = LABEL_W + #kinds * COL_W
+    local n = 0
+    local dim, white, accent = { 0.6, 0.6, 0.6 }, { 1, 1, 1 }, T.accent
+    local function add(label, labelColor, values, valueColor)
+      n = n + 1
+      local r = tipRow(n)
+      r.label:ClearAllPoints()
+      r.label:SetPoint("TOPLEFT", PAD, -(PAD + (n - 1) * ROW_H))
+      r.label:SetText(label)
+      r.label:SetTextColor(labelColor[1], labelColor[2], labelColor[3])
+      r.label:Show()
+      for c = 1, 2 do
+        local fs = r.cols[c]
+        fs:ClearAllPoints()
+        fs:SetPoint("TOPLEFT", PAD + LABEL_W + (c - 1) * COL_W, -(PAD + (n - 1) * ROW_H))
+        fs:SetText(values and values[c] or "")
+        fs:SetTextColor(valueColor[1], valueColor[2], valueColor[3])
+        fs:SetShown(c <= #kinds)
+      end
+    end
+    local function per(fn) local out = {}; for i, k in ipairs(kinds) do out[i] = fn(b[k], k) end; return out end
+
+    add("Item level " .. b.label .. " greens", white)
+    add(b.armor and b.armor.tested and "Armor tested in Forever" or "Classic's table", dim)
+    add("Chance per item", accent, per(function(_, k) return k == "armor" and "Armor" or "Weapons" end), accent)
     -- The same materials in the same order for armor and weapons; only the chances differ.
     for i, o in ipairs(b[kinds[1]].odds or {}) do
       local range = o[3] == o[4] and tostring(o[3]) or (o[3] .. "-" .. o[4])
-      GameTooltip:AddDoubleLine(range .. " " .. ns:DisenchantMaterialName(o[1]),
-        each(function(y) return (y.odds[i] and y.odds[i][2] or 0) .. "%" end), 1, 1, 1, 1, 1, 1)
+      add(range .. " " .. ns:DisenchantMaterialName(o[1]), white,
+        per(function(y) return (y.odds[i] and y.odds[i][2] or 0) .. "%" end), white)
     end
-    GameTooltip:AddDoubleLine("Worth per item", each(function(y)
+    add("Worth per item", dim, per(function(y)
       local worth = 0
       for _, m in ipairs(y) do
         local best = ns:BestOption(m[1])
         if best then worth = worth + best.value * m[2] end
       end
       return worth > 0 and ns.Money(worth) or "?"
-    end), 0.8, 0.8, 0.8, 1, 1, 1)
-    -- Your own disenchants, per item.
+    end), white)
+    for i = n + 1, #tip.rows do
+      tip.rows[i].label:Hide()
+      for c = 1, 2 do tip.rows[i].cols[c]:Hide() end
+    end
+
+    -- Notes under the table: your own results, the skill needed.
+    local texts = {}
     for _, k in ipairs(kinds) do
-      local n, mats = ns:ObservedDisenchants(b[k].label)
-      if n > 0 then
+      local count, mats = ns:ObservedDisenchants(b[k].label)
+      if count > 0 then
         local parts = {}
-        for m, c in pairs(mats) do parts[#parts + 1] = ("%.2f %s"):format(c / n, ns:DisenchantMaterialName(m)) end
+        for m, c in pairs(mats) do parts[#parts + 1] = ("%.2f %s"):format(c / count, ns:DisenchantMaterialName(m)) end
         table.sort(parts)
-        GameTooltip:AddLine(("Your %d %s: %s each"):format(n, k == "armor" and "armor" or "weapons", table.concat(parts, ", ")),
-          0.8, 0.8, 0.8, true)
+        texts[#texts + 1] = ("Your %d %s: %s each."):format(count, k == "armor" and "armor" or "weapons", table.concat(parts, ", "))
       end
     end
-    if (b.armor and b.armor.skill or 1) > 1 then
-      GameTooltip:AddLine(("Needs Enchanting %d."):format(b.armor.skill), 0.8, 0.8, 0.8)
+    if (b.armor and b.armor.skill or 1) > 1 then texts[#texts + 1] = ("Needs Enchanting %d."):format(b.armor.skill) end
+    local yPos = PAD + n * ROW_H + (#texts > 0 and 6 or 0)
+    for i, text in ipairs(texts) do
+      local fs = tip.notes[i]
+      if not fs then
+        fs = T:Text(tip, 11, T.dim)
+        fs:SetJustifyH("LEFT")
+        tip.notes[i] = fs
+      end
+      fs:SetWidth(width)
+      fs:ClearAllPoints()
+      fs:SetPoint("TOPLEFT", PAD, -yPos)
+      fs:SetText(text)
+      fs:Show()
+      yPos = yPos + fs:GetStringHeight() + 4
     end
-    GameTooltip:Show()
+    for i = #texts + 1, #tip.notes do tip.notes[i]:Hide() end
+    tip:SetSize(width + PAD * 2, yPos + PAD)
+    tip:Show()
   end
 
   -- Item level band checkboxes, four to a row.
@@ -299,8 +362,8 @@ local function buildFinder()
     cb:SetChecked(s.bands[b.key])
     -- The label counts as part of the checkbox, so hovering the text shows the tooltip.
     cb:SetHitRectInsets(0, -(cb.label:GetStringWidth() + 8), 0, 0)
-    cb:SetScript("OnEnter", function(self) bandTooltip(self, b) end)
-    cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    cb:SetScript("OnEnter", function() bandTooltip(b) end)
+    cb:SetScript("OnLeave", function() if tip then tip:Hide() end end)
   end
   y = y + math.ceil(#ns.DISENCHANT_BANDS / 4) * 20 + 6
 
