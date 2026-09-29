@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Flip watch: a "Watch flips" button on the auction house (or `/fl watch`). While the auction house stays open it runs a full scan whenever one is allowed (about every 15 minutes) and quietly re-checks the items closest to their vendor price in between. A new flip chimes and opens the Vendor flips tab. It only looks; buying is always your click. It stops when the auction house closes or with `/fl watch` again.
+- Flip watch: a "Watch flips" button on the auction house (or `/fl watch`). While the auction house stays open it runs a full scan whenever one is allowed (about every 15 minutes) and quietly re-checks the items closest to their vendor price in between. A new flip chimes and opens the Vendor flips tab. It only looks; buying is always your click. It stops when the auction house closes, with `/fl watch` again, or by clicking "Stop watching". While it runs, an animated eye (like the group finder's) shows on the button.
 
 ### Changed
 - Vendor flips are quicker to buy: click a flip and the auction house searches for it straight away (right-click, or shift-click, for the details and Work it). When a scan finds items below vendor price, the Vendor flips tab opens instead of a list in chat (can be turned off in Settings: "Open Vendor flips after a scan").

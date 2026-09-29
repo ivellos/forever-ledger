@@ -572,7 +572,13 @@ function ns:StopFlipWatch(silent)
   if not watching then return end
   watching = false
   if watchTimer then watchTimer:Cancel(); watchTimer = nil end
-  if not silent then ns:Print("Flip watch stopped.") end
+  -- Also end the watch's own re-check pass (it kept going and looked like the watch
+  -- hadn't stopped). A full scan in progress is left to finish, as it's nearly instant.
+  if Scan.active and Scan.quiet and not Scan.full then
+    Scan:Stop(silent and "Scan stopped." or "Flip watch stopped.")
+  elseif not silent then
+    ns:Print("Flip watch stopped.")
+  end
   if ns.UpdateWatchButton then ns:UpdateWatchButton() end
 end
 

@@ -365,9 +365,41 @@ ns:On("GET_ITEM_INFO_RECEIVED", function(id)
   C_Timer.After(3, function() finderQueued = false; ns:RefreshDisenchantFinder() end)
 end)
 
+-- The watching eye on the button: the looking-for-group eye, animated only while the
+-- watch runs (an OnUpdate a few times a second, nothing when stopped). The eye sheet
+-- is 8 frames across and 4 down; if the client lacks it, a plain eye icon pulses.
+local EYE_SHEET, EYE_FRAMES, EYE_FPS = "Interface\\LFGFrame\\LFG-Eye", 29, 10
+local function eyeUpdate(self, elapsed)
+  self.t = (self.t or 0) + elapsed
+  if self.sheet then
+    local frame = math.floor(self.t * EYE_FPS) % EYE_FRAMES
+    local col, row = frame % 8, math.floor(frame / 8)
+    self.tex:SetTexCoord(col / 8, (col + 1) / 8, row / 4, (row + 1) / 4)
+  else
+    self.tex:SetAlpha(0.55 + 0.45 * math.abs(math.sin(self.t * 2)))
+  end
+end
+
+local function watchEye(button)
+  local eye = CreateFrame("Frame", nil, button)
+  eye:SetSize(22, 22)
+  eye:SetPoint("LEFT", button, "LEFT", 4, 0)
+  eye.tex = eye:CreateTexture(nil, "OVERLAY")
+  eye.tex:SetAllPoints()
+  eye.sheet = eye.tex:SetTexture(EYE_SHEET) ~= false and eye.tex:GetTexture() ~= nil
+  if not eye.sheet then eye.tex:SetTexture("Interface\\Icons\\INV_Misc_Eye_01") end
+  eye:Hide()
+  return eye
+end
+
 function ns:UpdateWatchButton()
   local w = ns.ahWatchButton
-  if w then w:SetText(ns:IsFlipWatching() and "Watching flips" or "Watch flips") end
+  if not w then return end
+  local on = ns:IsFlipWatching()
+  w:SetText(on and "      Stop watching" or "Watch flips")
+  if not w.eye then w.eye = watchEye(w) end
+  w.eye:SetShown(on)
+  w.eye:SetScript("OnUpdate", on and eyeUpdate or nil)
 end
 
 ns:On("AUCTION_HOUSE_SHOW", function()
@@ -391,7 +423,7 @@ ns:On("AUCTION_HOUSE_SHOW", function()
     -- Flip watch on/off (/fl watch).
     if not ns.ahWatchButton then
       local w = CreateFrame("Button", nil, AuctionHouseFrame, "UIPanelButtonTemplate")
-      w:SetSize(130, 24)
+      w:SetSize(150, 24)
       w:SetPoint("RIGHT", ns.ahFinderButton, "LEFT", -4, 0)
       w:SetFrameLevel(AuctionHouseFrame:GetFrameLevel() + 20)
       w:SetScript("OnClick", function() ns:ToggleFlipWatch() end)
