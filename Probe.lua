@@ -126,6 +126,87 @@ local function probeMap()
     exists("C_Map.SetUserWaypoint") and "yes" or "no", exists("C_SuperTrack.SetSuperTrackedUserWaypoint") and "yes" or "no")
 end
 
+---------------------------------------------------------------------------
+-- Guard directions: ask a city guard for a trainer and the guard puts a flag on your
+-- map. If the addon can read that flag, one conversation per city confirms where every
+-- trainer stands. Always listening (cheap: only when a conversation adds a flag); each
+-- flag is printed and saved in guardPOIs for checking.
+---------------------------------------------------------------------------
+local lastOption, lastNPC
+local function probeGuards()
+  say("Guard directions: map flag functions %s / %s; flag event %s. Ask a city guard for a profession trainer to test.",
+    exists("C_GossipInfo.GetPoiForUiMapID") and "yes" or "no", exists("C_GossipInfo.GetPoiInfo") and "yes" or "no",
+    ns.guardEventSeen and "seen" or "not seen yet")
+end
+
+-- Which option was picked ("Profession Trainer", then "Tailoring"). The options are
+-- remembered when each page opens, since by the time the choice is reported the next
+-- page may already have replaced them. Forever's gossip window may pick by ID or by
+-- position, so both are watched. (Test 1: hooking SelectOption alone caught nothing.)
+local pageOptions = {}
+local function remember(match)
+  for i, o in ipairs(pageOptions) do
+    if match(o, i) then lastOption = o.name; return end
+  end
+end
+if C_GossipInfo and hooksecurefunc then
+  if C_GossipInfo.SelectOption then
+    hooksecurefunc(C_GossipInfo, "SelectOption", function(optionID)
+      remember(function(o) return o.gossipOptionID == optionID end)
+    end)
+  end
+  if C_GossipInfo.SelectOptionByIndex then
+    hooksecurefunc(C_GossipInfo, "SelectOptionByIndex", function(index)
+      remember(function(o, i) return o.orderIndex == index or i == index end)
+    end)
+  end
+end
+ns:On("GOSSIP_SHOW", function()
+  local first, last = UnitName("npc")
+  if first then lastNPC = (last and last ~= "") and (first .. " " .. last) or first end
+  local ok, options = pcall(C_GossipInfo.GetOptions)
+  pageOptions = ok and type(options) == "table" and options or {}
+  -- One option on a page, e.g. the guard's follow-up: nothing to choose between.
+  ns:Debug("Gossip page options:", #pageOptions)
+end)
+
+local lastFlag
+local function readGuardFlag(event)
+  if not (C_GossipInfo and C_GossipInfo.GetPoiForUiMapID and C_GossipInfo.GetPoiInfo and C_Map) then return end
+  ns.guardEventSeen = ns.guardEventSeen or event
+  -- The flag can be on the zone map or its parent (a city inside a zone).
+  local mapID = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+  local info = mapID and C_Map.GetMapInfo(mapID)
+  for _, m in ipairs({ mapID, info and info.parentMapID }) do
+    local ok, poiID = pcall(C_GossipInfo.GetPoiForUiMapID, m)
+    if ok and poiID then
+      local ok2, poi = pcall(C_GossipInfo.GetPoiInfo, m, poiID)
+      if ok2 and type(poi) == "table" then
+        local x, y
+        if poi.position and poi.position.GetXY then x, y = poi.position:GetXY() end
+        local key = ("%s:%s:%s"):format(tostring(poi.name), tostring(x), tostring(y))
+        if key ~= lastFlag then
+          lastFlag = key
+          local mapInfo = C_Map.GetMapInfo(m)
+          ns:Print(("Guard flag (%s): \"%s\" at %s, %s on %s. You asked %s for \"%s\"."):format(event or "?",
+            tostring(poi.name), x and ("%.1f"):format(x * 100) or "?", y and ("%.1f"):format(y * 100) or "?",
+            mapInfo and mapInfo.name or tostring(m), lastNPC or "?", lastOption or "?"))
+          local list = ns.db.guardPOIs or {}
+          ns.db.guardPOIs = list
+          list[#list + 1] = { name = poi.name, mapID = m, x = x, y = y, option = lastOption, npc = lastNPC, t = time() }
+          while #list > 200 do table.remove(list, 1) end
+        end
+        return
+      end
+    end
+  end
+end
+ns:On("DYNAMIC_GOSSIP_POI_UPDATED", function() readGuardFlag("DYNAMIC_GOSSIP_POI_UPDATED") end)
+ns:On("GOSSIP_POI", function() readGuardFlag("GOSSIP_POI") end)   -- older name, in case
+-- If neither event exists here, look right after each conversation step instead.
+ns:On("GOSSIP_CLOSED", function() C_Timer.After(0.3, function() readGuardFlag("after the conversation") end) end)
+ns:On("GOSSIP_SHOW", function() C_Timer.After(0.3, function() readGuardFlag("conversation page") end) end)
+
 function ns:Probe()
   ns:Print("Probe: what the game gives us for crafting ads, trades, Merchant's Favor, crates and the recipe book.")
   probeFavor()
@@ -133,6 +214,7 @@ function ns:Probe()
   probeCrates()
   probeRecipes()
   probeMap()
+  probeGuards()
   armed.trade, armed.merchant = true, true
   say("Waiting for your next trade and the next vendor that sells for a currency; those will be reported too.")
 end
