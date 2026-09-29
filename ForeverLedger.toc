@@ -23,6 +23,7 @@ Crates.lua
 ClassicRecipes.lua
 RecipesTab.lua
 UI.lua
+Help.lua
 Work.lua
 Sync.lua
 AuctionHouse.lua

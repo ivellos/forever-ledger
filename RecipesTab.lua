@@ -659,7 +659,8 @@ local function trainerRows(width, lay)
   end
   local guardCount, latest = 0, {}
   for _, g in ipairs(ns.db.guardPOIs or {}) do
-    local prof = (g.name and knownProf[g.name:lower()]) or g.option
+    -- Flags saved before the option fix (no v) only count when they name a known trainer.
+    local prof = (g.name and knownProf[g.name:lower()]) or (g.v == 2 and g.option) or nil
     if prof and PROFS[prof] and g.mapID and g.x then latest[prof .. ":" .. g.mapID] = { g = g, prof = prof } end
   end
   for _, entry in pairs(latest) do

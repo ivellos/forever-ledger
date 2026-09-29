@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Help tab: every feature explained in short, and the commands. The same guide is on GitHub (docs/GUIDE.md), with pictures to come.
+- If you run TSM or Auctionator, a one-time question at login offers the one-line tooltip (Shift for more), since those addons already show prices in tooltips.
 - Tooltip settings (tester feedback: tooltips were getting long): "Tooltip size" can be "One line, Shift for more", which shows only what an item is worth to you until you hold Shift; each part of the tooltip (prices, Worth to you, Buy at or below, Disenchants to, Used by, crate fill) can be turned off; and "Worth to you" lists the best 3 ways by default (1 to 10, with "and N more ways").
 - Trainers view: ask a city guard for a profession trainer and the spot the guard marks (for example "Duncan's Textiles" for Tailoring in Stormwind) is added with a Pin, marked "(guard)". These are Forever's own positions, so they're more reliable than the Classic ones.
 - Work log: the Customers window has a "Work done" view (also `/fl work`). Every completed trade that looks like a job, where you enchanted something in the "will not be traded" slot, got paid, or traded with someone who asked in chat, is logged with who, what (the enchant, or the items you gave) and the gold. A matching request is marked done. The footer shows today's and the last 7 days' earnings and jobs.

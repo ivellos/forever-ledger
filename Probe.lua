@@ -200,7 +200,8 @@ local function readGuardFlag(event)
             mapInfo and mapInfo.name or tostring(m), lastNPC or "?", lastOption or "?"))
           local list = ns.db.guardPOIs or {}
           ns.db.guardPOIs = list
-          list[#list + 1] = { name = poi.name, mapID = m, x = x, y = y, option = lastOption, npc = lastNPC, t = time() }
+          -- v = 2: saved after the option fix (older ones could carry the wrong option).
+          list[#list + 1] = { name = poi.name, mapID = m, x = x, y = y, option = lastOption, npc = lastNPC, t = time(), v = 2 }
           while #list > 200 do table.remove(list, 1) end
         end
         return

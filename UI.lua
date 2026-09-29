@@ -106,6 +106,7 @@ local TABS = {
   { key = "recipes", label = "Recipes" },
   { key = "characters", label = "Characters" },
   { key = "settings", label = "Settings" },
+  { key = "help", label = "Help" },
 }
 
 -- A scroll area filling the content area, with one text block in it.
@@ -164,6 +165,7 @@ local function buildMain()
     crates = ns:BuildCrates(main.body),
     recipes = ns:BuildRecipes(main.body),
     characters = textArea(),
+    help = textArea(),
   }
   main.views.settings = buildSettings()
   main.table = buildTable()
@@ -326,7 +328,10 @@ local function charactersText(add)
   add("  " .. ns:SyncStatus() .. "  " .. dim("/fl sync for help"))
 end
 
-local TEXT_VIEWS = { characters = charactersText }
+local TEXT_VIEWS = {
+  characters = charactersText,
+  help = function(add) ns.HelpText(add, heading, dim) end,   -- Help.lua
+}
 
 ---------------------------------------------------------------------------
 -- Settings tab: a control for each setting. Changes apply straight away.
