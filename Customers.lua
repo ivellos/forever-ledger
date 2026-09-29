@@ -99,8 +99,35 @@ end
 local AD_COOLDOWN = 60      -- seconds between posts, so the button can't spam
 local DEFAULT_ADS = {
   crafting = "{professions} looking for work, your mats or mine. Whisper me!",
-  mage = "Selling Mage water and food. Whisper me!",
+  mage = "WTS Mage water and food {water} {food}. Whisper me!",
 }
+-- Conjure Water / Conjure Food ranks (Classic spell IDs) and the item each makes, lowest
+-- first. The ad links the best one this Mage knows.
+local CONJURED = {
+  water = { { 5504, 5350 }, { 5505, 2288 }, { 5506, 2136 }, { 6127, 3772 }, { 10138, 8077 }, { 10139, 8078 }, { 10140, 8079 } },
+  food = { { 587, 5349 }, { 597, 1113 }, { 990, 1114 }, { 6129, 1487 }, { 10144, 8075 }, { 10145, 8076 }, { 28612, 22895 } },
+}
+local function knows(spellID)
+  if IsPlayerSpell then local ok, r = pcall(IsPlayerSpell, spellID); if ok and r then return true end end
+  if IsSpellKnown then local ok, r = pcall(IsSpellKnown, spellID); if ok and r then return true end end
+end
+-- Link to the best conjured item of a kind this character knows, or nil.
+local function bestConjured(kind)
+  for i = #CONJURED[kind], 1, -1 do
+    local spell, item = CONJURED[kind][i][1], CONJURED[kind][i][2]
+    if knows(spell) then
+      local _, link = ns.GetItemInfo(item)
+      if not link and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, item) end
+      return link or ("[" .. (ns.ItemName(item) or "Conjured " .. kind) .. "]")
+    end
+  end
+end
+-- Load the item links early, so they're ready when the button is clicked.
+ns:On("PLAYER_ENTERING_WORLD", function()
+  local _, class = UnitClass("player")
+  if class ~= "MAGE" then return end
+  C_Timer.After(5, function() bestConjured("water"); bestConjured("food") end)
+end)
 local GATHERING = { Herbalism = true, Mining = true, Skinning = true, Fishing = true, Cooking = true, ["First Aid"] = true }
 local lastAd = 0
 
@@ -132,7 +159,12 @@ local function adText(kind)
     table.sort(parts)
     text = text:gsub("{professions}", (table.concat(parts, " "):gsub("%%", "%%%%")))
   end
-  return text
+  for _, kind in ipairs({ "water", "food" }) do
+    if text:find("{" .. kind .. "}", 1, true) then
+      text = text:gsub("{" .. kind .. "}", ((bestConjured(kind) or ""):gsub("%%", "%%%%")))
+    end
+  end
+  return (text:gsub("%s%s+", " "))
 end
 
 -- Trade (Services) if you've joined it, otherwise Trade: its channel number.
@@ -161,7 +193,7 @@ function ns:PostAd(kind)
 end
 
 StaticPopupDialogs["FOREVER_LEDGER_EDIT_AD"] = {
-  text = "Ad text. {professions} becomes your profession links.",
+  text = "Ad text. {professions} becomes your profession links; {water} and {food} your best conjured water and food.",
   button1 = SAVE or "Save", button2 = CANCEL or "Cancel", button3 = "Default",
   hasEditBox = true, editBoxWidth = 350, maxLetters = 255,
   OnShow = function(self, kind)
