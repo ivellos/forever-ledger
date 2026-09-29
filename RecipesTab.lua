@@ -642,6 +642,22 @@ local function trainerRows(width, lay)
       classicCount = classicCount + 1
     end
   end
+  -- Where a city guard said each profession's trainer is (Probe.lua saves guard map
+  -- flags with the option you picked). Forever's own positions: the shop, not the NPC.
+  local PROFS = { Alchemy = true, Blacksmithing = true, Enchanting = true, Engineering = true, Herbalism = true,
+    Leatherworking = true, Mining = true, Skinning = true, Tailoring = true, Cooking = true, ["First Aid"] = true,
+    Fishing = true }
+  local guardCount, latest = 0, {}
+  for _, g in ipairs(ns.db.guardPOIs or {}) do
+    if g.option and PROFS[g.option] and g.mapID and g.x then latest[g.option .. ":" .. g.mapID] = g end
+  end
+  for _, g in pairs(latest) do
+    local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(g.mapID)
+    list[#list + 1] = { guard = true, profession = g.option,
+      v = { name = g.name or "?", title = "from " .. (g.npc or "a city guard"), zone = info and info.name or "?",
+        x = g.x, y = g.y, mapID = g.mapID } }
+    guardCount = guardCount + 1
+  end
   local TIER = { Apprentice = 1, Journeyman = 2, Expert = 3, Artisan = 4 }
   table.sort(list, function(a, b)
     -- Unknown professions last.
@@ -668,8 +684,8 @@ local function trainerRows(width, lay)
       skill = "",
       known = e.profession or dim("?"),
       source = ("%s%s%s"):format(e.v.zone or "?", e.v.x and ("  (%.1f, %.1f)"):format(e.v.x * 100, e.v.y * 100) or "",
-        e.classic and dim("  (Classic)") or ""),
-      type = e.tier or dim("?"),
+        e.classic and dim("  (Classic)") or e.guard and "  |cff7fd39c(guard)|r" or ""),
+      type = e.tier or (e.guard and dim("shop") or dim("?")),
       profit = e.v.title and dim(e.v.title) or "",
     }
     for key, fs in pairs(row.cells) do
@@ -686,8 +702,8 @@ local function trainerRows(width, lay)
     row.pin:SetShown(e.v.mapID and e.v.x and true or false)
     row:Show()
   end
-  f.summary:SetText(("%d trainers seen, %d more from Classic (unconfirmed; pins show where they stood in Classic). Visit one to confirm it."):format(
-    #list - classicCount, classicCount))
+  f.summary:SetText(("%d trainers seen, %d from city guards, %d more from Classic (unconfirmed). Ask a guard for a profession trainer to add Forever's real spot."):format(
+    #list - classicCount - guardCount, guardCount, classicCount))
   return #list
 end
 
