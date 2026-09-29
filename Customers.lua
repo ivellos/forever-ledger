@@ -92,7 +92,7 @@ local function onChat(msg, sender, channel)
 end
 
 ---------------------------------------------------------------------------
--- Ads: one click posts a line to Trade (Services), or Trade. {professions} becomes your
+-- Ads: one click posts a line to Trade (or Trade (Services) if you're not in Trade). {professions} becomes your
 -- profession links (saved when you open each profession window, since the game only
 -- gives a link while it's open). Right-click a button to change its text.
 ---------------------------------------------------------------------------
@@ -167,17 +167,18 @@ local function adText(kind)
   return (text:gsub("%s%s+", " "))
 end
 
--- Trade (Services) if you've joined it, otherwise Trade: its channel number.
+-- The main Trade channel (where most players look; owner's choice after testing), or
+-- Trade (Services) if you're not in Trade: its channel number.
 local function adChannel()
-  local found
+  local services
   for i = 1, (GetNumDisplayChannels and GetNumDisplayChannels() or 0) do
     local name, header, _, number = GetChannelDisplayInfo(i)
     if not header and name and number then
-      if name:find("Services", 1, true) then return number, name end
-      if not found and name:find("^Trade") and not name:find("Local", 1, true) then found = { number, name } end
+      if name:find("Services", 1, true) then services = services or { number, name }
+      elseif name:find("^Trade") and not name:find("Local", 1, true) then return number, name end
     end
   end
-  if found then return found[1], found[2] end
+  if services then return services[1], services[2] end
 end
 
 function ns:PostAd(kind)
@@ -307,7 +308,7 @@ function ns:ShowCustomers(quiet)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         GameTooltip:AddLine(label, 1, 1, 1)
         GameTooltip:AddLine(adText(kind), 0.9, 0.9, 0.9, true)
-        GameTooltip:AddLine("Click to post it in Trade (Services). Right-click to change the text.", T.accent[1], T.accent[2], T.accent[3], true)
+        GameTooltip:AddLine("Click to post it in Trade. Right-click to change the text.", T.accent[1], T.accent[2], T.accent[3], true)
         GameTooltip:Show()
       end)
       b:HookScript("OnLeave", function() GameTooltip:Hide() end)
