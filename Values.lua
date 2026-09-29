@@ -49,8 +49,16 @@ local MAT_NAMES = {
   [STRANGE_DUST] = "Strange Dust", [LESSER_MAGIC] = "Lesser Magic Essence",
   [GREATER_MAGIC] = "Greater Magic Essence", [SMALL_GLIMMERING] = "Small Glimmering Shard",
 }
-MAT_NAMES[10998], MAT_NAMES[11082], MAT_NAMES[11083], MAT_NAMES[11084] =
-  "Lesser Astral Essence", "Greater Astral Essence", "Soul Dust", "Large Glimmering Shard"
+-- Every material in the table, so names show before the game has loaded the item.
+for id, name in pairs({
+  [10998] = "Lesser Astral Essence", [11082] = "Greater Astral Essence", [11083] = "Soul Dust",
+  [11084] = "Large Glimmering Shard", [11134] = "Lesser Mystic Essence", [11135] = "Greater Mystic Essence",
+  [11137] = "Vision Dust", [11138] = "Small Glowing Shard", [11139] = "Large Glowing Shard",
+  [11174] = "Lesser Nether Essence", [11175] = "Greater Nether Essence", [11176] = "Dream Dust",
+  [11177] = "Small Radiant Shard", [11178] = "Large Radiant Shard", [16202] = "Lesser Eternal Essence",
+  [16203] = "Greater Eternal Essence", [16204] = "Illusion Dust", [14343] = "Small Brilliant Shard",
+  [14344] = "Large Brilliant Shard",
+}) do MAT_NAMES[id] = name end
 
 -- Green items. Up to 20 from the owner's capes test; 21-25 matched the owner's first
 -- disenchants (4-6 Strange Dust, sometimes 1-2 Lesser Astral Essence). The rest are
