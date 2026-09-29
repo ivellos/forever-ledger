@@ -281,6 +281,7 @@ local function buildFinder()
     local n = 0
     local dim, white, accent = { 0.6, 0.6, 0.6 }, { 1, 1, 1 }, T.accent
     local function add(label, labelColor, values, valueColor)
+      valueColor = valueColor or labelColor   -- title rows have no numbers
       n = n + 1
       local r = tipRow(n)
       r.label:ClearAllPoints()
