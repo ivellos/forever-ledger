@@ -663,6 +663,24 @@ local function trainerRows(width, lay)
     local prof = (g.name and knownProf[g.name:lower()]) or (g.v == 2 and g.option) or nil
     if prof and PROFS[prof] and g.mapID and g.x then latest[prof .. ":" .. g.mapID] = { g = g, prof = prof } end
   end
+  -- A flag that names a trainer already listed doesn't get a row of its own: a visited
+  -- trainer is already Forever's real spot, and a Classic one takes the guard's position
+  -- (Shaina Fuller moved from 43.1, 26.2 in Classic to 52.9, 44.9 in Forever).
+  local byName = {}
+  for _, e in ipairs(list) do if e.v.name then byName[e.v.name:lower()] = e end end
+  for key, entry in pairs(latest) do
+    local same = entry.g.name and byName[entry.g.name:lower()]
+    if same then
+      latest[key] = nil
+      if same.classic then
+        local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(entry.g.mapID)
+        same.classic, same.guard, same.named = nil, true, true
+        same.v.zone, same.v.x, same.v.y, same.v.mapID = info and info.name or same.v.zone, entry.g.x, entry.g.y, entry.g.mapID
+        classicCount = classicCount - 1
+        guardCount = guardCount + 1
+      end
+    end
+  end
   for _, entry in pairs(latest) do
     local g = entry.g
     local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(g.mapID)
@@ -698,7 +716,7 @@ local function trainerRows(width, lay)
       known = e.profession or dim("?"),
       source = ("%s%s%s"):format(e.v.zone or "?", e.v.x and ("  (%.1f, %.1f)"):format(e.v.x * 100, e.v.y * 100) or "",
         e.classic and dim("  (Classic)") or e.guard and "  |cff7fd39c(guard)|r" or ""),
-      type = e.tier or (e.guard and dim("shop") or dim("?")),
+      type = e.tier or (e.guard and not e.named and dim("shop") or dim("?")),
       profit = e.v.title and dim(e.v.title) or "",
     }
     for key, fs in pairs(row.cells) do

@@ -11,7 +11,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 3. At the auction house, click **Full scan** (allowed about every 15 minutes) to price everything.
 4. Hover any item: the tooltip shows what it's worth to you.
 
-<!-- image: images/main-window.png (the Forever Ledger window, Dashboard tab) -->
+![The Forever Ledger window, Dashboard tab](images/dashboard.png)
 
 ## Scanning the auction house
 
@@ -20,7 +20,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 - If Auctionator or another addon runs a full scan, Forever Ledger reads it too.
 - Neutral auction houses (Booty Bay, Gadgetzan, Everlook) keep their own prices.
 
-<!-- image: images/auction-house-buttons.png (the buttons under the auction house) -->
+![Watch flips, Disenchant finder, Full scan and Scan materials under the auction house](images/auction-house.png)
 
 ## Tooltips
 
@@ -29,21 +29,21 @@ Everything the addon does, at a high level. The same text is in the game under *
 - Also: disenchant results, which of your recipes use it, and the cheapest crate fill.
 - **Settings → Tooltip size**: "One line, Shift for more" keeps tooltips short. Each part can be turned off.
 
-<!-- image: images/tooltip.png -->
+![Tooltip for Strange Dust](images/tooltip.png)
 
 ## Shuffles and vendor flips
 
 - **Shuffles**: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; **Work it** walks you through them with one-click buttons.
 - **Vendor flips**: things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it.
 
-<!-- image: images/vendor-flips.png -->
+![Vendor flips tab](images/vendor-flips.png)
 
 ## Disenchanting
 
 - **Disenchant finder** (beside the auction house): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material.
 - The **Disenchant** button in Work it disenchants the shuffle's items one click at a time. `/fl de` shows your own results.
 
-<!-- image: images/disenchant-finder.png -->
+![Disenchant finder beside the auction house](images/disenchant-finder.png)
 
 ## Recipes and trainers
 
@@ -72,7 +72,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 - **Dashboard**: gold over time, sales, expenses and profit, and your sessions.
 - **Ledger**: every sale and purchase, resale profit, and other money like repairs and flights.
 
-<!-- image: images/dashboard.png -->
+
 
 ## Sharing between accounts
 

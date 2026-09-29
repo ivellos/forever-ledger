@@ -21,9 +21,14 @@ local PAD_LEFT, PAD_RIGHT, PAD_TOP, PAD_BOTTOM = 58, 12, 28, 22
 
 local function dim(t) return "|cff888888" .. t .. "|r" end
 
--- "12g", "85s" or "40c", for graph labels.
+-- "12g", "11g 20s", "85s" or "40c", for graph labels. Silver is kept under 100g, so a
+-- day where gold only moved between 11g 11s and 11g 35s doesn't label every line "11g".
 local function short(c)
-  if c >= 10000 then return ("%dg"):format(math.floor(c / 10000)) end
+  if c >= 10000 then
+    local g, s = math.floor(c / 10000), math.floor(c % 10000 / 100)
+    if g < 100 and s > 0 then return ("%dg %ds"):format(g, s) end
+    return ("%dg"):format(g)
+  end
   if c >= 100 then return ("%ds"):format(math.floor(c / 100)) end
   return ("%dc"):format(c)
 end

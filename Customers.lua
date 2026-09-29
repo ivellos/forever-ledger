@@ -90,6 +90,15 @@ local function onChat(msg, sender, channel)
   if s.customerSound and PlaySound and SOUNDKIT and SOUNDKIT.TELL_MESSAGE then PlaySound(SOUNDKIT.TELL_MESSAGE) end
   local log = ns.db.customers or {}
   ns.db.customers = log
+  -- Asking again (Roh Riding posted every few minutes): move the open request to the top
+  -- with the newest message instead of listing it twice.
+  for i = #log, 1, -1 do
+    local e = log[i]
+    if e.who == sender and e.what == what and not e.done and time() - e.t < 3600 then
+      table.remove(log, i)
+      break
+    end
+  end
   log[#log + 1] = { t = time(), who = sender, what = what, msg = msg, where = where, c = ns.CharKey() }
   while #log > LOG_SIZE do table.remove(log, 1) end
   if s.customerWindow then ns:ShowCustomers(true) end
