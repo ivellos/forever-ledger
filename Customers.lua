@@ -23,7 +23,9 @@ local WORDS = {
 local ASKING = { "lf", "lfm", "looking for", "need", "needs", "anyone", "any", "wtb", "can someone", "who can",
   "somebody", "someone" }
 -- Crafters advertising: skip these.
-local OFFERING = { "lfw", "wts", "selling", "can make", "can craft", "offering", "my services", "have all" }
+-- ("anyone need water?" is a Mage selling, not asking: seen in beta trade chat.)
+local OFFERING = { "lfw", "wts", "selling", "can make", "can craft", "offering", "my services", "have all",
+  "anyone need", "anybody need", "who needs", "does anyone need", "need any" }
 -- Mage services, for Mages.
 local MAGE = { "water", "portal", "port", "food", "mage table" }
 
