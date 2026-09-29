@@ -396,7 +396,7 @@ function ns:UpdateWatchButton()
   local w = ns.ahWatchButton
   if not w then return end
   local on = ns:IsFlipWatching()
-  w:SetText(on and "      Stop watching" or "Watch flips")
+  w:SetText(on and "     Stop watching" or "Watch flips")
   if not w.eye then w.eye = watchEye(w) end
   w.eye:SetShown(on)
   w.eye:SetScript("OnUpdate", on and eyeUpdate or nil)
@@ -408,7 +408,7 @@ ns:On("AUCTION_HOUSE_SHOW", function()
     if not finder then buildFinder() end
     if not ns.ahFinderButton then
       local b = CreateFrame("Button", nil, AuctionHouseFrame, "UIPanelButtonTemplate")
-      b:SetSize(150, 24)
+      b:SetSize(132, 24)
       b:SetText("Disenchant finder")
       if ns.ahFullButton then b:SetPoint("RIGHT", ns.ahFullButton, "LEFT", -4, 0)
       else b:SetPoint("TOPRIGHT", AuctionHouseFrame, "BOTTOMRIGHT", -260, -2) end
@@ -423,7 +423,7 @@ ns:On("AUCTION_HOUSE_SHOW", function()
     -- Flip watch on/off (/fl watch).
     if not ns.ahWatchButton then
       local w = CreateFrame("Button", nil, AuctionHouseFrame, "UIPanelButtonTemplate")
-      w:SetSize(150, 24)
+      w:SetSize(128, 24)   -- narrow enough not to reach the Auctions tab
       w:SetPoint("RIGHT", ns.ahFinderButton, "LEFT", -4, 0)
       w:SetFrameLevel(AuctionHouseFrame:GetFrameLevel() + 20)
       w:SetScript("OnClick", function() ns:ToggleFlipWatch() end)
