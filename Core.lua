@@ -378,7 +378,10 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns.Scan:Start("watch")
   elseif msg == "scan full" then
     ns.Scan:Start("full")
+  elseif msg == "watch" then
+    ns:ToggleFlipWatch()
   elseif msg == "stop" then
+    if ns.StopFlipWatch then ns:StopFlipWatch(true) end
     ns.Scan:Stop("Scan stopped.")
   elseif msg == "pull" then
     ns:PullExternal()

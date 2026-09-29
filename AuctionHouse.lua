@@ -365,6 +365,11 @@ ns:On("GET_ITEM_INFO_RECEIVED", function(id)
   C_Timer.After(3, function() finderQueued = false; ns:RefreshDisenchantFinder() end)
 end)
 
+function ns:UpdateWatchButton()
+  local w = ns.ahWatchButton
+  if w then w:SetText(ns:IsFlipWatching() and "Watching flips" or "Watch flips") end
+end
+
 ns:On("AUCTION_HOUSE_SHOW", function()
   C_Timer.After(0.2, function()
     if not AuctionHouseFrame then return end
@@ -383,6 +388,23 @@ ns:On("AUCTION_HOUSE_SHOW", function()
       end)
       ns.ahFinderButton = b
     end
+    -- Flip watch on/off (/fl watch).
+    if not ns.ahWatchButton then
+      local w = CreateFrame("Button", nil, AuctionHouseFrame, "UIPanelButtonTemplate")
+      w:SetSize(130, 24)
+      w:SetPoint("RIGHT", ns.ahFinderButton, "LEFT", -4, 0)
+      w:SetFrameLevel(AuctionHouseFrame:GetFrameLevel() + 20)
+      w:SetScript("OnClick", function() ns:ToggleFlipWatch() end)
+      w:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Flip watch", 1, 1, 1)
+        GameTooltip:AddLine("Keeps looking for items below vendor price while the auction house stays open: a full scan every 15 minutes, quick checks in between. Chimes and opens Vendor flips when it finds one.", nil, nil, nil, true)
+        GameTooltip:Show()
+      end)
+      w:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      ns.ahWatchButton = w
+    end
+    ns:UpdateWatchButton()
   end)
 end)
 ns.RefreshDisenchantFinder = ns.Timed("Disenchant finder", ns.RefreshDisenchantFinder)

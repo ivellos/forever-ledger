@@ -351,7 +351,12 @@ function Scan:Stop(reason)
   local was = self.active
   self.active, self.pending, self.full, self.waiting = false, nil, false, false
   self.queue = {}
-  if was then ns:Print(reason or ("Scan finished: %d items checked in %s."):format(self.items or self.done or 0, took())) end
+  -- The flip watch's quiet checks don't announce each pass.
+  if was and not (self.quiet and not reason) then
+    ns:Print(reason or ("Scan finished: %d items checked in %s."):format(self.items or self.done or 0, took()))
+  end
+  self.quiet = nil
+  if was and not reason and ns.FlipWatchNext then ns.FlipWatchNext() end
   if was and not reason and ns.CheckDeals then C_Timer.After(0.5, function() ns:CheckDeals() end) end
   if was and ns.SyncSoon then ns:SyncSoon() end
   ns:RefreshUI()
@@ -426,6 +431,7 @@ function Scan:StartFull(fallback)
   C_Timer.After(FULL_TIMEOUT, function()
     if not (self.active and self.full and self.fullToken == tok) then return end
     self.active, self.full = false, false
+    if not fallback and ns.FlipWatchNext then ns.FlipWatchNext() end
     if fallback then
       ns:Print("The auction house didn't send a full scan yet. Scanning your materials instead.")
       self:StartWatch()
@@ -481,6 +487,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       if ns.CheckDeals then C_Timer.After(0.5, function() ns:CheckDeals() end) end
       if ns.SyncSoon then ns:SyncSoon() end
       ns:RefreshUI()
+      if mine and ns.FlipWatchNext then ns.FlipWatchNext() end
     end
   end
   chunk()
@@ -505,6 +512,82 @@ ns:On("AUCTION_HOUSE_CLOSED", function()
   if Scan.active then Scan:Stop("Auction house closed, so the scan stopped.") end
   ns:RefreshUI()   -- grey out the scan buttons
 end)
+
+---------------------------------------------------------------------------
+-- Flip watch (/fl watch): while the auction house stays open, keep looking for vendor
+-- flips. A full scan whenever Blizzard allows one (about every 15 minutes); in between,
+-- slow re-checks of the items closest to their vendor price. New flips chime and open
+-- the Vendor flips tab (through CheckDeals). It only looks; buying is always your click.
+---------------------------------------------------------------------------
+local WATCH_PAUSE = 30      -- seconds between passes
+local WATCH_ITEMS = 120     -- items re-checked per pass
+local watching, watchTimer = false, nil
+
+-- Items whose cheapest listing was within 50% of what a vendor pays, closest first.
+local function flipCandidates()
+  local market = ns.db.prices[ns.MarketKey()] or {}
+  local list = {}
+  for id, rec in pairs(market) do
+    local sell = rec.m and not rec.none and ns:GetSellPrice(id)
+    if sell and sell >= 5 and rec.m <= sell * 1.5 and not ns:GetVendorBuyPrice(id) then
+      list[#list + 1] = { id = id, r = rec.m / sell }
+    end
+  end
+  table.sort(list, function(a, b) return a.r < b.r end)
+  local ids = {}
+  for i = 1, math.min(#list, WATCH_ITEMS) do ids[i] = list[i].id end
+  return ids
+end
+
+local function watchPass()
+  watchTimer = nil
+  if not watching then return end
+  if not ahOpen then ns:StopFlipWatch(); return end
+  if Scan.active then watchTimer = C_Timer.NewTimer(10, watchPass); return end
+  Scan.started = GetTime()
+  if Scan:FullWait() == 0 then
+    Scan:StartFull(false)
+    return
+  end
+  local ids = flipCandidates()
+  if #ids == 0 then
+    ns:Debug("Flip watch: nothing close to vendor price; waiting for the next full scan.")
+    watchTimer = C_Timer.NewTimer(WATCH_PAUSE, watchPass)
+    return
+  end
+  Scan.quiet = true
+  Scan.queue = ids
+  Scan.items, Scan.retry, Scan.retrying = #ids, {}, true   -- no retries: the next pass is soon
+  Scan.total, Scan.done, Scan.active, Scan.pending = #ids, 0, true, nil
+  ns:Debug("Flip watch: re-checking", #ids, "items near vendor price")
+  Scan:Next()
+end
+
+-- Called when any scan ends: queue the next pass.
+function ns.FlipWatchNext()
+  if watching and not watchTimer then watchTimer = C_Timer.NewTimer(WATCH_PAUSE, watchPass) end
+end
+
+function ns:StopFlipWatch(silent)
+  if not watching then return end
+  watching = false
+  if watchTimer then watchTimer:Cancel(); watchTimer = nil end
+  if not silent then ns:Print("Flip watch stopped.") end
+  if ns.UpdateWatchButton then ns:UpdateWatchButton() end
+end
+
+function ns:ToggleFlipWatch()
+  if watching then ns:StopFlipWatch(); return end
+  if not ahOpen then ns:Print("Open the auction house first, then start the flip watch."); return end
+  watching = true
+  ns:Print("Flip watch on: a full scan every 15 minutes, and items near vendor price re-checked in between. " ..
+    "A chime means a new flip. It stops when the auction house closes. /fl watch again to stop.")
+  if ns.UpdateWatchButton then ns:UpdateWatchButton() end
+  if not Scan.active then watchPass() end
+end
+function ns:IsFlipWatching() return watching end
+
+ns:On("AUCTION_HOUSE_CLOSED", function() ns:StopFlipWatch() end)
 
 ---------------------------------------------------------------------------
 -- Prices from other auction addons
