@@ -22,7 +22,7 @@ ns.HELP = {
   { "Tooltips", {
     "Worth to you: the best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed.",
     "Buy at or below: the most worth paying, after your safety margin. Green when it's already cheaper.",
-    "Also: disenchant results, which of your recipes use it, and the cheapest crate fill.",
+    "Also: disenchant results, which of your recipes use it, and the cheapest crate fill. Gear with random stats (of the Eagle) also shows the price of that exact version.",
   } },
   { "Shuffles and vendor flips", {
     "Shuffles: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; Work it walks you through them with one-click buttons.",

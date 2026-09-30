@@ -27,6 +27,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 - **Worth to you**: the best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed.
 - **Buy at or below**: the most worth paying, after your safety margin. Green when it's already cheaper.
 - Also: disenchant results, which of your recipes use it, and the cheapest crate fill.
+- Gear with random stats ("of the Eagle"): the price of that exact version, since versions of one item can sell for very different amounts.
 - **Settings → Tooltip size**: "One line, Shift for more" keeps tooltips short. Each part can be turned off.
 
 ![Tooltip for Strange Dust](images/tooltip.png)
