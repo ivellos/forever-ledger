@@ -124,7 +124,13 @@ if GameTooltip.HookScript then
   pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", function() shownID, shownFull = nil, nil end)
 end
 ns:On("MODIFIER_STATE_CHANGED", function(key, down)
-  if not (key and key:find("SHIFT")) or down ~= 1 then return end
+  if not (key and key:find("SHIFT")) then return end
+  -- Pressed is 1 in most clients; some report true. Anything else is a release.
+  local pressed = down == 1 or down == true
+  -- For testing (/fl debug): what the addon sees when Shift changes.
+  ns:Debug("Shift", pressed and "down" or "up", "| mode:", ns.db and ns.db.settings.tipMode or "?",
+    "| tooltip shown:", tostring(GameTooltip:IsShown()), "| item:", tostring(shownID), "| details already:", tostring(shownFull))
+  if not pressed then return end
   if not (ns.db and ns.db.settings.tipMode == "compact") then return end
   if not GameTooltip:IsShown() or not shownID or shownFull then return end
   addLines(GameTooltip, shownID, true)

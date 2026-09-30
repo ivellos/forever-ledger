@@ -119,7 +119,8 @@ local function watch(page, kind)
   page.flWatcher = w
   w.note = T:Text(page, 12, T.accent, "OVERLAY")
   if list then
-    w.note:SetPoint("BOTTOMLEFT", list, "TOPLEFT", 4, 6)
+    -- Commodity pages have "N Available" just above the list, so go above that line.
+    w.note:SetPoint("BOTTOMLEFT", list, "TOPLEFT", 4, commodity and 40 or 6)
   else
     w.note:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
   end
