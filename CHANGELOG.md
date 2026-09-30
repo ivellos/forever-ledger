@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- Shuffles: two groups of disenchant shuffles took turns disappearing on every refresh. The game only keeps so many item details in memory, and working out every shuffle pushed half of them out each time; items it had forgotten got no disenchant value. The addon now remembers item details itself for the session.
 - Flip watch: your own searches are saved even while a watch check is running (Shadowgem and Linen Bandage stayed on Vendor flips after buying), the watch waits 20 seconds after you search so it doesn't talk over you, and it no longer re-checks gear: each check came back with a different stat version's listings, so disenchant shuffles kept appearing and disappearing. Gear prices come from full scans.
 - Materials a vendor also sells now cost whichever is cheaper, the vendor or the auction house. A limited vendor's Strange Dust at 8s was used instead of 2s 35c on the auction house, which hid the Minor Wizard Oil shuffle. Same fix for recipe profits and crate fills.
 - Shuffles: some disenchant shuffles came and went on every refresh. When the best use of a material led back to the item being valued, the material counted as worthless instead of using its next-best use, and which items were hit depended on the order they were worked out.

@@ -37,9 +37,22 @@ end)
 ---------------------------------------------------------------------------
 -- Vendor sell prices (what a vendor pays you), read from the game
 ---------------------------------------------------------------------------
+-- Item details, remembered for the session once the game has given them. The game keeps
+-- only so many in memory; working out every shuffle asks about thousands of items, so
+-- half of them were forgotten each time, and on the next refresh the other half. Items
+-- the game had forgotten gave no disenchant value, so two groups of disenchant shuffles
+-- took turns disappearing on every refresh (owner's log, September 30).
+local infoCache = {}
+local rawGetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 local function getItemInfo(id)
-  if C_Item and C_Item.GetItemInfo then return C_Item.GetItemInfo(id) end
-  if GetItemInfo then return GetItemInfo(id) end
+  if not id or not rawGetItemInfo then return end
+  local hit = infoCache[id]
+  if hit then return unpack(hit, 1, hit.n) end
+  local function keep(...)
+    if (...) ~= nil then infoCache[id] = { n = select("#", ...), ... } end
+    return ...
+  end
+  return keep(rawGetItemInfo(id))
 end
 ns.GetItemInfo = getItemInfo
 
@@ -536,6 +549,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   -- Gear with random stats ("of the Eagle"): note each listing's version (the suffix
   -- number in its link) so tooltips can price the exact version (Gillee's AH video).
   local isGear, getLink = {}, C_AuctionHouse.GetReplicateItemLink
+  local samples = 0
   local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
   local function suffixOf(idx, itemID)
     if not (getLink and instant) then return end
@@ -545,6 +559,12 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
     end
     if not isGear[itemID] then return end
     local ok, link = pcall(getLink, idx)
+    -- For working out Forever's link format (/fl debug): show the first few gear links
+    -- whose name has "of the" or "of ", with the | shown so the codes are readable.
+    if ok and link and ns.db.settings.debug and (samples or 0) < 4 and link:find("%[.+ of .+%]") then
+      samples = (samples or 0) + 1
+      ns:Debug("Gear link sample:", (link:gsub("|", "||")))
+    end
     local suffix = ok and link and tonumber(link:match("item:%d+:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:(%-?%d+)"))
     if suffix and suffix ~= 0 then return suffix end
   end
