@@ -48,7 +48,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 ## Recipes and trainers
 
 - **Recipes tab**: every recipe of your professions, who knows it, where to get it, the skill needed, and profit per craft. Types: Flip or shuffle, Crafts that sell, Enchant service, Not for sale, Not profitable. Right-click a recipe to set your own type.
-- **Where from**: what you've seen in game first, otherwise original Classic data marked "(Classic)". **Pin** puts a map pin on the vendor, trainer or mob.
+- **Where from**: what you've seen in game first, otherwise original Classic data marked "(Classic)", or the auction house when the recipe item is listed there (handy for recipes new in Forever). **Pin** puts a map pin on the vendor, trainer or mob.
 - **Trainers view**: trainers you've visited, Classic ones, and the spots city guards mark when you ask them for a profession trainer (marked "guard").
 
 ![Recipes tab, Cooking recipes not known yet](images/recipes.png)

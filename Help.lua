@@ -34,7 +34,7 @@ ns.HELP = {
   } },
   { "Recipes and trainers", {
     "Recipes tab: every recipe of your professions, who knows it, where to get it, the skill needed, and profit per craft. Types: Flip or shuffle, Crafts that sell, Enchant service, Not for sale, Not profitable. Right-click to set your own.",
-    "Where from: what you've seen in game first, otherwise original Classic data marked (Classic). Pin puts a map pin on the vendor, trainer or mob.",
+    "Where from: what you've seen in game first, otherwise original Classic data marked (Classic), or the auction house when its recipe item is listed there. Pin puts a map pin on the vendor, trainer or mob.",
     "Trainers view: trainers you've visited, Classic ones, and spots city guards mark when you ask them for a profession trainer (marked guard).",
   } },
   { "Waylaid Crates", {
