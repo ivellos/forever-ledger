@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-30
+
 ### Fixed
 - Gear with random stats: versions are now told apart. Forever's item links hold the version ("of the Whale") as a bonus ID, not where Classic kept it, so full scans found no versions. On the auction house's list, where one row covers every version ("Items in this group may vary"), the tooltip lists the cheapest versions on sale by name instead of a wrong "this version: none listed". Version prices from a full scan are kept when a later search saves the item's price.
 - Shuffles: two groups of disenchant shuffles took turns disappearing on every refresh. The game only keeps so many item details in memory, and working out every shuffle pushed half of them out each time; items it had forgotten got no disenchant value. The addon now remembers item details itself for the session.
