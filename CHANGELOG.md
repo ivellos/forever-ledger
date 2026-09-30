@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- Shuffles: some disenchant shuffles came and went on every refresh. When the best use of a material led back to the item being valued, the material counted as worthless instead of using its next-best use, and which items were hit depended on the order they were worked out.
 - Vendor flips: opening an item on the auction house now saves the prices it shows, so Refresh drops a flip whose cheap listings were just bought (it stayed until the next scan). Gear with random stats is left to the scans.
 - Trainers view: a trainer named by a city guard (Lucan Cordell, Shaina Fuller, Arnold Leland) is no longer listed twice; a Classic entry takes the guard's position instead (Shaina Fuller has moved in Forever).
 - Flip watch: between checks the status corner counts down ("Watching flips: next check in 25s, full scan in 12 min"), so a quiet spell doesn't look like it stopped.

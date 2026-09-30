@@ -209,15 +209,28 @@ local function passesThrough(o, id)
   return false
 end
 
--- Best option for the next item in a chain, unless it leads back to `from`.
+local options
+
+-- Best option for the next item in a chain that doesn't lead back to `from`. If the
+-- best one loops back, take the next best instead of treating the item as worthless:
+-- otherwise which items looked profitable depended on the order they were worked out,
+-- and disenchant shuffles came and went on every refresh (owner's log, September 30).
 local function follow(nextID, depth, from)
   local o = best(nextID, depth + 1)
-  if o and not passesThrough(o, from) then return o end
+  if not o then return end
+  if not passesThrough(o, from) then return o end
+  -- The full list, kept in the same cache (cleared together) so this stays cheap.
+  local key = "all:" .. nextID .. ":" .. (depth + 1)
+  local list = cache[key]
+  if not list then list = options(nextID, depth + 1); cache[key] = list end
+  for _, alt in ipairs(list) do
+    if not passesThrough(alt, from) then return alt end
+  end
 end
 
 -- All options for `id` with `depth` steps already taken. Results don't depend on
 -- the chain they're part of, so the cache always gives the same answer.
-local function options(id, depth)
+options = function(id, depth)
   local list = {}
   local function add(o)
     if o.value and o.value > 0 then o.id = id; list[#list + 1] = o end
