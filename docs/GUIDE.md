@@ -73,7 +73,8 @@ Everything the addon does, at a high level. The same text is in the game under *
 ## Customers and work
 
 - **Customers window** (`/fl customers`): opens when someone in chat asks for what your character can do, with **Whisper** and **Invite** buttons.
-- **Ad buttons** post your crafting (with profession links) or, on a Mage, food and water (with links) to Trade. Right-click to change the text.
+- **Class services**: the finder also spots requests for Mage food, water and portals (portals from level 40), Warlock summons (from level 20) and Rogue lockpicking (from level 16), when you're on that class.
+- **Ad buttons** post your crafting (with profession links) to Trade, plus a button per class service: food and water (with links), portals (with the cities you know), summons, or lockpicking. Right-click a button to change its text.
 - **Work done** (`/fl work`): enchants and paid trades, with today's and this week's earnings.
 
 ![Customers window, Work done view](images/work-done.png)

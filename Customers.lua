@@ -28,10 +28,60 @@ local OFFERING = { "lfw", "wts", "selling", "can make", "can craft", "offering",
   "anyone need", "anybody need", "who needs", "does anyone need", "need any",
   -- Crafters spelling it out ("[Enchanting] LF Work - come buy your BIS weapon enchant").
   "lf work", "looking for work", "lf job", "lf jobs", "come buy", "for hire", "your mats", "tips appreciated" }
--- Mage services, for Mages.
-local MAGE = { "water", "portal", "port", "food", "mage table" }
-
 local lastAlert = {}
+
+-- Class services (owner, September 30): Mage food and water, Mage portals, Warlock
+-- summons, Rogue lockpicking. Each needs its spell (Classic IDs), or the level it's
+-- learned at in case Forever's spell IDs differ.
+local function knows(spellID)
+  if IsPlayerSpell then local ok, r = pcall(IsPlayerSpell, spellID); if ok and r then return true end end
+  if IsSpellKnown then local ok, r = pcall(IsSpellKnown, spellID); if ok and r then return true end end
+end
+-- Portal spells: city names for the ad, per spell.
+local PORTALS = {
+  { 10059, "Stormwind" }, { 11416, "Ironforge" }, { 11419, "Darnassus" },
+  { 11417, "Orgrimmar" }, { 11418, "Undercity" }, { 11420, "Thunder Bluff" },
+}
+local SERVICES = {
+  { key = "mage", class = "MAGE", label = "Mage food and water", level = 1,
+    words = { "water", "food", "mage table", "mage water", "mage food" } },
+  { key = "portal", class = "MAGE", label = "Mage portal", level = 40, spells = { 10059, 11416, 11419, 11417, 11418, 11420 },
+    words = { "portal", "portals", "port", "port to", "mage port" } },
+  { key = "summon", class = "WARLOCK", label = "Warlock summon", level = 20, spells = { 698 },
+    -- Not "warlock" on its own: "LF warlock" is usually a group looking for dps.
+    words = { "summon", "summons", "summoning", "summ", "sumon", "lock summon", "warlock summon" } },
+  { key = "lockpick", class = "ROGUE", label = "Lockpicking", level = 16, spells = { 1804 },
+    words = { "lockpick", "lockpicker", "lockpicking", "lock pick", "pick lock", "lockbox", "lockboxes", "lock box",
+      "open box", "open a box", "open my box", "junkbox" } },
+}
+ns.CLASS_SERVICES = SERVICES
+
+-- The class services this character can offer now.
+local function myServices()
+  local _, class = UnitClass("player")
+  local level = UnitLevel and UnitLevel("player") or 0
+  local out = {}
+  for _, sv in ipairs(SERVICES) do
+    if sv.class == class then
+      local ok = level >= sv.level
+      for _, id in ipairs(sv.spells or {}) do if knows(id) then ok = true end end
+      if ok then out[#out + 1] = sv end
+    end
+  end
+  return out
+end
+
+-- Portal cities this Mage knows, for the ad ("Stormwind, Ironforge"). If none of the
+-- Classic spell IDs are known (Forever may differ), the faction's cities.
+local function portalCities()
+  local list = {}
+  for _, p in ipairs(PORTALS) do if knows(p[1]) then list[#list + 1] = p[2] end end
+  if #list == 0 then
+    list = UnitFactionGroup("player") == "Horde" and { "Orgrimmar", "Undercity", "Thunder Bluff" }
+      or { "Stormwind", "Ironforge", "Darnassus" }
+  end
+  return table.concat(list, ", ")
+end
 
 -- True if `text` contains `word` as a whole word (or phrase).
 local function has(text, word)
@@ -70,8 +120,9 @@ local function wanted(msg)
   for prof in pairs(profs) do
     if WORDS[prof] and any(text, WORDS[prof]) then return prof end
   end
-  local _, class = UnitClass("player")
-  if class == "MAGE" and any(text, MAGE) then return "Mage services" end
+  for _, sv in ipairs(myServices()) do
+    if any(text, sv.words) then return sv.label end
+  end
 end
 
 local function onChat(msg, sender, channel)
@@ -113,6 +164,14 @@ local AD_COOLDOWN = 60      -- seconds between posts, so the button can't spam
 local DEFAULT_ADS = {
   crafting = "{professions} looking for work, your mats or mine. Whisper me!",
   mage = "WTS Mage water and food {water} {food}. Whisper me!",
+  portal = "WTS portals to {portals}. Whisper me!",
+  summon = "Warlock summons available, whisper me where you are and who's coming!",
+  lockpick = "Rogue lockpicking: bring your lockboxes, tips welcome. Whisper me!",
+}
+-- The ad button for each service.
+local AD_BUTTONS = {
+  mage = { "Sell food and water", 140 }, portal = { "Sell portals", 100 },
+  summon = { "Offer summons", 120 }, lockpick = { "Offer lockpicking", 140 },
 }
 -- Conjure Water / Conjure Food ranks (Classic spell IDs) and the item each makes, lowest
 -- first. The ad links the best one this Mage knows.
@@ -120,10 +179,6 @@ local CONJURED = {
   water = { { 5504, 5350 }, { 5505, 2288 }, { 5506, 2136 }, { 6127, 3772 }, { 10138, 8077 }, { 10139, 8078 }, { 10140, 8079 } },
   food = { { 587, 5349 }, { 597, 1113 }, { 990, 1114 }, { 6129, 1487 }, { 10144, 8075 }, { 10145, 8076 }, { 28612, 22895 } },
 }
-local function knows(spellID)
-  if IsPlayerSpell then local ok, r = pcall(IsPlayerSpell, spellID); if ok and r then return true end end
-  if IsSpellKnown then local ok, r = pcall(IsSpellKnown, spellID); if ok and r then return true end end
-end
 -- Link to the best conjured item of a kind this character knows, or nil.
 local function bestConjured(kind)
   for i = #CONJURED[kind], 1, -1 do
@@ -172,6 +227,9 @@ local function adText(kind)
     table.sort(parts)
     text = text:gsub("{professions}", (table.concat(parts, " "):gsub("%%", "%%%%")))
   end
+  if text:find("{portals}", 1, true) then
+    text = text:gsub("{portals}", (portalCities():gsub("%%", "%%%%")))
+  end
   for _, kind in ipairs({ "water", "food" }) do
     if text:find("{" .. kind .. "}", 1, true) then
       text = text:gsub("{" .. kind .. "}", ((bestConjured(kind) or ""):gsub("%%", "%%%%")))
@@ -207,7 +265,7 @@ function ns:PostAd(kind)
 end
 
 StaticPopupDialogs["FOREVER_LEDGER_EDIT_AD"] = {
-  text = "Ad text. {professions} becomes your profession links; {water} and {food} your best conjured water and food.",
+  text = "Ad text. {professions} becomes your profession links; {water} and {food} your best conjured water and food; {portals} the cities you can portal to.",
   button1 = SAVE or "Save", button2 = CANCEL or "Cancel", button3 = "Default",
   hasEditBox = true, editBoxWidth = 350, maxLetters = 255,
   OnShow = function(self, kind)
@@ -438,7 +496,7 @@ end
 function ns:ShowCustomers(quiet)
   local T = ns.Theme
   if not win then
-    win = ns.ThemedWindow("ForeverLedgerCustomers", 520, 330, T:AccentCode() .. "Customers|r")
+    win = ns.ThemedWindow("ForeverLedgerCustomers", 620, 330, T:AccentCode() .. "Customers|r")
     win:ClearAllPoints()
     win:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -260, -160)
     -- Ad buttons: left-click posts, right-click edits the text.
@@ -459,12 +517,18 @@ function ns:ShowCustomers(quiet)
       b:HookScript("OnLeave", function() GameTooltip:Hide() end)
       return b
     end
-    local ad = adButton("crafting", "Advertise my crafting", 170)
+    local ad = adButton("crafting", "Advertise crafting", 140)
     ad:SetPoint("TOPLEFT", 10, -38)
-    local _, class = UnitClass("player")
-    if class == "MAGE" then
-      local mage = adButton("mage", "Sell food and water", 150)
-      mage:SetPoint("LEFT", ad, "RIGHT", 6, 0)
+    -- One button per class service this character has (portals appear at level 40
+    -- once the window is opened again: it's built once per session).
+    local prev = ad
+    for _, sv in ipairs(myServices()) do
+      local b = AD_BUTTONS[sv.key]
+      if b then
+        local btn = adButton(sv.key, b[1], b[2])
+        btn:SetPoint("LEFT", prev, "RIGHT", 6, 0)
+        prev = btn
+      end
     end
 
     -- Requests (people asking now) or Work done (the work log).
