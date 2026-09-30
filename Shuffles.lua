@@ -82,10 +82,15 @@ local function stepLines(o, lines, num, skipBuys)
 end
 
 -- What an item costs to buy, and how many are listed (nil when a vendor sells it).
+-- The cheaper of the two: a vendor that sells it (often in limited stock) or the
+-- auction house. (It used to take the vendor whenever there was one: Strange Dust
+-- counted at a limited vendor's 8s instead of 2s 35c on the auction house, which hid
+-- the Minor Wizard Oil shuffle, owner's test September 30.)
 local function buyInfo(id, market)
-  local p = ns:GetVendorBuyPrice(id)
-  if p then return p, nil end
-  return ns:GetPrice(id), market[id] and market[id].q
+  local vendor = ns:GetVendorBuyPrice(id)
+  local ah = ns:GetPrice(id)
+  if vendor and (not ah or vendor <= ah) then return vendor, nil end
+  return ah, market[id] and market[id].q
 end
 
 -- One shuffle: buy `id` (and the first craft's other materials), then follow `o`.

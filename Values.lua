@@ -168,9 +168,10 @@ ns.EnchantingSkill = canDisenchant
 -- What a material costs to buy: the vendor price when a vendor sells it, otherwise
 -- the auction house price.
 local function buyCost(id)
-  local p = ns:GetVendorBuyPrice(id)
-  if p then return p end
-  return (ns:GetPrice(id))
+  -- The cheaper of a vendor and the auction house (see buyInfo in Shuffles.lua).
+  local vendor, ah = ns:GetVendorBuyPrice(id), (ns:GetPrice(id))
+  if vendor and ah then return math.min(vendor, ah) end
+  return vendor or ah
 end
 
 ---------------------------------------------------------------------------

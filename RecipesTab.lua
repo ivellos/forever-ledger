@@ -54,9 +54,10 @@ end
 -- What a recipe is worth and which type it is
 ---------------------------------------------------------------------------
 local function unitCost(id)
-  local vendor = ns:GetVendorBuyPrice(id)
-  if vendor then return vendor end
-  return (ns:GetPrice(id))
+  -- The cheaper of a vendor and the auction house.
+  local vendor, ah = ns:GetVendorBuyPrice(id), (ns:GetPrice(id))
+  if vendor and ah then return math.min(vendor, ah) end
+  return vendor or ah
 end
 
 -- Profit per craft at today's prices, and the output's best option (or nil).

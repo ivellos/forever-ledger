@@ -85,9 +85,9 @@ end
 
 -- What buying qty of an item costs: from a vendor, or across the cheapest auction
 -- listings (the price ladder saved by scans). nil if unknown or not enough listed.
-function ns:CostToBuy(id, qty)
-  local vendor = ns:GetVendorBuyPrice(id)
-  if vendor then return vendor * qty end
+-- Whichever is cheaper, a vendor or the auction house (a limited vendor's price used
+-- to win even when the auction house was far cheaper).
+local function ahCostToBuy(id, qty)
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   if not rec or rec.none or not rec.m then return end
   if rec.l then
@@ -102,6 +102,13 @@ function ns:CostToBuy(id, qty)
     return cost + (qty - got) * (rec.a or rec.m)
   end
   return qty * (rec.a or rec.m)
+end
+
+function ns:CostToBuy(id, qty)
+  local vendor = ns:GetVendorBuyPrice(id)
+  local ah = ahCostToBuy(id, qty)
+  if vendor and ah then return math.min(vendor * qty, ah) end
+  return vendor and vendor * qty or ah
 end
 
 local function bagCount(id)

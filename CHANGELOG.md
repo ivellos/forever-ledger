@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- Materials a vendor also sells now cost whichever is cheaper, the vendor or the auction house. A limited vendor's Strange Dust at 8s was used instead of 2s 35c on the auction house, which hid the Minor Wizard Oil shuffle. Same fix for recipe profits and crate fills.
 - Shuffles: some disenchant shuffles came and went on every refresh. When the best use of a material led back to the item being valued, the material counted as worthless instead of using its next-best use, and which items were hit depended on the order they were worked out.
 - Vendor flips: opening an item on the auction house now saves the prices it shows, so Refresh drops a flip whose cheap listings were just bought (it stayed until the next scan). Gear with random stats is left to the scans.
 - Trainers view: a trainer named by a city guard (Lucan Cordell, Shaina Fuller, Arnold Leland) is no longer listed twice; a Classic entry takes the guard's position instead (Shaina Fuller has moved in Forever).
