@@ -714,42 +714,47 @@ ns.DEAL_LEVEL_TEXT = {
   good = "|cff7fd39cGood|r", fair = "|cffffd100Fair|r", thin = "|cffee8597Thin|r",
 }
 
--- Why a usual-price deal is a deal, as tooltip lines: { text, r, g, b } or plain strings.
+ns.DEAL_LEVEL_WHY = {
+  good = "Steady prices over a week or more.",
+  fair = "Some data, but not a lot, or a warning below.",
+  thin = "Too little data, or prices that jump around.",
+}
+
+-- Why a usual-price deal is a deal, for the Deals tab tooltip, in short sections.
+-- Entries: { head = text } a section heading, { left, right } a label and value,
+-- { note = text, color = {r, g, b} } a wrapped line.
 function ns:DealExplain(d)
   local s, L = ns.db.settings, {}
   local st = d.stats
-  local period = ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time"
-  L[#L + 1] = ("Cheapest now: %s. %d listed at or below %s%s."):format(ns.Money(d.price), d.listed,
-    ns.Money(d.limit), d.listed > 1 and (", average " .. ns.Money(d.cost)) or "")
+  local function pair(l, r) L[#L + 1] = { l, r } end
+  local function green(v) return (v > 0 and "|cff7fd39c" or "|cffee8597") .. ns.Money(math.max(0, v)) .. "|r" end
+
+  L[#L + 1] = { head = "Right now" }
+  pair("Cheapest", ns.Money(d.price))
+  pair(("Listed up to %s"):format(ns.Money(d.limit)), d.listed > 1 and ("%d, average %s"):format(d.listed, ns.Money(d.cost)) or "1")
+  pair("Next listing up", d.nextUp and ns.Money(d.nextUp) or "none")
+
+  L[#L + 1] = { head = "Usually (" .. (ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time") .. ")" }
   if d.basis == "TSM" then
-    L[#L + 1] = ("Usual price: %s, TSM's %s."):format(ns.Money(d.worth),
-      (s.dealWindow == "week" or s.dealWindow == "month") and "market value (about 2 weeks)" or "historical price (about 2 months)")
+    pair("TSM price", ns.Money(d.worth))
   end
   if st then
-    L[#L + 1] = ("%s: %s, the middle of %d %s of your scans over %s."):format(
-      d.basis == "TSM" and "Your own scans" or "Usual price", ns.Money(st.usual), st.points,
-      st.points == 1 and "day" or "days", period)
-    if st.points >= 4 and st.q1 ~= st.q3 then
-      L[#L + 1] = ("Most days it sat between %s and %s."):format(ns.Money(st.q1), ns.Money(st.q3))
-    end
-    if st.low and st.low < st.usual then
-      L[#L + 1] = ("The cheapest one each day was usually %s."):format(ns.Money(st.low))
-    end
-    if st.listed then
-      L[#L + 1] = ("Usually %d listed."):format(st.listed)
-    end
+    pair(d.basis == "TSM" and "Your scans" or "Usual price", ns.Money(st.usual))
+    pair("Based on", ("%d %s of your scans"):format(st.points, st.points == 1 and "day" or "days"))
+    if st.points >= 4 and st.q1 ~= st.q3 then pair("Most days", ns.Money(st.q1) .. " to " .. ns.Money(st.q3)) end
+    if st.low and st.low < st.usual then pair("Cheapest each day", ns.Money(st.low)) end
+    if st.listed then pair("Listed each day", tostring(st.listed)) end
   end
-  if d.nextUp then
-    L[#L + 1] = ("Next listing above these: %s%s."):format(ns.Money(d.nextUp),
-      d.nextUp < d.worth and ", so reselling today means pricing under that" or "")
-  end
-  local color = d.each > 0 and "|cff7fd39c" or "|cffee8597"
-  L[#L + 1] = ("Resell at %s, less the %g%% cut: %s%s profit each|r%s."):format(ns.Money(d.resell),
-    s.ahCut or 5, color, ns.Money(math.max(0, d.each)), d.listed > 1 and (", " .. ns.Money(math.max(0, d.total)) .. " for all " .. d.listed) or "")
-  for _, w in ipairs(d.warnings) do L[#L + 1] = { w, 1, 0.6, 0.3 } end
-  L[#L + 1] = "Sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) .. (d.level == "good" and ", steady prices over a week or more." or
-    d.level == "fair" and ", some data but not a lot, or a warning above." or ", too little or too jumpy data.")
-  L[#L + 1] = { "The auction house doesn't say what sold, only what's listed. Buy what you'd be happy to hold for a while.", 0.6, 0.6, 0.6 }
+
+  L[#L + 1] = { head = "If you resell" }
+  pair(d.nextUp and d.nextUp < d.worth and "Resell at (under the next listing)" or "Resell at", ns.Money(d.resell))
+  pair(("Profit each, after %g%% cut"):format(s.ahCut or 5), green(d.each))
+  if d.listed > 1 then pair(("Profit for all %d"):format(d.listed), green(d.total)) end
+
+  L[#L + 1] = { head = "How sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) }
+  L[#L + 1] = { note = ns.DEAL_LEVEL_WHY[d.level] or "", color = { 0.75, 0.75, 0.75 } }
+  for _, w in ipairs(d.warnings) do L[#L + 1] = { note = w, color = { 1, 0.6, 0.3 } } end
+  L[#L + 1] = { note = "The auction house shows what's listed, not what sold.", color = { 0.5, 0.5, 0.5 } }
   return L
 end
 

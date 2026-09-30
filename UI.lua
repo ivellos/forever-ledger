@@ -167,7 +167,7 @@ local function buildMain()
     crates = ns:BuildCrates(main.body),
     recipes = ns:BuildRecipes(main.body),
     characters = textArea(),
-    help = textArea(),
+    help = ns:BuildHelp(main.body),   -- Help.lua
   }
   main.views.settings = buildSettings()
   main.table = buildTable()
@@ -347,7 +347,6 @@ end
 
 local TEXT_VIEWS = {
   characters = charactersText,
-  help = function(add) ns.HelpText(add, heading, dim) end,   -- Help.lua
 }
 
 ---------------------------------------------------------------------------
@@ -517,6 +516,8 @@ function ns:RefreshUI()
     ns:RefreshCrates()
   elseif main.view == "deals" then
     ns:RefreshDeals()
+  elseif main.view == "help" then
+    ns:RefreshHelp()
   elseif main.view == "recipes" then
     ns:RefreshRecipes()
   elseif build then

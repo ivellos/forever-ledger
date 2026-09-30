@@ -6,72 +6,154 @@ local _, ns = ...
 -- Also: a one-time question for players who run TSM or Auctionator, whose tooltips
 -- already show prices, offering the one-line tooltip.
 ---------------------------------------------------------------------------
+-- Each section: { title, { { topic, text }, ... } }.
 ns.HELP = {
   { "Getting started", {
-    "Type /fl (or click the minimap button) to open this window.",
-    "Open each profession window once on every character, so the addon learns your recipes.",
-    "At the auction house, click Full scan (allowed about every 15 minutes) to price everything.",
-    "Hover any item: the tooltip shows what it's worth to you. Settings can make it one line, with Shift for more.",
+    { "Open this window", "Type /fl, or click the minimap button." },
+    { "Learn your recipes", "Open each profession window once on every character." },
+    { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
+    { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it one line, with Shift for more." },
   } },
   { "Scanning the auction house", {
-    "Full scan reads every listing in a few seconds. Scan materials checks just what your recipes use.",
-    "Watch flips (on the auction house) keeps scanning while the auction house stays open and chimes when a new vendor flip turns up. An eye on the button shows it's running.",
-    "If Auctionator or another addon runs a full scan, Forever Ledger reads it too.",
-    "Neutral auction houses (Booty Bay, Gadgetzan, Everlook) keep their own prices.",
+    { "Full scan", "Reads every listing in a few seconds." },
+    { "Scan materials", "Checks just what your recipes use." },
+    { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. An eye on the button shows it's running." },
+    { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too." },
+    { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
   } },
   { "Tooltips", {
-    "Worth to you: the best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed.",
-    "Buy at or below: the most worth paying, after your safety margin. Green when it's already cheaper.",
-    "Also: disenchant results, which of your recipes use it, and the cheapest crate fill. Gear with random stats (of the Eagle) also shows the price of that exact version.",
+    { "Worth to you", "The best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed." },
+    { "Buy at or below", "The most worth paying, after your safety margin. Green when it's already cheaper." },
+    { "Also", "Disenchant results, which of your recipes use it, and the cheapest crate fill." },
+    { "Gear versions", "Gear with random stats (of the Eagle) also shows the price of that exact version." },
   } },
   { "Shuffles and vendor flips", {
-    "Shuffles: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; Work it walks you through them with one-click buttons.",
-    "Vendor flips: things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it. On the auction house, listings worth buying get a green bar and a BUY badge, and the line above says how many are left.",
+    { "Shuffles", "Buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; Work it walks you through them with one-click buttons." },
+    { "Vendor flips", "Things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it." },
+    { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },
   { "Deals", {
-    "Deals tab: listings well below their usual price, to buy and resell. Each shows the price now, the usual price, how many are cheap, the profit after the auction house cut, and how sure it is (Good, Fair or Thin).",
-    "Hover a deal for why it's one: the usual price over how many days of your scans, the range most days, how many are usually listed, and the next listing up (reselling today means pricing under it). Click to search the auction house.",
-    "Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too. The auction house can't tell what actually sold, so buy what you'd be happy to hold.",
+    { "Deals tab", "Listings well below their usual price, to buy and resell: price now, usual price, how many are cheap, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },
+    { "Why it's a deal", "Hover a deal: the usual price and how many days of your scans it comes from, the range most days, how many are usually listed, and the next listing up (reselling today means pricing under it). Click to search the auction house." },
+    { "How sure", "Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too." },
+    { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },
   { "Disenchanting", {
-    "Disenchant finder (beside the auction house): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds.",
-    "The Disenchant button in Work it disenchants the shuffle's items one click at a time. /fl de shows your own results.",
+    { "Disenchant finder", "Beside the auction house: green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds." },
+    { "Work it", "The Disenchant button disenchants the shuffle's items one click at a time. /fl de shows your own results." },
   } },
   { "Recipes and trainers", {
-    "Recipes tab: every recipe of your professions, who knows it, where to get it, the skill needed, and profit per craft. Types: Flip or shuffle, Crafts that sell, Enchant service, Not for sale, Not profitable. Right-click to set your own.",
-    "Where from: what you've seen in game first, otherwise original Classic data marked (Classic), or the auction house when its recipe item is listed there. Pin puts a map pin on the vendor, trainer or mob.",
-    "Trainers view: trainers you've visited, Classic ones, and spots city guards mark when you ask them for a profession trainer (marked guard).",
+    { "Recipes tab", "Every recipe of your professions, who knows it, where to get it, the skill needed, and profit per craft. Right-click a recipe to set its type yourself." },
+    { "Types", "Flip or shuffle, Crafts that sell, Enchant service, Not for sale, Not profitable." },
+    { "Where from", "What you've seen in game first, otherwise original Classic data marked (Classic), or the auction house when its recipe item is listed there. Pin puts a map pin on the vendor, trainer or mob." },
+    { "Trainers view", "Trainers you've visited, Classic ones, and spots city guards mark when you ask them for a profession trainer (marked guard)." },
   } },
   { "Waylaid Crates", {
-    "Crates tab: the cheapest way to fill each crate at today's prices, with the crate's own price and gold per Merchant's Favor. Click a crate for every bundle and what you already have.",
+    { "Crates tab", "The cheapest way to fill each crate at today's prices, with the crate's own price and gold per Merchant's Favor. Click a crate for every bundle and what you already have." },
   } },
   { "Customers and work", {
-    "Customers window (/fl customers): opens when someone in chat asks for what your character can do, with Whisper and Invite buttons.",
-    "Ad buttons post your crafting (with profession links) or, on a Mage, food and water (with links) to Trade. Right-click to change the text.",
-    "Work done (/fl work): enchants and paid trades, with today's and this week's earnings.",
+    { "Customers window", "Opens when someone in chat asks for what your character can do, with Whisper and Invite buttons. /fl customers opens it any time." },
+    { "Ads", "Post your crafting (with profession links) or, on a Mage, food and water to Trade. Right-click to change the text." },
+    { "Work done", "Enchants and paid trades, with today's and this week's earnings. /fl work." },
   } },
   { "Your gold", {
-    "Dashboard: gold over time, sales, expenses and profit, and your sessions.",
-    "Ledger: every sale and purchase, resale profit, and other money like repairs and flights.",
+    { "Dashboard", "Gold over time, sales, expenses and profit, and your sessions." },
+    { "Ledger", "Every sale and purchase, resale profit, and other money like repairs and flights." },
   } },
   { "Sharing between accounts", {
-    "Live sync (/fl pair First Last) sends prices and recipes between your two accounts while both are online. Export and import work too.",
+    { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online." },
+    { "Export and import", "On the Characters tab, to copy everything across by hand." },
   } },
   { "Commands", {
-    "/fl  open or close the window.   /fl scan  full scan or materials.   /fl watch  flip watch.",
-    "/fl customers, /fl work  the Customers window.   /fl de  disenchant results.   /fl deals  the Deals tab (/fl deals list in chat).",
-    "/fl book  recipe data gathered.   /fl sync  sync status.   /fl perf  what takes time.   /fl probe  game checks.",
+    { "/fl", "Open or close the window." },
+    { "/fl scan", "Full scan or materials." },
+    { "/fl watch", "Flip watch." },
+    { "/fl deals", "The Deals tab (/fl deals list in chat)." },
+    { "/fl customers, /fl work", "The Customers window." },
+    { "/fl de", "Your disenchant results." },
+    { "/fl book", "Recipe data gathered." },
+    { "/fl sync", "Sync status." },
+    { "/fl perf, /fl probe", "What takes time; game checks." },
   } },
 }
 
--- The Help tab's text (UI.lua shows it like the Characters tab).
-function ns.HelpText(add, heading, dim)
-  add(dim("Everything Forever Ledger does, in short. The full guide with pictures is docs/GUIDE.md on the addon's GitHub page."))
+---------------------------------------------------------------------------
+-- The Help tab, laid out like Settings: a header band per section, each topic on
+-- the left with its text beside it, and a faint line between topics.
+---------------------------------------------------------------------------
+local TOPIC_W = 170
+local hv
+
+function ns:BuildHelp(parent)
+  local T = ns.Theme
+  local sf, content = T:Scroll(parent)
+  sf:SetAllPoints()
+  hv = { sf = sf, content = content, parts = {} }
+  local function add(kind, obj) hv.parts[#hv.parts + 1] = { kind = kind, obj = obj } end
+
+  local intro = T:Text(content, 11, T.dim)
+  intro:SetJustifyH("LEFT")
+  intro:SetText("Everything Forever Ledger does, in short. The full guide with pictures is docs/GUIDE.md on the addon's GitHub page.")
+  add("intro", intro)
   for _, section in ipairs(ns.HELP) do
-    add("")
-    add(heading(section[1]))
-    for _, line in ipairs(section[2]) do add("  " .. line) end
+    local band = content:CreateTexture(nil, "BACKGROUND")
+    band:SetColorTexture(1, 1, 1, 0.05)
+    local h = T:Text(content, 13, T.accent)
+    h:SetText(section[1])
+    add("band", { band = band, text = h })
+    for _, entry in ipairs(section[2]) do
+      local topic = T:Text(content, 12)
+      topic:SetJustifyH("LEFT")
+      topic:SetText(entry[1])
+      local text = T:Text(content, 12, T.dim)
+      text:SetJustifyH("LEFT")
+      text:SetText(entry[2])
+      local line = content:CreateTexture(nil, "BACKGROUND")
+      line:SetColorTexture(1, 1, 1, 0.04)
+      line:SetHeight(1)
+      add("entry", { topic = topic, text = text, line = line })
+    end
   end
+  return sf
+end
+
+-- Positions everything for the current width (text heights depend on it).
+function ns:RefreshHelp()
+  if not hv then return end
+  local width = math.max(hv.sf:GetWidth() - 12, 300)
+  hv.content:SetWidth(width)
+  local y = 0
+  for _, p in ipairs(hv.parts) do
+    local o = p.obj
+    if p.kind == "intro" then
+      o:ClearAllPoints()
+      o:SetPoint("TOPLEFT", 4, -2)
+      o:SetWidth(width - 8)
+      y = o:GetStringHeight() + 12
+    elseif p.kind == "band" then
+      y = y + 8
+      o.band:ClearAllPoints()
+      o.band:SetPoint("TOPLEFT", 0, -y)
+      o.band:SetPoint("RIGHT", hv.content, "RIGHT", -4, 0)
+      o.band:SetHeight(24)
+      o.text:ClearAllPoints()
+      o.text:SetPoint("LEFT", o.band, "LEFT", 8, 0)
+      y = y + 30
+    else
+      o.topic:ClearAllPoints()
+      o.topic:SetPoint("TOPLEFT", 12, -y)
+      o.topic:SetWidth(TOPIC_W - 16)
+      o.text:ClearAllPoints()
+      o.text:SetPoint("TOPLEFT", TOPIC_W, -y)
+      o.text:SetWidth(width - TOPIC_W - 12)
+      y = y + math.max(o.topic:GetStringHeight(), o.text:GetStringHeight()) + 10
+      o.line:ClearAllPoints()
+      o.line:SetPoint("TOPLEFT", 8, -(y - 5))
+      o.line:SetPoint("RIGHT", hv.content, "RIGHT", -8, 0)
+    end
+  end
+  hv.content:SetHeight(y + 10)
+  hv.sf.UpdateScrollBar()
 end
 
 ---------------------------------------------------------------------------

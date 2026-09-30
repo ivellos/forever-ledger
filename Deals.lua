@@ -107,17 +107,22 @@ end
 local function showTip(self)
   local d = self.deal
   if not d then return end
+  local a = T.accent
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:AddLine(ns.ItemName(d.id) or "?", 1, 1, 1)
-  for _, line in ipairs(ns:DealExplain(d)) do
-    if type(line) == "table" then
-      GameTooltip:AddLine(line[1], line[2], line[3], line[4], true)
+  GameTooltip:AddDoubleLine(ns.ItemName(d.id) or "?", ("%d%% below usual"):format(math.floor(d.pct * 100 + 0.5)),
+    1, 1, 1, 0.5, 0.83, 0.61)
+  for _, e in ipairs(ns:DealExplain(d)) do
+    if e.head then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(e.head, a[1], a[2], a[3])
+    elseif e.note then
+      GameTooltip:AddLine(e.note, e.color[1], e.color[2], e.color[3], true)
     else
-      GameTooltip:AddLine(line, 0.9, 0.9, 0.9, true)
+      GameTooltip:AddDoubleLine("  " .. e[1], e[2], 0.7, 0.7, 0.7, 1, 1, 1)
     end
   end
   GameTooltip:AddLine(" ")
-  GameTooltip:AddLine("Click to search the auction house.", T.accent[1], T.accent[2], T.accent[3])
+  GameTooltip:AddLine("Click to search the auction house.", 0.5, 0.5, 0.5)
   GameTooltip:Show()
 end
 
