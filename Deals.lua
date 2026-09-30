@@ -15,13 +15,14 @@ local MAX_AGE = 3600   -- prices from the last hour (alerts use the last 10 minu
 
 local COLUMNS = {
   { key = "item", label = "Item" },
-  { key = "price", label = "Now", width = 86, right = true },
-  { key = "worth", label = "Usual", width = 86, right = true },
-  { key = "pct", label = "Below", width = 50, right = true },
-  { key = "listed", label = "Cheap", width = 46, right = true },
-  { key = "each", label = "Profit each", width = 90, right = true },
-  { key = "total", label = "Profit all", width = 90, right = true },
-  { key = "level", label = "Sure", width = 90 },
+  { key = "price", label = "Now", width = 80, right = true },
+  { key = "worth", label = "Usual", width = 80, right = true },
+  { key = "pct", label = "Below", width = 46, right = true },
+  { key = "listed", label = "Cheap", width = 44, right = true },
+  { key = "sold", label = "Gone/day", width = 60, right = true },
+  { key = "each", label = "Profit each", width = 80, right = true },
+  { key = "total", label = "Profit all", width = 84, right = true },
+  { key = "level", label = "Sure", width = 70 },
 }
 
 local LEVEL_ORDER = { thin = 1, fair = 2, good = 3 }
@@ -42,7 +43,7 @@ local function columnLayout(width)
   for _, c in ipairs(COLUMNS) do fixed = fixed + (c.width or 0) + 8 end
   local x, out = 4, {}
   for _, c in ipairs(COLUMNS) do
-    local w = c.width or math.max(140, width - fixed - 4)
+    local w = c.width or math.max(120, width - fixed - 4)
     out[c.key] = { x = x, w = w }
     x = x + w + 8
   end
@@ -168,6 +169,11 @@ local function show(d, key)
   if key == "price" or key == "worth" then return ns.Money(d[key]) end
   if key == "pct" then return ("%d%%"):format(math.floor(d.pct * 100 + 0.5)) end
   if key == "listed" then return tostring(d.listed) end
+  if key == "sold" then
+    if not d.soldPerDay then return dim("?") end
+    if d.soldPerDay == 0 then return "|cffee85970|r" end
+    return d.soldPerDay < 1 and "<1" or tostring(math.floor(d.soldPerDay + 0.5))
+  end
   if key == "each" or key == "total" then
     local v = d[key]
     return v > 0 and ("|cff7fd39c" .. ns.Money(v) .. "|r") or ("|cffee8597" .. ns.Money(0) .. "|r")
@@ -182,6 +188,7 @@ end
 local function sortValue(d, key)
   if key == "item" then return (ns.ItemName(d.id) or ""):lower() end
   if key == "level" then return LEVEL_ORDER[d.level] * 1000 + (d.stats and d.stats.points or 0) end
+  if key == "sold" then return d.soldPerDay or -1 end
   return d[key] or 0
 end
 

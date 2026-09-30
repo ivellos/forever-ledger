@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Sell speed: each full scan is compared with the previous one (within 3 hours), counting reasonably priced listings that disappeared, mostly sales. The Deals tab shows it as "Gone/day" and in each deal's tooltip, and a deal where nothing moved in 6 hours of scans is marked less sure. The flip watch collects it while you're at the auction house.
+
 ## [0.7.0] - 2026-09-30
 
 ### Fixed

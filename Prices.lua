@@ -354,6 +354,56 @@ local function record(id, units, src)
 end
 ns.RecordPrice = record
 
+---------------------------------------------------------------------------
+-- Sell speed: the auction house never says what sold, but between two full scans a
+-- few hours apart, reasonably priced listings that vanished were mostly bought (some
+-- expired or were cancelled). Each full scan notes, per item, how many units were
+-- listed at up to 1.25 x its typical price; the next full scan counts how many of
+-- those are gone. New listings in between hide some sales, so it's a low estimate.
+-- History.lua keeps the totals per day (RecordSold, SellRate). Kept in memory only:
+-- the flip watch runs a full scan every 15 minutes, so pairs come within one session.
+---------------------------------------------------------------------------
+local SOLD_MAX_GAP = 3 * 3600   -- scans further apart than this aren't compared
+local SOLD_PRICE = 1.25         -- "reasonably priced": up to this times the typical price
+local lastSnap                  -- { t, market, items = { [id] = { price, count } } }
+
+local function countUpTo(units, price)
+  local n = 0
+  for _, u in ipairs(units) do if u[1] <= price then n = n + u[2] end end
+  return n
+end
+
+-- Collects one full scan's items and compares them with the previous full scan.
+local function soldTracker()
+  local now, market = time(), ns.MarketKey()
+  local prev = lastSnap
+  local compare = prev and prev.market == market and now - prev.t >= 60 and now - prev.t <= SOLD_MAX_GAP
+  local snap = { t = now, market = market, items = {} }
+  local seen = {}
+  local t = {}
+  function t.add(id, units)
+    seen[id] = true
+    local rec = (ns.db.prices[market] or {})[id]
+    local limit = rec and rec.a and math.floor(rec.a * SOLD_PRICE)
+    if limit then snap.items[id] = { limit, countUpTo(units, limit) } end
+    local p = compare and prev.items[id]
+    if p and p[2] > 0 and ns.RecordSold then
+      pcall(ns.RecordSold, ns, id, math.max(0, p[2] - countUpTo(units, p[1])), (now - prev.t) / 60)
+    end
+  end
+  function t.finish()
+    if compare and ns.RecordSold then
+      -- Items with nothing listed now: everything that was listed is gone.
+      for id, p in pairs(prev.items) do
+        if not seen[id] and p[2] > 0 then pcall(ns.RecordSold, ns, id, p[2], (now - prev.t) / 60) end
+      end
+      ns:Debug(("Sell speed: compared with the full scan %d minutes ago."):format(math.floor((now - prev.t) / 60)))
+    end
+    lastSnap = snap
+  end
+  return t
+end
+
 local Scan = { queue = {}, active = false, done = 0, total = 0 }
 ns.Scan = Scan
 
@@ -666,12 +716,15 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       C_Timer.After(0, chunk)
     else
       local items, versions, gearWith = 0, 0, 0
+      local sold = soldTracker()
       for id, units in pairs(byItem) do
         record(id, units, "full"); items = items + 1
+        sold.add(id, units)
         local has = false
         for _, u in ipairs(units) do if u[3] then versions = versions + 1; has = true end end
         if has then gearWith = gearWith + 1 end
       end
+      sold.finish()
       -- For checking gear versions (/fl debug): did the scan see any "of the Eagle" listings?
       ns:Debug(("Gear versions: %d listings with random stats across %d items (link function: %s)."):format(
         versions, gearWith, getLink and "yes" or "missing"))

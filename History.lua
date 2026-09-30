@@ -407,6 +407,35 @@ function ns:UsualPrice(id, window)
   return points[math.floor((#points + 1) / 2)], #points
 end
 
+-- Sell speed (Prices.lua compares full scans): units gone between scans and the minutes
+-- covered, summed per day: historySold[market][id] = "day:gone:minutes|..." (30 days).
+function ns:RecordSold(id, gone, minutes)
+  if not ns.db or minutes <= 0 then return end
+  local sold = marketTable("historySold")
+  local d = today()
+  local s = sold[id] or ""
+  local lastDay, lastGone, lastMin = s:match("(%d+):(%d+):(%d+)$")
+  if tonumber(lastDay) == d then
+    gone, minutes = gone + tonumber(lastGone), minutes + tonumber(lastMin)
+    s = s:gsub("[^|]*$", "")
+  elseif s ~= "" then
+    s = s .. "|"
+  end
+  s = s .. ("%.0f:%.0f:%.0f"):format(d, gone, minutes)
+  while s:find("|", 1, true) and tonumber(s:match("^(%d+)")) <= d - DAILY_DAYS do s = s:gsub("^[^|]*|", "") end
+  sold[id] = s
+end
+
+-- Units gone between scans and minutes of scans behind it, over a period (today included).
+function ns:SellRate(id, window)
+  local from = today() - math.min(ns.PRICE_WINDOWS[window or "all"] or math.huge, DAILY_DAYS)
+  local gone, minutes = 0, 0
+  for day, g, m in (marketTable("historySold")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
+    if tonumber(day) >= from then gone, minutes = gone + tonumber(g), minutes + tonumber(m) end
+  end
+  return gone, minutes
+end
+
 local function median(list)
   if #list == 0 then return nil end
   table.sort(list)
