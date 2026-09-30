@@ -45,27 +45,43 @@ local function addLines(tt, id, forceFull)
     tt:AddDoubleLine("Ledger price", "none listed " .. ns.Age(rec.t), LR, LG, LB, 0.7, 0.7, 0.7)
   end
 
-  -- Gear with random stats: the price of this exact version ("of the Eagle").
+  -- Gear with random stats: the price of this exact version ("of the Eagle"). An auction
+  -- house group ("Items in this group may vary") has no one version: its link carries a
+  -- general bonus ID (3524, beta September 30) and the plain name, so it lists the
+  -- cheapest versions on sale instead.
   if on("tipPrice") and tt.GetItem then
-    local name, link = tt:GetItem()
-    -- The link's own name first: the tooltip's name can be the plain item name.
-    name = (link and link:match("%[(.-)%]")) or name
-    local suffix = ns:SuffixForTooltip(id, link)
-    local m, q
-    if suffix then m, q = ns:SuffixPrice(id, suffix) end   -- (not "suffix and f()": that drops q)
-    -- Checking tooltip links against the scan (/fl debug), once per link.
-    if suffix and ns.db.settings.debug and link and not debugLinks[link] then
-      debugLinks[link] = true
-      local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
-      ns:Debug("Tooltip version:", name or "?", "=", link:match("item:[%-%d:]*") or "?", "version:", suffix,
-        "scan has:", rec and rec.sx and rec.sx:sub(1, 80) or "none")
+    local _, link = tt:GetItem()
+    local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+    local suffix = ns:VersionOfLink(id, link)
+    if suffix then
+      local m, q = ns:SuffixPrice(id, suffix)
+      local vname = ns:VersionName(suffix) or "these stats"
+      if m and m > 0 then
+        tt:AddDoubleLine("  this version (" .. vname .. ")", ns.Money(m) .. " |cff999999" .. q .. " listed|r",
+          0.7, 0.7, 0.7, 1, 1, 1)
+      elseif m == 0 then
+        tt:AddDoubleLine("  this version (" .. vname .. ")", "none listed", 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
+      end
+    elseif rec and rec.sx then
+      local list = {}
+      for s, m, q in rec.sx:gmatch("(%-?%d+):(%d+):(%d+)") do
+        list[#list + 1] = { s = tonumber(s), m = tonumber(m), q = tonumber(q) }
+      end
+      table.sort(list, function(a, b) return a.m < b.m end)
+      if #list > 0 then
+        tt:AddDoubleLine("  versions on sale", tostring(#list), 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
+        for i = 1, math.min(3, #list) do
+          local v = list[i]
+          tt:AddDoubleLine("    " .. (ns:VersionName(v.s) or "other stats"), ns.Money(v.m) .. " |cff999999" .. v.q .. " listed|r",
+            0.7, 0.7, 0.7, 1, 1, 1)
+        end
+      end
     end
-    if m and m > 0 then
-      tt:AddDoubleLine("  this version (" .. (name and name:match(" (of .+)$") or "these stats") .. ")",
-        ns.Money(m) .. " |cff999999" .. q .. " listed|r", 0.7, 0.7, 0.7, 1, 1, 1)
-    elseif m == 0 then
-      tt:AddDoubleLine("  this version (" .. (name and name:match(" (of .+)$") or "these stats") .. ")",
-        "none listed", 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
+    -- Checking tooltip links against the scan (/fl debug), once per link.
+    if link and rec and rec.sx and ns.db.settings.debug and not debugLinks[link] then
+      debugLinks[link] = true
+      ns:Debug("Tooltip version:", link:match("%[(.-)%]") or "?", "=", link:match("item:[%-%d:]*") or "?",
+        "version:", suffix or "none (group)", "scan has:", rec.sx:sub(1, 80))
     end
   end
 

@@ -224,19 +224,31 @@ function ns.LinkBonusIDs(link)
   return out
 end
 
--- The version of a hovered item that the last full scan knows about: the link's suffix,
--- or else any of its bonus IDs found among the scanned versions (a tooltip's link can
--- carry more bonus IDs than the scan's did). nil if the link has none.
-function ns:SuffixForTooltip(id, link)
-  local suffix = ns.SuffixFromLink(link)
-  if not suffix then return end
-  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
-  if rec and rec.sx then
-    for _, b in ipairs(ns.LinkBonusIDs(link)) do
-      if (";" .. rec.sx):find(";" .. b .. ":", 1, true) then return b end
-    end
+-- The version name for a version number ("of the Whale"), from what full scans saw.
+local versionNames
+function ns:VersionName(suffix)
+  if not versionNames then
+    versionNames = {}
+    for name, s in pairs(ns.db.suffixNames or {}) do versionNames[s] = name end
   end
-  return suffix
+  return versionNames[suffix]
+end
+function ns:ForgetVersionNames() versionNames = nil end
+
+-- The version of a hovered item: a bonus ID in its link that is a known version (one
+-- full scans have seen, on this item or any other), or Classic's suffix field. nil for
+-- an auction house group, whose link has a general bonus ID (3524) instead.
+function ns:VersionOfLink(id, link)
+  if type(link) ~= "string" then return end
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  for _, b in ipairs(ns.LinkBonusIDs(link)) do
+    if ns:VersionName(b) or (rec and rec.sx and (";" .. rec.sx):find(";" .. b .. ":", 1, true)) then return b end
+  end
+  local s = link:match("item:([%-%d:]+)")
+  local f = {}
+  for v in ((s or "") .. ":"):gmatch("([^:]*):") do f[#f + 1] = v end
+  local classic = tonumber(f[7])
+  if classic and classic ~= 0 then return classic end
 end
 
 -- Cheapest price and count for one version of gear with random stats, from the last
@@ -245,9 +257,9 @@ function ns:SuffixPrice(id, suffix)
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   if not (rec and rec.sx and suffix) then return end
   for s, m, q in rec.sx:gmatch("(%-?%d+):(%d+):(%d+)") do
-    if tonumber(s) == suffix then return tonumber(m), tonumber(q), rec.t end
+    if tonumber(s) == suffix then return tonumber(m), tonumber(q), rec.sxt or rec.t end
   end
-  return 0, 0, rec.t
+  return 0, 0, rec.sxt or rec.t
 end
 
 -- The listings at or below a price: how many, and their average price. Uses the price
@@ -315,6 +327,14 @@ local function record(id, units, src)
     end
   end
   for suffix, s in pairs(bySuffix) do sx[#sx + 1] = ("%d:%d:%d"):format(suffix, s.m, s.q) end
+  -- Only full scans see versions. A search or quick check keeps the last full scan's
+  -- version prices (sxt says when they're from) instead of wiping them.
+  local old, sxt = ns.db.prices[key][id], nil
+  if #sx > 0 then
+    sxt = time()
+  elseif old and old.sx then
+    sx, sxt = { old.sx }, old.sxt or old.t
+  end
   local rec = {
     m = units[1][1],
     a = math.floor(total / math.max(qty, 1) + 0.5),
@@ -323,6 +343,7 @@ local function record(id, units, src)
     t = time(),
     src = src or "scan",
     sx = #sx > 0 and table.concat(sx, ";") or nil,
+    sxt = sxt,
   }
   ns.db.prices[key][id] = rec
   -- History is a bonus: a problem there must never stop a scan from saving prices.
@@ -615,7 +636,18 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
           "version:", ns.SuffixFromLink(link) or "none")
       end
     end
-    return ok and ns.SuffixFromLink(link) or nil
+    local suffix = ok and ns.SuffixFromLink(link) or nil
+    -- Learn which version name goes with which number ("of the Whale" = 12719, the same
+    -- on every item), so tooltips can find the version from the name they show: the
+    -- tooltip's own link doesn't match the scan's (beta, September 30).
+    if suffix then
+      local vname = (link:match("%[(.-)%]") or ""):match(".* (of .+)$")
+      if vname and ns.db.suffixNames[vname] ~= suffix then
+        ns.db.suffixNames[vname] = suffix
+        ns:ForgetVersionNames()
+      end
+    end
+    return suffix
   end
   local function chunk()
     local stop = math.min(i + 2000, n)
