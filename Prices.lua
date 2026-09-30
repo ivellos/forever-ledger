@@ -563,7 +563,8 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
     -- whose name has "of the" or "of ", with the | shown so the codes are readable.
     if ok and link and ns.db.settings.debug and (samples or 0) < 4 and link:find("%[.+ of .+%]") then
       samples = (samples or 0) + 1
-      ns:Debug("Gear link sample:", (link:gsub("|", "||")))
+      -- Only the "item:..." numbers: chat turned the full link's codes into "|[Name]|r".
+      ns:Debug("Gear link sample:", link:match("%[(.-)%]") or "?", "=", link:match("item:[%-%d:]*") or "no item: part")
     end
     local suffix = ok and link and tonumber(link:match("item:%d+:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:(%-?%d+)"))
     if suffix and suffix ~= 0 then return suffix end
