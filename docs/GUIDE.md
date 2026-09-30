@@ -34,7 +34,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 ## Shuffles and vendor flips
 
 - **Shuffles**: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; **Work it** walks you through them with one-click buttons.
-- **Vendor flips**: things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it.
+- **Vendor flips**: things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it. On the auction house, listings worth buying get a green bar and a **BUY** badge, and the line above the list says how many are still there (red "None left" once they've been bought).
 
 ![Vendor flips tab](images/vendor-flips.png)
 
