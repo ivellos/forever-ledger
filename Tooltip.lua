@@ -5,12 +5,17 @@ local LR, LG, LB = 0.73, 0.64, 1.0   -- label colour
 -- What shows is set in Settings (tester feedback: the tooltip grew long): compact mode
 -- shows one line and the rest while Shift is held; each section can be turned off; and
 -- "Worth to you" lists only the best few ways.
-local function addLines(tt, id)
+-- The item on GameTooltip right now, and whether its full lines are already there
+-- (compact mode: pressing Shift adds them to the tooltip that's showing).
+local shownID, shownFull
+
+local function addLines(tt, id, forceFull)
   local s = ns.db and ns.db.settings
   if not id or not s or not s.tooltip then return end
   ns:RememberItem(id)
-  local full = s.tipMode ~= "compact" or IsShiftKeyDown()
+  local full = forceFull or s.tipMode ~= "compact" or IsShiftKeyDown()
   local function on(key) return s[key] ~= false end
+  if tt == GameTooltip then shownID, shownFull = id, full end
 
   local price, src, t, rec = ns:GetPrice(id)
   if not full then
@@ -110,19 +115,18 @@ end
 
 addLines = ns.Timed("Tooltip lines", addLines)   -- for /fl perf
 
--- Compact mode: pressing or letting go of Shift redraws the tooltip, so the details
--- appear and disappear while you hover.
--- (Test 1: RefreshData alone did nothing in Forever, so hover the thing under the mouse
--- again, the way the game redraws comparison tooltips.)
-ns:On("MODIFIER_STATE_CHANGED", function(key)
-  if not (key and key:find("SHIFT")) then return end
+-- Compact mode: pressing Shift adds the full details to the tooltip that's showing.
+-- (Tests 1 and 2: asking the game to redraw the tooltip, by RefreshData or by hovering
+-- the item again, did nothing with the owner's EllesmereUI bags, so add the lines
+-- directly.) They stay until the next hover; holding Shift before hovering shows them too.
+GameTooltip:HookScript("OnHide", function() shownID, shownFull = nil, nil end)
+if GameTooltip.HookScript then
+  pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", function() shownID, shownFull = nil, nil end)
+end
+ns:On("MODIFIER_STATE_CHANGED", function(key, down)
+  if not (key and key:find("SHIFT")) or down ~= 1 then return end
   if not (ns.db and ns.db.settings.tipMode == "compact") then return end
-  if not GameTooltip:IsShown() then return end
-  local owner = GameTooltip:GetOwner()
-  local onEnter = owner and owner.GetScript and owner:GetScript("OnEnter")
-  if onEnter and owner:IsMouseOver() then
-    pcall(onEnter, owner)
-  elseif GameTooltip.RefreshData then
-    pcall(GameTooltip.RefreshData, GameTooltip)
-  end
+  if not GameTooltip:IsShown() or not shownID or shownFull then return end
+  addLines(GameTooltip, shownID, true)
+  GameTooltip:Show()   -- resize to fit the new lines
 end)
