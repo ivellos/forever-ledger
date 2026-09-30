@@ -1098,6 +1098,11 @@ ns:OnReady(function()
   end)
 end)
 
+-- Plain text in the status corner (the flip watch's countdown between checks).
+function ns:SetStatusText(text)
+  if main and main.status then main.status:SetText(text or "") end
+end
+
 function ns:UpdateScanStatus(done, total)
   if main and main.status then
     main.status:SetText(total and total > 0 and ("Scanning: %d of %d"):format(done, total) or "")

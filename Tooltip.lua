@@ -112,8 +112,17 @@ addLines = ns.Timed("Tooltip lines", addLines)   -- for /fl perf
 
 -- Compact mode: pressing or letting go of Shift redraws the tooltip, so the details
 -- appear and disappear while you hover.
+-- (Test 1: RefreshData alone did nothing in Forever, so hover the thing under the mouse
+-- again, the way the game redraws comparison tooltips.)
 ns:On("MODIFIER_STATE_CHANGED", function(key)
   if not (key and key:find("SHIFT")) then return end
   if not (ns.db and ns.db.settings.tipMode == "compact") then return end
-  if GameTooltip:IsShown() and GameTooltip.RefreshData then pcall(GameTooltip.RefreshData, GameTooltip) end
+  if not GameTooltip:IsShown() then return end
+  local owner = GameTooltip:GetOwner()
+  local onEnter = owner and owner.GetScript and owner:GetScript("OnEnter")
+  if onEnter and owner:IsMouseOver() then
+    pcall(onEnter, owner)
+  elseif GameTooltip.RefreshData then
+    pcall(GameTooltip.RefreshData, GameTooltip)
+  end
 end)

@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Trainers view: a trainer named by a city guard (Lucan Cordell, Shaina Fuller, Arnold Leland) is no longer listed twice; a Classic entry takes the guard's position instead (Shaina Fuller has moved in Forever).
+- Flip watch: between checks the status corner counts down ("Watching flips: next check in 25s, full scan in 12 min"), so a quiet spell doesn't look like it stopped.
+- One-line tooltips: pressing or letting go of Shift now re-hovers the item, so the details appear straight away.
 - Flip watch: the Vendor flips tab, when open, is worked out again after each pass, so its list and time stay current.
 - Shuffles and Vendor flips: the line at the bottom is shorter and stops before the scan status, so it fits the smallest window.
 - Customers: the empty Work done message wraps instead of running off the window.

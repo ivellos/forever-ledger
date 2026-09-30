@@ -564,15 +564,37 @@ local function watchPass()
 end
 
 -- Called when any scan ends: queue the next pass.
+-- While waiting, the status corner counts down to the next check, so a quiet spell
+-- doesn't look like the watch has stopped (owner test, September 30).
+local countdown
+local function showCountdown(untilTime)
+  if countdown then countdown:Cancel() end
+  countdown = C_Timer.NewTicker(1, function(self)
+    local left = math.ceil(untilTime - GetTime())
+    if not watching or left <= 0 or Scan.active then
+      self:Cancel(); countdown = nil
+      return
+    end
+    local full = Scan:FullWait()
+    ns:SetStatusText(("Watching flips: next check in %ds%s"):format(left,
+      full > 0 and full < math.huge and (", full scan in %d min"):format(math.ceil(full / 60)) or ""))
+  end)
+end
+
 function ns.FlipWatchNext()
   if watching and ns.RefreshFlipsIfShown then C_Timer.After(1, function() ns:RefreshFlipsIfShown() end) end
-  if watching and not watchTimer then watchTimer = C_Timer.NewTimer(WATCH_PAUSE, watchPass) end
+  if watching and not watchTimer then
+    watchTimer = C_Timer.NewTimer(WATCH_PAUSE, watchPass)
+    showCountdown(GetTime() + WATCH_PAUSE)
+  end
 end
 
 function ns:StopFlipWatch(silent)
   if not watching then return end
   watching = false
   if watchTimer then watchTimer:Cancel(); watchTimer = nil end
+  if countdown then countdown:Cancel(); countdown = nil end
+  ns:SetStatusText("")
   -- Also end the watch's own re-check pass (it kept going and looked like the watch
   -- hadn't stopped). A full scan in progress is left to finish, as it's nearly instant.
   if Scan.active and Scan.quiet and not Scan.full then
