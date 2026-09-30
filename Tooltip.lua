@@ -44,6 +44,21 @@ local function addLines(tt, id, forceFull)
     tt:AddDoubleLine("Ledger price", "none listed " .. ns.Age(rec.t), LR, LG, LB, 0.7, 0.7, 0.7)
   end
 
+  -- Gear with random stats: the price of this exact version ("of the Eagle").
+  if on("tipPrice") and tt.GetItem then
+    local name, link = tt:GetItem()
+    local suffix = ns.SuffixFromLink(link)
+    local m, q
+    if suffix then m, q = ns:SuffixPrice(id, suffix) end   -- (not "suffix and f()": that drops q)
+    if m and m > 0 then
+      tt:AddDoubleLine("  this version (" .. (name and name:match(" (of .+)$") or "these stats") .. ")",
+        ns.Money(m) .. " |cff999999" .. q .. " listed|r", 0.7, 0.7, 0.7, 1, 1, 1)
+    elseif m == 0 then
+      tt:AddDoubleLine("  this version (" .. (name and name:match(" (of .+)$") or "these stats") .. ")",
+        "none listed", 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
+    end
+  end
+
   local buy = ns.db.vendorBuy[id]
   if buy and on("tipPrice") then
     tt:AddDoubleLine("Vendor sells it for", ns.Money(buy.p) .. (buy.lim and " |cff999999limited|r" or ""), LR, LG, LB, 1, 1, 1)

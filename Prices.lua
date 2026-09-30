@@ -175,6 +175,23 @@ function ns:ListedAtOrBelow(id, price)
   return n
 end
 
+-- The random-stats version in an item link ("of the Eagle"), or nil.
+function ns.SuffixFromLink(link)
+  local suffix = type(link) == "string" and tonumber(link:match("item:%d+:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:(%-?%d+)"))
+  if suffix and suffix ~= 0 then return suffix end
+end
+
+-- Cheapest price and count for one version of gear with random stats, from the last
+-- full scan. Returns nil if no suffix data (no full scan yet), 0 if none were listed.
+function ns:SuffixPrice(id, suffix)
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if not (rec and rec.sx and suffix) then return end
+  for s, m, q in rec.sx:gmatch("(%-?%d+):(%d+):(%d+)") do
+    if tonumber(s) == suffix then return tonumber(m), tonumber(q), rec.t end
+  end
+  return 0, 0, rec.t
+end
+
 -- The listings at or below a price: how many, and their average price. Uses the price
 -- ladder (the ladder's counts are running totals). Without a ladder, the cheapest price
 -- if it qualifies. Returns 0 when none qualify, nil if never scanned.
@@ -230,6 +247,16 @@ local function record(id, units, src)
       break
     end
   end
+  -- Versions of gear with random stats: "suffix:cheapest:listed;..." (full scans only).
+  local bySuffix, sx = {}, {}
+  for _, u in ipairs(units) do
+    if u[3] then
+      local s = bySuffix[u[3]]
+      if not s then s = { m = u[1], q = 0 }; bySuffix[u[3]] = s end
+      s.q = s.q + u[2]
+    end
+  end
+  for suffix, s in pairs(bySuffix) do sx[#sx + 1] = ("%d:%d:%d"):format(suffix, s.m, s.q) end
   local rec = {
     m = units[1][1],
     a = math.floor(total / math.max(qty, 1) + 0.5),
@@ -237,6 +264,7 @@ local function record(id, units, src)
     l = table.concat(ladder, ","),
     t = time(),
     src = src or "scan",
+    sx = #sx > 0 and table.concat(sx, ";") or nil,
   }
   ns.db.prices[key][id] = rec
   -- History is a bonus: a problem there must never stop a scan from saving prices.
@@ -485,6 +513,21 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   local n = C_AuctionHouse.GetNumReplicateItems() or 0
   if not mine then ns:Debug("Reading another addon's full scan:", n, "listings") end
   local byItem, i = {}, 0
+  -- Gear with random stats ("of the Eagle"): note each listing's version (the suffix
+  -- number in its link) so tooltips can price the exact version (Gillee's AH video).
+  local isGear, getLink = {}, C_AuctionHouse.GetReplicateItemLink
+  local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  local function suffixOf(idx, itemID)
+    if not (getLink and instant) then return end
+    if isGear[itemID] == nil then
+      local _, _, _, _, _, classID = instant(itemID)
+      isGear[itemID] = classID == 2 or classID == 4
+    end
+    if not isGear[itemID] then return end
+    local ok, link = pcall(getLink, idx)
+    local suffix = ok and link and tonumber(link:match("item:%d+:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:(%-?%d+)"))
+    if suffix and suffix ~= 0 then return suffix end
+  end
   local function chunk()
     local stop = math.min(i + 2000, n)
     for idx = i, stop - 1 do
@@ -493,7 +536,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
         count = math.max(count or 1, 1)
         local t = byItem[itemID]
         if not t then t = {}; byItem[itemID] = t end
-        t[#t + 1] = { math.floor(buyout / count + 0.5), count }
+        t[#t + 1] = { math.floor(buyout / count + 0.5), count, suffixOf(idx, itemID) }
       end
     end
     i = stop
