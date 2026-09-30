@@ -43,14 +43,15 @@ local PORTALS = {
   { 11417, "Orgrimmar" }, { 11418, "Undercity" }, { 11420, "Thunder Bluff" },
 }
 local SERVICES = {
-  { key = "mage", class = "MAGE", label = "Mage food and water", level = 1,
+  -- setting: the Settings switch (Customers section) that turns the service off.
+  { key = "mage", class = "MAGE", label = "Mage food and water", level = 1, setting = "svcFood",
     words = { "water", "food", "mage table", "mage water", "mage food" } },
-  { key = "portal", class = "MAGE", label = "Mage portal", level = 40, spells = { 10059, 11416, 11419, 11417, 11418, 11420 },
+  { key = "portal", class = "MAGE", label = "Mage portal", level = 40, setting = "svcPortal", spells = { 10059, 11416, 11419, 11417, 11418, 11420 },
     words = { "portal", "portals", "port", "port to", "mage port" } },
-  { key = "summon", class = "WARLOCK", label = "Warlock summon", level = 20, spells = { 698 },
+  { key = "summon", class = "WARLOCK", label = "Warlock summon", level = 20, setting = "svcSummon", spells = { 698 },
     -- Not "warlock" on its own: "LF warlock" is usually a group looking for dps.
     words = { "summon", "summons", "summoning", "summ", "sumon", "lock summon", "warlock summon" } },
-  { key = "lockpick", class = "ROGUE", label = "Lockpicking", level = 16, spells = { 1804 },
+  { key = "lockpick", class = "ROGUE", label = "Lockpicking", level = 16, setting = "svcLockpick", spells = { 1804 },
     words = { "lockpick", "lockpicker", "lockpicking", "lock pick", "pick lock", "lockbox", "lockboxes", "lock box",
       "open box", "open a box", "open my box", "junkbox" } },
 }
@@ -62,7 +63,7 @@ local function myServices()
   local level = UnitLevel and UnitLevel("player") or 0
   local out = {}
   for _, sv in ipairs(SERVICES) do
-    if sv.class == class then
+    if sv.class == class and ns.db.settings[sv.setting] ~= false then
       local ok = level >= sv.level
       for _, id in ipairs(sv.spells or {}) do if knows(id) then ok = true end end
       if ok then out[#out + 1] = sv end
@@ -110,14 +111,14 @@ local function wanted(msg)
   if any(text, OFFERING) then return end
   local profs, items = offers()
   -- "WTB [Item]" for something you can craft.
-  if has(text, "wtb") or any(text, ASKING) then
+  if ns.db.settings.svcCrafting ~= false and (has(text, "wtb") or any(text, ASKING)) then
     for id in msg:gmatch("item:(%d+)") do
       local prof = items[tonumber(id)]
       if prof then return prof .. ": " .. (ns.ItemName(tonumber(id)) or "an item you craft") end
     end
   end
   if not any(text, ASKING) then return end
-  for prof in pairs(profs) do
+  for prof in pairs(ns.db.settings.svcCrafting ~= false and profs or {}) do
     if WORDS[prof] and any(text, WORDS[prof]) then return prof end
   end
   for _, sv in ipairs(myServices()) do
@@ -517,17 +518,18 @@ function ns:ShowCustomers(quiet)
       b:HookScript("OnLeave", function() GameTooltip:Hide() end)
       return b
     end
-    local ad = adButton("crafting", "Advertise crafting", 140)
-    ad:SetPoint("TOPLEFT", 10, -38)
-    -- One button per class service this character has (portals appear at level 40
-    -- once the window is opened again: it's built once per session).
-    local prev = ad
-    for _, sv in ipairs(myServices()) do
-      local b = AD_BUTTONS[sv.key]
-      if b then
-        local btn = adButton(sv.key, b[1], b[2])
-        btn:SetPoint("LEFT", prev, "RIGHT", 6, 0)
-        prev = btn
+    -- Ad buttons: crafting, then one per class service this character has and hasn't
+    -- turned off in Settings. Laid out again each time the window opens.
+    win.ads = { crafting = adButton("crafting", "Advertise crafting", 140) }
+    for key, b in pairs(AD_BUTTONS) do win.ads[key] = adButton(key, b[1], b[2]) end
+    function win:LayoutAds()
+      for _, b in pairs(self.ads) do b:Hide(); b:ClearAllPoints() end
+      local shown = {}
+      if ns.db.settings.svcCrafting ~= false then shown[1] = self.ads.crafting end
+      for _, sv in ipairs(myServices()) do shown[#shown + 1] = self.ads[sv.key] end
+      for i, b in ipairs(shown) do
+        if i == 1 then b:SetPoint("TOPLEFT", 10, -38) else b:SetPoint("LEFT", shown[i - 1], "RIGHT", 6, 0) end
+        b:Show()
       end
     end
 
@@ -549,7 +551,8 @@ function ns:ShowCustomers(quiet)
     win.foot = T:Text(win, 11, T.dim)
     win.foot:SetPoint("BOTTOMLEFT", 10, 10)
     win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
-    win:SetScript("OnShow", function(self) self:Raise(); refresh() end)
+    win:SetScript("OnShow", function(self) self:Raise(); self:LayoutAds(); refresh() end)
+    win:LayoutAds()
     C_Timer.NewTicker(30, refresh)   -- keep the "3m" ages current (does nothing while hidden)
   end
   if quiet and win:IsShown() then refresh(); return end
@@ -573,6 +576,11 @@ ns:On("CHAT_MSG_CHANNEL", function(msg, sender, _, channelName, _, _, _, _, base
 end)
 ns:On("CHAT_MSG_SAY", function(msg, sender) onChat(msg, sender, "Say") end)
 ns:On("CHAT_MSG_YELL", function(msg, sender) onChat(msg, sender, "Yell") end)
+
+-- Settings changed: lay the ad buttons out again if the window is open.
+function ns:UpdateCustomerAds()
+  if win and win:IsShown() then win:LayoutAds() end
+end
 
 -- For testing: /fl customer <message> runs a message through the finder.
 function ns:TestCustomer(msg)
