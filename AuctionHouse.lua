@@ -15,16 +15,27 @@ local function debugOnce(key, ...)
   ns:Debug(...)
 end
 
--- The most worth paying for one of an item, or nil if nothing makes it worth buying.
+-- Why a listing is worth buying, as the badge says it (owner: "BUY" didn't say whether
+-- it was a vendor flip or a disenchant, September 30).
+local REASONS = {
+  vendor = { badge = "FLIP", word = "Vendor flip" },
+  disenchant = { badge = "DE", word = "Disenchant" },
+  craft = { badge = "CRAFT", word = "Craft" },
+  convert = { badge = "USE", word = "Convert" },
+}
+
+-- The most worth paying for one of an item and why (REASONS entry), or nil if nothing
+-- makes it worth buying.
 function ns:BuyLimit(id)
   if not id then return end
-  local limit = ns:BuyAtOrBelow(id)
+  local limit, option = ns:BuyAtOrBelow(id)
+  local reason = option and REASONS[option.kind]
   -- Selling to a vendor: the same safety margin as vendor flips and deal alerts, so the
   -- auction house and the Vendor flips tab give the same "buy up to" (was vendor price - 1c).
   local sell = ns:GetSellPrice(id)
   local vendorLimit = sell and math.floor(sell * (1 - (ns.db.settings.margin or 10) / 100))
-  if vendorLimit and vendorLimit > 0 and (not limit or vendorLimit > limit) then limit = vendorLimit end
-  return limit
+  if vendorLimit and vendorLimit > 0 and (not limit or vendorLimit > limit) then limit, reason = vendorLimit, REASONS.vendor end
+  if limit then return limit, reason or { badge = "BUY", word = "Worth buying" } end
 end
 
 -- Call fn(row) for each row frame the list shows.
@@ -102,11 +113,12 @@ local function tint(row, on, badge)
     row.flBadge:SetFont(T.font, 12, "OUTLINE")
     row.flBadge:SetTextColor(BUY_GREEN[1], BUY_GREEN[2], BUY_GREEN[3], 1)
     row.flBadge:SetPoint("LEFT", row, "LEFT", 12, 0)
-    row.flBadge:SetText("BUY")
   end
   row.flTint:SetShown(on)
   row.flBar:SetShown(on)
-  row.flBadge:SetShown(on and badge ~= false)   -- no badge on the browse list (names sit there)
+  -- badge: the reason word ("FLIP", "DE"...), or false for no badge (browse and commodity lists).
+  row.flBadge:SetShown(on and badge and true or false)
+  if on and badge then row.flBadge:SetText(badge) end
 end
 
 -- Watch one page: "commodity" or "item" buy pages (one item, with a line above the
@@ -141,17 +153,22 @@ local function watch(page, kind)
     local limits = w.limits
     local function limitFor(itemID)
       if not itemID then return end
-      if limits[itemID] == nil then limits[itemID] = ns:BuyLimit(itemID) or false end
-      return limits[itemID] or nil
+      if limits[itemID] == nil then
+        local limit, reason = ns:BuyLimit(itemID)
+        limits[itemID] = limit and { limit, reason } or false
+      end
+      local l = limits[itemID]
+      if l then return l[1], l[2] end
     end
     local id, key, anyPrice
     local found = eachRow(list, function(row)
       local price, rowID, rowKey = rowInfo(row, shownID)
       id, key = id or rowID, key or rowKey
-      local limit = limitFor(rowID)
+      local limit, reason = limitFor(rowID)
       if price then anyPrice = true end
       -- Badge only on gear pages: the browse list has names and the commodity list its prices there.
-      tint(row, price ~= nil and limit ~= nil and price <= limit, not browse and not commodity)
+      tint(row, price ~= nil and limit ~= nil and price <= limit,
+        not browse and not commodity and reason and reason.badge or false)
     end)
     -- Report only if it keeps failing (about 3 seconds): during a purchase the list
     -- is briefly empty, which is normal.
@@ -163,11 +180,12 @@ local function watch(page, kind)
 
     if browse then return end
     id = id or shownID
-    local limit = limitFor(id)
+    local limit, reason = limitFor(id)
     if id and limit then
       -- Green while some are left at that price, red once they've all gone.
       local n = availableAt(id, limit, commodity, key)
-      w.note:SetText(n > 0 and ("|cff7fd39cBUY: %d available at %s or less|r"):format(n, ns.Money(limit))
+      w.note:SetText(n > 0 and ("|cff7fd39c%s: %d available at %s or less|r"):format(
+        reason and reason.word or "Worth buying", n, ns.Money(limit))
         or ("|cffee8597None left at %s or less: they've been bought|r"):format(ns.Money(limit)))
     else
       w.note:SetText("")
