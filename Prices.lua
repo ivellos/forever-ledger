@@ -346,11 +346,19 @@ function Scan:Next()
     end)
     return
   end
+  -- The flip watch's quiet checks wait while you're searching yourself, so they don't
+  -- talk over the page you're buying from.
+  if self.quiet and ns.lastUserSearch and GetTime() - ns.lastUserSearch < 20 then
+    C_Timer.After(2, function() self:Next() end)
+    return
+  end
   local id = table.remove(self.queue, 1)
   self.pending = id
   self.token = (self.token or 0) + 1
   local tok = self.token
+  self.sending = true
   local ok, err = pcall(C_AuctionHouse.SendSearchQuery, C_AuctionHouse.MakeItemKey(id), sorts(), false)
+  self.sending = false
   if not ok then
     ns:Debug("Search failed for", id, err)
     self:Finish(id, nil)
@@ -446,8 +454,20 @@ local function saveLive(id, units, complete)
   end
 end
 
+-- Your own searches (not the addon's): noted so the flip watch can wait for you.
+if C_AuctionHouse and hooksecurefunc then
+  for _, fn in ipairs({ "SendSearchQuery", "SendBrowseQuery", "SearchForItemKeys" }) do
+    if C_AuctionHouse[fn] then
+      hooksecurefunc(C_AuctionHouse, fn, function() if not Scan.sending then ns.lastUserSearch = GetTime() end end)
+    end
+  end
+end
+
+-- Results that aren't the scan's own pending item are yours: save them either way
+-- (they used to be ignored while the flip watch was checking, so Shadowgem and Linen
+-- Bandage stayed on Vendor flips after you bought them, owner test September 30).
 ns:On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
-  if not Scan.active then
+  if not Scan.active or Scan.pending ~= itemID then
     local complete = C_AuctionHouse.HasFullCommoditySearchResults and C_AuctionHouse.HasFullCommoditySearchResults(itemID)
     saveLive(itemID, (commodityUnits(itemID)), complete)
     return
@@ -458,7 +478,7 @@ end)
 
 ns:On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
   local id = itemKey and itemKey.itemID
-  if not Scan.active then
+  if not Scan.active or Scan.pending ~= id then
     if id and (itemKey.itemSuffix or 0) == 0 then
       local complete = C_AuctionHouse.HasFullItemSearchResults and C_AuctionHouse.HasFullItemSearchResults(itemKey)
       saveLive(id, (itemUnits(itemKey)), complete)
@@ -605,12 +625,22 @@ local WATCH_ITEMS = 120     -- items re-checked per pass
 local watching, watchTimer = false, nil
 
 -- Items whose cheapest listing was within 50% of what a vendor pays, closest first.
+-- Gear is left out: its stat versions ("of the Eagle") share one item ID, and each
+-- quick search came back with a different version's listings, so prices (and
+-- disenchant shuffles) jumped back and forth every pass. Full scans see all versions.
+local instantInfo = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+local function isGear(id)
+  if not instantInfo then return false end
+  local _, _, _, _, _, classID = instantInfo(id)
+  return classID == 2 or classID == 4
+end
+
 local function flipCandidates()
   local market = ns.db.prices[ns.MarketKey()] or {}
   local list = {}
   for id, rec in pairs(market) do
     local sell = rec.m and not rec.none and ns:GetSellPrice(id)
-    if sell and sell >= 5 and rec.m <= sell * 1.5 and not ns:GetVendorBuyPrice(id) then
+    if sell and sell >= 5 and rec.m <= sell * 1.5 and not ns:GetVendorBuyPrice(id) and not isGear(id) then
       list[#list + 1] = { id = id, r = rec.m / sell }
     end
   end
