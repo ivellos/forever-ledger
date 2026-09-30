@@ -203,7 +203,39 @@ local function bestSource(name)
     if not pick or score > pick.score then pick = { s = s, score = score } end
   end
   if pick then return pick.s end
-  return ns:ClassicSource(name)
+  local classic = ns:ClassicSource(name)
+  if classic then return classic end
+  -- Nothing seen and not in Classic (new in Forever, like Savory Whimsyfin Delight):
+  -- if its recipe item is on the auction house, that's where to get it.
+  local item = ns.RecipeItemFor and ns.RecipeItemFor(name)
+  local rec = item and (ns.db.prices[ns.MarketKey()] or {})[item]
+  if rec and rec.m and not rec.none then
+    return { kind = "ah", conf = "seen", item = item, price = rec.m, listed = rec.q }
+  end
+end
+
+-- Recipe items by the recipe they teach ("Recipe: Savory Whimsyfin Delight" -> its item
+-- ID), from every item name the addon has seen. Rebuilt when more names are known.
+local RECIPE_PREFIXES = { "Formula", "Pattern", "Recipe", "Plans", "Schematic", "Manual", "Design", "Technique" }
+local recipeItems, recipeItemsFrom, recipeItemsChecked = {}, -1, 0
+function ns.RecipeItemFor(name)
+  local names = ns.db.itemNames
+  -- Count the names at most every 30 seconds (this runs for every row of the tab).
+  local count = recipeItemsFrom
+  if GetTime() - recipeItemsChecked > 30 then
+    recipeItemsChecked, count = GetTime(), 0
+    for _ in pairs(names) do count = count + 1 end
+  end
+  if count ~= recipeItemsFrom then
+    recipeItems, recipeItemsFrom = {}, count
+    for id, itemName in pairs(names) do
+      for _, p in ipairs(RECIPE_PREFIXES) do
+        local rest = itemName:match("^" .. p .. ":%s*(.+)$")
+        if rest then recipeItems[rest:lower()] = id; break end
+      end
+    end
+  end
+  return recipeItems[name:lower()]
 end
 
 -- Chance is in percent.
@@ -233,6 +265,9 @@ local function sourceText(s)
   -- Recipes with no recipe item to find were taught by trainers in Classic.
   -- Forever also adds recipes Classic never had (Favor vendors, camping).
   if not s then return dim("trainer, or new in Forever") end
+  if s.kind == "ah" then
+    return ("On the auction house: |cffffd100%s|r %s"):format(ns.Money(s.price), dim(("(%d listed)"):format(s.listed or 0)))
+  end
   local classic = s.conf ~= "seen"
   local where = s.zone and (", " .. s.zone) or ""
   local text

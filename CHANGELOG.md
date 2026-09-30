@@ -21,6 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Dashboard gold graph: the scale always starts at 0g, and each step is coloured by its own direction (green up, red down) instead of the whole graph taking one colour.
 
 ### Added
+- Recipes tab: a recipe with no known source whose recipe item is on the auction house (many new Forever recipes, like Savory Whimsyfin Delight) shows "On the auction house: 6g (12 listed)" instead of "trainer, or new in Forever".
 - Help tab: every feature explained in short, and the commands. The same guide is on GitHub (docs/GUIDE.md), with pictures to come.
 - If you run TSM or Auctionator, a one-time question at login offers the one-line tooltip (Shift for more), since those addons already show prices in tooltips.
 - Tooltip settings (tester feedback: tooltips were getting long): "Tooltip size" can be "One line, Shift for more", which shows only what an item is worth to you until you hold Shift; each part of the tooltip (prices, Worth to you, Buy at or below, Disenchants to, Used by, crate fill) can be turned off; and "Worth to you" lists the best 3 ways by default (1 to 10, with "and N more ways").
