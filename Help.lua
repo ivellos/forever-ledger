@@ -28,6 +28,11 @@ ns.HELP = {
     "Shuffles: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; Work it walks you through them with one-click buttons.",
     "Vendor flips: things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it. On the auction house, listings worth buying get a green bar and a BUY badge, and the line above says how many are left.",
   } },
+  { "Deals", {
+    "Deals tab: listings well below their usual price, to buy and resell. Each shows the price now, the usual price, how many are cheap, the profit after the auction house cut, and how sure it is (Good, Fair or Thin).",
+    "Hover a deal for why it's one: the usual price over how many days of your scans, the range most days, how many are usually listed, and the next listing up (reselling today means pricing under it). Click to search the auction house.",
+    "Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too. The auction house can't tell what actually sold, so buy what you'd be happy to hold.",
+  } },
   { "Disenchanting", {
     "Disenchant finder (beside the auction house): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds.",
     "The Disenchant button in Work it disenchants the shuffle's items one click at a time. /fl de shows your own results.",
@@ -54,7 +59,7 @@ ns.HELP = {
   } },
   { "Commands", {
     "/fl  open or close the window.   /fl scan  full scan or materials.   /fl watch  flip watch.",
-    "/fl customers, /fl work  the Customers window.   /fl de  disenchant results.   /fl deals  current deals.",
+    "/fl customers, /fl work  the Customers window.   /fl de  disenchant results.   /fl deals  the Deals tab (/fl deals list in chat).",
     "/fl book  recipe data gathered.   /fl sync  sync status.   /fl perf  what takes time.   /fl probe  game checks.",
   } },
 }

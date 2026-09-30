@@ -587,20 +587,112 @@ function ns:DealRules()
   else
     from = "TSM's prices, or this addon's scans where TSM has none"
   end
-  return ("%g%% or more below the usual price over %s (from %s), or %s"):format(
-    s.dealUsualPct or 20, ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", from, vendor)
+  local usualMin = (s.dealUsualMin or 0) > 0 and (" and at least " .. ns.Money(s.dealUsualMin) .. " profit each on resale") or ""
+  return ("%g%% or more below the usual price over %s (from %s)%s, or %s"):format(
+    s.dealUsualPct or 20, ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", from, usualMin, vendor)
+end
+
+---------------------------------------------------------------------------
+-- Below-usual-price deals are a bet that the item resells, so each one is judged
+-- (owner, September 30: 546 "deals" in one scan, some absurd, like a shirt at 1s
+-- "usually 23g" from one lone listing):
+--   * enough days of scans, and day-to-day prices that don't jump around;
+--   * resale at the usual price or the next listing above the cheap ones, whichever
+--     is lower, less the auction house cut, must beat dealUsualMin profit each;
+--   * warnings (lower sureness) when usually only one is listed, when nothing else is
+--     listed to compare, and for gear whose versions sell at different prices.
+-- Sureness is "good", "fair" or "thin"; thin deals are hidden unless dealShowThin.
+---------------------------------------------------------------------------
+local DEAL_MIN_DAYS = 4        -- fewer days of scans than this is thin data
+local DEAL_GOOD_DAYS = 7       -- this many or more (with steady prices) can be good
+local STEADY, JUMPY = 1.6, 2.5 -- spread (upper quarter / lower quarter of daily prices)
+local LEVELS = { "thin", "fair", "good" }
+local LEVEL = { thin = 1, fair = 2, good = 3 }
+
+local function lower(level) return LEVELS[math.max(1, LEVEL[level] - 1)] end
+
+-- Judges one usual-price deal. Returns the deal table, or nil if the cheapest listing
+-- isn't far enough below the usual price.
+local function judgeUsual(id, rec)
+  local s = ns.db.settings
+  local usual, basis = ns:DealUsualPrice(id)
+  if not usual then return end
+  local limit = usual * (1 - (s.dealUsualPct or 20) / 100)
+  if rec.m > limit then return end
+  local n, cost = ns:CheapListings(id, limit)
+  if not n or n == 0 then return end
+  cost = cost or rec.m
+  local stats = ns:PriceStats(id, s.dealWindow)
+
+  -- The next listing above the cheap ones: reselling today means pricing under it.
+  local nextUp
+  if rec.l then
+    for p in rec.l:gmatch("(%d+):%d+") do
+      p = tonumber(p)
+      if p > limit then nextUp = p; break end
+    end
+  end
+  local resell = usual
+  if nextUp and nextUp < resell then resell = nextUp end
+  local cut = (s.ahCut or 5) / 100
+  local each = resell * (1 - cut) - cost
+
+  local d = { kind = "usual", id = id, price = rec.m, worth = usual, listed = n, basis = basis, cost = cost,
+    limit = limit, resell = resell, nextUp = nextUp, each = each, total = each * n, stats = stats,
+    pct = 1 - rec.m / usual, t = rec.t, warnings = {} }
+
+  -- How sure: from this addon's own history where there is some (TSM alone is "fair").
+  local level, spread = "fair", nil
+  if stats and stats.q1 and stats.q1 > 0 then spread = stats.q3 / stats.q1 end
+  d.spread = spread
+  if basis == "ledger" or stats then
+    local points = stats and stats.points or 0
+    if points >= DEAL_GOOD_DAYS and spread and spread <= STEADY then level = "good"
+    elseif points >= DEAL_MIN_DAYS and spread and spread <= JUMPY then level = "fair"
+    elseif basis == "ledger" then level = "thin"
+    end
+    if basis == "TSM" and level == "thin" then level = "fair" end
+    if points < DEAL_MIN_DAYS then
+      d.warnings[#d.warnings + 1] = ("Only %d %s of your own scans."):format(points, points == 1 and "day" or "days")
+    elseif spread and spread > JUMPY then
+      d.warnings[#d.warnings + 1] = "Prices jump around a lot from day to day."
+    end
+  end
+  if stats and stats.listed and stats.listed <= 1 then
+    level = lower(level)
+    d.warnings[#d.warnings + 1] = "Usually only one is listed: it may sell slowly, or the usual price may be one hopeful seller."
+  end
+  if not nextUp then
+    if level == "good" then level = "fair" end
+    d.warnings[#d.warnings + 1] = "Nothing else is listed right now to compare with."
+  end
+  if rec.sx then
+    if level == "good" then level = "fair" end
+    d.warnings[#d.warnings + 1] = "Gear: versions with different stats sell at different prices."
+  end
+  d.level = level
+  return d
+end
+
+-- A usual-price deal the Deals tab and alerts show: sure enough and worth the trouble.
+function ns:DealShown(d)
+  local s = ns.db.settings
+  if d.kind ~= "usual" then return true end
+  if d.each < (s.dealUsualMin or 0) then return false end
+  return d.level ~= "thin" or s.dealShowThin
 end
 
 -- Returns deals, biggest saving first: { kind = "usual" | "vendor", id, price, worth, listed }.
-function ns:FindDeals()
+-- Usual-price deals carry the judgement above. maxAge: how old a price may be
+-- (default 10 minutes, for alerts right after a scan).
+function ns:FindDeals(maxAge)
   local s = ns.db.settings
   local market = ns.db.prices[ns.MarketKey()] or {}
-  local usualPct = (s.dealUsualPct or 20) / 100
   local vendorPct, vendorMin = (s.dealVendorPct or 10) / 100, s.dealVendorMin or 0
   local now, deals = time(), {}
   for id, rec in pairs(market) do
     local price = rec.m
-    if price and not rec.none and now - (rec.t or 0) <= DEAL_RECENT then
+    if price and not rec.none and now - (rec.t or 0) <= (maxAge or DEAL_RECENT) then
       local sell = ns:GetSellPrice(id)
       if sell and sell > price then
         local profit = sell - price
@@ -610,15 +702,55 @@ function ns:FindDeals()
           deals[#deals + 1] = { kind = "vendor", id = id, price = price, worth = sell, listed = n or rec.q }
         end
       end
-      local usual, basis = ns:DealUsualPrice(id)
-      if usual and price <= usual * (1 - usualPct) then
-        local n = ns:CheapListings(id, usual * (1 - usualPct))
-        deals[#deals + 1] = { kind = "usual", id = id, price = price, worth = usual, listed = n or rec.q, basis = basis }
-      end
+      local d = judgeUsual(id, rec)
+      if d then deals[#deals + 1] = d end
     end
   end
   table.sort(deals, function(a, b) return a.worth - a.price > b.worth - b.price end)
   return deals
+end
+
+ns.DEAL_LEVEL_TEXT = {
+  good = "|cff7fd39cGood|r", fair = "|cffffd100Fair|r", thin = "|cffee8597Thin|r",
+}
+
+-- Why a usual-price deal is a deal, as tooltip lines: { text, r, g, b } or plain strings.
+function ns:DealExplain(d)
+  local s, L = ns.db.settings, {}
+  local st = d.stats
+  local period = ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time"
+  L[#L + 1] = ("Cheapest now: %s. %d listed at or below %s%s."):format(ns.Money(d.price), d.listed,
+    ns.Money(d.limit), d.listed > 1 and (", average " .. ns.Money(d.cost)) or "")
+  if d.basis == "TSM" then
+    L[#L + 1] = ("Usual price: %s, TSM's %s."):format(ns.Money(d.worth),
+      (s.dealWindow == "week" or s.dealWindow == "month") and "market value (about 2 weeks)" or "historical price (about 2 months)")
+  end
+  if st then
+    L[#L + 1] = ("%s: %s, the middle of %d %s of your scans over %s."):format(
+      d.basis == "TSM" and "Your own scans" or "Usual price", ns.Money(st.usual), st.points,
+      st.points == 1 and "day" or "days", period)
+    if st.points >= 4 and st.q1 ~= st.q3 then
+      L[#L + 1] = ("Most days it sat between %s and %s."):format(ns.Money(st.q1), ns.Money(st.q3))
+    end
+    if st.low and st.low < st.usual then
+      L[#L + 1] = ("The cheapest one each day was usually %s."):format(ns.Money(st.low))
+    end
+    if st.listed then
+      L[#L + 1] = ("Usually %d listed."):format(st.listed)
+    end
+  end
+  if d.nextUp then
+    L[#L + 1] = ("Next listing above these: %s%s."):format(ns.Money(d.nextUp),
+      d.nextUp < d.worth and ", so reselling today means pricing under that" or "")
+  end
+  local color = d.each > 0 and "|cff7fd39c" or "|cffee8597"
+  L[#L + 1] = ("Resell at %s, less the %g%% cut: %s%s profit each|r%s."):format(ns.Money(d.resell),
+    s.ahCut or 5, color, ns.Money(math.max(0, d.each)), d.listed > 1 and (", " .. ns.Money(math.max(0, d.total)) .. " for all " .. d.listed) or "")
+  for _, w in ipairs(d.warnings) do L[#L + 1] = { w, 1, 0.6, 0.3 } end
+  L[#L + 1] = "Sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) .. (d.level == "good" and ", steady prices over a week or more." or
+    d.level == "fair" and ", some data but not a lot, or a warning above." or ", too little or too jumpy data.")
+  L[#L + 1] = { "The auction house doesn't say what sold, only what's listed. Buy what you'd be happy to hold for a while.", 0.6, 0.6, 0.6 }
+  return L
 end
 
 local function printDeal(d)
@@ -626,9 +758,10 @@ local function printDeal(d)
     print(("    |cffffffff%s|r at %s, a vendor pays %s (%s profit each). %s listed."):format(
       itemName(d.id), ns.Money(d.price), ns.Money(d.worth), ns.Money(d.worth - d.price), d.listed or "?"))
   else
-    print(("    |cffffffff%s|r at %s, usually %s (%d%% below, %s). %s listed."):format(
+    print(("    |cffffffff%s|r at %s, usually %s (%d%% below, %s). %s listed, about %s profit each. %s."):format(
       itemName(d.id), ns.Money(d.price), ns.Money(d.worth),
-      math.floor((1 - d.price / d.worth) * 100 + 0.5), d.basis or "ledger", d.listed or "?"))
+      math.floor(d.pct * 100 + 0.5), d.basis or "ledger", d.listed or "?", ns.Money(math.max(0, d.each)),
+      ns.DEAL_LEVEL_TEXT[d.level] or d.level))
   end
 end
 
@@ -651,9 +784,10 @@ end
 function ns:CheckDeals()
   ns:InvalidateValues(true)   -- the scan just changed prices
   local fresh = {}
+  if ns.RefreshDealsIfShown then ns:RefreshDealsIfShown() end
   for _, d in ipairs(ns:FindDeals()) do
     local key = d.kind .. d.id
-    if not alerted[key] or d.price < alerted[key] then
+    if ns:DealShown(d) and (not alerted[key] or d.price < alerted[key]) then
       alerted[key] = d.price
       fresh[#fresh + 1] = d
     end
@@ -670,31 +804,35 @@ function ns:CheckDeals()
     PlaySound(SOUNDKIT.RAID_WARNING, "Master")
   end
   -- Below-vendor-price deals are exactly the Vendor flips tab, so open it instead of
-  -- listing them in chat (setting "openFlips"). Other deals still go to chat.
-  local vendorDeals, others = 0, {}
+  -- listing them in chat (setting "openFlips").
+  -- Below-usual-price deals: one line pointing at the Deals tab, which explains each.
+  local vendorDeals, vendorList, usual = 0, {}, 0
   for _, d in ipairs(fresh) do
-    if d.kind == "vendor" then vendorDeals = vendorDeals + 1 else others[#others + 1] = d end
+    if d.kind == "vendor" then vendorDeals = vendorDeals + 1; vendorList[#vendorList + 1] = d else usual = usual + 1 end
   end
   if vendorDeals > 0 and ns.db.settings.openFlips and ns.OpenFlips then
     ns:OpenFlips()
     ns:Print(("%d new vendor %s: opened the Vendor flips tab. Click one to find it on the auction house."):format(
       vendorDeals, vendorDeals == 1 and "flip" or "flips"))
-    if #others > 0 then
-      ns:Print(("%d new deals:"):format(#others))
-      printGrouped(others, 10)
-    end
-    return
+  elseif vendorDeals > 0 then
+    ns:Print(("%d new vendor %s:"):format(vendorDeals, vendorDeals == 1 and "flip" or "flips"))
+    printGrouped(vendorList, 10)
   end
-  ns:Print(("%d new deals:"):format(#fresh))
-  printGrouped(fresh, 10)
+  if usual > 0 then
+    ns:Print(("%d new %s below the usual price: see the Deals tab (/fl deals)."):format(
+      usual, usual == 1 and "deal" or "deals"))
+  end
 end
 
--- /fl deals: list every current deal, alerted or not.
+-- /fl deals list: every current deal shown on the tabs, alerted or not.
 function ns:PrintDeals()
-  local deals = ns:FindDeals()
+  local deals = {}
+  for _, d in ipairs(ns:FindDeals()) do
+    if ns:DealShown(d) then deals[#deals + 1] = d end
+  end
   ns:Print("Deals are listings " .. ns:DealRules() .. ".")
   if #deals == 0 then
-    print("  None right now, from scans in the last 10 minutes. Usual-price deals need 3 days of scans first.")
+    print("  None right now, from scans in the last 10 minutes. Usual-price deals need 4 days of scans first.")
     return
   end
   printGrouped(deals, 20)

@@ -19,6 +19,7 @@ Tooltip.lua
 Theme.lua
 Dashboard.lua
 Ledger.lua
+Deals.lua
 Crates.lua
 ClassicRecipes.lua
 RecipesTab.lua

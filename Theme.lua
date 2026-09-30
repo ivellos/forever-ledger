@@ -206,7 +206,7 @@ function T:Tab(parent, label, onClick)
   fs:SetPoint("CENTER")
   b:SetFontString(fs)
   b:SetText(label)
-  b:SetSize(fs:GetStringWidth() + 24, 28)
+  b:SetSize(fs:GetStringWidth() + 20, 28)   -- 20, not 24: ten main tabs must fit the smallest window
   b.line = b:CreateTexture(nil, "OVERLAY")
   b.line:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 1)
   b.line:SetPoint("BOTTOMLEFT", 8, 0)

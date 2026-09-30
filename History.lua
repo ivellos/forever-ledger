@@ -340,11 +340,28 @@ local function addWeek(id, day, cheapest, typical)
   weekly[id] = dropOld(s, w - WEEKLY_WEEKS)
 end
 
-function ns:RecordPriceHistory(id, cheapest, typical)
+-- How many were listed each day (the most seen that day), for "usually N listed" on deals.
+local function recordListed(id, d, listed)
+  local qty = marketTable("historyQty")
+  local s = qty[id] or ""
+  local lastDay, lastQ = s:match("(%d+):(%d+)$")
+  if tonumber(lastDay) == d then
+    listed = math.max(listed, tonumber(lastQ))
+    s = s:gsub("[^|]*$", "")
+  elseif s ~= "" then
+    s = s .. "|"
+  end
+  s = s .. ("%.0f:%.0f"):format(d, listed)
+  while s:find("|", 1, true) and tonumber(s:match("^(%d+)")) <= d - DAILY_DAYS do s = s:gsub("^[^|]*|", "") end
+  qty[id] = s
+end
+
+function ns:RecordPriceHistory(id, cheapest, typical, listed)
   if not ns.db or not cheapest then return end
   typical = typical or cheapest
   local hist = marketTable("history")
   local d = today()
+  if listed then recordListed(id, d, listed) end
   local s = hist[id] or ""
   local lastDay, lastMin, lastTyp = s:match("(%d+):(%d+):(%d+)$")
   lastDay = tonumber(lastDay)
@@ -388,6 +405,51 @@ function ns:UsualPrice(id, window)
   if #points == 0 then return nil, 0 end
   table.sort(points)
   return points[math.floor((#points + 1) / 2)], #points
+end
+
+local function median(list)
+  if #list == 0 then return nil end
+  table.sort(list)
+  return list[math.floor((#list + 1) / 2)]
+end
+
+-- Everything known about an item's past prices over a period, for judging a deal.
+-- Leaves today out, like UsualPrice. Returns nil without history, else a table:
+--   usual = median typical price, low = median of each day's cheapest,
+--   q1, q3 = the typical prices a quarter and three quarters of the way up (spread),
+--   points = days (and older weeks) used, days = daily points only,
+--   firstDay = the oldest day used, listed = median listed per day (nil before it was recorded).
+function ns:PriceStats(id, window)
+  local d = today()
+  local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
+  local typ, low, first, days = {}, {}, nil, 0
+  for day, m, a in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
+    day = tonumber(day)
+    if day < d and day >= from then
+      typ[#typ + 1], low[#low + 1] = tonumber(a), tonumber(m)
+      first, days = first or day, days + 1
+    end
+  end
+  for w, m, a in (marketTable("historyWeekly")[id] or ""):gmatch("(%d+):(%d+):(%d+):%d+") do
+    w = tonumber(w)
+    if (w + 1) * 7 > from then
+      typ[#typ + 1], low[#low + 1] = tonumber(a), tonumber(m)
+      first = math.min(first or w * 7, w * 7)
+    end
+  end
+  if #typ == 0 then return nil end
+  local listed = {}
+  for day, q in (marketTable("historyQty")[id] or ""):gmatch("(%d+):(%d+)") do
+    day = tonumber(day)
+    if day < d and day >= from then listed[#listed + 1] = tonumber(q) end
+  end
+  local n = #typ
+  local usual = median(typ)   -- sorts typ
+  return {
+    usual = usual, low = median(low), points = n, days = days, firstDay = first,
+    q1 = typ[math.max(1, math.ceil(n / 4))], q3 = typ[math.max(1, math.ceil(n * 3 / 4))],
+    listed = median(listed),
+  }
 end
 
 -- All time: lowest price ever seen and the average typical price, or nil.

@@ -188,10 +188,26 @@ function ns:ListedAtOrBelow(id, price)
   return n
 end
 
--- The random-stats version in an item link ("of the Eagle"), or nil.
+-- The random-stats version in an item link ("of the Eagle"), or nil. Classic kept it in
+-- the 7th field; Forever uses modern links, where it's a bonus ID (beta, September 30:
+-- "Simple Britches of the Whale" = item:9747::::::::20:1482::1:1:12719:1:28:7000, field 13
+-- is how many bonus IDs follow, here one, 12719). With several, the highest is used.
 function ns.SuffixFromLink(link)
-  local suffix = type(link) == "string" and tonumber(link:match("item:%d+:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:(%-?%d+)"))
+  local s = type(link) == "string" and link:match("item:([%-%d:]+)")
+  if not s then return end
+  local f = {}
+  for v in (s .. ":"):gmatch("([^:]*):") do f[#f + 1] = v end
+  local suffix = tonumber(f[7])
   if suffix and suffix ~= 0 then return suffix end
+  local n = tonumber(f[13])
+  if n and n > 0 then
+    local best
+    for i = 14, 13 + n do
+      local b = tonumber(f[i])
+      if b and (not best or b > best) then best = b end
+    end
+    return best
+  end
 end
 
 -- Cheapest price and count for one version of gear with random stats, from the last
@@ -282,7 +298,7 @@ local function record(id, units, src)
   ns.db.prices[key][id] = rec
   -- History is a bonus: a problem there must never stop a scan from saving prices.
   if ns.RecordPriceHistory then
-    local ok, err = pcall(ns.RecordPriceHistory, ns, id, rec.m, rec.a)
+    local ok, err = pcall(ns.RecordPriceHistory, ns, id, rec.m, rec.a, rec.q)
     if not ok then ns:Debug("Price history skipped for", id, err) end
   end
 end
@@ -559,15 +575,18 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
     end
     if not isGear[itemID] then return end
     local ok, link = pcall(getLink, idx)
-    -- For working out Forever's link format (/fl debug): show the first few gear links
-    -- whose name has "of the" or "of ", with the | shown so the codes are readable.
-    if ok and link and ns.db.settings.debug and (samples or 0) < 4 and link:find("%[.+ of .+%]") then
-      samples = (samples or 0) + 1
-      -- Only the "item:..." numbers: chat turned the full link's codes into "|[Name]|r".
-      ns:Debug("Gear link sample:", link:match("%[(.-)%]") or "?", "=", link:match("item:[%-%d:]*") or "no item: part")
+    -- Checking the link format (/fl debug): a few gear links, with and without a version
+    -- in the name, and the version worked out from each.
+    if ok and link and ns.db.settings.debug then
+      local named = link:find("%[.+ of .+%]") and "named" or "plain"
+      samples = type(samples) == "table" and samples or { named = 0, plain = 0 }
+      if samples[named] < (named == "named" and 3 or 2) then
+        samples[named] = samples[named] + 1
+        ns:Debug("Gear link sample:", link:match("%[(.-)%]") or "?", "=", link:match("item:[%-%d:]*") or "no item: part",
+          "version:", ns.SuffixFromLink(link) or "none")
+      end
     end
-    local suffix = ok and link and tonumber(link:match("item:%d+:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:(%-?%d+)"))
-    if suffix and suffix ~= 0 then return suffix end
+    return ok and ns.SuffixFromLink(link) or nil
   end
   local function chunk()
     local stop = math.min(i + 2000, n)

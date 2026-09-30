@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- Gear with random stats: versions are now told apart. Forever's item links hold the version ("of the Whale") as a bonus ID, not where Classic kept it, so full scans found no versions.
 - Shuffles: two groups of disenchant shuffles took turns disappearing on every refresh. The game only keeps so many item details in memory, and working out every shuffle pushed half of them out each time; items it had forgotten got no disenchant value. The addon now remembers item details itself for the session.
 - Flip watch: your own searches are saved even while a watch check is running (Shadowgem and Linen Bandage stayed on Vendor flips after buying), the watch waits 20 seconds after you search so it doesn't talk over you, and it no longer re-checks gear: each check came back with a different stat version's listings, so disenchant shuffles kept appearing and disappearing. Gear prices come from full scans.
 - Materials a vendor also sells now cost whichever is cheaper, the vendor or the auction house. A limited vendor's Strange Dust at 8s was used instead of 2s 35c on the auction house, which hid the Minor Wizard Oil shuffle. Same fix for recipe profits and crate fills.
@@ -26,6 +27,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Dashboard gold graph: the scale always starts at 0g, and each step is coloured by its own direction (green up, red down) instead of the whole graph taking one colour.
 
 ### Added
+- Deals tab: listings well below their usual price, with the price now, the usual price, how many are cheap, profit after the auction house cut, and how sure the deal is (Good, Fair, Thin). Hover a deal for why it's one: days of scans behind the usual price, the range most days, how many are usually listed and the next listing up. Thin data (a few days, jumpy prices) is hidden unless you ask for it, and a new setting sets the least resale profit (10s to start). After a scan, chat gives one line instead of a long list; `/fl deals` opens the tab. Scans now also note how many of each item are listed each day.
 - Gear with random stats ("of the Eagle"): full scans now note each version's price, and the tooltip shows "this version (of the Eagle): 18s, 6 listed" under the item's price, since versions of one item can sell for very different amounts.
 - Recipes tab: a recipe with no known source whose recipe item is on the auction house (many new Forever recipes, like Savory Whimsyfin Delight) shows "On the auction house: 6g (12 listed)" instead of "trainer, or new in Forever".
 - Help tab: every feature explained in short, and the commands. The same guide is on GitHub (docs/GUIDE.md), with pictures to come.

@@ -39,6 +39,14 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 ![Vendor flips tab](images/vendor-flips.png)
 
+## Deals
+
+- **Deals tab**: listings well below their usual price, to buy and resell. Each row shows the price now, the usual price, how far below it is, how many are that cheap, the profit after the auction house cut (each and for all of them), and how sure the deal is: **Good**, **Fair** or **Thin**.
+- **Hover a deal** to see why it's a deal: the usual price (the middle of your daily scans over the period set in Settings), how many days that's based on, the range most days, the cheapest price each day, how many are usually listed, and the next listing above the cheap ones. Reselling today means pricing under that, so the profit uses whichever is lower. **Click** a deal to search for it on the auction house.
+- **How sure**: Good means a week or more of steady prices. Fair means less data, or a warning: usually only one listed (it may sell slowly, or that "usual price" was one hopeful seller), nothing else listed to compare with, or gear whose stat versions sell at different prices. Thin (a few days, or prices that jump around) is hidden unless you tick **Show thin data too**.
+- Deals need at least 4 days of scans to know an item's usual price, or TSM installed. Settings, Deal alerts sets how far below, over what period, and the least profit each. After a scan, chat says how many new deals there are instead of listing them.
+- The auction house only shows what's listed, not what sold. Buy what you'd be happy to hold for a while.
+
 ## Disenchanting
 
 - **Disenchant finder** (beside the auction house): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material.
@@ -90,7 +98,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 | `/fl watch` | Start or stop the flip watch |
 | `/fl customers`, `/fl work` | The Customers window, or its Work done view |
 | `/fl de` | Your disenchant results |
-| `/fl deals` | Current deals |
+| `/fl deals` | Open the Deals tab (`/fl deals list` lists them in chat) |
 | `/fl book` | Recipe data gathered so far |
 | `/fl sync` | Sync status and help |
 | `/fl perf` | What takes the addon's time |

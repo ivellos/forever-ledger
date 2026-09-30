@@ -101,6 +101,7 @@ local TABS = {
   { key = "dashboard", label = "Dashboard" },
   { key = "shuffles", label = "Shuffles" },
   { key = "flips", label = "Vendor flips" },
+  { key = "deals", label = "Deals" },
   { key = "ledger", label = "Ledger" },
   { key = "crates", label = "Crates", setting = "crates" },
   { key = "recipes", label = "Recipes" },
@@ -162,6 +163,7 @@ local function buildMain()
   main.views = {
     dashboard = ns:BuildDashboard(main.body),
     ledger = ns:BuildLedger(main.body),
+    deals = ns:BuildDeals(main.body),
     crates = ns:BuildCrates(main.body),
     recipes = ns:BuildRecipes(main.body),
     characters = textArea(),
@@ -185,6 +187,7 @@ local function buildMain()
   main.scanBtn, main.fullBtn = scan, full
   main.footer = {
     dashboard = { full, scan },
+    deals = { full, scan },
     characters = { full, scan, exp, imp, csv },
   }
 
@@ -265,6 +268,10 @@ end
 -- work it out again so its list and "(time)" stay current.
 function ns:RefreshFlipsIfShown()
   if main and main:IsShown() and main.view == "flips" then ns:RefreshShuffles() end
+end
+
+function ns:RefreshDealsIfShown()
+  if main and main:IsShown() and main.view == "deals" then ns:RefreshDeals() end
 end
 
 -- After a scan finds vendor flips: open the Vendor flips tab, worked out afresh.
@@ -368,6 +375,8 @@ local SETTINGS = {
   { key = "dealHistory", label = "Usual prices from", kind = "choice", options = {
       { "auto", "Auto" }, { "local", "My scans" }, { "tsm", "TSM" } },
     help = "Auto uses TSM's history where it has a price, otherwise your own scans." },
+  { key = "dealUsualMin", label = "Least resale profit each", kind = "money",
+    help = "Deals tab: profit after the auction house cut, reselling at the usual price or under the next listing. \"off\" for no minimum." },
   { key = "dealVendorPct", label = "Below vendor price by", kind = "number", suffix = "% or more", min = 0, max = 99 },
   { key = "dealVendorMin", label = "Least vendor profit each", kind = "money",
     help = "For example 1s or 50c. \"off\" for no minimum." },
@@ -506,6 +515,8 @@ function ns:RefreshUI()
     ns:RefreshLedger()
   elseif main.view == "crates" then
     ns:RefreshCrates()
+  elseif main.view == "deals" then
+    ns:RefreshDeals()
   elseif main.view == "recipes" then
     ns:RefreshRecipes()
   elseif build then

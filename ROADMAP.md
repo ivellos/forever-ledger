@@ -9,12 +9,14 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Arcane Salvager**: measuring how much it really improves disenchanting (nothing official says), then a plan for using it well: saving up greens and disenchanting them in 15-minute Salvager windows when the extra materials are worth more than the Salvager costs.
 - **Neutral auction houses**: prices kept as their own market, a 15% cut in the math, and items only one faction can buy, to sell to the other side.
 - **Where recipes come from**: original Classic vendor, drop and trainer locations are shown as "(Classic)" until players confirm them in Forever.
+- **Deals tab**: listings well below their usual price, each with why it's a deal (days of data, usual range, how many are usually listed, the next listing up) and how sure it is, so thin or jumpy prices don't pass as bargains.
+- **Gear versions**: telling "of the Eagle" from "of the Whale" on the auction house, so each version has its own price.
 
 ## Gold making
 
 - **Crafting ads**: post your services to Trade (Services) with one click, with templates (including Mage portals, food and water), and a log of work done for customers.
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
-- **Deals panel**: all current deals in one place, plus a restock planner, named watch lists and how fast items sell.
+- **More for deals**: how fast items sell (listings disappearing between scans), a restock planner and named watch lists.
 - **Transmog**: bind-on-equip items that sell well, what they're worth and where they drop, including "worth farming" per rare.
 - **Launch-day checklist**: early gold makers (bags, wands, vendor-worthy drops) with live prices.
 - **Hold or sell**: price history shows when something is the cheapest or dearest it has been.
