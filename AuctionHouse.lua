@@ -150,7 +150,8 @@ local function watch(page, kind)
       id, key = id or rowID, key or rowKey
       local limit = limitFor(rowID)
       if price then anyPrice = true end
-      tint(row, price ~= nil and limit ~= nil and price <= limit, not browse)
+      -- Badge only on gear pages: the browse list has names and the commodity list its prices there.
+      tint(row, price ~= nil and limit ~= nil and price <= limit, not browse and not commodity)
     end)
     -- Report only if it keeps failing (about 3 seconds): during a purchase the list
     -- is briefly empty, which is normal.

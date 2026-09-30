@@ -373,35 +373,44 @@ local SETTINGS = {
     help = "For example 1s or 50c. \"off\" for no minimum." },
   { key = "dealSound", label = "Chime", kind = "check", help = "Plays the raid warning sound when a scan finds new deals." },
 
-  { section = "Other" },
-  { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end },
-  { key = "tooltip", label = "Tooltip lines", kind = "check" },
+  { section = "Tooltips" },
+  { key = "tooltip", label = "Tooltip lines", kind = "check", help = "Forever Ledger's lines on item tooltips." },
   { key = "tipMode", label = "Tooltip size", kind = "choice", options = {
       { "full", "Everything" }, { "compact", "One line, Shift for more" } },
-    help = "One line shows just what an item is worth to you; hold Shift for the rest." },
-  { key = "tipOptions", label = "Ways to show under Worth to you", kind = "number", suffix = "ways", min = 1, max = 10 },
-  { key = "tipPrice", label = "Tooltip: auction and vendor prices", kind = "check" },
-  { key = "tipWorth", label = "Tooltip: Worth to you", kind = "check" },
-  { key = "tipBuy", label = "Tooltip: Buy at or below", kind = "check" },
-  { key = "tipDisenchant", label = "Tooltip: Disenchants to", kind = "check" },
-  { key = "tipUsedBy", label = "Tooltip: Used by (your recipes)", kind = "check" },
-  { key = "tipCrate", label = "Tooltip: crate cheapest fill", kind = "check" },
-  { key = "crates", label = "Waylaid Crates", kind = "check", after = function() ns:LayoutTabs() end,
-    help = "The Crates tab and the \"cheapest fill\" line on crate tooltips." },
-  { key = "ahHighlight", label = "Tint good buys on the auction house", kind = "check",
-    help = "On an item's buy page, listings at or below its buy limit get a tint." },
+    help = "One line shows just what an item is worth to you; press Shift for the rest." },
+  { key = "tipOptions", label = "Ways under Worth to you", kind = "number", suffix = "ways", min = 1, max = 10,
+    help = "How many ways to use an item to list, best first." },
+  { key = "tipPrice", label = "Auction and vendor prices", kind = "check" },
+  { key = "tipWorth", label = "Worth to you", kind = "check" },
+  { key = "tipBuy", label = "Buy at or below", kind = "check" },
+  { key = "tipDisenchant", label = "Disenchants to", kind = "check" },
+  { key = "tipUsedBy", label = "Used by (your recipes)", kind = "check" },
+  { key = "tipCrate", label = "Crate cheapest fill", kind = "check" },
+
+  { section = "Auction house" },
+  { key = "ahHighlight", label = "Mark good buys", kind = "check",
+    help = "Listings at or below an item's buy limit get a green tint, bar and BUY badge." },
   { key = "openFlips", label = "Open Vendor flips after a scan", kind = "check",
     help = "When a scan finds items below vendor price, open the Vendor flips tab instead of listing them in chat." },
+
+  { section = "Customers" },
   { key = "customers", label = "Customer finder", kind = "check",
-    help = "Tell me when someone in chat asks for something this character can do (LF enchanter, WTB an item you craft, Mage water or portals)." },
-  { key = "customerSound", label = "Customer finder sound", kind = "check", help = "Play the whisper sound with each customer alert." },
-  { key = "customerWindow", label = "Open the Customers window on a request", kind = "check",
-    help = "A small window listing requests with Whisper and Invite buttons (/fl customers opens it any time)." },
-  { key = "customerChat", label = "Customer requests in chat too", kind = "check", help = "Also print each request in chat." },
+    help = "Spot people in chat asking for what this character can do (LF enchanter, WTB an item you craft, Mage water)." },
+  { key = "customerWindow", label = "Open the Customers window", kind = "check",
+    help = "Opens on a new request. /fl customers opens it any time." },
+  { key = "customerSound", label = "Sound", kind = "check", help = "The whisper sound with each new request." },
+  { key = "customerChat", label = "Requests in chat too", kind = "check", help = "Also print each request in chat." },
+
+  { section = "Other" },
+  { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end },
+  { key = "crates", label = "Waylaid Crates", kind = "check", after = function() ns:LayoutTabs() end,
+    help = "The Crates tab and the \"cheapest fill\" tooltip line." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
-
-local LABEL_WIDTH, CONTROL_X = 210, 220
+-- Layout (owner, September 30: the old one felt jumbled): each setting is one block,
+-- name and description stacked in a left column, the control on the right lined up
+-- with the name, a faint line between settings, and a header band per section.
+local TEXT_W, CONTROL_X = 330, 350
 
 buildSettings = function()
   local sf, content = T:Scroll(main.body)
@@ -410,24 +419,39 @@ buildSettings = function()
   local y = 0
   for _, def in ipairs(SETTINGS) do
     if def.section then
-      if y > 0 then y = y + 14 end
+      if y > 0 then y = y + 16 end
+      local band = content:CreateTexture(nil, "BACKGROUND")
+      band:SetColorTexture(1, 1, 1, 0.05)
+      band:SetPoint("TOPLEFT", 0, -y)
+      band:SetPoint("RIGHT", content, "RIGHT", -4, 0)
+      band:SetHeight(24)
       local h = T:Text(content, 13, T.accent)
-      h:SetPoint("TOPLEFT", 4, -y)
+      h:SetPoint("LEFT", band, "LEFT", 8, 0)
       h:SetText(def.section)
-      y = y + 22
+      y = y + 30
       if def.rules then
         sf.rules = T:Text(content, 11, T.dim)
-        sf.rules:SetPoint("TOPLEFT", 4, -y)
+        sf.rules:SetPoint("TOPLEFT", 12, -y)
         sf.rules:SetPoint("RIGHT", content, "RIGHT", -8, 0)
         sf.rules:SetJustifyH("LEFT")
-        y = y + 42
+        y = y + 38
       end
     else
+      local top = y
       local label = T:Text(content, 12)
-      label:SetPoint("TOPLEFT", 4, -(y + 4))
-      label:SetWidth(LABEL_WIDTH)
+      label:SetPoint("TOPLEFT", 12, -(top + 5))
+      label:SetWidth(TEXT_W)
       label:SetJustifyH("LEFT")
       label:SetText(def.label)
+      local height = 20
+      if def.help then
+        local help = T:Text(content, 11, T.dim)
+        help:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -3)
+        help:SetWidth(TEXT_W)
+        help:SetJustifyH("LEFT")
+        help:SetText(def.help)
+        height = height + help:GetStringHeight() + 4
+      end
 
       local function changed(v)
         ns.db.settings[def.key] = v
@@ -445,25 +469,21 @@ buildSettings = function()
         control = T:Choice(content, opts, changed)
       elseif def.kind == "check" then
         control = T:Check(content, function(self) changed(self:GetChecked()) end)
-        control:SetPoint("TOPLEFT", CONTROL_X, -(y + 4))
       end
-      if def.kind ~= "check" then control:SetPoint("TOPLEFT", CONTROL_X, -y) end
+      control:SetPoint("TOPLEFT", CONTROL_X, -(top + (def.kind == "check" and 5 or 1)))
       sf.controls[#sf.controls + 1] = { def = def, control = control }
-      y = y + 28
-      if def.help then
-        local help = T:Text(content, 11, T.dim)
-        help:SetPoint("TOPLEFT", CONTROL_X, -(y - 4))
-        help:SetPoint("RIGHT", content, "RIGHT", -8, 0)
-        help:SetJustifyH("LEFT")
-        help:SetText(def.help)
-        y = y + 16
-      end
+
+      y = top + math.max(height, 26) + 8
+      local line = content:CreateTexture(nil, "BACKGROUND")
+      line:SetColorTexture(1, 1, 1, 0.04)
+      line:SetPoint("TOPLEFT", 8, -(y - 4))
+      line:SetPoint("RIGHT", content, "RIGHT", -8, 0)
+      line:SetHeight(1)
     end
   end
   content:SetHeight(y + 10)
   return sf
 end
-
 local function refreshSettings()
   local sf = main.views.settings
   sf:GetScrollChild():SetWidth(math.max(sf:GetWidth() - 12, 300))

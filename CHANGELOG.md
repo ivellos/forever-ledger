@@ -17,7 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Dashboard: the gold graph's scale shows silver under 100g (it read "11g" on every line when gold only moved by a few silver).
 
 ### Changed
-- Auction house: listings worth buying stand out, with a green tint, a green bar on the left and a BUY badge. The line above the list reads "BUY: N available at X or less" in green, or turns red with "None left" once someone else has bought them.
+- Settings are grouped more clearly (Values and shuffles, Deal alerts, Tooltips, Auction house, Customers, Other), each with its name and description together and the control beside it.
+- Auction house: listings worth buying stand out, with a green tint, a green bar on the left and (on gear) a BUY badge. The line above the list reads "BUY: N available at X or less" in green, or turns red with "None left" once someone else has bought them.
 - Dashboard gold graph: the scale always starts at 0g, and each step is coloured by its own direction (green up, red down) instead of the whole graph taking one colour.
 
 ### Added
