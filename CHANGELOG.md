@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Trainers view: a trainer named by a city guard (Lucan Cordell, Shaina Fuller, Arnold Leland) is no longer listed twice; a Classic entry takes the guard's position instead (Shaina Fuller has moved in Forever).
+- Shuffles and Vendor flips: the line at the bottom is shorter and stops before the scan status, so it fits the smallest window.
 - Customers: the empty Work done message wraps instead of running off the window.
 - Customers: someone asking again moves their request to the top with the newest message instead of adding a second row.
 - Dashboard: the gold graph's scale shows silver under 100g (it read "11g" on every line when gold only moved by a few silver).

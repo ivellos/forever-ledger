@@ -197,6 +197,10 @@ local function buildMain()
 
   main.status = T:Text(main, 11, T.accent)
   main.status:SetPoint("BOTTOMRIGHT", -26, 18)
+  -- The info line stops short of the scan status, and cuts off rather than running under it.
+  main.shuffleInfo:SetPoint("RIGHT", main.status, "LEFT", -12, 0)
+  main.shuffleInfo:SetJustifyH("LEFT")
+  main.shuffleInfo:SetWordWrap(false)
 
   -- Resizing: drag the grip in the bottom-right corner. The starting size is the smallest.
   local MIN_W, MIN_H = 760, 520
@@ -1051,9 +1055,10 @@ function ns:RefreshShuffles()
   end
 
   main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff, flips = flips }
-  main.shuffleInfo:SetText(("%d shuffles and %d vendor flips, worked out at %s. Click a column to sort, a row for details%s."):format(
+  -- Short, so it fits the smallest window (the tabs' own tips say the rest).
+  main.shuffleInfo:SetText(("%d shuffles, %d vendor flips (%s). %s"):format(
     #vendor + #ah + #oneOff, #flips, date("%H:%M"),
-    main.view == "flips" and " (flips: click to search the auction house, right-click for details)" or ""))
+    main.view == "flips" and "Click to search the AH, right-click for details." or "Click a column to sort, a row for details."))
   if main.view == "shuffles" or main.view == "flips" then layoutShuffles() end
 end
 
