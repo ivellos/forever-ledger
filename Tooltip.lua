@@ -8,6 +8,7 @@ local LR, LG, LB = 0.73, 0.64, 1.0   -- label colour
 -- The item on GameTooltip right now, and whether its full lines are already there
 -- (compact mode: pressing Shift adds them to the tooltip that's showing).
 local shownID, shownFull
+local debugLinks = {}   -- tooltip links already shown in debug
 
 local function addLines(tt, id, forceFull)
   local s = ns.db and ns.db.settings
@@ -47,9 +48,18 @@ local function addLines(tt, id, forceFull)
   -- Gear with random stats: the price of this exact version ("of the Eagle").
   if on("tipPrice") and tt.GetItem then
     local name, link = tt:GetItem()
-    local suffix = ns.SuffixFromLink(link)
+    -- The link's own name first: the tooltip's name can be the plain item name.
+    name = (link and link:match("%[(.-)%]")) or name
+    local suffix = ns:SuffixForTooltip(id, link)
     local m, q
     if suffix then m, q = ns:SuffixPrice(id, suffix) end   -- (not "suffix and f()": that drops q)
+    -- Checking tooltip links against the scan (/fl debug), once per link.
+    if suffix and ns.db.settings.debug and link and not debugLinks[link] then
+      debugLinks[link] = true
+      local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+      ns:Debug("Tooltip version:", name or "?", "=", link:match("item:[%-%d:]*") or "?", "version:", suffix,
+        "scan has:", rec and rec.sx and rec.sx:sub(1, 80) or "none")
+    end
     if m and m > 0 then
       tt:AddDoubleLine("  this version (" .. (name and name:match(" (of .+)$") or "these stats") .. ")",
         ns.Money(m) .. " |cff999999" .. q .. " listed|r", 0.7, 0.7, 0.7, 1, 1, 1)

@@ -210,6 +210,35 @@ function ns.SuffixFromLink(link)
   end
 end
 
+-- Every bonus ID in a modern item link (field 13 says how many follow), as a list.
+function ns.LinkBonusIDs(link)
+  local s = type(link) == "string" and link:match("item:([%-%d:]+)")
+  local out = {}
+  if not s then return out end
+  local f = {}
+  for v in (s .. ":"):gmatch("([^:]*):") do f[#f + 1] = v end
+  for i = 14, 13 + (tonumber(f[13]) or 0) do
+    local b = tonumber(f[i])
+    if b then out[#out + 1] = b end
+  end
+  return out
+end
+
+-- The version of a hovered item that the last full scan knows about: the link's suffix,
+-- or else any of its bonus IDs found among the scanned versions (a tooltip's link can
+-- carry more bonus IDs than the scan's did). nil if the link has none.
+function ns:SuffixForTooltip(id, link)
+  local suffix = ns.SuffixFromLink(link)
+  if not suffix then return end
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if rec and rec.sx then
+    for _, b in ipairs(ns.LinkBonusIDs(link)) do
+      if (";" .. rec.sx):find(";" .. b .. ":", 1, true) then return b end
+    end
+  end
+  return suffix
+end
+
 -- Cheapest price and count for one version of gear with random stats, from the last
 -- full scan. Returns nil if no suffix data (no full scan yet), 0 if none were listed.
 function ns:SuffixPrice(id, suffix)
