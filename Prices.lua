@@ -544,8 +544,16 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       ns:UpdateScanStatus(i, n)
       C_Timer.After(0, chunk)
     else
-      local items = 0
-      for id, units in pairs(byItem) do record(id, units, "full"); items = items + 1 end
+      local items, versions, gearWith = 0, 0, 0
+      for id, units in pairs(byItem) do
+        record(id, units, "full"); items = items + 1
+        local has = false
+        for _, u in ipairs(units) do if u[3] then versions = versions + 1; has = true end end
+        if has then gearWith = gearWith + 1 end
+      end
+      -- For checking gear versions (/fl debug): did the scan see any "of the Eagle" listings?
+      ns:Debug(("Gear versions: %d listings with random stats across %d items (link function: %s)."):format(
+        versions, gearWith, getLink and "yes" or "missing"))
       ns.db.lastFullScan = time()
       readingFull = false
       if not ahOpen then ns.neutralAH = nil end
