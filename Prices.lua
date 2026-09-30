@@ -565,6 +565,7 @@ end
 
 -- Called when any scan ends: queue the next pass.
 function ns.FlipWatchNext()
+  if watching and ns.RefreshFlipsIfShown then C_Timer.After(1, function() ns:RefreshFlipsIfShown() end) end
   if watching and not watchTimer then watchTimer = C_Timer.NewTimer(WATCH_PAUSE, watchPass) end
 end
 

@@ -261,6 +261,12 @@ setView = function(view)
   end
 end
 
+-- The flip watch calls this after each pass: if the Vendor flips tab is on screen,
+-- work it out again so its list and "(time)" stay current.
+function ns:RefreshFlipsIfShown()
+  if main and main:IsShown() and main.view == "flips" then ns:RefreshShuffles() end
+end
+
 -- After a scan finds vendor flips: open the Vendor flips tab, worked out afresh.
 function ns:OpenFlips()
   ns:ToggleUI("flips")
