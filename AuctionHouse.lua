@@ -81,15 +81,32 @@ local function availableAt(id, limit, commodity, itemKey)
   return n
 end
 
-local function tint(row, on)
+-- A listing worth buying: a green tint, a bar down its left edge and a "BUY" badge in
+-- the (usually empty) bid column, so it stands out at a glance (owner: the tint alone
+-- was too faint to trust). It's drawn from the live listing on screen, so a listing
+-- someone else bought is simply gone.
+local BUY_GREEN = { 0.5, 0.83, 0.61 }
+local function tint(row, on, badge)
   if not row.flTint then
     if not on then return end
     -- Above the row's own background, below its text.
     row.flTint = row:CreateTexture(nil, "ARTWORK", nil, -8)
     row.flTint:SetAllPoints()
-    row.flTint:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.22)
+    row.flTint:SetColorTexture(BUY_GREEN[1], BUY_GREEN[2], BUY_GREEN[3], 0.28)
+    row.flBar = row:CreateTexture(nil, "OVERLAY")
+    row.flBar:SetPoint("TOPLEFT")
+    row.flBar:SetPoint("BOTTOMLEFT")
+    row.flBar:SetWidth(4)
+    row.flBar:SetColorTexture(BUY_GREEN[1], BUY_GREEN[2], BUY_GREEN[3], 1)
+    row.flBadge = row:CreateFontString(nil, "OVERLAY")
+    row.flBadge:SetFont(T.font, 12, "OUTLINE")
+    row.flBadge:SetTextColor(BUY_GREEN[1], BUY_GREEN[2], BUY_GREEN[3], 1)
+    row.flBadge:SetPoint("LEFT", row, "LEFT", 12, 0)
+    row.flBadge:SetText("BUY")
   end
   row.flTint:SetShown(on)
+  row.flBar:SetShown(on)
+  row.flBadge:SetShown(on and badge ~= false)   -- no badge on the browse list (names sit there)
 end
 
 -- Watch one page: "commodity" or "item" buy pages (one item, with a line above the
@@ -132,7 +149,7 @@ local function watch(page, kind)
       id, key = id or rowID, key or rowKey
       local limit = limitFor(rowID)
       if price then anyPrice = true end
-      tint(row, price ~= nil and limit ~= nil and price <= limit)
+      tint(row, price ~= nil and limit ~= nil and price <= limit, not browse)
     end)
     -- Report only if it keeps failing (about 3 seconds): during a purchase the list
     -- is briefly empty, which is normal.
@@ -146,7 +163,10 @@ local function watch(page, kind)
     id = id or shownID
     local limit = limitFor(id)
     if id and limit then
-      w.note:SetText(("Worth buying up to %s: %d available"):format(ns.Money(limit), availableAt(id, limit, commodity, key)))
+      -- Green while some are left at that price, red once they've all gone.
+      local n = availableAt(id, limit, commodity, key)
+      w.note:SetText(n > 0 and ("|cff7fd39cBUY: %d available at %s or less|r"):format(n, ns.Money(limit))
+        or ("|cffee8597None left at %s or less: they've been bought|r"):format(ns.Money(limit)))
     else
       w.note:SetText("")
     end
