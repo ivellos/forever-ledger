@@ -400,14 +400,44 @@ function Scan:ReadWaiting(id)
   if ok and n > 0 then return units end
 end
 
+-- Searches you make yourself (clicking a flip, browsing): save what the page shows as
+-- the item's latest price, so Refresh and the flip watch use it. Before, a flip whose
+-- cheap listings had just been bought stayed on the Vendor flips tab until the next scan
+-- (owner test, September 30: Rough Bronze Leggings). An empty list only counts once the
+-- auction house says the results are complete; gear with random stats ("of the Bear")
+-- is skipped, since its versions have different prices under one item ID.
+local liveRefresh
+local function saveLive(id, units, complete)
+  if not id or not units then return end
+  if #units == 0 and not complete then return end
+  record(id, units, "scan")
+  ns:Debug("Saved the prices on screen for", ns.ItemName(id) or id, #units == 0 and "(none listed)" or "")
+  if not liveRefresh and ns.RefreshFlipsIfShown then
+    liveRefresh = true
+    C_Timer.After(1, function() liveRefresh = nil; ns:InvalidateValues(true); ns:RefreshFlipsIfShown() end)
+  end
+end
+
 ns:On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
-  if not Scan.active or Scan.pending ~= itemID then return end
+  if not Scan.active then
+    local complete = C_AuctionHouse.HasFullCommoditySearchResults and C_AuctionHouse.HasFullCommoditySearchResults(itemID)
+    saveLive(itemID, (commodityUnits(itemID)), complete)
+    return
+  end
+  if Scan.pending ~= itemID then return end
   Scan:Finish(itemID, (commodityUnits(itemID)))
 end)
 
 ns:On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
   local id = itemKey and itemKey.itemID
-  if not Scan.active or Scan.pending ~= id then return end
+  if not Scan.active then
+    if id and (itemKey.itemSuffix or 0) == 0 then
+      local complete = C_AuctionHouse.HasFullItemSearchResults and C_AuctionHouse.HasFullItemSearchResults(itemKey)
+      saveLive(id, (itemUnits(itemKey)), complete)
+    end
+    return
+  end
+  if Scan.pending ~= id then return end
   local units, n = itemUnits(itemKey)
   if n > 0 then ns:Debug("Item search sample", id, n, units[1] and units[1][1]) end
   Scan:Finish(id, units)
