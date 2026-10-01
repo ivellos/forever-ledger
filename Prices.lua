@@ -104,24 +104,23 @@ ns:On("GET_ITEM_INFO_RECEIVED", function(id, success)
   end
 end)
 
--- What vendors pay is remembered per item, but patches change it (October 1 build:
--- "All crafted common and uncommon quality wands now sell at vendors for 1 copper",
--- was 15s for a Greater Magic Wand). When the game build changes, forget the
--- remembered prices so they're read again from the game's item data. This is a cache
--- of game data, not the player's own records, so clearing it loses nothing.
-ns:OnReady(function()
-  local _, build = GetBuildInfo()
-  if not build then return end
-  if ns.db.vendorSellBuild and ns.db.vendorSellBuild ~= build then
-    wipe(ns.db.vendorSell)
-    if ns.InvalidateValues then ns:InvalidateValues(true) end
-    ns:Debug("New game build", build, "(was", ns.db.vendorSellBuild .. "): vendor prices will be read again.")
-  end
-  ns.db.vendorSellBuild = build
-end)
-
+-- What a vendor pays comes from the game's item data (the tooltip's "Sell Price").
+-- The remembered value is only a fallback for items the game hasn't loaded yet:
+-- whenever the game has the item, its current price is used and the remembered one
+-- updated if it changed (October 1 build: crafted wands went from 15s to 1 copper).
+-- Reputation doesn't change what vendors pay you, only what they charge.
 function ns:GetSellPrice(id)
-  if ns.db.vendorSell[id] == nil then ns:RememberItem(id) end
+  local saved = ns.db.vendorSell[id]
+  local name, _, _, _, _, _, _, _, _, _, live = getItemInfo(id)
+  if name and live and live ~= saved then
+    ns.db.vendorSell[id] = live
+    if saved ~= nil then
+      ns:Debug("Vendor price changed:", ns.ItemName(id) or id, ns.Money(saved), "->", ns.Money(live))
+      if ns.InvalidateValues then ns:InvalidateValues() end
+    end
+    return live
+  end
+  if saved == nil then ns:RememberItem(id) end
   return ns.db.vendorSell[id]
 end
 
@@ -133,9 +132,13 @@ end
 ---------------------------------------------------------------------------
 -- Vendor buy prices (what a vendor charges you), captured from merchant windows
 ---------------------------------------------------------------------------
+-- Your standing with the merchant (4 Neutral ... 8 Exalted): in Classic, Honored and
+-- above get vendor discounts, and Forever's Legacy "Bartering" perk adds its own. So
+-- each price notes the standing and character it was seen with (owner, October 1).
 local function captureMerchant()
   if not GetMerchantNumItems then return end
   local n, got = GetMerchantNumItems() or 0, 0
+  local rep = UnitReaction and UnitReaction("npc", "player") or nil
   for i = 1, n do
     local id = GetMerchantItemID and GetMerchantItemID(i)
     local price, qty, avail, ext
@@ -152,6 +155,8 @@ local function captureMerchant()
         t = time(),
         src = "merchant",
         lim = (avail and avail >= 0) or nil,
+        rep = rep,
+        c = ns.CharKey(),
       }
       ns:RememberItem(id)
       got = got + 1

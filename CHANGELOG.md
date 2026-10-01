@@ -6,7 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
-- Vendor prices are read again after every game patch. The October 1 beta build made crafted wands sell for 1 copper (Greater Magic Wand was 15s), but the addon kept the old remembered price, so wand shuffles would have stayed on the list.
+- What a vendor pays now always follows the game's current item data (the tooltip's Sell Price); the remembered price is only used until the game has loaded the item. The October 1 beta build made crafted wands sell for 1 copper (Greater Magic Wand was 15s), and the old remembered price would have kept wand shuffles on the list.
+
+### Changed
+- Prices seen at a merchant now note your standing with that merchant and the character: "Vendor sells it for 4c at Honored" in tooltips, since reputation (and Forever's Bartering perk) lowers what vendors charge.
 
 ### Added
 - Crates: the money a turn-in pays back (Apprentice about 2s 50c, green crates 5s, learned from your own turn-ins like the Favor) is taken off the cost. A new "Pays back" column, "Net cost" in place of Total, gold per Favor after the payout, and crates that pay back more than they cost show a green profit ("free" Favor).

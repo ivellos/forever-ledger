@@ -87,7 +87,10 @@ local function addLines(tt, id, forceFull)
 
   local buy = ns.db.vendorBuy[id]
   if buy and on("tipPrice") then
-    tt:AddDoubleLine("Vendor sells it for", ns.Money(buy.p) .. (buy.lim and " |cff999999limited|r" or ""), LR, LG, LB, 1, 1, 1)
+    -- The standing it was seen at, when above Neutral (reputation discounts).
+    local standing = buy.rep and buy.rep > 4 and (_G["FACTION_STANDING_LABEL" .. buy.rep] or ("standing " .. buy.rep))
+    tt:AddDoubleLine("Vendor sells it for", ns.Money(buy.p) .. (buy.lim and " |cff999999limited|r" or "")
+      .. (standing and (" |cff999999at " .. standing .. "|r") or ""), LR, LG, LB, 1, 1, 1)
   end
 
   local best, options = ns:GetValue(id)
