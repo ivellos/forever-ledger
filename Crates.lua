@@ -10,6 +10,9 @@ local T = ns.Theme
 local FAVOR = 3402
 local PREFIX = "Waylaid Crate"
 local TIER_FAVOR = { Apprentice = 5, Journeyman = 10, Expert = 15, Artisan = 20 }   -- estimates
+-- Money a turn-in pays besides the Favor (Studen Albatroz, beta, October 1: Apprentice
+-- white 2s 50c, green 5s); other tiers unknown until learned from your own turn-ins.
+local TIER_PAY = { Apprentice = 250 }
 
 local function dim(t) return "|cff888888" .. t .. "|r" end
 local function money(v) return v and ns.Money(math.floor(v + 0.5)) or dim("?") end
@@ -128,6 +131,17 @@ local function favorFor(name, id)
   return base, false
 end
 
+-- Money a crate's turn-in pays: learned from turn-ins, otherwise the tier estimate
+-- (green crates pay double, like Favor). nil if unknown.
+local function payFor(name, id)
+  local learned = ns.db.crateMoney[name]
+  if learned and learned.n > 0 then return learned.sum / learned.n, true end
+  local base = TIER_PAY[tierOf(name) or ""]
+  local quality = id and select(3, ns.GetItemInfo(id))
+  if base and quality and quality >= 2 then base = base * 2 end
+  return base, false
+end
+
 -- Everything about one crate: bundles with costs, the cheapest, totals.
 function ns:CrateReport(id)
   local info = crateInfo(id)
@@ -152,9 +166,13 @@ function ns:CrateReport(id)
   r.owned = bagCount(id) > 0
   r.cratePrice = (not r.owned) and rec and not rec.none and rec.m or nil
   r.favor, r.learned = favorFor(info.name, id)
+  r.pay, r.payLearned = payFor(info.name, id)
   if r.cheapest then
     r.total = r.cheapest.cost + (r.cratePrice or 0)
-    if r.favor and r.favor > 0 then r.perFavor = r.total / r.favor end
+    -- What it really costs once the turn-in's money is back. Below zero, the crate is
+    -- a straight gold profit (the "raw gold shuffle" with cheap crates).
+    r.net = r.total - (r.pay or 0)
+    if r.favor and r.favor > 0 then r.perFavor = math.max(r.net, 0) / r.favor; r.sortKey = r.net / r.favor end
   end
   return r
 end
@@ -185,6 +203,19 @@ end
 -- recently left the bags.
 ---------------------------------------------------------------------------
 local lastFavor, cratesInBags, lastCrateGone = nil, {}, nil
+-- Recent money gains, to learn what a turn-in paid: { t, amount }.
+local lastMoney, gains = nil, {}
+ns:On("PLAYER_MONEY", function()
+  local m = GetMoney and GetMoney()
+  if m and lastMoney and m > lastMoney then gains[#gains + 1] = { t = GetTime(), amount = m - lastMoney } end
+  lastMoney = m
+  while #gains > 10 do table.remove(gains, 1) end
+end)
+local function recentGain()
+  local sum, now = 0, GetTime()
+  for _, g in ipairs(gains) do if now - g.t < 10 then sum = sum + g.amount end end
+  return sum
+end
 
 local function crateCounts()
   local counts = {}
@@ -225,6 +256,15 @@ ns:On("CURRENCY_DISPLAY_UPDATE", function(currencyID)
       l.sum, l.n = l.sum + gain, l.n + 1
       ns.db.crateFavor[lastCrateGone.name] = l
       ns:Debug("Crate", lastCrateGone.name, "paid", gain, "Favor")
+      -- The money it paid arrives with the Favor.
+      local paid = recentGain()
+      if paid > 0 and paid < 1000000 then
+        local m = ns.db.crateMoney[lastCrateGone.name] or { sum = 0, n = 0 }
+        m.sum, m.n = m.sum + paid, m.n + 1
+        ns.db.crateMoney[lastCrateGone.name] = m
+        ns:Debug("Crate", lastCrateGone.name, "paid", ns.Money(paid))
+      end
+      gains = {}
     end
     lastCrateGone = nil
   end
@@ -235,6 +275,7 @@ end)
 ns:On("PLAYER_ENTERING_WORLD", function()
   C_Timer.After(3, function()
     lastFavor = favorNow()
+    lastMoney = GetMoney and GetMoney()
     if lastFavor and ns.db then ns.db.favor[ns.CharKey()] = lastFavor end
     cratesInBags = crateCounts()
   end)
@@ -250,7 +291,12 @@ function ns:CrateTooltipLine(id)
   if not r or not r.cheapest then return end
   local parts = {}
   for _, p in ipairs(r.cheapest.parts) do parts[#parts + 1] = p.qty .. " " .. p.name end
-  local per = r.perFavor and (", about %s per Favor"):format(money(r.cheapest.cost / r.favor)) or ""
+  local per = ""
+  if r.net and r.net < 0 then
+    per = (", turn-in pays %s more than that"):format(money(-r.net))
+  elseif r.perFavor then
+    per = (", about %s per Favor after the turn-in's money"):format(money(r.perFavor))
+  end
   return ("Cheapest fill: %s, %s%s"):format(table.concat(parts, " + "), money(r.cheapest.cost), per)
 end
 
@@ -264,10 +310,11 @@ local openID
 local COLS = {
   { key = "name", label = "Crate" },
   { key = "level", label = "Level", w = 44 },
-  { key = "fill", label = "Cheapest fill", w = 190 },
-  { key = "fillCost", label = "Fill cost", w = 80 },
-  { key = "cratePrice", label = "Crate", w = 74 },
-  { key = "total", label = "Total", w = 80 },
+  { key = "fill", label = "Cheapest fill", w = 160 },
+  { key = "fillCost", label = "Fill cost", w = 74 },
+  { key = "cratePrice", label = "Crate", w = 70 },
+  { key = "pay", label = "Pays back", w = 70 },
+  { key = "total", label = "Net cost", w = 80 },
   { key = "favor", label = "Favor", w = 50 },
   { key = "perFavor", label = "Per Favor", w = 80 },
 }
@@ -404,13 +451,13 @@ function ns:RefreshCrates()
     if r then reports[#reports + 1] = r else unread = unread + 1 end
   end
   table.sort(reports, function(a, b)
-    if (a.perFavor ~= nil) ~= (b.perFavor ~= nil) then return a.perFavor ~= nil end
-    if a.perFavor and b.perFavor and a.perFavor ~= b.perFavor then return a.perFavor < b.perFavor end
+    if (a.sortKey ~= nil) ~= (b.sortKey ~= nil) then return a.sortKey ~= nil end
+    if a.sortKey and b.sortKey and a.sortKey ~= b.sortKey then return a.sortKey < b.sortKey end
     return (a.name or "") < (b.name or "")
   end)
 
   local favor = ns.db.favor[ns.CharKey()]
-  f.info:SetText(("Cheapest way to fill each Waylaid Crate at your last scan's prices, best Favor per gold first. You have %s Merchant's Favor on this character.%s Favor marked * is an estimate until you turn one in. Click a crate for every bundle."):format(
+  f.info:SetText(("Cheapest way to fill each Waylaid Crate at your last scan's prices, best Favor per gold first, counting the money the turn-in pays back. You have %s Merchant's Favor on this character.%s Favor and payouts marked * are estimates until you turn one in. Click a crate for every bundle."):format(
     favor and tostring(favor) or "?", unread > 0 and (" %d crates still loading."):format(unread) or ""))
 
   f.content:SetWidth(width)
@@ -434,9 +481,10 @@ function ns:RefreshCrates()
       fill = #parts > 0 and table.concat(parts, " + ") .. (r.cheapest.have and dim(" (have)") or "") or dim("no prices yet"),
       fillCost = r.cheapest and money(r.cheapest.cost) or dim("?"),
       cratePrice = r.owned and dim("owned") or money(r.cratePrice),
-      total = money(r.total),
+      pay = r.pay and (money(r.pay) .. (r.payLearned and "" or "*")) or dim("?"),
+      total = r.net and (r.net < 0 and ("|cff7fd39c+" .. money(-r.net) .. "|r") or money(r.net)) or dim("?"),
       favor = r.favor and (("%g"):format(math.floor(r.favor * 10 + 0.5) / 10) .. (r.learned and "" or "*")) or "?",
-      perFavor = r.perFavor and ("|cff7fd39c" .. money(r.perFavor) .. "|r") or dim("?"),
+      perFavor = r.net and r.net <= 0 and "|cff7fd39cfree|r" or r.perFavor and ("|cff7fd39c" .. money(r.perFavor) .. "|r") or dim("?"),
     }
     for key, fs in pairs(row.cells) do
       fs:ClearAllPoints()

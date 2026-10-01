@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Crates: the money a turn-in pays back (Apprentice about 2s 50c, green crates 5s, learned from your own turn-ins like the Favor) is taken off the cost. A new "Pays back" column, "Net cost" in place of Total, gold per Favor after the payout, and crates that pay back more than they cost show a green profit ("free" Favor).
 - "Your data" in the Help tab, the guide and the README: everything stays on your PC; the addon only sends live sync to your own paired character and ads you click to post.
 
 ### Changed

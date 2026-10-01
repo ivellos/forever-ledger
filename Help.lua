@@ -49,7 +49,7 @@ ns.HELP = {
     { "Trainers view", "Trainers you've visited, Classic ones, and spots city guards mark when you ask them for a profession trainer (marked guard)." },
   } },
   { "Waylaid Crates", {
-    { "Crates tab", "The cheapest way to fill each crate at today's prices, with the crate's own price and gold per Merchant's Favor. Click a crate for every bundle and what you already have." },
+    { "Crates tab", "The cheapest way to fill each crate at today's prices, with the crate's own price, the money the turn-in pays back, and gold per Merchant's Favor. A crate that pays back more than it costs shows its profit in green. Click a crate for every bundle and what you already have." },
   } },
   { "Customers and work", {
     { "Customers window", "Opens when someone in chat asks for what your character can do, with Whisper and Invite buttons. /fl customers opens it any time." },

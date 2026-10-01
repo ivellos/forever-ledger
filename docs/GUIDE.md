@@ -68,6 +68,8 @@ Everything the addon does, at a high level. The same text is in the game under *
 ## Waylaid Crates
 
 - **Crates tab**: the cheapest way to fill each crate at today's prices, with the crate's own price and gold per Merchant's Favor. Click a crate for every bundle and what you already have in bags, bank and alts.
+- **Pays back**: turning in a filled crate pays money as well as Favor (Apprentice crates about 2s 50c, green ones 5s). The tab takes that off the cost; when it pays back more than the crate and its fill cost, the net cost shows as a green profit and the crate is worth doing for gold alone. Payouts marked * are estimates until you turn one in, then learned like the Favor.
+- Crates are sold at the turn-in posts too (Three Corners in Redridge for Alliance, near the Crossroads for Horde), and Merchant's Favor buys recipes, pets, tabards, titles and even a mount.
 
 ![Crates tab](images/crates.png)
 
