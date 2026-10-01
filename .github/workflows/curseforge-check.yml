@@ -25,3 +25,14 @@ jobs:
           N=$(jq --arg g "$GAME" '[.[] | select(.name == $g)] | length' versions.json)
           if [ "$N" != "1" ]; then echo "Expected exactly one, found $N."; exit 1; fi
           echo "OK: the token works and $GAME is listed once."
+
+      - name: Check Wago's game versions
+        env:
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+        run: |
+          if [ -z "$WAGO_API_TOKEN" ]; then echo "No WAGO_API_TOKEN secret."; exit 1; fi
+          curl -sf -H "authorization: Bearer $WAGO_API_TOKEN" -H "accept: application/json" https://addons.wago.io/api/data/game > wago.json
+          echo "Flavors and their newest patches:"
+          jq -c '.patches | to_entries[] | {flavor: .key, newest: (.value | .[-3:])}' wago.json
+          echo "Any patch starting 1.60:"
+          jq -c '.patches | to_entries[] | select(.value | map(tostring) | any(startswith("1.60"))) | .key' wago.json
