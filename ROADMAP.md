@@ -46,6 +46,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Trainers**: pin the nearest trainer of the tier you need.
 - **Cooldown tracker**: profession and camping cooldowns across your characters.
 - **Profession leveling cost**: the cheapest way to your next skill milestone at today's prices.
+- **Skill-up shuffles**: mark shuffles that also level your profession, and show the ones that only break even when the skill-ups are worth it ("levels Tailoring and Enchanting for about free").
 
 ## Quality of life
 
