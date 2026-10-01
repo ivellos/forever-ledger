@@ -17,6 +17,8 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
 - **More for deals**: sell speed in item tooltips too, a restock planner and named watch lists.
 - **"Post at" hint**: the price to list at when selling: match the cheapest for materials (the newest listing at a price sells first), undercut for gear.
+- **Pets**: a collection tracker (which pets you have, which you're missing and where each comes from, including Forever's new ones), plus pets as a gold vector: tradeable pets' auction house prices and where to farm them.
+- **Auction house deposits**: count the deposit in shuffles that end on the auction house, so cheap items that cost more to post than they earn show as "vendor it instead".
 - **Transmog**: bind-on-equip items that sell well, what they're worth and where they drop, including "worth farming" per rare.
 - **Launch-day checklist**: early gold makers (bags, wands, vendor-worthy drops) with live prices.
 - **Hold or sell**: price history shows when something is the cheapest or dearest it has been.
