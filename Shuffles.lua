@@ -592,7 +592,7 @@ function ns:DealRules()
     from = "TSM's prices, or this addon's scans where TSM has none"
   end
   local usualMin = (s.dealUsualMin or 0) > 0 and (" and at least " .. ns.Money(s.dealUsualMin) .. " profit each on resale") or ""
-  return ("%g%% or more below the usual price over %s (from %s)%s, or %s"):format(
+  return ("%g%% or more below the usual cheapest price over %s (from %s)%s, or %s"):format(
     s.dealUsualPct or 20, ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time", from, usualMin, vendor)
 end
 
@@ -601,8 +601,9 @@ end
 -- (owner, September 30: 546 "deals" in one scan, some absurd, like a shirt at 1s
 -- "usually 23g" from one lone listing):
 --   * enough days of scans, and day-to-day prices that don't jump around;
---   * resale at the usual price or the next listing above the cheap ones, whichever
---     is lower, less the auction house cut, must beat dealUsualMin profit each;
+--   * the price is well below the usual cheapest price (see judgeUsual);
+--   * resale at the usual cheapest price or the next listing above the cheap ones,
+--     whichever is lower, less the auction house cut, must beat dealUsualMin each;
 --   * warnings (lower sureness) when usually only one is listed, when nothing else is
 --     listed to compare, and for gear whose versions sell at different prices.
 -- Sureness is "good", "fair" or "thin"; thin deals are hidden unless dealShowThin.
@@ -616,19 +617,32 @@ local LEVEL = { thin = 1, fair = 2, good = 3 }
 
 local function lower(level) return LEVELS[math.max(1, LEVEL[level] - 1)] end
 
--- Judges one usual-price deal. Returns the deal table, or nil if the cheapest listing
--- isn't far enough below the usual price.
+-- Judges one usual-price deal. Returns the deal table, or nil if it isn't one.
+-- Measured against the usual CHEAPEST price, not the typical one (owner's test,
+-- October 1: Gray Woolen Robe at 40s showed as 27% below a usual 54s 80c, while its
+-- cheapest listing was 38s on a normal day, so 40s was no bargain). The typical price
+-- (average of the cheapest 20 listed) includes dearer listings, so cheapest-vs-typical
+-- made nearly everything look like a deal.
+--   ref    = usual cheapest (median of each day's cheapest), or the typical price if
+--            lower or if there's no own history (TSM only)
+--   resell = the lowest of ref, the typical price and the next listing up: a price
+--            you can list at and expect to sell
+--   only listings cheap enough to clear dealUsualMin profit each at that resale count
 local function judgeUsual(id, rec)
   local s = ns.db.settings
   local usual, basis = ns:DealUsualPrice(id)
   if not usual then return end
-  local limit = usual * (1 - (s.dealUsualPct or 20) / 100)
-  if rec.m > limit then return end
-  local n, cost = ns:CheapListings(id, limit)
-  if not n or n == 0 then return end
-  cost = cost or rec.m
+  local pct = (s.dealUsualPct or 20) / 100
+  -- Quick out: ref is never above the typical price, so if this fails, all would.
+  if rec.m > usual * (1 - pct) then return end
   local stats = ns:PriceStats(id, s.dealWindow)
+  local ref = usual
+  if stats and stats.low and stats.low < ref then ref = stats.low end
+  local limit = ref * (1 - pct)
+  if rec.m > limit then return end
 
+  local cut = (s.ahCut or 5) / 100
+  local resell = ref
   -- The next listing above the cheap ones: reselling today means pricing under it.
   local nextUp
   if rec.l then
@@ -637,14 +651,18 @@ local function judgeUsual(id, rec)
       if p > limit then nextUp = p; break end
     end
   end
-  local resell = usual
   if nextUp and nextUp < resell then resell = nextUp end
-  local cut = (s.ahCut or 5) / 100
+  -- Only buy listings that still make the minimum profit after the cut.
+  local buyLimit = math.min(limit, resell * (1 - cut) - (s.dealUsualMin or 0))
+  if buyLimit <= 0 or rec.m > buyLimit then return end
+  local n, cost = ns:CheapListings(id, buyLimit)
+  if not n or n == 0 then return end
+  cost = cost or rec.m
   local each = resell * (1 - cut) - cost
 
-  local d = { kind = "usual", id = id, price = rec.m, worth = usual, listed = n, basis = basis, cost = cost,
-    limit = limit, resell = resell, nextUp = nextUp, each = each, total = each * n, stats = stats,
-    pct = 1 - rec.m / usual, t = rec.t, warnings = {} }
+  local d = { kind = "usual", id = id, price = rec.m, worth = ref, typical = usual, listed = n, basis = basis, cost = cost,
+    limit = buyLimit, resell = resell, nextUp = nextUp, each = each, total = each * n, stats = stats,
+    pct = 1 - rec.m / ref, t = rec.t, warnings = {} }
 
   -- How sure: from this addon's own history where there is some (TSM alone is "fair").
   local level, spread = "fair", nil
@@ -749,18 +767,19 @@ function ns:DealExplain(d)
 
   L[#L + 1] = { head = "Right now" }
   pair("Cheapest", ns.Money(d.price))
-  pair(("Listed up to %s"):format(ns.Money(d.limit)), d.listed > 1 and ("%d, average %s"):format(d.listed, ns.Money(d.cost)) or "1")
+  pair(("Worth buying, up to %s"):format(ns.Money(d.limit)), d.listed > 1 and ("%d, average %s"):format(d.listed, ns.Money(d.cost)) or "1")
   pair("Next listing up", d.nextUp and ns.Money(d.nextUp) or "none")
 
   L[#L + 1] = { head = "Usually (" .. (ns.WINDOW_NAMES[s.dealWindow or "all"] or "all time") .. ")" }
+  -- The deal is measured against the usual cheapest price (see judgeUsual).
+  pair("Usual cheapest", ns.Money(d.worth))
   if d.basis == "TSM" then
-    pair("TSM price", ns.Money(d.worth))
+    pair("TSM price", ns.Money(d.typical))
   end
   if st then
-    pair(d.basis == "TSM" and "Your scans" or "Usual price", ns.Money(st.usual))
+    pair("Typical price", ns.Money(st.usual))
     pair("Based on", ("%d %s of your scans"):format(st.points, st.points == 1 and "day" or "days"))
-    if st.points >= 4 and st.q1 ~= st.q3 then pair("Most days", ns.Money(st.q1) .. " to " .. ns.Money(st.q3)) end
-    if st.low and st.low < st.usual then pair("Cheapest each day", ns.Money(st.low)) end
+    if st.points >= 4 and st.q1 ~= st.q3 then pair("Typical, most days", ns.Money(st.q1) .. " to " .. ns.Money(st.q3)) end
     if st.listed then pair("Listed each day", tostring(st.listed)) end
   end
   if d.soldPerDay then
@@ -773,7 +792,7 @@ function ns:DealExplain(d)
   end
 
   L[#L + 1] = { head = "If you resell" }
-  pair(d.nextUp and d.nextUp < d.worth and "Resell at (under the next listing)" or "Resell at", ns.Money(d.resell))
+  pair(d.nextUp and d.nextUp < d.worth and "Resell at (under the next listing)" or "Resell at (usual cheapest)", ns.Money(d.resell))
   pair(("Profit each, after %g%% cut"):format(s.ahCut or 5), green(d.each))
   if d.listed > 1 then pair(("Profit for all %d"):format(d.listed), green(d.total)) end
 

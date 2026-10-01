@@ -33,8 +33,8 @@ ns.HELP = {
     { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },
   { "Deals", {
-    { "Deals tab", "Listings well below their usual price, to buy and resell: price now, usual price, how many are cheap, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },
-    { "Why it's a deal", "Hover a deal: the usual price and how many days of your scans it comes from, the range most days, how many are usually listed, and the next listing up (reselling today means pricing under it). Click to search the auction house." },
+    { "Deals tab", "Listings well below the price an item is usually cheapest at, to buy and resell: price now, usual low, how many are worth buying, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },
+    { "Why it's a deal", "Hover a deal: the usual cheapest and typical prices and how many days of your scans they come from, how many are usually listed, and the next listing up. Profit assumes you resell at the usual cheapest price or just under the next listing, whichever is lower. Click to search the auction house." },
     { "How sure", "Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too." },
     { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },

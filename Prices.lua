@@ -283,6 +283,50 @@ function ns:CheapListings(id, price)
   return n, n > 0 and cost / n or nil
 end
 
+-- You bought `qty` of an item at `each` (or less) per unit: take them off its saved price
+-- ladder, so flips and deals drop without waiting for the next full scan. Takes from
+-- the dearest level at or below what you paid (what you most likely bought).
+function ns:RemoveBought(id, qty, each)
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if not (rec and rec.l and not rec.none) then return end
+  local levels, prev = {}, 0
+  for p, c in rec.l:gmatch("(%d+):(%d+)") do
+    p, c = tonumber(p), tonumber(c)
+    levels[#levels + 1] = { p = p, n = c - prev }
+    prev = c
+  end
+  local left = qty
+  for i = #levels, 1, -1 do
+    local lv = levels[i]
+    if left > 0 and lv.p <= each + 1 then
+      local take = math.min(left, lv.n)
+      lv.n, left = lv.n - take, left - take
+    end
+  end
+  if left == qty then return end   -- nothing at that price was listed
+  local out, cum = {}, 0
+  for _, lv in ipairs(levels) do
+    if lv.n > 0 then
+      cum = cum + lv.n
+      out[#out + 1] = lv.p .. ":" .. cum
+    end
+  end
+  rec.q = math.max(0, (rec.q or cum) - (qty - left))
+  if #out == 0 then
+    -- Nothing left in the ladder (dearer listings may remain past its 20 levels):
+    -- an empty ladder counts no cheap listings, and the cheapest price stays as a guide.
+    rec.l = ""
+    if rec.q == 0 then rec.none = true end
+  else
+    rec.l = table.concat(out, ",")
+    rec.m = tonumber(out[1]:match("^(%d+)"))
+  end
+  ns:Debug("Took", qty - left, "bought", ns.ItemName(id) or id, "off the saved listings.")
+  if ns.CheckFlip then ns:CheckFlip(id) end
+  if ns.InvalidateValues then ns:InvalidateValues(true) end
+  if ns.RefreshFlipsIfShown then C_Timer.After(0.5, function() ns:RefreshFlipsIfShown() end) end
+end
+
 -- units: list of { unitPrice, quantity }
 local function record(id, units, src)
   if ns.InvalidateValues then ns:InvalidateValues() end

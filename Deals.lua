@@ -16,7 +16,7 @@ local MAX_AGE = 3600   -- prices from the last hour (alerts use the last 10 minu
 local COLUMNS = {
   { key = "item", label = "Item" },
   { key = "price", label = "Now", width = 80, right = true },
-  { key = "worth", label = "Usual", width = 80, right = true },
+  { key = "worth", label = "Usual low", width = 80, right = true },   -- the usual cheapest price
   { key = "pct", label = "Below", width = 46, right = true },
   { key = "listed", label = "Cheap", width = 44, right = true },
   { key = "sold", label = "Gone/day", width = 60, right = true, debugOnly = true },   -- not reliable yet
@@ -67,7 +67,7 @@ function ns:BuildDeals(parent)
   f.intro:SetPoint("TOPLEFT", 4, -2)
   f.intro:SetPoint("RIGHT", f, "RIGHT", -220, 0)
   f.intro:SetJustifyH("LEFT")
-  f.intro:SetText("Listings well below their usual price, to buy and resell. Hover a deal for why it's one; "
+  f.intro:SetText("Listings well below the price they're usually cheapest at, to buy and resell. Hover a deal for why it's one; "
     .. "click it to search the auction house. Items below what a vendor pays are on Vendor flips.")
 
   f.thin = T:Check(f, function(self)

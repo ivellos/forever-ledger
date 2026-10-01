@@ -176,7 +176,16 @@ local function onMoney()
     -- auction house last showed listings for.
     local h = hints[1]
     -- Non-commodity purchases (gear) are always one item.
-    addLog(ns.db.purchases, { t = now, c = who, id = (h and h.item) or lastShownItem, q = (h and h.qty) or 1, a = math.abs(delta) })
+    local id = (h and h.item) or lastShownItem
+    addLog(ns.db.purchases, { t = now, c = who, id = id, q = (h and h.qty) or 1, a = math.abs(delta) })
+    -- Gear: the addon doesn't save prices from gear pages (one page shows one stat
+    -- version), so take the bought one off the saved listings instead. Otherwise a
+    -- gear flip stays on Vendor flips until the next full scan (owner's test, October 1:
+    -- Hefty Battlehammer). Commodities are saved from the page, so they're left alone.
+    if not h and id and ns.RemoveBought then
+      local ok, err = pcall(ns.RemoveBought, ns, id, 1, math.abs(delta))
+      if not ok then ns:Debug("Couldn't take the purchase off the listings:", err) end
+    end
   end
   if ns.OnMoneyLogged then ns:OnMoneyLogged() end
   ns:Debug("Money", source, delta > 0 and "+" or "-", ns.Money(math.abs(delta)))

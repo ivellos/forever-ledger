@@ -5,7 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Deals are measured against the price an item is usually *cheapest* at, not its typical price (which includes dearer listings), and profit assumes reselling at that usual cheapest price or just under the next listing. Gray Woolen Robe at 40s showed as 27% off while it was normally listed from 38s; it's no longer a deal. Only listings that still make the minimum profit count towards "Profit all". Expect far fewer, more believable deals.
+
 ### Fixed
+- Gear vendor flips now drop off as soon as you buy them (Hefty Battlehammer stayed until the next full scan): a gear purchase is taken off the saved listings.
 - Vendor flip alerts: a flip could appear on the Vendor flips tab without a chime (Roasted Boar Meat). Alerts now follow the tab exactly, fire as soon as the flip watch or your own search finds a flip instead of at the end of a two-minute pass, name each new flip in chat, and an item that stops being a flip alerts again if it comes back.
 
 ### Added
