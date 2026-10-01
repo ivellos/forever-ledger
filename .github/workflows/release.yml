@@ -1,13 +1,32 @@
 name: Build release
 
-# Runs when you push a tag like v0.2.0. Builds the addon zip and publishes a GitHub release.
+# Runs when you push a tag like v0.2.0. Builds the addon zip, publishes a GitHub release,
+# and uploads it to CurseForge and Wago. Can also be run by hand for an existing tag to
+# upload it to Wago and/or CurseForge only (no new GitHub release).
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to upload, e.g. v0.7.0"
+        required: true
+      curseforge:
+        description: "Also upload to CurseForge"
+        type: boolean
+        default: false
+      wago:
+        description: "Upload to Wago"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
+
+env:
+  CF_PROJECT: "1720193"
+  WAGO_PROJECT: "qGYBBzNg"
 
 jobs:
   build:
@@ -15,10 +34,14 @@ jobs:
     steps:
       - name: Get the code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Work out the version from the tag
         id: ver
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build the addon zip
         run: |
@@ -39,6 +62,7 @@ jobs:
           if [ ! -s release-notes.md ]; then echo "No changelog entry for ${VERSION}." > release-notes.md; fi
 
       - name: Publish the release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           name: Forever Ledger ${{ steps.ver.outputs.version }}
@@ -46,18 +70,19 @@ jobs:
           files: ForeverLedger-${{ steps.ver.outputs.version }}.zip
           prerelease: ${{ startsWith(steps.ver.outputs.version, '0.') }}
 
-      # CurseForge (project 1720193). Needs the CF_API_TOKEN secret. The game version is
-      # worked out from the .toc's Interface line (16001 = 1.60.1); if CurseForge doesn't
-      # list exactly one match, nothing is uploaded and the log shows what it does list.
+      # CurseForge. Needs the CF_API_TOKEN secret. The game version is worked out from the
+      # .toc's Interface line (16001 = 1.60.1); if CurseForge doesn't list exactly one
+      # match, nothing is uploaded and the log shows what it does list.
       # A failure here never undoes the GitHub release above.
       - name: Upload to CurseForge
+        if: github.event_name == 'push' || inputs.curseforge
         continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
           if [ -z "$CF_API_TOKEN" ]; then echo "No CF_API_TOKEN secret, skipping."; exit 0; fi
           VERSION="${{ steps.ver.outputs.version }}"
-          PROJECT=$(grep -m1 '^## X-Curse-Project-ID:' ForeverLedger.toc | sed 's/.*: *//' | tr -d '\r')
+          PROJECT="$CF_PROJECT"
           INTERFACE=$(grep -m1 '^## Interface:' ForeverLedger.toc | sed 's/.*: *//' | tr -d '\r')
           GAME="$((INTERFACE / 10000)).$(((INTERFACE / 100) % 100)).$((INTERFACE % 100))"
           echo "Project $PROJECT, game version $GAME"
@@ -77,3 +102,30 @@ jobs:
             "https://wow.curseforge.com/api/projects/${PROJECT}/upload-file"
           echo
           echo "Uploaded Forever Ledger $VERSION to CurseForge ($TYPE)."
+
+      # Wago. Needs the WAGO_API_TOKEN secret. Wago lists Forever as its own game type
+      # ("forever", patch 1.60.1 in October 2026), worked out from the .toc like above.
+      - name: Upload to Wago
+        if: github.event_name == 'push' || inputs.wago
+        continue-on-error: true
+        env:
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+        run: |
+          if [ -z "$WAGO_API_TOKEN" ]; then echo "No WAGO_API_TOKEN secret, skipping."; exit 0; fi
+          VERSION="${{ steps.ver.outputs.version }}"
+          INTERFACE=$(grep -m1 '^## Interface:' ForeverLedger.toc | sed 's/.*: *//' | tr -d '\r')
+          GAME="$((INTERFACE / 10000)).$(((INTERFACE / 100) % 100)).$((INTERFACE % 100))"
+          curl -sf -H "authorization: Bearer $WAGO_API_TOKEN" -H "accept: application/json" https://addons.wago.io/api/data/game > wago.json
+          if ! jq -e --arg g "$GAME" '.patches.forever | index($g)' wago.json > /dev/null; then
+            echo "Wago doesn't list Forever patch $GAME. It lists:"; jq -c '.patches.forever' wago.json
+            exit 1
+          fi
+          case "$VERSION" in 0.*) STABILITY=beta ;; *) STABILITY=stable ;; esac
+          jq -n --rawfile log release-notes.md --arg label "$VERSION" --arg stability "$STABILITY" --arg game "$GAME" \
+            '{label: $label, stability: $stability, changelog: $log, supported_forever_patches: [$game]}' > wago-metadata.json
+          curl -sS --fail-with-body -H "authorization: Bearer $WAGO_API_TOKEN" -H "accept: application/json" \
+            -F "metadata=<wago-metadata.json" \
+            -F "file=@ForeverLedger-${VERSION}.zip" \
+            "https://addons.wago.io/api/projects/${WAGO_PROJECT}/version"
+          echo
+          echo "Uploaded Forever Ledger $VERSION to Wago ($STABILITY, Forever $GAME)."

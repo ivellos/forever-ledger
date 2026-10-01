@@ -5,6 +5,7 @@
 ## Version: @project-version@
 ## SavedVariables: ForeverLedgerDB
 ## X-Curse-Project-ID: 1720193
+## X-Wago-ID: qGYBBzNg
 
 Core.lua
 Prices.lua
