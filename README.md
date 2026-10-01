@@ -1,46 +1,44 @@
 # Forever Ledger
 
-A World of Warcraft: Forever addon for crafters who like to make gold. It remembers every character's professions and recipes, tracks vendor and auction house prices, and finds profitable shuffles: things you can buy, craft, disenchant or convert, and sell for more.
+A gold-making addon built specifically for **WoW Forever**. It scans the auction house and shows what every item is actually worth to *you*: sell it, vendor it, disenchant it, or craft it into something better. Then it points you at the best buys.
 
-> **Status:** testing on the Forever beta. Expect bugs, and please report them.
+> **Status:** pre-release, tested in the Forever beta and updated often. Expect the odd rough edge, and please report it.
 
 ## Features
 
-- **Dashboard.** A gold graph over any range, with sales, expenses, profit and your best items, for one character or all.
-- **Ledger.** Every sale and purchase, a resale view for your flips, and other money in and out, with search and filters.
-- **Work it and sessions.** Open a shuffle, click items to find them on the auction house or buy them from a vendor, start the craft, and track what one session of it earned.
-- **Deal alerts.** A chime after a scan when something is listed well below its usual price, or below what a vendor pays.
-- **Tinted auction house.** Listings worth buying are highlighted on the auction house itself.
-- **Disenchanting tools.** A finder beside the auction house lists greens by item level with their disenchant value, a one-click Disenchant button works through a shuffle's items, and a recorder checks what you actually get.
-- **One click per step.** Work it has a button for each craft, split and disenchant in a shuffle.
-- **What's it worth to you?** Every tooltip shows an item's best value: selling it on the auction house (after the cut), selling it to a vendor, disenchanting it, splitting or combining essences, or crafting it into something worth more, following chains up to 4 steps long.
-- **Vendor floors.** When a recipe you know turns an item into something a vendor buys, that sets a guaranteed minimum value for its materials.
-- **Buy at or below.** The most worth paying for a material, after a safety margin, shown in green when the auction house price is already lower.
-- **Shuffle finder.** A ranked list of shuffles, split into ones that end with vendor sales (safe) and ones that end on the auction house (depend on buyers), with what to buy, the steps, profit, return and a rough profit per hour. Choose which characters' recipes count.
-- **Vendor flips.** Things listed on the auction house for less than a vendor pays.
-- **Character profiles that build themselves.** Level, professions, skill and every known recipe with its exact materials, saved as you play.
-- **Vendor and auction house prices.** Vendor prices read from the game and from merchant windows. A full auction house scan reads every listing in seconds (Blizzard allows one about every 15 minutes), and a materials scan checks what your recipes use in between.
-- **Works with Auctionator, TSM and Auctioneer.** Uses their prices when your own scan is out of date.
-- **Live sync between accounts.** Pair your main with an auction house character on another account, and prices, recipes and vendor prices flow between them while both are online.
-- **Export and import.** Move data between accounts by copy and paste.
-- **Minimap button.** Click to open the ledger, right-click for shuffles.
-- **Looks at home with EllesmereUI.** Uses its font and your accent colour when it's installed.
+- **Tooltips that answer "what's this worth?"** The best way to turn an item into gold, the most it's worth paying, what it disenchants into, and which of your recipes use it. One line with Shift for more, if you prefer.
+- **Deals.** Listings well below their usual price, with why each one is a deal: the usual price and how many days of scans it's based on, the price now, the next listing up, and the resale profit after the auction house cut. Each deal is rated Good, Fair or Thin.
+- **Vendor flips.** Things on the auction house for less than a vendor pays. Watch flips keeps scanning while the auction house is open and chimes when one shows up.
+- **Shuffles.** Buy materials, craft, disenchant or convert, and sell, ranked by gold per hour. Work it walks you through each step with one-click buttons.
+- **On the auction house.** Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE).
+- **Disenchant finder.** Green armor and weapons by item level, with what each is worth to disenchant and the odds of each material.
+- **Recipes and trainers.** Every recipe for your professions: who knows it, where to get it, the skill needed and profit per craft.
+- **Waylaid Crates.** The cheapest way to fill each crate at today's prices, and gold per Merchant's Favor.
+- **Customer finder and ads.** Spots people in chat asking for what your character can do (enchanting, crafted items, Mage water and portals, Warlock summons, lockpicking), with Whisper and Invite buttons and one-click ads for Trade.
+- **Dashboard and Ledger.** Gold over time, every sale and purchase, resale profit, and where the rest of your money goes.
+- **Gear versions.** "Of the Eagle" and "of the Whale" are priced separately.
+- **Two accounts?** Live sync shares prices and recipes between them while both are online.
+- **Works with Auctionator, TSM and Auctioneer** prices and full scans, and looks at home with EllesmereUI.
 
 The addon suggests; you click. Every craft, purchase and auction still needs your own click, as Blizzard requires.
 
 ## Install
 
-1. Download the latest `ForeverLedger-x.y.z.zip` from [Releases](../../releases), the file under "Assets", not "Source code".
+The easiest way is an addon manager: **Forever Ledger** is on [CurseForge](https://www.curseforge.com/wow/addons/forever-ledger) and [Wago](https://addons.wago.io/addons/forever-ledger), so the CurseForge app, Wago app or WowUp install it and keep it updated.
+
+By hand:
+
+1. Download the latest `ForeverLedger-x.y.z.zip` from [Releases](https://github.com/ivellos/forever-ledger/releases), the file under "Assets", not "Source code".
 2. Open the zip and drag the **ForeverLedger** folder inside it into your Forever client's `Interface\AddOns` folder, so you end up with `Interface\AddOns\ForeverLedger\ForeverLedger.toc`. The folder must be named exactly `ForeverLedger`, with no version number and no extra folder in between, or the game won't see it.
 3. Start the game and make sure Forever Ledger is ticked in the AddOns list, then type `/fl`.
 
 ## How to use it
 
-The [guide](docs/GUIDE.md) explains every feature. The same text is in the game under `/fl` → Help.
+The [guide](https://github.com/ivellos/forever-ledger/blob/main/docs/GUIDE.md) explains every feature, with pictures. The same text is in the game under `/fl` → Help.
 
 ## What's next
 
-See the [roadmap](ROADMAP.md) for planned features. Ideas are welcome in [Issues](../../issues).
+See the [roadmap](https://github.com/ivellos/forever-ledger/blob/main/ROADMAP.md) for planned features. Ideas are welcome in [Issues](https://github.com/ivellos/forever-ledger/issues).
 
 ## Commands
 
@@ -55,7 +53,9 @@ See the [roadmap](ROADMAP.md) for planned features. Ideas are welcome in [Issues
 | `/fl cut 5` | Auction house cut used in values, in percent |
 | `/fl margin 10` | Safety margin for shuffles and "buy at or below", in percent |
 | `/fl seconds 3` | Seconds per craft, used for profit per hour |
-| `/fl deals` | List current deals (`/fl deals settings` for the options; they're also in the Settings tab) |
+| `/fl watch` | Watch flips: keep scanning while the auction house is open, chime on a new vendor flip |
+| `/fl deals` | Open the Deals tab (`/fl deals list` in chat, `/fl deals settings` for the options; they're also in the Settings tab) |
+| `/fl customers` / `/fl work` | The Customers window: requests from chat, ads, and work done |
 | `/fl session` | Open the Work it window for the running session |
 | `/fl money` | Today's money in and out for this character |
 | `/fl de` | Disenchant results so far, against what the addon expects (`/fl de reset` to start over) |
@@ -73,7 +73,7 @@ See the [roadmap](ROADMAP.md) for planned features. Ideas are welcome in [Issues
 
 ## Reporting a bug
 
-Open an [issue](../../issues/new/choose) and include the output of `/fl api` and any error text from BugSack.
+Open an [issue](https://github.com/ivellos/forever-ledger/issues/new/choose) and include the output of `/fl api` and any error text from BugSack.
 
 ## Project layout
 
@@ -87,6 +87,6 @@ Open an [issue](../../issues/new/choose) and include the output of `/fl api` and
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/ivellos/forever-ledger/blob/main/LICENSE).
 
 Classic recipe sources in `ClassicRecipes.lua` are generated by `tools/build-classic-data.ps1` from [wow-classic-items](https://github.com/nexus-devs/wow-classic-items) by nexus-devs and [pfQuest](https://github.com/shagu/pfQuest) by shagu (both MIT licence).
