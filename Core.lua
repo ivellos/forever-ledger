@@ -388,6 +388,17 @@ function ns:ApiReport()
     local ok, n = pcall(GetNumCompanions, "CRITTER")
     print("  Companion pets known (old list): " .. (ok and tostring(n) or "error"))
   end
+  -- The journal listed 0 pets for an owner with none (September 30). Asking for pets by
+  -- their item shows whether the data is there anyway: Cat Carrier (Bombay) 8485,
+  -- Cat Carrier (Siamese) 8490, Parrot Cage (Green Wing Macaw) 8492, Excitable Slime 275682.
+  if C_PetJournal and C_PetJournal.GetPetInfoByItemID then
+    for _, item in ipairs({ 8485, 8490, 8492, 275682 }) do
+      local ok, name, _, _, _, source, _, _, _, tradeable, _, _, _, species = pcall(C_PetJournal.GetPetInfoByItemID, item)
+      print(("  Pet item %d: %s"):format(item, not ok and "error" or not name and "no data" or
+        ("%s (species %s), tradeable %s, source: %s"):format(name, tostring(species), tostring(tradeable),
+          tostring(source):gsub("|", "||"):sub(1, 120))))
+    end
+  end
 end
 
 ---------------------------------------------------------------------------
