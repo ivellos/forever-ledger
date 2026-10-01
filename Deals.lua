@@ -171,8 +171,10 @@ local function show(d, key)
   if key == "listed" then return tostring(d.listed) end
   if key == "sold" then
     if not d.soldPerDay then return dim("?") end
-    if d.soldPerDay == 0 then return "|cffee85970|r" end
-    return d.soldPerDay < 1 and "<1" or tostring(math.floor(d.soldPerDay + 0.5))
+    -- "~" marks a rough figure (mostly scans hours apart).
+    local mark = d.soldRough and "~" or ""
+    if d.soldPerDay == 0 then return "|cffee8597" .. mark .. "0|r" end
+    return mark .. (d.soldPerDay < 1 and "<1" or tostring(math.floor(d.soldPerDay + 0.5)))
   end
   if key == "each" or key == "total" then
     local v = d[key]

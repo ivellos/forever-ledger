@@ -34,7 +34,8 @@ local DEFAULTS = {
   historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (2 years)
   historyAll = {},    -- [marketKey][itemID] = "lowest:typicalSum:days"
   suffixNames = {},   -- [version name, "of the Whale"] = the bonus ID full scans saw for it (Prices.lua)
-  historySold = {},   -- [marketKey][itemID] = "day:gone:minutes|..." listings gone between full scans (sell speed)
+  historySold = {},   -- [marketKey][itemID] = "day:gone:minutes:closeMinutes|..." listings gone between full scans (sell speed)
+  -- soldSnap = { t, market, items = { [itemID] = "price:count" } }: the last full scan's counts (Prices.lua), no default
   historyQty = {},    -- [marketKey][itemID] = "day:listed|..." most listed seen each day (last 30 days)
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true,
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,

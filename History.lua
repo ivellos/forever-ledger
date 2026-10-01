@@ -407,33 +407,45 @@ function ns:UsualPrice(id, window)
   return points[math.floor((#points + 1) / 2)], #points
 end
 
--- Sell speed (Prices.lua compares full scans): units gone between scans and the minutes
--- covered, summed per day: historySold[market][id] = "day:gone:minutes|..." (30 days).
-function ns:RecordSold(id, gone, minutes)
+-- Sell speed (Prices.lua compares full scans): units gone between scans, the minutes
+-- covered, and how many of those minutes came from close ("watched") pairs, summed per
+-- day: historySold[market][id] = "day:gone:minutes:closeMinutes|..." (30 days; entries
+-- written before the close count was added have three numbers).
+local function soldEntry(e)
+  local d, g, m, c = e:match("^(%d+):(%d+):(%d+):?(%d*)$")
+  -- Three-number entries came from the first version, which only compared scans within
+  -- one session (the flip watch), so count them as close.
+  return tonumber(d), tonumber(g), tonumber(m), tonumber(c) or tonumber(m)
+end
+
+function ns:RecordSold(id, gone, minutes, close)
   if not ns.db or minutes <= 0 then return end
   local sold = marketTable("historySold")
   local d = today()
   local s = sold[id] or ""
-  local lastDay, lastGone, lastMin = s:match("(%d+):(%d+):(%d+)$")
-  if tonumber(lastDay) == d then
-    gone, minutes = gone + tonumber(lastGone), minutes + tonumber(lastMin)
+  local closeMin = close and minutes or 0
+  local lastDay, lastGone, lastMin, lastClose = soldEntry(s:match("[^|]*$"))
+  if lastDay == d then
+    gone, minutes, closeMin = gone + lastGone, minutes + lastMin, closeMin + lastClose
     s = s:gsub("[^|]*$", "")
   elseif s ~= "" then
     s = s .. "|"
   end
-  s = s .. ("%.0f:%.0f:%.0f"):format(d, gone, minutes)
+  s = s .. ("%.0f:%.0f:%.0f:%.0f"):format(d, gone, minutes, closeMin)
   while s:find("|", 1, true) and tonumber(s:match("^(%d+)")) <= d - DAILY_DAYS do s = s:gsub("^[^|]*|", "") end
   sold[id] = s
 end
 
--- Units gone between scans and minutes of scans behind it, over a period (today included).
+-- Units gone between scans, minutes of scans behind it, and the minutes from close
+-- ("watched") pairs, over a period (today included).
 function ns:SellRate(id, window)
   local from = today() - math.min(ns.PRICE_WINDOWS[window or "all"] or math.huge, DAILY_DAYS)
-  local gone, minutes = 0, 0
-  for day, g, m in (marketTable("historySold")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
-    if tonumber(day) >= from then gone, minutes = gone + tonumber(g), minutes + tonumber(m) end
+  local gone, minutes, close = 0, 0, 0
+  for e in (marketTable("historySold")[id] or ""):gmatch("[^|]+") do
+    local day, g, m, c = soldEntry(e)
+    if day and day >= from then gone, minutes, close = gone + g, minutes + m, close + c end
   end
-  return gone, minutes
+  return gone, minutes, close
 end
 
 local function median(list)

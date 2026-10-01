@@ -360,12 +360,37 @@ ns.RecordPrice = record
 -- expired or were cancelled). Each full scan notes, per item, how many units were
 -- listed at up to 1.25 x its typical price; the next full scan counts how many of
 -- those are gone. New listings in between hide some sales, so it's a low estimate.
--- History.lua keeps the totals per day (RecordSold, SellRate). Kept in memory only:
--- the flip watch runs a full scan every 15 minutes, so pairs come within one session.
+-- History.lua keeps the totals per day (RecordSold, SellRate).
+-- Best effort (owner, September 30: most players won't watch the AH all day): the last
+-- full scan is saved (soldSnap), so the first scan of a session compares with the last
+-- one before it, up to 12 hours apart. Pairs more than 30 minutes apart are "rough":
+-- expired listings count as gone too. Only the flip watch's scans every 15 minutes give
+-- a fair picture; the Deals tab says which.
 ---------------------------------------------------------------------------
-local SOLD_MAX_GAP = 3 * 3600   -- scans further apart than this aren't compared
+local SOLD_MAX_GAP = 12 * 3600  -- scans further apart than this aren't compared
+local SOLD_CLOSE = 30 * 60      -- pairs this close are "watched", further apart "rough"
 local SOLD_PRICE = 1.25         -- "reasonably priced": up to this times the typical price
 local lastSnap                  -- { t, market, items = { [id] = { price, count } } }
+
+-- The saved copy of the last full scan's counts: items[id] = "price:count".
+local function loadSnap()
+  local s = ns.db.soldSnap
+  if not (s and s.t and s.items) then return end
+  local items = {}
+  for id, v in pairs(s.items) do
+    local p, n = v:match("^(%d+):(%d+)$")
+    if p then items[id] = { tonumber(p), tonumber(n) } end
+  end
+  return { t = s.t, market = s.market, items = items }
+end
+
+local function saveSnap(snap)
+  local items = {}
+  for id, v in pairs(snap.items) do
+    if v[2] > 0 then items[id] = ("%d:%d"):format(v[1], v[2]) end
+  end
+  ns.db.soldSnap = { t = snap.t, market = snap.market, items = items }
+end
 
 local function countUpTo(units, price)
   local n = 0
@@ -376,8 +401,9 @@ end
 -- Collects one full scan's items and compares them with the previous full scan.
 local function soldTracker()
   local now, market = time(), ns.MarketKey()
-  local prev = lastSnap
+  local prev = lastSnap or loadSnap()
   local compare = prev and prev.market == market and now - prev.t >= 60 and now - prev.t <= SOLD_MAX_GAP
+  local close = compare and now - prev.t <= SOLD_CLOSE
   local snap = { t = now, market = market, items = {} }
   local seen = {}
   local t = {}
@@ -388,18 +414,20 @@ local function soldTracker()
     if limit then snap.items[id] = { limit, countUpTo(units, limit) } end
     local p = compare and prev.items[id]
     if p and p[2] > 0 and ns.RecordSold then
-      pcall(ns.RecordSold, ns, id, math.max(0, p[2] - countUpTo(units, p[1])), (now - prev.t) / 60)
+      pcall(ns.RecordSold, ns, id, math.max(0, p[2] - countUpTo(units, p[1])), (now - prev.t) / 60, close)
     end
   end
   function t.finish()
     if compare and ns.RecordSold then
       -- Items with nothing listed now: everything that was listed is gone.
       for id, p in pairs(prev.items) do
-        if not seen[id] and p[2] > 0 then pcall(ns.RecordSold, ns, id, p[2], (now - prev.t) / 60) end
+        if not seen[id] and p[2] > 0 then pcall(ns.RecordSold, ns, id, p[2], (now - prev.t) / 60, close) end
       end
-      ns:Debug(("Sell speed: compared with the full scan %d minutes ago."):format(math.floor((now - prev.t) / 60)))
+      ns:Debug(("Sell speed: compared with the full scan %d minutes ago (%s)."):format(
+        math.floor((now - prev.t) / 60), close and "watched" or "rough: expired listings count too"))
     end
     lastSnap = snap
+    saveSnap(snap)
   end
   return t
 end

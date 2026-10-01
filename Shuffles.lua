@@ -664,9 +664,11 @@ local function judgeUsual(id, rec)
     d.warnings[#d.warnings + 1] = "Usually only one is listed: it may sell slowly, or the usual price may be one hopeful seller."
   end
   -- Sell speed: listings gone between full scans (a low estimate of sales).
-  local gone, minutes = ns:SellRate(id, s.dealWindow)
+  local gone, minutes, close = ns:SellRate(id, s.dealWindow)
   if minutes >= 60 then
     d.soldPerDay, d.soldHours = gone / minutes * 1440, minutes / 60
+    -- Rough unless most of it comes from the flip watch's scans 15 minutes apart.
+    d.soldRough = close < minutes / 2
     if gone == 0 and minutes >= SLOW_MINUTES then
       level = lower(level)
       d.warnings[#d.warnings + 1] = ("None disappeared in %d hours of scans: it may sell slowly."):format(math.floor(minutes / 60))
@@ -757,7 +759,11 @@ function ns:DealExplain(d)
   end
   if d.soldPerDay then
     pair("Gone between scans", (d.soldPerDay >= 1 and ("about %d a day"):format(math.floor(d.soldPerDay + 0.5))
-      or d.soldPerDay > 0 and "less than 1 a day" or "none") .. (" (%d h watched)"):format(math.floor(d.soldHours + 0.5)))
+      or d.soldPerDay > 0 and "less than 1 a day" or "none") .. (" (%d h of scans)"):format(math.floor(d.soldHours + 0.5)))
+    if d.soldRough then
+      L[#L + 1] = { note = "Rough guess: mostly from scans hours apart, where expired listings count as gone too. Run Watch flips for a better figure.",
+        color = { 0.75, 0.75, 0.75 } }
+    end
   end
 
   L[#L + 1] = { head = "If you resell" }
@@ -768,7 +774,7 @@ function ns:DealExplain(d)
   L[#L + 1] = { head = "How sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) }
   L[#L + 1] = { note = ns.DEAL_LEVEL_WHY[d.level] or "", color = { 0.75, 0.75, 0.75 } }
   for _, w in ipairs(d.warnings) do L[#L + 1] = { note = w, color = { 1, 0.6, 0.3 } } end
-  L[#L + 1] = { note = "The auction house shows what's listed, not what sold. \"Gone between scans\" counts listings that vanished (mostly bought, some expired).",
+  L[#L + 1] = { note = "The auction house shows what's listed, not what sold. \"Gone between scans\" is a best guess from listings that vanished: only close to right with Watch flips running (a scan every 15 minutes).",
     color = { 0.5, 0.5, 0.5 } }
   return L
 end
