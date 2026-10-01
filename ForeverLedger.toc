@@ -4,6 +4,7 @@
 ## Author: Forever Ledger
 ## Version: @project-version@
 ## SavedVariables: ForeverLedgerDB
+## X-Curse-Project-ID: 1720193
 
 Core.lua
 Prices.lua

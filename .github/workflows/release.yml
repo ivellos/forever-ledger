@@ -45,3 +45,35 @@ jobs:
           body_path: release-notes.md
           files: ForeverLedger-${{ steps.ver.outputs.version }}.zip
           prerelease: ${{ startsWith(steps.ver.outputs.version, '0.') }}
+
+      # CurseForge (project 1720193). Needs the CF_API_TOKEN secret. The game version is
+      # worked out from the .toc's Interface line (16001 = 1.60.1); if CurseForge doesn't
+      # list exactly one match, nothing is uploaded and the log shows what it does list.
+      # A failure here never undoes the GitHub release above.
+      - name: Upload to CurseForge
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ]; then echo "No CF_API_TOKEN secret, skipping."; exit 0; fi
+          VERSION="${{ steps.ver.outputs.version }}"
+          PROJECT=$(grep -m1 '^## X-Curse-Project-ID:' ForeverLedger.toc | sed 's/.*: *//' | tr -d '\r')
+          INTERFACE=$(grep -m1 '^## Interface:' ForeverLedger.toc | sed 's/.*: *//' | tr -d '\r')
+          GAME="$((INTERFACE / 10000)).$(((INTERFACE / 100) % 100)).$((INTERFACE % 100))"
+          echo "Project $PROJECT, game version $GAME"
+          curl -sf -H "X-Api-Token: $CF_API_TOKEN" https://wow.curseforge.com/api/game/versions > versions.json
+          IDS=$(jq -c --arg g "$GAME" '[.[] | select(.name == $g) | .id]' versions.json)
+          if [ "$(echo "$IDS" | jq length)" != "1" ]; then
+            echo "Expected one CurseForge game version named $GAME, found: $IDS"
+            jq -c --arg g "$GAME" '.[] | select(.name == $g)' versions.json
+            exit 1
+          fi
+          case "$VERSION" in 0.*) TYPE=beta ;; *) TYPE=release ;; esac
+          jq -n --rawfile log release-notes.md --arg name "Forever Ledger $VERSION" --arg type "$TYPE" --argjson ids "$IDS" \
+            '{changelog: $log, changelogType: "markdown", displayName: $name, gameVersions: $ids, releaseType: $type}' > metadata.json
+          curl -sf -H "X-Api-Token: $CF_API_TOKEN" \
+            -F "metadata=<metadata.json" \
+            -F "file=@ForeverLedger-${VERSION}.zip" \
+            "https://wow.curseforge.com/api/projects/${PROJECT}/upload-file"
+          echo
+          echo "Uploaded Forever Ledger $VERSION to CurseForge ($TYPE)."

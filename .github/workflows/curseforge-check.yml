@@ -1,0 +1,27 @@
+name: Check CurseForge setup
+
+# Run by hand (Actions tab, or gh workflow run): checks the CF_API_TOKEN secret works and
+# that CurseForge lists the game version the release upload will use. Uploads nothing.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Check the token and game version
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ]; then echo "No CF_API_TOKEN secret."; exit 1; fi
+          INTERFACE=$(grep -m1 '^## Interface:' ForeverLedger.toc | sed 's/.*: *//' | tr -d '\r')
+          GAME="$((INTERFACE / 10000)).$(((INTERFACE / 100) % 100)).$((INTERFACE % 100))"
+          curl -sf -H "X-Api-Token: $CF_API_TOKEN" https://wow.curseforge.com/api/game/versions > versions.json
+          echo "Game versions named $GAME:"
+          jq -c --arg g "$GAME" '.[] | select(.name == $g)' versions.json
+          N=$(jq --arg g "$GAME" '[.[] | select(.name == $g)] | length' versions.json)
+          if [ "$N" != "1" ]; then echo "Expected exactly one, found $N."; exit 1; fi
+          echo "OK: the token works and $GAME is listed once."
