@@ -440,6 +440,11 @@ SlashCmdList.FOREVERLEDGER = function(msg)
   elseif msg == "debug" then
     ns.db.settings.debug = not ns.db.settings.debug
     ns:Print("Debug messages " .. (ns.db.settings.debug and "on." or "off."))
+  elseif msg == "sellcheck" then
+    -- The saved sell speed check lines (Prices.lua), for testing.
+    local log = ns.db.sellCheckLog or {}
+    if #log == 0 then ns:Print("No sell speed checks yet: they appear after two full scans.") end
+    for _, line in ipairs(log) do print("  " .. line) end
   elseif msg:match("^deals") then
     local set = ns.db.settings
     local cmd, arg = msg:match("^deals%s+(%S+)%s*(%S*)")

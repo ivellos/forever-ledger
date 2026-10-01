@@ -457,17 +457,26 @@ local function soldTracker()
           pcall(ns.RecordSold, ns, id, p[2], (now - prev.t) / 60, close)
         end
       end
-      ns:Debug(("Sell speed: compared with the full scan %d minutes ago (%s)."):format(
+      -- Also kept in saved data (last 30 lines), since busy chat scrolls them away:
+      -- /fl sellcheck prints them.
+      local log = ns.db.sellCheckLog or {}
+      ns.db.sellCheckLog = log
+      local function note(text)
+        ns:Debug(text)
+        log[#log + 1] = date("%m-%d %H:%M ") .. text
+        while #log > 30 do table.remove(log, 1) end
+      end
+      note(("Sell speed: compared with the full scan %d minutes ago (%s)."):format(
         math.floor((now - prev.t) / 60), close and "watched" or "rough: expired listings count too"))
       -- If scans don't return the same listings each time, "down" and "up" are both big
       -- and similar (noise), not mostly "down" (sales).
-      ns:Debug(("Sell speed check: %d units went down, %d went up, %d items vanished completely."):format(down, up, missing))
+      note(("Sell speed check: %d units went down, %d went up, %d items vanished completely."):format(down, up, missing))
       table.sort(drops, function(a, b) return a[2] - a[3] > b[2] - b[3] end)
       for i = 1, math.min(5, #drops) do
-        ns:Debug(("  %s: %d then %d"):format(ns.ItemName(drops[i][1]) or drops[i][1], drops[i][2], drops[i][3]))
+        note(("  %s: %d then %d"):format(ns.ItemName(drops[i][1]) or drops[i][1], drops[i][2], drops[i][3]))
       end
       if older then
-        ns:Debug(("Sell speed came-back check: of %d units that went down last time, %d came back this time (%d%%)."):format(
+        note(("Sell speed came-back check: of %d units that went down last time, %d came back this time (%d%%)."):format(
           lastDrop, cameBack, lastDrop > 0 and math.floor(cameBack / lastDrop * 100 + 0.5) or 0))
       end
     end
