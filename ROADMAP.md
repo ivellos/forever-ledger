@@ -14,6 +14,11 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 ## Gold making
 
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
+- **Your auctions**: undercut and sold alerts for what you've listed, with the price to repost at.
+- **Vendor or auction house?**: on the Sell tab, what each item in your bags would net on the auction house after the cut and deposit against what a vendor pays, with a one-click list to vendor the rest.
+- **Deals per stat version**: judge "of the Monkey" against other Monkey versions, not the item as a whole.
+- **Which recipes are worth buying**: a recipe's cost (gold or Merchant's Favor) against its profit per craft and how often you'd make it.
+- **Market movers**: items whose price jumped or crashed since the last patch.
 - **More for deals**: sell speed in item tooltips too, a restock planner and named watch lists.
 - **"Post at" hint**: the price to list at when selling: match the cheapest for materials (the newest listing at a price sells first), undercut for gear.
 - **Pets**: a collection tracker (which pets you have, which you're missing and where each comes from, including Forever's new ones), plus pets as a gold vector: tradeable pets' auction house prices and where to farm them.
@@ -25,6 +30,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Leveling
 
+- **Farming sessions**: start a session, gather or fight, and see gold per hour from what you actually picked up, so you know which spots are worth it.
 - **Leveling to-do list**: reminders that pop up at the right moment, for example "Level 14: time to get your Cozy Sleeping Bag".
 - **Cozy Sleeping Bag**: whether the trip is worth it for your route and pace, and the best time to get it.
 - **Training costs**: what the next levels of class and profession training will cost, so you can save for them.
@@ -43,6 +49,9 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 ## Quality of life
 
 - **"What's new"** notes after each update.
+- **Bag and inventory value**: what everything in your bags, bank and alts is worth now, and what to sell first.
+- **Mail helper**: open all mail in one click (sales logged as it goes), and a warning when one mail carries many stacks.
+- **Plays nice with Auctionator and TSM**: features they already cover are switched off when they're installed, with a one-time message saying what and how to turn them back on.
 - **UI styles**: choose the look: EllesmereUI (current), Retail, Classic or Forever.
 - **Shopping list** across shuffles.
 

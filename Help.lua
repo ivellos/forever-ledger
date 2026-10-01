@@ -18,7 +18,7 @@ ns.HELP = {
     { "Full scan", "Reads every listing in a few seconds." },
     { "Scan materials", "Checks just what your recipes use." },
     { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. An eye on the button shows it's running." },
-    { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too." },
+    { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too. With Auctionator or TSM installed, features they already cover (like auction prices in tooltips) are switched off once, with a message; turn them back on in Settings." },
     { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
   } },
   { "Tooltips", {
@@ -158,27 +158,66 @@ function ns:RefreshHelp()
 end
 
 ---------------------------------------------------------------------------
--- One-time tooltip question for TSM / Auctionator users
+-- Playing nice with Auctionator and TSM (owner, October 1): features they already
+-- cover are switched off the first time each is found, with a one-time message
+-- saying what was turned off and where to turn it back on. Every new feature that
+-- overlaps one of them gets an entry here (its setting, its name in the message, and
+-- which addons cover it).
 ---------------------------------------------------------------------------
-local function otherAuctionAddon()
+local AUCTION_ADDONS = {
+  { name = "Auctionator", global = "Auctionator" },
+  { name = "TradeSkillMaster", short = "TSM", global = "TSM_API" },
+}
+ns.OVERLAPS = {
+  { setting = "tipPrice", label = "Auction and vendor prices in tooltips", addons = { Auctionator = true, TradeSkillMaster = true } },
+}
+
+local function loaded(a)
   local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
-  if Auctionator or (isLoaded and isLoaded("Auctionator")) then return "Auctionator" end
-  if TSM_API or (isLoaded and isLoaded("TradeSkillMaster")) then return "TradeSkillMaster" end
+  return _G[a.global] ~= nil or (isLoaded and isLoaded(a.name))
 end
 
-StaticPopupDialogs["FOREVER_LEDGER_TOOLTIP_SIZE"] = {
-  text = "Forever Ledger adds lines to item tooltips: what an item is worth to you (sell, disenchant or craft), the most worth paying, and which of your recipes use it.\n\n%s already shows prices there too. Keep everything, or show one line and hold Shift for the rest?\n\n(You can change this any time in Settings.)",
-  button1 = "One line, Shift for more",
-  button2 = "Keep everything",
-  OnAccept = function() ns.db.settings.tipMode = "compact"; ns.db.settings.tipAsked = true end,
-  OnCancel = function() ns.db.settings.tipAsked = true end,
+StaticPopupDialogs["FOREVER_LEDGER_OVERLAP"] = {
+  text = "%s",
+  button1 = OKAY or "OK",
+  button2 = "Keep them on",
+  OnCancel = function(_, turnedOff)
+    for _, key in ipairs(turnedOff or {}) do ns.db.settings[key] = true end
+    ns:Print("Kept them on. You can change this any time in Settings.")
+  end,
   timeout = 0, whileDead = true, hideOnEscape = false, preferredIndex = 3,
 }
 
 ns:On("PLAYER_ENTERING_WORLD", function()
   C_Timer.After(10, function()
-    if not ns.db or ns.db.settings.tipAsked then return end
-    local other = otherAuctionAddon()
-    if other then StaticPopup_Show("FOREVER_LEDGER_TOOLTIP_SIZE", other) end
+    if not ns.db then return end
+    local s = ns.db.settings
+    s.overlapSeen = s.overlapSeen or {}
+    local found, names, turnedOff = {}, {}, {}
+    for _, a in ipairs(AUCTION_ADDONS) do
+      if loaded(a) and not s.overlapSeen[a.name] then
+        s.overlapSeen[a.name] = true
+        found[a.name] = true
+        names[#names + 1] = a.short or a.name
+      end
+    end
+    if #names == 0 then return end
+    -- The old tooltip question (before October 1) is covered by this one.
+    s.tipAsked = true
+    local lines = {}
+    for _, o in ipairs(ns.OVERLAPS) do
+      local covered
+      for name in pairs(found) do if o.addons[name] then covered = true end end
+      if covered and s[o.setting] ~= false then
+        s[o.setting] = false
+        turnedOff[#turnedOff + 1] = o.setting
+        lines[#lines + 1] = "- " .. o.label
+      end
+    end
+    if #turnedOff == 0 then return end
+    local text = ("%s is installed. So you don't see things twice, Forever Ledger turned off:\n\n%s\n\nEverything else stays on. You can turn these back on any time in Settings."):format(
+      table.concat(names, " and "), table.concat(lines, "\n"))
+    local dialog = StaticPopup_Show("FOREVER_LEDGER_OVERLAP", text)
+    if dialog then dialog.data = turnedOff end
   end)
 end)

@@ -18,6 +18,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 - **Full scan** reads every listing in a few seconds. **Scan materials** checks just what your recipes use.
 - **Watch flips** keeps scanning while the auction house stays open and chimes when a new vendor flip turns up. An eye on the button shows it's running.
 - If Auctionator or another addon runs a full scan, Forever Ledger reads it too.
+- **With Auctionator or TSM installed**, Forever Ledger switches off the features they already cover, so you don't see things twice: for now, the auction and vendor price lines in tooltips (Worth to you, Buy at or below and the rest stay). A one-time message says what was turned off; **Keep them on** undoes it, and Settings can change it any time.
 - Neutral auction houses (Booty Bay, Gadgetzan, Everlook) keep their own prices.
 
 ![Watch flips, Disenchant finder, Full scan and Scan materials under the auction house](images/auction-house.png)
