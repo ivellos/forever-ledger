@@ -53,7 +53,8 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **"What's new"** notes after each update.
 - **Bag and inventory value**: what everything in your bags, bank and alts is worth now, and what to sell first.
 - **Mail helper**: open all mail in one click (sales logged as it goes), and a warning when one mail carries many stacks.
-- **Plays nice with Auctionator and TSM**: features they already cover are switched off when they're installed, with a one-time message saying what and how to turn them back on.
+- **Plays nice with Auctionator and TSM**: features they already cover are switched off when they're installed, with a one-time message saying what and how to turn them back on. Later also Leatrix Plus and ForeverForge, for auto-selling and sniping.
+- **Prices for other addons' lists**: what GearQuest's suggested upgrades cost on the auction house right now, and what Dungeon Journal's boss loot is worth per run, when those addons are installed.
 - **UI styles**: choose the look: EllesmereUI (current), Retail, Classic or Forever.
 - **Shopping list** across shuffles.
 
