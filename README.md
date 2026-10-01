@@ -22,6 +22,16 @@ A gold-making addon built specifically for **WoW Forever**. It scans the auction
 
 The addon suggests; you click. Every craft, purchase and auction still needs your own click, as Blizzard requires.
 
+## Your data
+
+Forever Ledger keeps everything in its saved file on your own PC (`WTF\Account\...\SavedVariables\ForeverLedger.lua`). Nothing is sent to the author or anyone else.
+
+- **What it keeps:** auction house and vendor prices and their history; recipe, vendor and trainer locations you've seen; your characters' professions and recipes, gold over time, sales, purchases and vendor trades; bag and bank contents (this account only); requests the customer finder spotted in chat; and your work-done log.
+- **What it sends:** only two things, and only when you choose to. Live sync whispers prices and recipes to **your own** paired character (off until you use `/fl pair`), and the ad buttons post your ad in Trade chat when you click them.
+- **Export** copies your data as text for you to paste on your other account; it goes nowhere by itself.
+
+If a feature ever shares anything with other players (an idea on the roadmap: sharing where vendors and trainers are, so everyone's data fills in faster), it will be world facts only, never names, gold or bags, it will ask first, and you can turn it off.
+
 ## Install
 
 The easiest way is an addon manager: **Forever Ledger** is on [CurseForge](https://www.curseforge.com/wow/addons/forever-ledger) and [Wago](https://addons.wago.io/addons/forever-ledger), so the CurseForge app, Wago app or WowUp install it and keep it updated.

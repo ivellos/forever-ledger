@@ -65,6 +65,11 @@ ns.HELP = {
     { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online." },
     { "Export and import", "On the Characters tab, to copy everything across by hand." },
   } },
+  { "Your data", {
+    { "Stays on your PC", "Everything Forever Ledger records is kept in its saved file on your computer. Nothing is sent to the author or anyone else." },
+    { "What it keeps", "Prices and their history, vendor and trainer locations you've seen, your characters' recipes, gold, sales and purchases, bags and bank, chat requests it spotted, and your work log." },
+    { "What it sends", "Only live sync to your own paired character (off until /fl pair), and ads in Trade when you click an ad button." },
+  } },
   { "Commands", {
     { "/fl", "Open or close the window." },
     { "/fl scan", "Full scan or materials." },

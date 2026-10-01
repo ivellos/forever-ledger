@@ -57,4 +57,4 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Community data
 
-- **Shared locations**: addon users can share where vendors and trainers are and what they sell, so everyone's recipe and trainer data fills in faster. World facts only (no names, gold or bags), and you can turn it off.
+- **Shared locations**: addon users can share where vendors and trainers are and what they sell, so everyone's recipe and trainer data fills in faster. World facts only (no names, gold or bags); it will ask before turning on, and you can turn it off. Not built yet: today nothing is shared.

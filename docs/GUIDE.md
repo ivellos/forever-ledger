@@ -91,6 +91,13 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 - **Live sync** (`/fl pair First Last`) sends prices and recipes between your two accounts while both are online. Export and import work too.
 
+## Your data
+
+- Everything Forever Ledger records stays in its saved file on your own PC. **Nothing is sent to the author or anyone else.**
+- **It keeps:** auction house and vendor prices and their history; recipe, vendor and trainer locations you've seen; your characters' professions and recipes, gold over time, sales, purchases and vendor trades; bag and bank contents (this account only); requests the customer finder spotted in chat; and your work-done log.
+- **It sends** only when you choose to: live sync whispers to **your own** paired character (off until you use `/fl pair`), and ad buttons post in Trade when you click them. Export copies text for you to paste; it goes nowhere by itself.
+- A future option to share where vendors and trainers are with other players (on the roadmap) would share world facts only, never names, gold or bags, would ask first, and could be turned off.
+
 ## Commands
 
 | Command | What it does |

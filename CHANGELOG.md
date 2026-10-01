@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- "Your data" in the Help tab, the guide and the README: everything stays on your PC; the addon only sends live sync to your own paired character and ads you click to post.
+
 ### Changed
 - Plays nice with Auctionator and TSM: the first time either is found, Forever Ledger switches off what they already cover (for now the auction and vendor price lines in tooltips) and says so once, with a button to keep them on. Settings can change it any time. This replaces the old one-line-tooltip question.
 - Deals are measured against the price an item is usually *cheapest* at, not its typical price (which includes dearer listings), and profit assumes reselling at that usual cheapest price or just under the next listing. Gray Woolen Robe at 40s showed as 27% off while it was normally listed from 38s; it's no longer a deal. Only listings that still make the minimum profit count towards "Profit all". Expect far fewer, more believable deals.
