@@ -35,7 +35,6 @@ ns.HELP = {
   { "Deals", {
     { "Deals tab", "Listings well below their usual price, to buy and resell: price now, usual price, how many are cheap, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },
     { "Why it's a deal", "Hover a deal: the usual price and how many days of your scans it comes from, the range most days, how many are usually listed, and the next listing up (reselling today means pricing under it). Click to search the auction house." },
-    { "Gone per day", "A best guess at sell speed: reasonably priced listings that disappeared between full scans (mostly bought, but expired and cancelled ones count too). It's only close to right with Watch flips running, a scan every 15 minutes. Scans hours apart, even across logins, still add up but are marked ~ (rough). Deals where nothing moved in 6 hours are marked less sure." },
     { "How sure", "Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too." },
     { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },

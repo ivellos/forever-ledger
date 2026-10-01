@@ -668,8 +668,10 @@ local function judgeUsual(id, rec)
     d.warnings[#d.warnings + 1] = "Usually only one is listed: it may sell slowly, or the usual price may be one hopeful seller."
   end
   -- Sell speed: listings gone between full scans (a low estimate of sales).
+  -- Hidden unless /fl debug is on (September 30: full scans don't return the same
+  -- listings each time, so the counts were mostly noise). Still collected meanwhile.
   local gone, minutes, close = ns:SellRate(id, s.dealWindow)
-  if minutes >= 60 then
+  if s.debug and minutes >= 60 then
     d.soldPerDay, d.soldHours = gone / minutes * 1440, minutes / 60
     -- Rough unless most of it comes from the flip watch's scans 15 minutes apart.
     d.soldRough = close < minutes / 2

@@ -378,6 +378,7 @@ local SOLD_MAX_GAP = 12 * 3600  -- scans further apart than this aren't compared
 local SOLD_CLOSE = 30 * 60      -- pairs this close are "watched", further apart "rough"
 local SOLD_PRICE = 1.25         -- "reasonably priced": up to this times the typical price
 local lastSnap                  -- { t, market, items = { [id] = { price, count } } }
+local olderSnap                 -- the one before lastSnap, for the "came back" check (memory only)
 
 -- The saved copy of the last full scan's counts: items[id] = "price:count".
 local function loadSnap()
@@ -415,13 +416,27 @@ local function soldTracker()
   local seen = {}
   local t = {}
   -- For checking (/fl debug): units that went down vs up, and the biggest drops.
+  -- "Came back": units that dropped between the two previous scans and reappeared now.
+  -- If most come back, full scans return a different slice of the auction house each
+  -- time (beta, September 30: 10,890 down and 26,559 up in 16 minutes).
   local down, up, missing, drops = 0, 0, 0, {}
+  local older = compare and olderSnap and olderSnap.market == market and olderSnap
+  local lastDrop, cameBack = 0, 0
   function t.add(id, units)
     seen[id] = true
     local rec = (ns.db.prices[market] or {})[id]
     local limit = rec and rec.a and math.floor(rec.a * SOLD_PRICE)
     if limit then snap.items[id] = { limit, countUpTo(units, limit) } end
     local p = compare and prev.items[id]
+    local o = older and older.items[id]
+    if p and o then
+      local before = countUpTo(units, p[1])
+      local dropped = o[2] - p[2]
+      if dropped > 0 then
+        lastDrop = lastDrop + dropped
+        cameBack = cameBack + math.min(dropped, math.max(0, before - p[2]))
+      end
+    end
     if p and p[2] > 0 and ns.RecordSold then
       local nowN = countUpTo(units, p[1])
       if nowN < p[2] then
@@ -451,7 +466,12 @@ local function soldTracker()
       for i = 1, math.min(5, #drops) do
         ns:Debug(("  %s: %d then %d"):format(ns.ItemName(drops[i][1]) or drops[i][1], drops[i][2], drops[i][3]))
       end
+      if older then
+        ns:Debug(("Sell speed came-back check: of %d units that went down last time, %d came back this time (%d%%)."):format(
+          lastDrop, cameBack, lastDrop > 0 and math.floor(cameBack / lastDrop * 100 + 0.5) or 0))
+      end
     end
+    olderSnap = compare and prev or nil
     lastSnap = snap
     saveSnap(snap)
   end

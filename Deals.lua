@@ -19,7 +19,7 @@ local COLUMNS = {
   { key = "worth", label = "Usual", width = 80, right = true },
   { key = "pct", label = "Below", width = 46, right = true },
   { key = "listed", label = "Cheap", width = 44, right = true },
-  { key = "sold", label = "Gone/day", width = 60, right = true },
+  { key = "sold", label = "Gone/day", width = 60, right = true, debugOnly = true },   -- not reliable yet
   { key = "each", label = "Profit each", width = 80, right = true },
   { key = "total", label = "Profit all", width = 84, right = true },
   { key = "level", label = "Sure", width = 70 },
@@ -38,11 +38,20 @@ end
 local f
 local rows, headers = {}, {}
 
-local function columnLayout(width)
-  local fixed = 0
-  for _, c in ipairs(COLUMNS) do fixed = fixed + (c.width or 0) + 8 end
-  local x, out = 4, {}
+-- The columns shown: Gone/day only with /fl debug on, until sell speed is reliable.
+local function shownColumns()
+  local out = {}
   for _, c in ipairs(COLUMNS) do
+    if not c.debugOnly or ns.db.settings.debug then out[#out + 1] = c end
+  end
+  return out
+end
+
+local function columnLayout(cols, width)
+  local fixed = 0
+  for _, c in ipairs(cols) do fixed = fixed + (c.width or 0) + 8 end
+  local x, out = 4, {}
+  for _, c in ipairs(cols) do
     local w = c.width or math.max(120, width - fixed - 4)
     out[c.key] = { x = x, w = w }
     x = x + w + 8
@@ -217,8 +226,9 @@ function ns:RefreshDeals()
 
   -- Header
   local width = f:GetWidth() - 12
-  local lay = columnLayout(width)
-  for i, c in ipairs(COLUMNS) do
+  local cols = shownColumns()
+  local lay = columnLayout(cols, width)
+  for i, c in ipairs(cols) do
     local h = getHeader(i)
     h.key = c.key
     h:ClearAllPoints()
@@ -229,7 +239,9 @@ function ns:RefreshDeals()
     h.fs:SetText(c.label .. (sorted and (sort.desc and " v" or " ^") or ""))
     local col = sorted and { T.accent[1], T.accent[2], T.accent[3], 1 } or T.dim
     h.fs:SetTextColor(col[1], col[2], col[3], col[4] or 1)
+    h:Show()
   end
+  for i = #cols + 1, #headers do headers[i]:Hide() end
 
   -- Rows
   f.content:SetWidth(width)
@@ -242,8 +254,10 @@ function ns:RefreshDeals()
     r:SetWidth(width)
     r.stripe:SetShown(i % 2 == 0)
     local icon = ns:ItemIcon(d.id)
-    for _, c in ipairs(COLUMNS) do
+    for key, fs in pairs(r.cells) do fs:SetShown(lay[key] ~= nil) end
+    for _, c in ipairs(cols) do
       local fs = cell(r, c.key)
+      fs:Show()
       fs:ClearAllPoints()
       local x, w = lay[c.key].x, lay[c.key].w
       if c.key == "item" then
