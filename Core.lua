@@ -365,6 +365,12 @@ function ns:ApiReport()
     -- window has no pet tab yet). Modern journal, and Classic's older companion list.
     "C_PetJournal.GetNumPets", "C_PetJournal.GetPetInfoByIndex", "C_PetJournal.GetPetInfoBySpeciesID",
     "C_PetJournal.GetPetInfoByItemID", "C_PetJournal.SetSearchFilter", "GetNumCompanions", "GetCompanionInfo",
+    -- Mounts, toys and appearances (owner, October 1: mounts got cheap and riding
+    -- training dear, so a mount collection tab is likely; plan a Collections module).
+    "C_MountJournal.GetNumMounts", "C_MountJournal.GetMountIDs", "C_MountJournal.GetMountInfoByID",
+    "C_MountJournal.GetMountFromItem", "C_MountJournal.GetMountInfoExtraByID",
+    "C_ToyBox.GetNumToys", "C_ToyBox.GetToyInfo", "PlayerHasToy",
+    "C_TransmogCollection.GetItemInfo", "C_TransmogCollection.PlayerHasTransmog",
   }
   ns:Print("API check (send this to Claude if something isn't working):")
   for _, path in ipairs(checks) do
@@ -387,6 +393,27 @@ function ns:ApiReport()
   if GetNumCompanions then
     local ok, n = pcall(GetNumCompanions, "CRITTER")
     print("  Companion pets known (old list): " .. (ok and tostring(n) or "error"))
+  end
+  -- Mount journal: how many mounts it knows, and one sample with its source text.
+  if C_MountJournal and C_MountJournal.GetMountIDs then
+    local ok, ids = pcall(C_MountJournal.GetMountIDs)
+    print(("  Mount journal: %s mounts listed"):format(ok and type(ids) == "table" and #ids or "error"))
+    if ok and type(ids) == "table" and ids[1] and C_MountJournal.GetMountInfoByID then
+      local ok2, name, _, _, _, _, _, _, _, faction, _, collected = pcall(C_MountJournal.GetMountInfoByID, ids[1])
+      local source
+      if C_MountJournal.GetMountInfoExtraByID then
+        local ok3, _, _, src = pcall(C_MountJournal.GetMountInfoExtraByID, ids[1])
+        source = ok3 and src or nil
+      end
+      if ok2 then
+        print(("  Mount sample: %s, collected %s, faction %s, source: %s"):format(tostring(name), tostring(collected),
+          tostring(faction), tostring(source):gsub("|", "||"):sub(1, 120)))
+      end
+    end
+  end
+  if C_ToyBox and C_ToyBox.GetNumToys then
+    local ok, n = pcall(C_ToyBox.GetNumToys)
+    print("  Toy box: " .. (ok and tostring(n) or "error") .. " toys listed")
   end
   -- The journal listed 0 pets for an owner with none (September 30). Asking for pets by
   -- their item shows whether the data is there anyway: Cat Carrier (Bombay) 8485,
