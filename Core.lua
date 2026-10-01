@@ -361,12 +361,33 @@ function ns:ApiReport()
     "C_ChatInfo.SendAddonMessage", "C_ChatInfo.RegisterAddonMessagePrefix", "ChatFrame_AddMessageEventFilter",
     "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
+    -- Pets (owner, September 30: planning a pet collection module; Forever's collection
+    -- window has no pet tab yet). Modern journal, and Classic's older companion list.
+    "C_PetJournal.GetNumPets", "C_PetJournal.GetPetInfoByIndex", "C_PetJournal.GetPetInfoBySpeciesID",
+    "C_PetJournal.GetPetInfoByItemID", "C_PetJournal.SetSearchFilter", "GetNumCompanions", "GetCompanionInfo",
   }
   ns:Print("API check (send this to Claude if something isn't working):")
   for _, path in ipairs(checks) do
     print(("  %s %s"):format(has(path) and "|cff7fd39cyes|r" or "|cffee8597no|r ", path))
   end
   print("  Market: " .. ns.MarketKey())
+  -- If the pet journal exists: how many pets it knows, and one sample with its
+  -- "how to get it" text (the 12th value), to see what a pet module could show.
+  if C_PetJournal and C_PetJournal.GetNumPets then
+    local ok, total, owned = pcall(C_PetJournal.GetNumPets)
+    print(("  Pet journal: %s pets listed, %s owned"):format(ok and tostring(total) or "error", ok and tostring(owned) or "?"))
+    if ok and (total or 0) > 0 and C_PetJournal.GetPetInfoByIndex then
+      local ok2, _, species, isOwned, _, _, _, _, name, _, _, _, source, _, _, _, tradeable = pcall(C_PetJournal.GetPetInfoByIndex, 1)
+      if ok2 then
+        print(("  Sample: %s (species %s), owned %s, tradeable %s, source: %s"):format(tostring(name), tostring(species),
+          tostring(isOwned), tostring(tradeable), tostring(source):gsub("|", "||"):sub(1, 120)))
+      end
+    end
+  end
+  if GetNumCompanions then
+    local ok, n = pcall(GetNumCompanions, "CRITTER")
+    print("  Companion pets known (old list): " .. (ok and tostring(n) or "error"))
+  end
 end
 
 ---------------------------------------------------------------------------
