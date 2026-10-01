@@ -14,6 +14,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 ## Gold making
 
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
+- **Buy queue (scroll to buy)**: on the auction house, a queue of everything worth buying right now (vendor flips, greens below their disenchant value, cheap shuffle materials, good deals, your own targets like "Linen Cloth at 1s"). Watch flips chimes when something new appears, and each turn of your mouse wheel buys the next one, one purchase per scroll as Blizzard requires.
 - **Your auctions**: undercut and sold alerts for what you've listed, with the price to repost at.
 - **Vendor or auction house?**: on the Sell tab, what each item in your bags would net on the auction house after the cut and deposit against what a vendor pays, with a one-click list to vendor the rest.
 - **Deals per stat version**: judge "of the Monkey" against other Monkey versions, not the item as a whole.
