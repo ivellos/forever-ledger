@@ -414,6 +414,8 @@ local function soldTracker()
   local snap = { t = now, market = market, items = {} }
   local seen = {}
   local t = {}
+  -- For checking (/fl debug): units that went down vs up, and the biggest drops.
+  local down, up, missing, drops = 0, 0, 0, {}
   function t.add(id, units)
     seen[id] = true
     local rec = (ns.db.prices[market] or {})[id]
@@ -421,17 +423,34 @@ local function soldTracker()
     if limit then snap.items[id] = { limit, countUpTo(units, limit) } end
     local p = compare and prev.items[id]
     if p and p[2] > 0 and ns.RecordSold then
-      pcall(ns.RecordSold, ns, id, math.max(0, p[2] - countUpTo(units, p[1])), (now - prev.t) / 60, close)
+      local nowN = countUpTo(units, p[1])
+      if nowN < p[2] then
+        down = down + (p[2] - nowN)
+        drops[#drops + 1] = { id, p[2], nowN }
+      else
+        up = up + (nowN - p[2])
+      end
+      pcall(ns.RecordSold, ns, id, math.max(0, p[2] - nowN), (now - prev.t) / 60, close)
     end
   end
   function t.finish()
     if compare and ns.RecordSold then
       -- Items with nothing listed now: everything that was listed is gone.
       for id, p in pairs(prev.items) do
-        if not seen[id] and p[2] > 0 then pcall(ns.RecordSold, ns, id, p[2], (now - prev.t) / 60, close) end
+        if not seen[id] and p[2] > 0 then
+          missing = missing + 1
+          pcall(ns.RecordSold, ns, id, p[2], (now - prev.t) / 60, close)
+        end
       end
       ns:Debug(("Sell speed: compared with the full scan %d minutes ago (%s)."):format(
         math.floor((now - prev.t) / 60), close and "watched" or "rough: expired listings count too"))
+      -- If scans don't return the same listings each time, "down" and "up" are both big
+      -- and similar (noise), not mostly "down" (sales).
+      ns:Debug(("Sell speed check: %d units went down, %d went up, %d items vanished completely."):format(down, up, missing))
+      table.sort(drops, function(a, b) return a[2] - a[3] > b[2] - b[3] end)
+      for i = 1, math.min(5, #drops) do
+        ns:Debug(("  %s: %d then %d"):format(ns.ItemName(drops[i][1]) or drops[i][1], drops[i][2], drops[i][3]))
+      end
     end
     lastSnap = snap
     saveSnap(snap)
