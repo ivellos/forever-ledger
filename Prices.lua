@@ -104,6 +104,22 @@ ns:On("GET_ITEM_INFO_RECEIVED", function(id, success)
   end
 end)
 
+-- What vendors pay is remembered per item, but patches change it (October 1 build:
+-- "All crafted common and uncommon quality wands now sell at vendors for 1 copper",
+-- was 15s for a Greater Magic Wand). When the game build changes, forget the
+-- remembered prices so they're read again from the game's item data. This is a cache
+-- of game data, not the player's own records, so clearing it loses nothing.
+ns:OnReady(function()
+  local _, build = GetBuildInfo()
+  if not build then return end
+  if ns.db.vendorSellBuild and ns.db.vendorSellBuild ~= build then
+    wipe(ns.db.vendorSell)
+    if ns.InvalidateValues then ns:InvalidateValues(true) end
+    ns:Debug("New game build", build, "(was", ns.db.vendorSellBuild .. "): vendor prices will be read again.")
+  end
+  ns.db.vendorSellBuild = build
+end)
+
 function ns:GetSellPrice(id)
   if ns.db.vendorSell[id] == nil then ns:RememberItem(id) end
   return ns.db.vendorSell[id]
