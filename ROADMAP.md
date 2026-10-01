@@ -13,7 +13,6 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Gold making
 
-- **Crafting ads**: post your services to Trade (Services) with one click, with templates (including Mage portals, food and water), and a log of work done for customers.
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
 - **More for deals**: sell speed in item tooltips too, a restock planner and named watch lists.
 - **"Post at" hint**: the price to list at when selling: match the cheapest for materials (the newest listing at a price sells first), undercut for gear.
@@ -40,9 +39,9 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Quality of life
 
-- **Built-in help and "What's new"** notes for every feature.
+- **"What's new"** notes after each update.
 - **UI styles**: choose the look: EllesmereUI (current), Retail, Classic or Forever.
-- **Alt for full tooltips**, and a shopping list across shuffles.
+- **Shopping list** across shuffles.
 
 ## Community data
 
