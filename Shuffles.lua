@@ -156,6 +156,24 @@ local function groupDisenchants(list)
   return out
 end
 
+-- One item as a vendor flip, or nil: only the listings cheap enough to profit after the
+-- safety margin count, at their own prices. The Vendor flips tab and the flip alerts
+-- both use this, so whatever the tab shows also chimes.
+function ns:VendorFlip(id)
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  local sell = rec and rec.m and not rec.none and ns:GetSellPrice(id)
+  if not (sell and sell > rec.m) or ns:GetVendorBuyPrice(id) then return end
+  local maxBuy = sell * (1 - (ns.db.settings.margin or 10) / 100)
+  local n, avg = ns:CheapListings(id, maxBuy)
+  if not (n and n > 0 and avg) then return end
+  return {
+    id = id, key = "item:" .. id .. ":vendor", single = true, units = 1,
+    opt = { kind = "vendor", value = sell, id = id }, share = 0,
+    buys = { { id = id, qty = 1, price = avg, listed = n } },
+    cost = avg, profit = sell - avg, maxBuy = maxBuy, perHour = 0, t = rec.t,
+  }
+end
+
 -- Returns four lists: shuffles that end with vendor sales, ones that end with auction
 -- house sales, one-off deals (best profit per hour first), and vendor flips (buy on the
 -- auction house, sell straight to a vendor).
@@ -197,23 +215,9 @@ function ns:FindShuffles()
     end
   end
 
-  -- Vendor flips: only the listings cheap enough to profit after the safety margin
-  -- count, at their own prices (the same listings a deal alert reports). Averaging in
-  -- dearer listings used to hide flips that deal alerts found.
-  for id, rec in pairs(market) do
-    local sell = rec.m and not rec.none and ns:GetSellPrice(id)
-    if sell and sell > rec.m and not ns:GetVendorBuyPrice(id) then
-      local maxBuy = sell * (1 - margin)
-      local n, avg = ns:CheapListings(id, maxBuy)
-      if n and n > 0 and avg then
-        flips[#flips + 1] = {
-          id = id, key = "item:" .. id .. ":vendor", single = true, units = 1,
-          opt = { kind = "vendor", value = sell, id = id }, share = 0,
-          buys = { { id = id, qty = 1, price = avg, listed = n } },
-          cost = avg, profit = sell - avg, maxBuy = maxBuy, perHour = 0,
-        }
-      end
-    end
+  for id in pairs(market) do
+    local f = ns:VendorFlip(id)
+    if f then flips[#flips + 1] = f end
   end
 
   local function byHour(a, b) return a.perHour > b.perHour end
@@ -806,48 +810,88 @@ local function printGrouped(list, limit)
   end
 end
 
--- Called when a scan finishes. Alerts only for deals not already alerted at this price or lower.
-function ns:CheckDeals()
-  ns:InvalidateValues(true)   -- the scan just changed prices
-  local fresh = {}
-  if ns.RefreshDealsIfShown then ns:RefreshDealsIfShown() end
-  for _, d in ipairs(ns:FindDeals()) do
-    local key = d.kind .. d.id
-    if ns:DealShown(d) and (not alerted[key] or d.price < alerted[key]) then
-      alerted[key] = d.price
-      fresh[#fresh + 1] = d
-    end
+-- Vendor flip alerts (owner, September 30: Roasted Boar Meat showed up on the tab but
+-- never chimed). They follow the Vendor flips tab exactly (ns:VendorFlip), fire as soon
+-- as an item's price is saved (ns:CheckFlip, not only at the end of a 2-minute watch
+-- pass), and an item that stops being a flip is forgotten, so it alerts again if it
+-- comes back.
+local flipAlerted = {}          -- [itemID] = cost alerted, while it stays a flip
+local pendingFlips, flipTimer = {}, false
+
+-- Chime, screen message and chat for new vendor flips and below-usual-price deals.
+local function announce(flips, usual)
+  if #flips == 0 and usual == 0 then return end
+  local text
+  if #flips > 0 then
+    local f = flips[1]
+    text = ("Vendor flip: %s at %s (vendor pays %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.opt.value))
+    if #flips > 1 then text = text .. (" and %d more"):format(#flips - 1) end
+  else
+    text = ("%d new %s below the usual price"):format(usual, usual == 1 and "deal" or "deals")
   end
-  if #fresh == 0 then return end
-  local top = fresh[1]
-  local text = ("Deal: %s at %s (%s %s)"):format(itemName(top.id), ns.Money(top.price),
-    top.kind == "vendor" and "vendor pays" or "usually", ns.Money(top.worth))
-  if #fresh > 1 then text = text .. (" and %d more"):format(#fresh - 1) end
   if RaidNotice_AddMessage and RaidWarningFrame then
     RaidNotice_AddMessage(RaidWarningFrame, text, { r = 0.05, g = 0.82, b = 0.62 })
   end
   if ns.db.settings.dealSound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
     PlaySound(SOUNDKIT.RAID_WARNING, "Master")
   end
-  -- Below-vendor-price deals are exactly the Vendor flips tab, so open it instead of
-  -- listing them in chat (setting "openFlips").
-  -- Below-usual-price deals: one line pointing at the Deals tab, which explains each.
-  local vendorDeals, vendorList, usual = 0, {}, 0
-  for _, d in ipairs(fresh) do
-    if d.kind == "vendor" then vendorDeals = vendorDeals + 1; vendorList[#vendorList + 1] = d else usual = usual + 1 end
-  end
-  if vendorDeals > 0 and ns.db.settings.openFlips and ns.OpenFlips then
-    ns:OpenFlips()
-    ns:Print(("%d new vendor %s: opened the Vendor flips tab. Click one to find it on the auction house."):format(
-      vendorDeals, vendorDeals == 1 and "flip" or "flips"))
-  elseif vendorDeals > 0 then
-    ns:Print(("%d new vendor %s:"):format(vendorDeals, vendorDeals == 1 and "flip" or "flips"))
-    printGrouped(vendorList, 10)
+  if #flips > 0 then
+    if ns.db.settings.openFlips and ns.OpenFlips then ns:OpenFlips() end
+    for _, f in ipairs(flips) do
+      ns:Print(("New vendor flip: %s, %d at %s or less (vendor pays %s). Click it on Vendor flips to search."):format(
+        itemName(f.id), f.buys[1].listed or 1, ns.Money(f.maxBuy), ns.Money(f.opt.value)))
+    end
   end
   if usual > 0 then
     ns:Print(("%d new %s below the usual price: see the Deals tab (/fl deals)."):format(
       usual, usual == 1 and "deal" or "deals"))
   end
+end
+
+-- One item's price was just saved (watch pass or your own search): alert at once if
+-- it's a new vendor flip. Flips found within a second are announced together.
+function ns:CheckFlip(id)
+  local f = ns:VendorFlip(id)
+  if not f then flipAlerted[id] = nil; return end
+  if flipAlerted[id] and f.cost >= flipAlerted[id] then return end
+  flipAlerted[id] = f.cost
+  pendingFlips[#pendingFlips + 1] = f
+  if not flipTimer then
+    flipTimer = true
+    C_Timer.After(1, function()
+      flipTimer = false
+      local list = pendingFlips
+      pendingFlips = {}
+      announce(list, 0)
+    end)
+  end
+end
+
+-- Called when a scan finishes: every vendor flip on the tab not yet alerted, and
+-- below-usual-price deals not already alerted at this price or lower.
+function ns:CheckDeals()
+  ns:InvalidateValues(true)   -- the scan just changed prices
+  if ns.RefreshDealsIfShown then ns:RefreshDealsIfShown() end
+  local now, flips = time(), {}
+  for id in pairs(ns.db.prices[ns.MarketKey()] or {}) do
+    local f = ns:VendorFlip(id)
+    if not f then
+      flipAlerted[id] = nil
+    elseif now - (f.t or 0) <= DEAL_RECENT and (not flipAlerted[id] or f.cost < flipAlerted[id]) then
+      flipAlerted[id] = f.cost
+      flips[#flips + 1] = f
+    end
+  end
+  table.sort(flips, function(a, b) return a.profit > b.profit end)
+  local usual = 0
+  for _, d in ipairs(ns:FindDeals()) do
+    local key = d.kind .. d.id
+    if d.kind == "usual" and ns:DealShown(d) and (not alerted[key] or d.price < alerted[key]) then
+      alerted[key] = d.price
+      usual = usual + 1
+    end
+  end
+  announce(flips, usual)
 end
 
 -- /fl deals list: every current deal shown on the tabs, alerted or not.

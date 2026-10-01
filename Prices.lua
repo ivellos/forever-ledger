@@ -290,6 +290,7 @@ local function record(id, units, src)
   ns.db.prices[key] = ns.db.prices[key] or {}
   if #units == 0 then
     ns.db.prices[key][id] = { t = time(), src = src or "scan", none = true }
+    if ns.CheckFlip then pcall(ns.CheckFlip, ns, id) end   -- forgets a flip that sold out
     return
   end
   table.sort(units, function(a, b) return a[1] < b[1] end)
@@ -346,6 +347,12 @@ local function record(id, units, src)
     sxt = sxt,
   }
   ns.db.prices[key][id] = rec
+  -- A watch pass or your own search: alert straight away if this made a new vendor
+  -- flip (full scans check everything at once when they finish).
+  if src ~= "full" and ns.CheckFlip then
+    local ok, err = pcall(ns.CheckFlip, ns, id)
+    if not ok then ns:Debug("Flip check failed for", id, err) end
+  end
   -- History is a bonus: a problem there must never stop a scan from saving prices.
   if ns.RecordPriceHistory then
     local ok, err = pcall(ns.RecordPriceHistory, ns, id, rec.m, rec.a, rec.q)
