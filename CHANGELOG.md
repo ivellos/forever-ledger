@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Vendor flips have their own settings: the least profit worth your time, as a share of the vendor price (0% counts anything below it) and as an amount each. They used to share the shuffles' safety margin, but selling to a vendor has no risk, only effort. The same rule sets "buy up to" on the auction house and the below-vendor-price deal alerts.
 
 ### Fixed
-- Items vendors won't buy (Greater Magic Essence) showed "Sell to vendor 1c" from an old saved price; they now show no vendor price.
+- Items vendors won't buy (Greater Magic Essence) showed "Sell to vendor 1c": the game gives them a 1c price. The addon now checks the item's own tooltip for a sell price and shows no vendor price when there isn't one.
 - Gear flips stayed on Vendor flips after their cheap listings were gone (Raider's Chestpiece, Priest's Mace, Soldier's Armor). The auction house's search list shows each item's cheapest price live, and saved listings below it are now dropped.
 - With the flip watch running, gear you bought was logged as the last item the watch looked at (a Soldier's Armor purchase showed as Curved Dagger).
 - Shuffles that end on the auction house showed absurd returns (Simple Linen Pants 10,564%): the item was valued at the average of a few pricey listings. What selling brings is now the lowest of today's cheapest listing, that average, and the usual cheapest price from your scans.

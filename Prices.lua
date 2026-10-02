@@ -119,9 +119,29 @@ ns:OnReady(function()
   end
 end)
 
+-- Forever reports a 1c vendor price for some items vendors won't buy (essences, October 2:
+-- Greater Magic Essence "Sell to vendor 1c", but the vendor refuses it). The item's own
+-- tooltip data tells: sellable items have a sell price line (type 11), these don't.
+-- Checked once per item per session; unknown counts as sellable.
+local SELL_LINE = (Enum and Enum.TooltipDataLineType and Enum.TooltipDataLineType.SellPrice) or 11
+local sellable = {}
+local function canSell(id)
+  if sellable[id] ~= nil then return sellable[id] end
+  local ok, data = pcall(C_TooltipInfo and C_TooltipInfo.GetItemByID or error, id)
+  if not (ok and data and data.lines and #data.lines > 0) then return true end
+  local yes = false
+  for _, l in ipairs(data.lines) do
+    if l.type == SELL_LINE then yes = true; break end
+  end
+  sellable[id] = yes
+  if not yes then ns:Debug("No sell price line:", ns.ItemName(id) or id, "- vendors won't buy it.") end
+  return yes
+end
+
 function ns:GetSellPrice(id)
   local saved = ns.db.vendorSell[id]
   local name, _, _, _, _, _, _, _, _, _, live = getItemInfo(id)
+  if name and live and live > 0 and not canSell(id) then live = 0 end
   -- Items vendors won't buy report no price (Greater Magic Essence, October 2: nil while
   -- an old saved 1c was still shown). Remember them as 0 and show no vendor price.
   if name and (live == nil or live == 0) then
