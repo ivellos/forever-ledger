@@ -9,6 +9,8 @@ on:
   workflow_dispatch:
   issues:
     types: [closed, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   issues: write
@@ -38,6 +40,8 @@ jobs:
           if [ -z "$DISCORD_BOT_TOKEN" ]; then echo "No DISCORD_BOT_TOKEN secret, skipping."; exit 0; fi
           if [ "${{ github.event_name }}" = "issues" ]; then
             python3 .github/scripts/discord_sync.py issue
+          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
+            python3 .github/scripts/discord_sync.py comment
           else
             python3 .github/scripts/discord_sync.py poll
           fi

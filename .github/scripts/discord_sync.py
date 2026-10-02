@@ -162,5 +162,26 @@ def issue_event():
     print(f"Issue #{issue['number']} {action} -> thread {thread_id}")
 
 
+def comment_event():
+    """A comment on an issue that came from Discord is posted in its thread, so the
+    player sees questions and updates (bots' comments are left out)."""
+    event = json.load(open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8"))
+    issue, comment = event["issue"], event["comment"]
+    if (comment.get("user") or {}).get("type") == "Bot":
+        return
+    m = re.search(re.escape(MARKER) + r"(\d+)", issue.get("body") or "")
+    if not m:
+        print("Not from Discord, nothing to do.")
+        return
+    text = (comment.get("body") or "").strip()
+    if len(text) > 1800:
+        text = text[:1800].rsplit("\n", 1)[0] + "\n..."
+    discord("POST", f"/channels/{m.group(1)}/messages", {
+        "content": f"**Update from the developer:**\n{text}\n<{comment['html_url']}>",
+        "allowed_mentions": {"parse": []},
+    })
+    print(f"Comment on #{issue['number']} -> thread {m.group(1)}")
+
+
 if __name__ == "__main__":
-    {"poll": poll, "issue": issue_event}[sys.argv[1]]()
+    {"poll": poll, "issue": issue_event, "comment": comment_event}[sys.argv[1]]()
