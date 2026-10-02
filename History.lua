@@ -511,13 +511,16 @@ local SPEED_STEPS = {
 }
 
 local instantInfo = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
-local function speedKind(id)
+-- What kind of item: "gear" (armor and weapons), "goods" (stacks: materials,
+-- consumables) or "other" (recipes, single items). Also the Deals tab's filter.
+function ns:ItemKind(id)
   local _, _, _, _, _, classID = instantInfo and instantInfo(id)
   if classID == 2 or classID == 4 then return "gear" end
   local stack = select(8, ns.GetItemInfo(id))
   if stack and stack > 1 then return "goods" end
   return "other"
 end
+local function speedKind(id) return ns:ItemKind(id) end
 
 -- Returns nil and the minutes of scans so far when there isn't enough yet; otherwise
 -- { key, label, color, perDay, listed, hours, kind }.

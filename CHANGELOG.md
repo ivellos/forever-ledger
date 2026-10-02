@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Deals tab: filter by kind (All, Materials, Gear, Other) and search by name.
+
+### Fixed
+- Deals: when half or more of what's listed is that cheap, the price has dropped rather than being a bargain (Greater Magic Essence at 1s 30c "usually" 20s 90c, with 2,381 that cheap, from when essences were scarce early in the beta). Those are now rated Thin, hidden unless you tick Show thin data too, and say why.
+
+### Added
 - Sell speed: tooltips and the Deals tab say how fast an item sells (Fast, Steady, Slow, Rare, or No sales seen), judged against items of the same kind. It counts listings that vanished between full scans before they could have expired, using each listing's time left, and leaves out ones reposted cheaper. It shows once there are 3 hours of scans compared; Watch flips gets there fastest. Deals that don't sell are rated less sure. Settings, Tooltips can turn the line off.
 
 ### Fixed

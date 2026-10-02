@@ -76,6 +76,8 @@ Everything the addon does, at a high level. The same text is in the game under *
 - **Hover a deal** to see why it's a deal: the usual cheapest and typical prices, how many days they're based on, the typical range most days, how many are usually listed, and the next listing above the cheap ones. Profit assumes you resell at the usual cheapest price, or just under the next listing if that's lower, and only listings that still make the minimum profit count. **Click** a deal to search for it on the auction house.
 - **How sure**: Good means a week or more of steady prices. Fair means less data, or a warning: usually only one listed (it may sell slowly, or that "usual price" was one hopeful seller), nothing else listed to compare with, or gear whose stat versions sell at different prices. Thin (a few days, or prices that jump around) is hidden unless you tick **Show thin data too**.
 - Deals need at least 4 days of scans to know an item's usual price, or TSM installed. Settings, Deal alerts sets how far below, over what period, and the least profit each. After a scan, chat says how many new deals there are instead of listing them.
+- **Filter** the list by kind (All, Materials, Gear, Other) or search by name.
+- **A dropped price isn't a deal**: when half or more of what's listed is that cheap, the item has simply got cheaper (say, essences once everyone can disenchant them), so it's rated Thin and says so.
 - The auction house only shows what's listed, not what sold. Buy what you'd be happy to hold for a while.
 
 ## Disenchanting

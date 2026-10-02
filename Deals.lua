@@ -77,14 +77,35 @@ function ns:BuildDeals(parent)
   f.thin:SetPoint("TOPRIGHT", -150, -4)
   f.thin.label:SetText("Show thin data too")
 
+  -- Filter: which kind of item, and a name search.
+  f.kind = T:Choice(f, { { value = "all", label = "All" }, { value = "goods", label = "Materials" },
+    { value = "gear", label = "Gear" }, { value = "other", label = "Other" } }, function(value)
+    ns.db.settings.dealKind = value
+    ns:RefreshDeals()
+  end)
+  f.kind:SetPoint("TOPLEFT", 4, -42)
+  f.kind:SetValue(ns.db.settings.dealKind or "all")
+  f.search = T:EditBox(f, 180, "LEFT")
+  f.search:SetPoint("LEFT", f.kind, "RIGHT", 12, 0)
+  local hint = T:Text(f.search, 11, T.section)
+  hint:SetPoint("LEFT", 6, 0)
+  hint:SetText("Search by name")
+  f.search:SetScript("OnTextChanged", function(self)
+    hint:SetShown(self:GetText() == "" and not self:HasFocus())
+    ns:RefreshDeals()
+  end)
+  f.search:SetScript("OnEditFocusGained", function() hint:Hide() end)
+  f.search:SetScript("OnEditFocusLost", function(self) hint:SetShown(self:GetText() == "") end)
+  f.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+
   f.header = CreateFrame("Frame", nil, f)
-  f.header:SetPoint("TOPLEFT", 0, -40)
-  f.header:SetPoint("TOPRIGHT", 0, -40)
+  f.header:SetPoint("TOPLEFT", 0, -70)
+  f.header:SetPoint("TOPRIGHT", 0, -70)
   f.header:SetHeight(22)
   T:Fill(f.header, { 1, 1, 1, 0.05 })
 
   f.sf, f.content = T:Scroll(f)
-  f.sf:SetPoint("TOPLEFT", 0, -64)
+  f.sf:SetPoint("TOPLEFT", 0, -94)
   f.sf:SetPoint("BOTTOMRIGHT", 0, 22)
   f.empty = T:Text(f.content, 12, T.dim)
   f.empty:SetPoint("TOPLEFT", 8, -8)
@@ -208,13 +229,25 @@ function ns:RefreshDeals()
   local set = ns.db.settings
   f.thin:SetChecked(set.dealShowThin)
 
-  local list, hidden, newest = {}, 0, nil
+  -- Filter by kind and by name (owner, October 2: 193 deals is too many to read).
+  local kind = set.dealKind or "all"
+  local search = (f.search and f.search:GetText() or ""):lower()
+  local list, hidden, filtered, newest = {}, 0, 0, nil
   for _, d in ipairs(ns:FindDeals(MAX_AGE)) do
     if d.kind == "usual" then
-      if ns:DealShown(d) then list[#list + 1] = d else hidden = hidden + 1 end
+      local keep = (kind == "all" or ns:ItemKind(d.id) == kind)
+        and (search == "" or (ns.ItemName(d.id) or ""):lower():find(search, 1, true))
+      if not keep then
+        filtered = filtered + 1
+      elseif ns:DealShown(d) then
+        list[#list + 1] = d
+      else
+        hidden = hidden + 1
+      end
       newest = math.max(newest or 0, d.t or 0)
     end
   end
+  f.filtered = filtered
 
   local sort = sortState()
   table.sort(list, function(a, b)
@@ -287,8 +320,9 @@ function ns:RefreshDeals()
 
   local parts = { ("%d %s"):format(#list, #list == 1 and "deal" or "deals") }
   if hidden > 0 then
-    parts[#parts + 1] = ("%d hidden (thin data or under %s profit)"):format(hidden, ns.Money(set.dealUsualMin or 0))
+    parts[#parts + 1] = ("%d hidden (thin data, prices that dropped, or under %s profit)"):format(hidden, ns.Money(set.dealUsualMin or 0))
   end
+  if filtered > 0 then parts[#parts + 1] = ("%d filtered out"):format(filtered) end
   if newest then parts[#parts + 1] = "prices from " .. date("%H:%M", newest) end
   if #list > MAX_ROWS then parts[#parts + 1] = ("showing the first %d"):format(MAX_ROWS) end
   f.summary:SetText(table.concat(parts, ", ") .. ". Rules in Settings, Deal alerts.")

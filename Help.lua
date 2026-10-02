@@ -48,7 +48,8 @@ ns.HELP = {
   { "Deals", {
     { "Deals tab", "Listings well below the price an item is usually cheapest at, to buy and resell: price now, usual low, how many are worth buying, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },
     { "Why it's a deal", "Hover a deal: the usual cheapest and typical prices and how many days of your scans they come from, how many are usually listed, and the next listing up. Profit assumes you resell at the usual cheapest price or just under the next listing, whichever is lower. Click to search the auction house." },
-    { "How sure", "Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too." },
+    { "Filter", "All, Materials, Gear or Other, and a search box for names." },
+    { "How sure", "When most of what's listed is that cheap, the price has dropped and it's no bargain: rated Thin. Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too." },
     { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },
   { "Disenchanting", {

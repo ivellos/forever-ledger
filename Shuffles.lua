@@ -702,6 +702,16 @@ local function judgeUsual(id, rec)
     level = lower(level)
     d.warnings[#d.warnings + 1] = "Usually only one is listed: it may sell slowly, or the usual price may be one hopeful seller."
   end
+  -- A deal is a few listings priced below the rest. When half or more of what's listed
+  -- (or of what's usually listed) is this cheap, the price has dropped, not a bargain
+  -- (owner's screenshot, October 2: 2,381 Greater Magic Essence at 1s 30c "usually"
+  -- 20s 90c, from when essences were scarce early in the beta).
+  local usualListed = stats and stats.listed
+  if n >= 5 and ((rec.q and n >= rec.q * 0.5) or (usualListed and n >= usualListed * 0.5)) then
+    level = "thin"
+    d.moved = true
+    d.warnings[#d.warnings + 1] = "Most of what's listed is this cheap: the price has dropped, it's not a one-off bargain."
+  end
   -- Sell speed (History.lua SellSpeed): listings bought between full scans, from time
   -- left, rated against items of the same kind. A deal that doesn't sell isn't one.
   local sp = ns.SellSpeed and ns:SellSpeed(id)
