@@ -1,0 +1,48 @@
+name: Discord bot
+
+# Deploys the /bug and /idea bot (discord-bot/) to Cloudflare Workers and registers its
+# slash commands in the Forever Ledger server. Runs when the bot's code changes, or by
+# hand from the Actions tab. Needs secrets CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
+# DISCORD_BOT_TOKEN.
+on:
+  push:
+    branches: [main]
+    paths: ["discord-bot/**", ".github/workflows/discord-bot.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: discord-bot
+          secrets: |
+            DISCORD_BOT_TOKEN
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+
+      - name: Show the bot's address
+        run: echo "Interactions Endpoint URL for the Discord developer portal - ${{ steps.deploy.outputs.deployment-url }}"
+
+      - name: Register /bug and /idea
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: |
+          APP=$(curl -sf -H "Authorization: Bot $DISCORD_BOT_TOKEN" https://discord.com/api/v10/oauth2/applications/@me | jq -r .id)
+          GUILD=$(grep -m1 '^GUILD_ID' discord-bot/wrangler.toml | cut -d'"' -f2)
+          curl -sS --fail-with-body -X PUT \
+            -H "Authorization: Bot $DISCORD_BOT_TOKEN" -H "Content-Type: application/json" \
+            "https://discord.com/api/v10/applications/$APP/guilds/$GUILD/commands" \
+            -d '[{"name":"bug","type":1,"description":"Report a bug in Forever Ledger"},{"name":"idea","type":1,"description":"Suggest a feature for Forever Ledger"}]' \
+            | jq -r '.[].name' | sed 's/^/Registered \//'
