@@ -70,9 +70,44 @@ def forum_tags(forum_id):
     return {t["name"]: t["id"] for t in discord("GET", f"/channels/{forum_id}").get("available_tags", [])}
 
 
-def already_on_github(thread_id):
+def issue_for_thread(thread_id):
+    """The issue made from a Discord thread, or None."""
     q = urllib.parse.quote(f'repo:{REPO} "{MARKER}{thread_id}" in:body')
-    return github("GET", f"/search/issues?q={q}").get("total_count", 0) > 0
+    items = github("GET", f"/search/issues?q={q}").get("items", [])
+    return items[0] if items else None
+
+
+def already_on_github(thread_id):
+    return issue_for_thread(thread_id) is not None
+
+
+REPLY_MARKER = "Discord message ID: "
+
+
+def copy_replies(thread_id, issue):
+    """Players' replies in a Discord thread become comments on its issue, so the developer
+    sees them on GitHub (a screenshot asked for, /fl api output). Bots' messages, including
+    our own mirrored updates, are skipped; the newest copied message is remembered in the
+    comment text."""
+    comments = github("GET", f"/repos/{REPO}/issues/{issue['number']}/comments?per_page=100") or []
+    last = int(thread_id)        # the post itself is the issue body
+    for c in comments:
+        for mid in re.findall(re.escape(REPLY_MARKER) + r"(\d+)", c.get("body") or ""):
+            last = max(last, int(mid))
+    msgs = discord("GET", f"/channels/{thread_id}/messages?after={last}&limit=50") or []
+    copied = 0
+    for m in sorted(msgs, key=lambda m: int(m["id"])):
+        author = m.get("author") or {}
+        if author.get("bot"):
+            continue
+        name = author.get("global_name") or author.get("username") or "someone"
+        text = (m.get("content") or "").strip()
+        images = "\n".join(f"![attachment]({a['url']})" for a in m.get("attachments", []))
+        body = "\n\n".join(filter(None, [f"**{name} replied on Discord:**", text, images, f"{REPLY_MARKER}{m['id']}"]))
+        github("POST", f"/repos/{REPO}/issues/{issue['number']}/comments", {"body": body})
+        copied += 1
+    if copied:
+        print(f"Copied {copied} Discord repl{'ies' if copied != 1 else 'y'} to #{issue['number']}")
 
 
 def new_threads():
@@ -89,12 +124,24 @@ def new_threads():
 
 def poll():
     tags = {forum: forum_tags(forum) for forum in FORUMS}
-    made = 0
+    made, replies_checked = 0, 0
     for t in new_threads():
         forum, kind = t["parent_id"], FORUMS[t["parent_id"]]
         on_github = tags[forum].get(ON_GITHUB)
         applied = t.get("applied_tags", [])
         if on_github and on_github in applied:
+            # Already tracked: copy new replies, at most 25 threads per run (search limits),
+            # and only when the thread's newest message isn't from a bot.
+            if replies_checked < 25:
+                replies_checked += 1
+                try:
+                    last_msg = discord("GET", f"/channels/{t['id']}/messages?limit=1") or []
+                    if last_msg and not (last_msg[0].get("author") or {}).get("bot"):
+                        issue = issue_for_thread(t["id"])
+                        if issue:
+                            copy_replies(t["id"], issue)
+                except RuntimeError as e:
+                    print("Replies skipped for", t["id"], e)
             continue
         if already_on_github(t["id"]):       # issue made but tagging failed last time
             continue
@@ -190,5 +237,36 @@ def comment_event():
     print(f"Comment on #{issue['number']} -> thread {m.group(1)}")
 
 
+def released():
+    """After a release: every issue from Discord that was closed as completed since the
+    previous release gets "Now live in X" in its Discord thread."""
+    version = os.environ["VERSION"]
+    releases = github("GET", f"/repos/{REPO}/releases?per_page=10") or []
+    tags = [r["tag_name"] for r in releases]
+    this = next((r for r in releases if r["tag_name"] == "v" + version), None)
+    since = None
+    if this and tags.index(this["tag_name"]) + 1 < len(releases):
+        since = releases[tags.index(this["tag_name"]) + 1]["published_at"]
+    q = f'repo:{REPO} "{MARKER}" in:body is:issue is:closed reason:completed'
+    if since:
+        q += f" closed:>{since[:10]}"
+    issues = github("GET", f"/search/issues?q={urllib.parse.quote(q)}&per_page=100").get("items", [])
+    told = 0
+    for issue in issues:
+        m = re.search(re.escape(MARKER) + r"(\d+)", issue.get("body") or "")
+        if not m:
+            continue
+        try:
+            discord("POST", f"/channels/{m.group(1)}/messages", {
+                "content": f"**Now live in Forever Ledger {version}!** Update through your addon app "
+                           f"(CurseForge, Wago or WowUp), and tell us here if anything's still off.",
+                "allowed_mentions": {"parse": []},
+            })
+            told += 1
+        except RuntimeError as e:
+            print("Couldn't post in thread", m.group(1), e)
+    print(f"Told {told} thread(s) that {version} is live.")
+
+
 if __name__ == "__main__":
-    {"poll": poll, "issue": issue_event, "comment": comment_event}[sys.argv[1]]()
+    {"poll": poll, "issue": issue_event, "comment": comment_event, "released": released}[sys.argv[1]]()
