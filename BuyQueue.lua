@@ -210,7 +210,7 @@ local function throttled()
   return AH.IsThrottledMessageSystemReady and not AH.IsThrottledMessageSystemReady()
 end
 
-local search, prepare, updateBinding
+local search, prepare, updateBinding, rebuildNow
 
 -- The auction house keeps one item search at a time: when the queue looks up the next
 -- item, a page still showing the last one spins on "Searching..." for good (owner,
@@ -682,7 +682,7 @@ local function buildQueueView(parent)
   local opts = { { "flips", "Vendor flips" }, { "disenchant", "Disenchant" }, { "deals", "Good deals" }, { "lists", "Shopping lists" } }
   local x = 10
   for _, o in ipairs(opts) do
-    local cb = T:Check(v, function(self) S()[o[1]] = self:GetChecked(); Q.built = 0; Q.list = buildQueue(); Q.built = GetTime(); refreshQueue() end)
+    local cb = T:Check(v, function(self) S()[o[1]] = self:GetChecked(); rebuildNow() end)
     cb:SetPoint("TOPLEFT", x, y)
     cb.label:SetText(o[2])
     cb:SetChecked(S()[o[1]])
@@ -1706,7 +1706,7 @@ ns:On("AUCTION_HOUSE_CLOSED", function()
 end)
 
 -- New finds join the queue (the current item stays where it is).
-local function rebuildNow()
+function rebuildNow()
   if not active() then return end
   Q.list, Q.built = buildQueue(), GetTime()
   if Q.cur then
@@ -1714,7 +1714,17 @@ local function rebuildNow()
     for i, e in ipairs(Q.list) do
       if e.id == Q.cur.id then Q.list[i] = Q.cur; found = true end
     end
-    if not found then table.insert(Q.list, 1, Q.cur) end
+    if not found then
+      -- It no longer belongs (you unticked its kind, or it stopped being worth it): let
+      -- it go, unless a purchase of it is under way (owner, October 2: a Rough Bronze
+      -- Cuirass kept being bought as DE after Disenchant was unticked).
+      if Q.state == "price" or Q.state == "confirm" or Q.state == "buying" then
+        table.insert(Q.list, 1, Q.cur)
+      else
+        Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
+        Q.state = "idle"
+      end
+    end
   end
   refreshQueue()
   if not Q.cur then prepare() end
