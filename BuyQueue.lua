@@ -703,12 +703,13 @@ local function laneRow(L, i)
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   r.name = T:Text(r, 11)
   r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
-  r.name:SetWidth(200)
+  r.name:SetWidth(176)
   r.name:SetJustifyH("LEFT")
   r.name:SetWordWrap(false)
   r.limit, r.n, r.profit = T:Text(r, 11), T:Text(r, 11), T:Text(r, 11)
-  r.limit:SetPoint("RIGHT", r, "LEFT", 290, 0)
-  r.n:SetPoint("RIGHT", r, "LEFT", 330, 0)
+  -- Profit gets the widest column: "10g 45s 64c" ran into Cheap (owner, October 2).
+  r.limit:SetPoint("RIGHT", r, "LEFT", 254, 0)
+  r.n:SetPoint("RIGHT", r, "LEFT", 292, 0)
   r.profit:SetPoint("RIGHT", r, "LEFT", 392, 0)
   r:SetScript("OnClick", function(self, button)
     if button == "RightButton" then
@@ -787,7 +788,7 @@ local function buildLane(v, d)
   header:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", 4, -2)
   header:SetPoint("TOPRIGHT", strip, "BOTTOMRIGHT", -4, -2)
   header:SetHeight(14)
-  for _, c in ipairs({ { "Item", 4, "LEFT" }, { "Up to", 286, "RIGHT" }, { "Cheap", 326, "RIGHT" },
+  for _, c in ipairs({ { "Item", 4, "LEFT" }, { "Up to", 250, "RIGHT" }, { "Cheap", 288, "RIGHT" },
                        { d.key == "lists" and "Now" or "Profit", 388, "RIGHT" } }) do
     local fs = T:Text(header, 10, T.dim)
     if c[3] == "LEFT" then fs:SetPoint("LEFT", c[2], 0) else fs:SetPoint("RIGHT", header, "LEFT", c[2], 0) end
