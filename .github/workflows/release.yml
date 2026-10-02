@@ -152,9 +152,12 @@ jobs:
           if [ -z "$DISCORD_ANNOUNCE_WEBHOOK" ]; then echo "No DISCORD_ANNOUNCE_WEBHOOK secret, skipping."; exit 0; fi
           VERSION="${{ steps.ver.outputs.version }}"
           URL="https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md"
-          # The script comes from main, so a re-announce of an old tag uses today's format.
-          git fetch -q origin main && git show origin/main:.github/scripts/discord_announce.py > announce.py
-          python3 announce.py release-notes.md "$VERSION" "$URL" "$UPDATES_ROLE" > discord.json
+          # Script and changelog come from main, so a re-announce of an old tag uses
+          # today's format and any Highlights added since.
+          git fetch -q origin main
+          git show origin/main:.github/scripts/discord_announce.py > announce.py
+          git show origin/main:CHANGELOG.md > changelog-main.md
+          python3 announce.py changelog-main.md "$VERSION" "$URL" "$UPDATES_ROLE" > discord.json
           if [ "${{ inputs.dry_run }}" = "true" ]; then echo "Dry run, not posting:"; jq -r .content discord.json; exit 0; fi
           curl -sS --fail-with-body -H "Content-Type: application/json" -d @discord.json "$DISCORD_ANNOUNCE_WEBHOOK"
           echo "Announced Forever Ledger $VERSION on Discord."
