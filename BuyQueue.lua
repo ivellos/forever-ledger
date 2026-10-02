@@ -22,7 +22,6 @@ local AH = C_AuctionHouse
 local WIDTH = 420
 local DONE_FOR = 120        -- seconds an item with nothing left stays out of the queue
 local REBUILD_EVERY = 20    -- seconds before the queue is worked out again
-local BUY_BUTTON = "ForeverLedgerBuyNext"
 local USER_QUIET = 3        -- seconds after your own search before the queue looks things up again
 
 local function S() return ns.db.settings.buyQueue end
@@ -34,13 +33,6 @@ local function limitText(e)
   return "any price (at most " .. money(e.limit) .. ", 3 times usual)"
 end
 
-local REASONS = {
-  list = { badge = "LIST", color = "b9a2ff" },
-  flip = { badge = "FLIP", color = "7fd39c" },
-  de = { badge = "DE", color = "7fb8ff" },
-  deal = { badge = "DEAL", color = "ffd100" },
-  both = { badge = "FLIP+DE", color = "7fd39c" },
-}
 
 local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 local function isGear(id)
@@ -63,22 +55,29 @@ end
 ---------------------------------------------------------------------------
 local done, skipped = {}, {}   -- [itemID] = GetTime() nothing left; [itemID] = true skipped this session
 
--- Entries: { id, limit, reason, worth = per item if known, n = cheap listings or nil
--- (never scanned), cost = average price of those, profit, want, list }.
+-- Each kind of thing to buy is its own section ("lane") in the queue: vendor flips,
+-- disenchanting, good deals, shopping lists (owner, October 2: so someone working on a
+-- shopping list can't buy a flip by accident, and someone farming flips can just keep
+-- scrolling). Returns { flips = {...}, de = {...}, deals = {...}, lists = {...} }.
 local function buildQueue()
   local s = S()
   local market = ns.db.prices[ns.MarketKey()] or {}
   local now = GetTime()
-  local out, seen = {}, {}
-  local function add(e)
-    if seen[e.id] or skipped[e.id] or (done[e.id] and now - done[e.id] < DONE_FOR) then return end
-    seen[e.id] = true
+  local lanes = { flips = {}, de = {}, deals = {}, lists = {} }
+  local seen = { flips = {}, de = {}, deals = {}, lists = {} }
+  local function add(lane, e)
+    if seen[lane][e.id] or skipped[e.id] or (done[e.id] and now - done[e.id] < DONE_FOR) then return end
+    seen[lane][e.id] = true
     e.gear = isGear(e.id)
-    out[#out + 1] = e
+    e.lane = lane
+    local l = lanes[lane]
+    l[#l + 1] = e
   end
-  -- Shopping lists first, in list order: they're what you asked for. Ones not cheap
-  -- enough right now still show, greyed at the end, so you can see they're watched
-  -- (owner, October 2: "not clear how to add it to the buy queue, it's blank").
+  local function byProfit(list)
+    for _, e in ipairs(list) do e.profit = ((e.worth or 0) - (e.cost or e.limit)) * (e.n or 1) end
+    table.sort(list, function(a, b) return a.profit > b.profit end)
+    return list
+  end
   -- Each part timed on its own for /fl perf (the whole took about 180 ms, October 2).
   local clock = debugprofilestop or function() return GetTime() * 1000 end
   local t0 = clock()
@@ -87,32 +86,38 @@ local function buildQueue()
     if ns.PerfNote then ns.PerfNote("Buy queue: " .. label, t1 - t0) end
     t0 = t1
   end
-  local waiting = {}
+
+  -- Shopping lists, in list order. Ones not cheap enough right now still show, greyed at
+  -- the end, so you can see they're watched.
   if s.lists then
+    local waiting = {}
     for _, t in ipairs(ns:ShoppingTargets()) do
       local n, avg = ns:CheapListings(t.id, t.limit)
       local e = { id = t.id, limit = t.limit, any = t.any, reason = "list", list = t.list, want = t.want, n = n, cost = avg }
-      if n == 0 then e.waiting = true; waiting[#waiting + 1] = e else add(e) end
+      if n == 0 then e.waiting = true; waiting[#waiting + 1] = e else add("lists", e) end
     end
+    for _, e in ipairs(waiting) do add("lists", e) end
   end
   lap("lists")
-  local others = {}
+
   if s.flips then
+    local list = {}
     for id in pairs(market) do
       local f = ns:VendorFlip(id)
       if f then
-        others[#others + 1] = { id = id, limit = math.floor(f.maxBuy), reason = "flip", worth = f.opt.value,
+        list[#list + 1] = { id = id, limit = math.floor(f.maxBuy), reason = "flip", worth = f.opt.value,
           n = f.buys[1].listed, cost = f.cost }
       end
     end
+    for _, e in ipairs(byProfit(list)) do add("flips", e) end
   end
   lap("flips")
+
   if s.disenchant then
     -- What a disenchant is worth depends only on the item level band, so work it out once
-    -- per band, not through every item's full list of options (that took about 180 ms
-    -- each time the queue was rebuilt, owner's /fl perf, October 2).
+    -- per band, not through every item's full list of options.
     local keep = 1 - (ns.db.settings.margin or 10) / 100
-    local bandWorth = {}
+    local bandWorth, list = {}, {}
     for id, rec in pairs(market) do
       if rec.m and not rec.none and isGear(id) then
         local yield = ns:DisenchantYield(id)
@@ -127,50 +132,31 @@ local function buildQueue()
             bandWorth[yield] = worth
           end
           local limit = math.floor(worth * keep)
-          -- If a vendor pays more than disenchanting is worth, it's a vendor flip instead.
-          local sell = ns:GetSellPrice(id)
-          if limit > 0 and rec.m <= limit and not (sell and sell >= worth) then
+          if limit > 0 and rec.m <= limit then
             local n, avg = ns:CheapListings(id, limit)
             if n and n > 0 then
-              others[#others + 1] = { id = id, limit = limit, reason = "de", worth = worth, n = n, cost = avg }
+              list[#list + 1] = { id = id, limit = limit, reason = "de", worth = worth, n = n, cost = avg }
             end
           end
         end
       end
     end
+    for _, e in ipairs(byProfit(list)) do add("de", e) end
   end
   lap("disenchant")
+
   if s.deals then
+    local list = {}
     for _, d in ipairs(ns:FindDeals(6 * 3600)) do
       if d.kind == "usual" and d.level == "good" and d.limit and ns:DealShown(d) then
-        others[#others + 1] = { id = d.id, limit = math.floor(d.limit), reason = "deal", worth = d.resell,
+        list[#list + 1] = { id = d.id, limit = math.floor(d.limit), reason = "deal", worth = d.resell,
           n = d.listed, cost = d.cost or d.price }
       end
     end
+    for _, e in ipairs(byProfit(list)) do add("deals", e) end
   end
-  for _, e in ipairs(others) do e.profit = ((e.worth or 0) - (e.cost or e.limit)) * (e.n or 1) end
-  -- An item that's both a vendor flip and worth disenchanting shows once, as FLIP+DE,
-  -- with the better of the two (owner, October 2: "DE and flip got crossed").
-  local byID = {}
-  for _, e in ipairs(others) do
-    local o = byID[e.id]
-    if not o then
-      byID[e.id] = e
-    elseif (o.reason == "flip" and e.reason == "de") or (o.reason == "de" and e.reason == "flip") then
-      local best, other = o, e
-      if e.profit > o.profit then best, other = e, o end
-      best.both = { reason = other.reason, worth = other.worth, limit = other.limit }
-      best.reason = "both"
-      byID[e.id] = best
-    end
-  end
-  others = {}
-  for _, e in pairs(byID) do others[#others + 1] = e end
-  table.sort(others, function(a, b) return a.profit > b.profit end)
-  for _, e in ipairs(others) do add(e) end
-  for _, e in ipairs(waiting) do add(e) end
-  lap("deals and sorting")
-  return out
+  lap("deals")
+  return lanes
 end
 buildQueue = ns.Timed("Buy queue", buildQueue)
 
@@ -179,7 +165,12 @@ buildQueue = ns.Timed("Buy queue", buildQueue)
 -- States: idle, wait, browse (gear: finding its stat versions), search, ready,
 -- price (commodity: waiting for the final price), confirm, buying.
 ---------------------------------------------------------------------------
-local Q = { list = {}, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
+-- Q.lanes: the sections' lists. Q.armed: the one section that looks things up and buys,
+-- chosen by you (a click, or the wheel over its strip); nil = none. Q.cur is from it.
+local Q = { lanes = { flips = {}, de = {}, deals = {}, lists = {} }, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
+
+-- The armed section's list.
+local function laneList() return (Q.armed and Q.lanes[Q.armed]) or {} end
 
 -- Let items back into the queue at once (Buy again, a changed Want or price, a new
 -- item): a finished item is otherwise kept out for 2 minutes, so Buy again did nothing
@@ -191,8 +182,14 @@ end
 local side, queueView, listsView   -- frames, built when the auction house first opens
 local refreshQueue                  -- redraws the queue view
 
-local function active()
+-- The queue tab is on screen at the auction house.
+local function shown()
   return side and side:IsShown() and S().tab == "queue" and ns:IsAHOpen()
+end
+
+-- ...and a section is armed: only then does anything get looked up or bought.
+local function active()
+  return shown() and Q.armed ~= nil
 end
 
 local function setState(state)
@@ -228,7 +225,8 @@ local function finishTarget(note)
   local e = Q.cur
   if e then
     done[e.id] = GetTime()
-    for i, x in ipairs(Q.list) do if x == e then table.remove(Q.list, i); break end end
+    local list = Q.lanes[e.lane] or {}
+    for i, x in ipairs(list) do if x == e then table.remove(list, i); break end end
     Q.note = ns.ItemName(e.id) .. ": " .. note
     ns:Debug("Buy queue:", ns.ItemName(e.id), "-", note)
   end
@@ -304,23 +302,17 @@ end
 -- Start on the first item in the queue, if nothing's under way.
 function prepare()
   if not active() or Q.cur then return end
-  if #Q.list == 0 or GetTime() - (Q.built or 0) > REBUILD_EVERY then
-    Q.list, Q.built = buildQueue(), GetTime()
+  if GetTime() - (Q.built or 0) > REBUILD_EVERY then
+    Q.lanes, Q.built = buildQueue(), GetTime()
   end
   -- The first one that's cheap enough; waiting list items are only looked up when clicked.
+  -- An empty section just waits: scrolling over it does nothing until something turns
+  -- up (owner, October 2: "scroll there endlessly" while flips come and go).
   local e
-  for _, x in ipairs(Q.list) do
+  for _, x in ipairs(laneList()) do
     if not x.waiting then e = x; break end
   end
   if not e then
-    -- Nothing left to buy: scroll to buy switches itself off, so a wheel tick later
-    -- can't buy something new by surprise (owner, October 2).
-    if S().wheel then
-      S().wheel = false
-      updateBinding()
-      if queueView and queueView.wheel then queueView.wheel:SetChecked(false) end
-      Q.note = "Queue empty: scroll to buy is now off."
-    end
     setState("idle")
     return
   end
@@ -328,10 +320,32 @@ function prepare()
   search()
 end
 
--- Work on this entry now (clicking a row).
-local function choose(e)
+-- Let go of the current item (a purchase waiting for its confirm tick is cancelled).
+local function dropCurrent()
   if Q.state == "price" or Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
-  Q.cur, Q.plan, Q.key, Q.keys, Q.tries = e, nil, nil, nil, 0
+  Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
+  Q.state = "idle"
+end
+
+-- Make a section the one that looks things up and buys. Only you do this (a click, or
+-- the wheel over its strip); scans and the flip watch never switch it.
+local function arm(key, quiet)
+  if Q.armed == key then return end
+  dropCurrent()
+  Q.armed = key
+  Q.note = nil
+  if not quiet then
+    Q.userPicked = true
+    prepare()
+  end
+  if refreshQueue then refreshQueue() end
+end
+
+-- Work on this entry now (clicking a row): its section becomes the armed one.
+local function choose(e)
+  arm(e.lane, true)
+  dropCurrent()
+  Q.cur, Q.tries = e, 0
   Q.userPicked = true
   search()
 end
@@ -582,19 +596,42 @@ ns:On("PLAYER_REGEN_ENABLED", updateBinding)
 ---------------------------------------------------------------------------
 -- Queue view
 ---------------------------------------------------------------------------
-local ROW_H = 20
+local ROW_H = 18
+local STRIP_H = 46
+
+-- The sections, in the order they're stacked. setting: the box that turns it on.
+local LANES = {
+  { key = "flips", setting = "flips", title = "Vendor flips" },
+  { key = "de", setting = "disenchant", title = "Disenchant" },
+  { key = "deals", setting = "deals", title = "Good deals" },
+  { key = "lists", setting = "lists", title = "Shopping lists" },
+}
+local LANE_BY_KEY = {}
+for _, d in ipairs(LANES) do LANE_BY_KEY[d.key] = d end
+
+local function ticked()
+  local out = {}
+  for _, d in ipairs(LANES) do if S()[d.setting] then out[#out + 1] = d end end
+  return out
+end
+
+-- One section on its own does its thing without a click, unless it's shopping lists,
+-- which only buy once you've said so (owner, October 2).
+local function autoArm()
+  local t = ticked()
+  if not Q.armed and #t == 1 and t[1].key ~= "lists" then Q.armed = t[1].key end
+  -- A section you've unticked can't stay armed.
+  if Q.armed and not S()[LANE_BY_KEY[Q.armed].setting] then
+    dropCurrent()
+    Q.armed = nil
+  end
+end
 
 local function reasonLine(e)
   if not e then return "" end
   if e.reason == "flip" then return ("Vendor flip: a vendor pays %s."):format(money(e.worth)) end
   if e.reason == "de" then return ("Disenchant: worth about %s."):format(money(e.worth)) end
   if e.reason == "deal" then return ("Below its usual price: resells for about %s."):format(money(e.worth)) end
-  if e.reason == "both" and e.both then
-    local flip = e.both.reason == "flip" and e.both.worth or e.worth
-    local de = e.both.reason == "de" and e.both.worth or e.worth
-    return ("Vendor flip and disenchant: a vendor pays %s, disenchanting is worth about %s. Buying up to the better one."):format(
-      money(flip), money(de))
-  end
   if e.reason == "list" then
     return ("Shopping list %s: up to %s%s."):format(e.list or "", limitText(e),
       e.want and (", %d more wanted"):format(e.want) or "")
@@ -602,21 +639,19 @@ local function reasonLine(e)
   return ""
 end
 
+-- The armed section's strip: what's happening now. Returns line 1, line 2, button text.
 local function statusText()
   local e, p = Q.cur, Q.plan
   local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. "|r") or ""
   local st = Q.state
-  if not ns:IsAHOpen() then
-    return "Open the auction house to use the buy queue.", "Shopping lists can be made anywhere: /fl lists.", "Buy"
-  end
   if st == "wait" then
-    if Q.waitText then return Q.waitText, "It carries on a few seconds after you stop, or click Buy to go now.", "Buy" end
+    if Q.waitText then return Q.waitText, "Carries on a few seconds after you stop, or click Buy.", "Buy" end
     return ("Waiting for %s..."):format(Q.waitFor or "the auction house"), "", "..."
   end
   if st == "browse" or st == "search" then return "Looking for " .. name .. "...", reasonLine(e), "..." end
   if st == "ready" and p and p.kind == "commodity" then
     return ("Buy %d %s for %s"):format(p.qty, name, money(p.cost)),
-      ("%s each, up to %s. "):format(money(p.cost / p.qty), limitText(e)) .. reasonLine(e), "Buy"
+      ("%s each, up to %s."):format(money(p.cost / p.qty), limitText(e)), "Buy"
   end
   if st == "price" then return "Getting the final price for " .. name .. "...", "", "..." end
   if st == "confirm" and p then
@@ -625,114 +660,35 @@ local function statusText()
   end
   if st == "ready" and p and p.kind == "item" then
     return ("Buy %s for %s"):format(name, money(p.price)),
-      ("%d at or under %s. "):format(p.count, limitText(e)) .. reasonLine(e), "Buy"
+      ("%d at or under %s."):format(p.count, limitText(e)), "Buy"
   end
   if st == "buying" then return "Buying " .. name .. "...", "", "..." end
-  local ready, waiting = 0, 0
-  for _, x in ipairs(Q.list) do if x.waiting then waiting = waiting + 1 else ready = ready + 1 end end
-  if ready == 0 then
-    return "Nothing worth buying right now.", waiting > 0
-      and ("%d shopping list %s waiting for a lower price (greyed below). Search the list to check again."):format(waiting, waiting == 1 and "item is" or "items are")
-      or "Run a scan or Watch flips: new finds join the queue.", "Check"
-  end
-  return "Ready.", "", "Start"
+  local waiting = 0
+  for _, x in ipairs(laneList()) do if x.waiting then waiting = waiting + 1 end end
+  return "Nothing to buy right now.", Q.note or (waiting > 0
+    and ("%d waiting for a lower price (greyed below)."):format(waiting)
+    or "Keep this open: new finds show up here."), "Check"
 end
 
-local function buildQueueView(parent)
-  local v = CreateFrame("Frame", nil, parent)
-  v:SetPoint("TOPLEFT", 0, -30)
-  v:SetPoint("BOTTOMRIGHT")
-
-  -- What's next, and the Buy button.
-  local box = CreateFrame("Frame", nil, v)
-  box:SetPoint("TOPLEFT", 8, -6)
-  box:SetPoint("TOPRIGHT", -8, -6)
-  box:SetHeight(74)
-  T:Fill(box, { 1, 1, 1, 0.04 })
-  T:Border(box)
-  v.icon = box:CreateTexture(nil, "ARTWORK")
-  v.icon:SetSize(32, 32)
-  v.icon:SetPoint("TOPLEFT", 8, -8)
-  v.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  v.line1 = T:Text(box, 13)
-  v.line1:SetPoint("TOPLEFT", 48, -8)
-  v.line1:SetPoint("RIGHT", box, "RIGHT", -100, 0)
-  v.line1:SetJustifyH("LEFT")
-  v.line1:SetWordWrap(false)
-  v.line2 = T:Text(box, 11, T.dim)
-  v.line2:SetPoint("TOPLEFT", v.line1, "BOTTOMLEFT", 0, -4)
-  v.line2:SetPoint("RIGHT", box, "RIGHT", -100, 0)
-  v.line2:SetJustifyH("LEFT")
-  v.line3 = T:Text(box, 11, T.section)
-  v.line3:SetPoint("BOTTOMLEFT", 8, 6)
-  v.line3:SetPoint("RIGHT", box, "RIGHT", -100, 0)
-  v.line3:SetJustifyH("LEFT")
-  v.line3:SetWordWrap(false)
-
-  local buy = T:Button(box, "Buy", 84, function() ns:BuyQueueAct() end, 56, BUY_BUTTON)
-  buy:SetPoint("RIGHT", -8, 0)
-  buy:GetFontString():SetFont(T.font, 15, "")
-  v.buy = buy
-  -- Scroll to buy (when ticked): the wheel down anywhere over this box, Buy included.
-  box:EnableMouseWheel(true)
-  box:SetScript("OnMouseWheel", function(_, delta) if delta < 0 and S().wheel then ns:BuyQueueAct() end end)
-
-  -- What goes in the queue.
-  local y = -88
-  local opts = { { "flips", "Vendor flips" }, { "disenchant", "Disenchant" }, { "deals", "Good deals" }, { "lists", "Shopping lists" } }
-  local x = 10
-  for _, o in ipairs(opts) do
-    local cb = T:Check(v, function(self) S()[o[1]] = self:GetChecked(); rebuildNow() end)
-    cb:SetPoint("TOPLEFT", x, y)
-    cb.label:SetText(o[2])
-    cb:SetChecked(S()[o[1]])
-    x = x + 20 + cb.label:GetStringWidth() + 16
+-- A section that isn't armed: what it has, and how to start it.
+local function idleText(d)
+  local list = Q.lanes[d.key] or {}
+  local ready, best = 0, nil
+  for _, x in ipairs(list) do
+    if not x.waiting then
+      ready = ready + 1
+      best = best or x
+    end
   end
-  local wheel = T:Check(v, function(self) S().wheel = self:GetChecked(); updateBinding(); refreshQueue() end)
-  wheel:SetPoint("TOPLEFT", 10, y - 20)
-  wheel.label:SetText("Scroll to buy (mouse wheel down over the box above)")
-  wheel:SetChecked(S().wheel)
-  wheel:SetHitRectInsets(0, -(wheel.label:GetStringWidth() + 8), 0, 0)
-  wheel:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine("Scroll to buy", 1, 1, 1)
-    GameTooltip:AddLine("With the mouse over the box at the top (the one with Buy in it), each tick of the wheel down buys the next item; stacks of materials take a second tick to confirm. Off: only clicking Buy buys. It turns itself off when the queue runs out.", nil, nil, nil, true)
-    GameTooltip:Show()
-  end)
-  wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  v.wheel = wheel
-
-  -- The queue.
-  y = y - 46
-  local header = CreateFrame("Frame", nil, v)
-  header:SetPoint("TOPLEFT", 6, y)
-  header:SetPoint("TOPRIGHT", -6, y)
-  header:SetHeight(20)
-  T:Fill(header, { 1, 1, 1, 0.05 })
-  for _, c in ipairs({ { "Item", 8, "LEFT" }, { "Why", 214, "LEFT" }, { "Up to", 300, "RIGHT" }, { "Cheap", 340, "RIGHT" }, { "Profit", 400, "RIGHT" } }) do
-    local fs = T:Text(header, 11, T.dim)
-    if c[3] == "LEFT" then fs:SetPoint("LEFT", c[2], 0) else fs:SetPoint("RIGHT", header, "LEFT", c[2], 0) end
-    fs:SetText(c[1])
-  end
-  v.sf, v.content = T:Scroll(v)
-  v.sf:SetPoint("TOPLEFT", 6, y - 22)
-  v.sf:SetPoint("BOTTOMRIGHT", -6, 36)
-  v.rows = {}
-
-  local refresh = T:Button(v, "Refresh", 80, function() Q.list, Q.built = buildQueue(), GetTime(); refreshQueue(); prepare() end, 22)
-  refresh:SetPoint("BOTTOMLEFT", 10, 8)
-  v.totals = T:Text(v, 11, T.dim)
-  v.totals:SetPoint("LEFT", refresh, "RIGHT", 10, 0)
-  v.totals:SetPoint("RIGHT", v, "RIGHT", -10, 0)
-  v.totals:SetJustifyH("LEFT")
-  return v
+  if ready == 0 then return "|cff888888Nothing to buy right now.|r", "|cff888888Click here to make this the section you buy from.|r" end
+  return ("|cff888888%d to buy, best: %s|r"):format(ready, ns.ItemName(best.id)),
+    "|cff888888Click here (or scroll over this strip) to buy from this section.|r"
 end
 
-local function queueRow(i)
-  local v = queueView
-  local r = v.rows[i]
+local function laneRow(L, i)
+  local r = L.rows[i]
   if r then return r end
-  r = CreateFrame("Button", nil, v.content)
+  r = CreateFrame("Button", nil, L.content)
   r:SetHeight(ROW_H)
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   r.stripe = T:Fill(r, { 1, 1, 1, 0.025 })
@@ -741,24 +697,24 @@ local function queueRow(i)
   hl:SetAllPoints()
   hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.12)
   r.icon = r:CreateTexture(nil, "ARTWORK")
-  r.icon:SetSize(16, 16)
+  r.icon:SetSize(14, 14)
   r.icon:SetPoint("LEFT", 2, 0)
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   r.name = T:Text(r, 11)
   r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
-  r.name:SetWidth(184)
+  r.name:SetWidth(200)
   r.name:SetJustifyH("LEFT")
   r.name:SetWordWrap(false)
-  r.why, r.limit, r.n, r.profit = T:Text(r, 11), T:Text(r, 11), T:Text(r, 11), T:Text(r, 11)
-  r.why:SetPoint("LEFT", 208, 0)
-  r.limit:SetPoint("RIGHT", r, "LEFT", 294, 0)
-  r.n:SetPoint("RIGHT", r, "LEFT", 334, 0)
-  r.profit:SetPoint("RIGHT", r, "LEFT", 394, 0)
+  r.limit, r.n, r.profit = T:Text(r, 11), T:Text(r, 11), T:Text(r, 11)
+  r.limit:SetPoint("RIGHT", r, "LEFT", 290, 0)
+  r.n:SetPoint("RIGHT", r, "LEFT", 330, 0)
+  r.profit:SetPoint("RIGHT", r, "LEFT", 392, 0)
   r:SetScript("OnClick", function(self, button)
     if button == "RightButton" then
       skipped[self.entry.id] = true
       if Q.cur == self.entry then finishTarget("skipped.") end
-      for k, x in ipairs(Q.list) do if x == self.entry then table.remove(Q.list, k); break end end
+      local list = Q.lanes[self.entry.lane] or {}
+      for k, x in ipairs(list) do if x == self.entry then table.remove(list, k); break end end
       refreshQueue()
     else
       choose(self.entry)
@@ -770,58 +726,214 @@ local function queueRow(i)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(reasonLine(self.entry), T.accent[1], T.accent[2], T.accent[3], true)
     if self.entry.waiting then
-      GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or Search this list again later.", 1, 0.82, 0, true)
+      GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or Search list again later.", 1, 0.82, 0, true)
     end
-    GameTooltip:AddLine("Click to buy this one next. Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
+    GameTooltip:AddLine("Click to buy this one next (its section becomes the one you buy from). Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  v.rows[i] = r
+  L.rows[i] = r
   return r
 end
 
-refreshQueue = function()
-  local v = queueView
-  if not v or not v:IsVisible() then return end
-  local a, b, label = statusText()
-  v.line1:SetText(a)
-  v.line2:SetText(b)
-  v.line3:SetText(Q.note or (S().wheel and "Scroll down over this box, or click Buy." or "Click Buy."))
-  v.icon:SetTexture(Q.cur and ns:ItemIcon(Q.cur.id) or "Interface\\Icons\\INV_Misc_Coin_01")
-  v.buy:SetText(label)
-  v.buy:SetSelected(Q.state == "confirm")
+-- One section: a strip on top (what's next, and Buy) and its list below.
+local function buildLane(v, d)
+  local L = CreateFrame("Frame", nil, v)
+  L.def = d
+  T:Fill(L, { 1, 1, 1, 0.015 })
+  T:Border(L)
+  L:EnableMouse(true)
+  L:SetScript("OnMouseDown", function() arm(d.key) end)
 
-  local width = v.sf:GetWidth() - 12
-  v.content:SetWidth(width)
-  for i, e in ipairs(Q.list) do
-    local r = queueRow(i)
+  local strip = CreateFrame("Button", nil, L)
+  strip:SetPoint("TOPLEFT", 1, -1)
+  strip:SetPoint("TOPRIGHT", -1, -1)
+  strip:SetHeight(STRIP_H)
+  L.stripBg = T:Fill(strip, { 1, 1, 1, 0.04 })
+  strip:SetScript("OnClick", function() arm(d.key) end)
+  -- The wheel over the strip: makes this the section you buy from, then (with Scroll to
+  -- buy ticked) each tick down buys. Over the list below, the wheel scrolls the list.
+  strip:EnableMouseWheel(true)
+  strip:SetScript("OnMouseWheel", function(_, delta)
+    if delta >= 0 then return end
+    if Q.armed ~= d.key then arm(d.key)
+    elseif S().wheel then ns:BuyQueueAct() end
+  end)
+  L.title = T:Text(strip, 11, T.accent)
+  L.title:SetPoint("TOPLEFT", 6, -4)
+  L.icon = strip:CreateTexture(nil, "ARTWORK")
+  L.icon:SetSize(24, 24)
+  L.icon:SetPoint("TOPLEFT", 6, -18)
+  L.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  L.line1 = T:Text(strip, 12)
+  L.line1:SetPoint("TOPLEFT", 36, -17)
+  L.line1:SetPoint("RIGHT", strip, "RIGHT", -84, 0)
+  L.line1:SetJustifyH("LEFT")
+  L.line1:SetWordWrap(false)
+  L.line2 = T:Text(strip, 10, T.dim)
+  L.line2:SetPoint("TOPLEFT", L.line1, "BOTTOMLEFT", 0, -2)
+  L.line2:SetPoint("RIGHT", strip, "RIGHT", -84, 0)
+  L.line2:SetJustifyH("LEFT")
+  L.line2:SetWordWrap(false)
+  L.buy = T:Button(strip, "Buy", 72, function()
+    if Q.armed ~= d.key then arm(d.key) else ns:BuyQueueAct() end
+  end, 34)
+  L.buy:SetPoint("RIGHT", -6, 0)
+  L.buy:GetFontString():SetFont(T.font, 14, "")
+
+  local header = CreateFrame("Frame", nil, L)
+  header:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", 4, -2)
+  header:SetPoint("TOPRIGHT", strip, "BOTTOMRIGHT", -4, -2)
+  header:SetHeight(14)
+  for _, c in ipairs({ { "Item", 4, "LEFT" }, { "Up to", 286, "RIGHT" }, { "Cheap", 326, "RIGHT" },
+                       { d.key == "lists" and "Now" or "Profit", 388, "RIGHT" } }) do
+    local fs = T:Text(header, 10, T.dim)
+    if c[3] == "LEFT" then fs:SetPoint("LEFT", c[2], 0) else fs:SetPoint("RIGHT", header, "LEFT", c[2], 0) end
+    fs:SetText(c[1])
+  end
+  L.sf, L.content = T:Scroll(L)
+  L.sf:SetPoint("TOPLEFT", header, "BOTTOMLEFT", -2, -1)
+  L.sf:SetPoint("BOTTOMRIGHT", -3, 3)
+  L.rows = {}
+  return L
+end
+
+local function buildQueueView(parent)
+  local v = CreateFrame("Frame", nil, parent)
+  v:SetPoint("TOPLEFT", 0, -30)
+  v:SetPoint("BOTTOMRIGHT")
+
+  -- Which sections to show.
+  local x = 10
+  for _, d in ipairs(LANES) do
+    local cb = T:Check(v, function(self) S()[d.setting] = self:GetChecked(); rebuildNow() end)
+    cb:SetPoint("TOPLEFT", x, -8)
+    cb.label:SetText(d.title)
+    cb:SetChecked(S()[d.setting])
+    x = x + 20 + cb.label:GetStringWidth() + 16
+  end
+  local wheel = T:Check(v, function(self) S().wheel = self:GetChecked(); refreshQueue() end)
+  wheel:SetPoint("TOPLEFT", 10, -28)
+  wheel.label:SetText("Scroll to buy (wheel down over a section's top strip)")
+  wheel:SetChecked(S().wheel)
+  wheel:SetHitRectInsets(0, -(wheel.label:GetStringWidth() + 8), 0, 0)
+  wheel:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Scroll to buy", 1, 1, 1)
+    GameTooltip:AddLine("With the mouse over the top strip of the section you're buying from (the one with the bright border), each tick of the wheel down buys the next item; stacks of materials take a second tick to confirm. It keeps working while the section is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  v.wheel = wheel
+
+  v.lanes = {}
+  for _, d in ipairs(LANES) do v.lanes[d.key] = buildLane(v, d) end
+  v.empty = T:Text(v, 12, T.dim)
+  v.empty:SetPoint("TOP", 0, -80)
+  v.empty:SetText("Tick what to buy above.")
+
+  local refresh = T:Button(v, "Refresh", 80, function() Q.built = 0; rebuildNow() end, 22)
+  refresh:SetPoint("BOTTOMLEFT", 10, 8)
+  v.totals = T:Text(v, 11, T.dim)
+  v.totals:SetPoint("LEFT", refresh, "RIGHT", 10, 0)
+  v.totals:SetPoint("RIGHT", v, "RIGHT", -10, 0)
+  v.totals:SetJustifyH("LEFT")
+  v:SetScript("OnSizeChanged", function() if refreshQueue then refreshQueue() end end)
+  return v
+end
+
+-- Stack the ticked sections, splitting the height between them.
+local function layoutLanes(v)
+  local t = ticked()
+  local top, bottom, gap = 50, 36, 6
+  local h = v:GetHeight() - top - bottom
+  local n = #t
+  v.empty:SetShown(n == 0)
+  local each = n > 0 and math.floor((h - gap * (n - 1)) / n) or 0
+  local on = {}
+  for i, d in ipairs(t) do
+    local L = v.lanes[d.key]
+    L:ClearAllPoints()
+    L:SetPoint("TOPLEFT", 6, -(top + (i - 1) * (each + gap)))
+    L:SetPoint("RIGHT", v, "RIGHT", -6, 0)
+    L:SetHeight(each)
+    L:Show()
+    on[d.key] = true
+  end
+  for key, L in pairs(v.lanes) do if not on[key] then L:Hide() end end
+end
+
+local function fillLane(L)
+  local d, armed = L.def, Q.armed == L.def.key
+  local list = Q.lanes[d.key] or {}
+  -- The section you buy from has a bright border; the others are dimmed.
+  for _, e in ipairs(L.borders or {}) do
+    if armed then e:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.9)
+    else e:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4]) end
+  end
+  L.stripBg:SetColorTexture(1, 1, 1, armed and 0.07 or 0.03)
+  local ready = 0
+  for _, x in ipairs(list) do if not x.waiting then ready = ready + 1 end end
+  L.title:SetText(("%s  |cff888888%d|r%s"):format(d.title, ready, armed and "   |cff7fd39cbuying from this one|r" or ""))
+  local a, b, label
+  if armed then
+    a, b, label = statusText()
+    if Q.note and Q.state == "idle" then b = Q.note end
+    L.icon:SetTexture(Q.cur and ns:ItemIcon(Q.cur.id) or "Interface\\Icons\\INV_Misc_Coin_01")
+  else
+    a, b = idleText(d)
+    label = "Start"
+    L.icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
+  end
+  L.icon:SetDesaturated(not armed)
+  L.line1:SetText(a)
+  L.line2:SetText(b or "")
+  L.buy:SetText(label)
+  L.buy:SetSelected(armed and Q.state == "confirm")
+
+  local width = L.sf:GetWidth() - 12
+  L.content:SetWidth(width)
+  for i, e in ipairs(list) do
+    local r = laneRow(L, i)
     r.entry = e
     r:ClearAllPoints()
-    r:SetPoint("TOPLEFT", v.content, "TOPLEFT", 0, -(i - 1) * ROW_H)
+    r:SetPoint("TOPLEFT", L.content, "TOPLEFT", 0, -(i - 1) * ROW_H)
     r:SetWidth(width)
     r.stripe:SetShown(i % 2 == 0)
-    r.current:SetShown(e == Q.cur)
+    r.current:SetShown(armed and e == Q.cur)
     r.icon:SetTexture(ns:ItemIcon(e.id))
     r.icon:SetDesaturated(e.waiting and true or false)
     r.name:SetText(e.waiting and ("|cff888888" .. ns.ItemName(e.id) .. "|r") or ns.ItemName(e.id))
-    local rs = REASONS[e.reason]
-    r.why:SetText(e.waiting and "|cff888888WAIT|r" or ("|cff%s%s|r"):format(rs.color, rs.badge))
     r.limit:SetText(e.any and "any" or money(e.limit))
     r.n:SetText(e.waiting and "0" or (e.n and tostring(e.n) or "?"))
-    if e.waiting then
+    if d.key == "lists" then
       local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
-      r.profit:SetText(rec and rec.m and not rec.none and ("|cff888888now " .. ns.MoneyPlain(rec.m) .. "|r") or "|cff888888none|r")
+      local now = rec and rec.m and not rec.none and ns.MoneyPlain(rec.m) or "none"
+      r.profit:SetText(e.waiting and ("|cff888888" .. now .. "|r") or now)
     else
       r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
     end
     r:Show()
   end
-  for i = #Q.list + 1, #v.rows do v.rows[i]:Hide() end
-  v.content:SetHeight(math.max(#Q.list * ROW_H, ROW_H))
-  v.sf.UpdateScrollBar()
+  for i = #list + 1, #L.rows do L.rows[i]:Hide() end
+  L.content:SetHeight(math.max(#list * ROW_H, ROW_H))
+  L.sf.UpdateScrollBar()
+end
+
+refreshQueue = function()
+  local v = queueView
+  if not v or not v:IsVisible() then return end
+  autoArm()
+  layoutLanes(v)
+  for _, d in ipairs(ticked()) do fillLane(v.lanes[d.key]) end
+  local total = 0
+  for _, d in ipairs(ticked()) do
+    for _, x in ipairs(Q.lanes[d.key] or {}) do if not x.waiting then total = total + 1 end end
+  end
   v.totals:SetText(Q.bought > 0 and ("Bought %d for %s%s."):format(Q.bought, money(Q.spent),
     Q.worth > 0 and (", worth about %s"):format(money(Q.worth)) or "")
-    or ("%d in the queue."):format(#Q.list))
+    or (Q.armed and ("%d to buy. Click a section to buy from it."):format(total)
+      or "Click a section (or scroll over its strip) to buy from it."))
 end
 refreshQueue = ns.Timed("Buy queue view", refreshQueue)
 
@@ -1593,8 +1705,9 @@ local function showTab(tab)
   if finder then finder:SetShown(tab == "finder") end
   updateBinding()
   if tab == "queue" then
-    if refreshQueue then refreshQueue() end
-    prepare()
+    -- Fill every section (armed or not) from the last scan.
+    Q.built = 0
+    rebuildNow()
   else
     -- Leaving the queue: let go of a purchase that was waiting for its confirm tick.
     if Q.state == "price" or Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
@@ -1714,27 +1827,30 @@ ns:On("AUCTION_HOUSE_SHOW", function()
 end)
 ns:On("AUCTION_HOUSE_CLOSED", function()
   Q.cur, Q.plan, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"
+  -- Next visit, nothing is armed until you click (a lone flips section arms by itself).
+  Q.armed = nil
   if side and not InCombatLockdown() then ClearOverrideBindings(side) end
 end)
 
--- New finds join the queue (the current item stays where it is).
+-- New finds join their sections (the current item stays where it is). Never changes
+-- which section is armed: scans and the flip watch only add to the lists.
 function rebuildNow()
-  if not active() then return end
-  Q.list, Q.built = buildQueue(), GetTime()
+  if not shown() then return end
+  Q.lanes, Q.built = buildQueue(), GetTime()
+  autoArm()
   if Q.cur then
-    local found = false
-    for i, e in ipairs(Q.list) do
-      if e.id == Q.cur.id then Q.list[i] = Q.cur; found = true end
+    local list, found = laneList(), false
+    for i, e in ipairs(list) do
+      if e.id == Q.cur.id then list[i] = Q.cur; found = true end
     end
     if not found then
       -- It no longer belongs (you unticked its kind, or it stopped being worth it): let
       -- it go, unless a purchase of it is under way (owner, October 2: a Rough Bronze
       -- Cuirass kept being bought as DE after Disenchant was unticked).
       if Q.state == "price" or Q.state == "confirm" or Q.state == "buying" then
-        table.insert(Q.list, 1, Q.cur)
+        table.insert(list, 1, Q.cur)
       else
-        Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
-        Q.state = "idle"
+        dropCurrent()
       end
     end
   end
@@ -1747,7 +1863,7 @@ end
 -- October 2: flips showed on the Vendor flips tab before the queue).
 local flipRebuild = false
 local function soonForFlip(_, id)
-  if flipRebuild or not active() or not ns:VendorFlip(id) then return end
+  if flipRebuild or not shown() or not S().flips or not ns:VendorFlip(id) then return end
   flipRebuild = true
   C_Timer.After(1, function() flipRebuild = false; rebuildNow() end)
 end

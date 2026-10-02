@@ -32,6 +32,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The Vendor flips tab no longer works out every shuffle each time the flip watch saves a price (about 195 ms each, many times a minute): it works out just the flips, at most every 2 seconds.
 
 ### Changed
+- Buy queue sections: each ticked kind (Vendor flips, Disenchant, Good deals, Shopping lists) has its own section with its own list and Buy strip. Only the section you click is the one you buy from (bright border); the others just show what the last scan found. Scans and the flip watch never switch it, so a shopping list and the flip watch don't get in each other's way. Scroll to buy works over that section's strip, even while it's empty.
 - The Vendor flips tab is gone: vendor flips are bought from the Buy queue beside the auction house. A full scan that finds flips opens the Buy queue if it's closed (it never switches a tab you're on); the flip watch's quick checks only chime.
 - The Disenchant finder moved into the new side panel: the button under the auction house is now Buy queue, and the finder is its third tab.
 - Vendor flips have their own settings: the least profit worth your time, as a share of the vendor price (0% counts anything below it) and as an amount each. They used to share the shuffles' safety margin, but selling to a vendor has no risk, only effort. The same rule sets "buy up to" on the auction house and the below-vendor-price deal alerts.
