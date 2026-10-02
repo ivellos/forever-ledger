@@ -150,7 +150,7 @@ local function buildQueue()
     for _, d in ipairs(ns:FindDeals(6 * 3600)) do
       if d.kind == "usual" and d.level == "good" and d.limit and ns:DealShown(d) then
         list[#list + 1] = { id = d.id, limit = math.floor(d.limit), reason = "deal", worth = d.resell,
-          n = d.listed, cost = d.cost or d.price }
+          n = d.listed, cost = d.cost or d.price, deal = d }
       end
     end
     for _, e in ipairs(byProfit(list)) do add("deals", e) end
@@ -727,6 +727,16 @@ local function laneRow(L, i)
     GameTooltip:SetItemByID(self.entry.id)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(reasonLine(self.entry), T.accent[1], T.accent[2], T.accent[3], true)
+    -- A deal: the same "why it's a deal" as the Deals tab.
+    if self.entry.deal and ns.DealExplain then
+      for _, l in ipairs(ns:DealExplain(self.entry.deal)) do
+        if l.head then GameTooltip:AddLine(l.head, T.accent[1], T.accent[2], T.accent[3])
+        elseif l.note then
+          local c = l.color or { 0.75, 0.75, 0.75 }
+          GameTooltip:AddLine(l.note, c[1], c[2], c[3], true)
+        else GameTooltip:AddDoubleLine(l[1], l[2], 0.8, 0.8, 0.8, 1, 1, 1) end
+      end
+    end
     if self.entry.waiting then
       GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or Search list again later.", 1, 0.82, 0, true)
     end
