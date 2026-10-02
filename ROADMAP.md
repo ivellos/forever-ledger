@@ -9,7 +9,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Arcane Salvager**: measuring how much it really improves disenchanting (nothing official says), then a plan for using it well: saving up greens and disenchanting them in 15-minute Salvager windows when the extra materials are worth more than the Salvager costs.
 - **Neutral auction houses**: prices kept as their own market, a 15% cut in the math, and items only one faction can buy, to sell to the other side.
 - **Where recipes come from**: original Classic vendor, drop and trainer locations are shown as "(Classic)" until players confirm them in Forever.
-- **Sell speed**: how many listings of an item disappear between scans, as a rough guide to how fast it sells, shown on the Deals tab.
+- **Sell speed**: a rating per item built from weeks of scans, judged against items of the same kind (materials are expected to move in bulk, gear slowly), so "4 a day with 5 listed" beats "100 listed and none selling". Shown only once there's enough data.
 
 ## Gold making
 
@@ -26,6 +26,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Collections: pets, mounts and toys** (and appearances if transmog arrives): what you have, what you're missing and how to get each one, including Forever's new ones, plus the gold side: what tradeable ones sell for and which are worth farming.
 - **Auction house deposits**: count the deposit in shuffles that end on the auction house, so cheap items that cost more to post than they earn show as "vendor it instead".
 - **Transmog**: bind-on-equip items that sell well, what they're worth and where they drop, including "worth farming" per rare.
+- **Quest turn-in items**: items that leveling players need for quests (Spider Ichor, Bronze Tube, Frost Oil...) marked in tooltips, with when they sell best; and a "keep this, you'll need it" hint for your own leveling.
 - **Launch-day checklist**: early gold makers (bags, wands, vendor-worthy drops) with live prices.
 - **Hold or sell**: price history shows when something is the cheapest or dearest it has been.
 - **Auctionator**: send a shuffle's materials to an Auctionator shopping list, with the most worth paying as the maximum price.
