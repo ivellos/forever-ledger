@@ -1187,6 +1187,7 @@ refreshLists = function()
   local width = v.sf:GetWidth() - 12
   v.content:SetWidth(width)
   local cheap, toBuy, y = 0, 0, 0
+  local done, matsShort = 0, 0   -- items you have enough of; materials you're short of
   for i, s in ipairs(show) do
     local r = listRow(i)
     showRow(r, s.kind)
@@ -1211,7 +1212,10 @@ refreshLists = function()
       r.maxText:SetText(craft and "crafted" or "any")
       if not craft and not r.max:HasFocus() then r.max:SetValue(e.max or 0) end
       if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
-      r.have:SetText(tostring(ns:HaveCount(e.id)))
+      -- Have against Want (1 if no number): green when you have enough.
+      local have, want = ns:HaveCount(e.id), e.qty or 1
+      if have >= want then done = done + 1 end
+      r.have:SetText(have >= want and ("|cff7fd39c" .. have .. "|r") or ("|cffffd100" .. have .. "|r"))
       local text, ok = nowText(e.id, not craft and (any and ns:AnyPriceLimit(e.id) or e.max) or nil)
       r.now:SetText(text)
       if ok then cheap = cheap + 1 end
@@ -1229,7 +1233,8 @@ refreshLists = function()
         r.max:SetTextColor(1, 1, 1, m.own and 1 or 0.55)   -- grey: the usual price, not one you typed
       end
       r.need:SetText(m.buy > 0 and ("|cffffd100%d|r"):format(m.need) or ("|cff7fd39c%d|r"):format(m.need))
-      r.have:SetText(tostring(m.have))
+      r.have:SetText(m.buy > 0 and ("|cffffd100" .. m.have .. "|r") or ("|cff7fd39c" .. m.have .. "|r"))
+      if m.buy > 0 then matsShort = matsShort + 1 end
       r.now:SetText((nowText(m.id, m.limit, m.vendor)))
       if m.buy > 0 and not m.vendor then toBuy = toBuy + 1 end
     else
@@ -1242,14 +1247,34 @@ refreshLists = function()
   for i = #show + 1, #v.rows do v.rows[i]:Hide() end
   v.content:SetHeight(math.max(y, 24))
   v.sf.UpdateScrollBar()
+  -- The list's progress beside its name.
+  if list and #list.items > 0 then
+    v.title:SetText(("%s %s %s%d/%d|r"):format(list.name,
+      #lists > 1 and ("|cff888888(%d of %d)|r"):format(idx, #lists) or "",
+      done == #list.items and "|cff7fd39c" or "|cffffd100", done, #list.items))
+  end
   v.searchB:SetEnabled(list ~= nil and #show > 0 and ns:IsAHOpen() and not ns.Scan.active)
+  -- How far along the list is (lists are kept, so the same one works again next raid:
+  -- what you have is counted afresh every time).
+  local craftsReady = 0
+  if list then
+    for _, e in ipairs(list.items) do
+      if e.mode == "craft" and ns:HaveCount(e.id) < (e.qty or 1) then craftsReady = craftsReady + 1 end
+    end
+  end
   if ns.Scan.active then
     v.info:SetText("Searching...")
   elseif not list then
     v.info:SetText("Click New to start a list.")
   elseif #list.items == 0 then
     v.info:SetText("Add items above, or Import a shared list.")
+  elseif done == #list.items then
+    v.info:SetText("|cff7fd39cComplete: you have everything on this list.|r")
+  elseif craftsReady > 0 and matsShort == 0 and done + craftsReady == #list.items then
+    v.info:SetText(("|cff7fd39cYou have all the materials:|r %d to craft, then it's complete."):format(craftsReady))
   elseif not ns:IsAHOpen() then
+    v.info:SetText(("%d of %d items done%s. Open the auction house to search and buy."):format(done, #list.items,
+      matsShort > 0 and (", %d materials short"):format(matsShort) or ""))
     v.info:SetText("Open the auction house to search and buy.")
   else
     local noPrice = 0
@@ -1260,7 +1285,7 @@ refreshLists = function()
       v.info:SetText(("%d %s no price: set Most each (or any) to buy %s."):format(noPrice,
         noPrice == 1 and "item has" or "items have", noPrice == 1 and "it" or "them"))
     else
-      v.info:SetText(("%d at your price%s: in the buy queue. The rest wait there."):format(cheap,
+      v.info:SetText(("%d of %d done. %d at your price%s: in the buy queue."):format(done, #list.items, cheap,
         toBuy > 0 and (", %d materials short"):format(toBuy) or ""))
     end
   end
