@@ -227,10 +227,42 @@ function ns:ImportShoppingLists(text)
   return true, msg
 end
 
--- How many you have of an item on this character, bags and bank.
-function ns:HaveCount(id)
+-- Bought on the auction house but still in the mailbox: purchases arrive by mail, so
+-- bags didn't change and the list kept asking for more (owner's test, October 2:
+-- Crafted Light Shot bought, Have still 0). Each purchase is noted with what bags and
+-- bank held then; as they fill up (mail taken), the count goes down. Gone after 31 days
+-- (mail expires after 30).
+-- ns.db.onTheWay[itemID] = { n = count, base = bags and bank when noted, t = time }
+local function bagsAndBank(id)
   local n = GetItemCount and GetItemCount(id, true)
   return n or 0
+end
+
+function ns:NoteBoughtToMail(id, qty)
+  if not (id and qty and qty > 0 and ns.db) then return end
+  ns.db.onTheWay = ns.db.onTheWay or {}
+  local w = ns.db.onTheWay[id] or { n = 0 }
+  local now = bagsAndBank(id)
+  w.n, w.base, w.t = w.n + qty, w.base and math.min(w.base, now) or now, time()
+  ns.db.onTheWay[id] = w
+end
+
+function ns:InTheMail(id)
+  local all = ns.db and ns.db.onTheWay
+  local w = all and all[id]
+  if not w then return 0 end
+  if time() - (w.t or 0) > 31 * 86400 then all[id] = nil; return 0 end
+  local now = bagsAndBank(id)
+  if now > w.base then w.n = math.max(0, w.n - (now - w.base)) end
+  w.base = now
+  if w.n <= 0 then all[id] = nil; return 0 end
+  return w.n
+end
+
+-- How many you have of an item on this character: bags, bank, and bought on the
+-- auction house but still in the mail.
+function ns:HaveCount(id)
+  return bagsAndBank(id) + ns:InTheMail(id)
 end
 
 ---------------------------------------------------------------------------

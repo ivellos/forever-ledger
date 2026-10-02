@@ -100,13 +100,32 @@ local function buildQueue()
     end
   end
   if s.disenchant then
+    -- What a disenchant is worth depends only on the item level band, so work it out once
+    -- per band, not through every item's full list of options (that took about 180 ms
+    -- each time the queue was rebuilt, owner's /fl perf, October 2).
+    local keep = 1 - (ns.db.settings.margin or 10) / 100
+    local bandWorth = {}
     for id, rec in pairs(market) do
       if rec.m and not rec.none and isGear(id) then
-        local limit, opt = ns:BuyAtOrBelow(id)
-        if limit and opt and opt.kind == "disenchant" and rec.m <= limit then
-          local n, avg = ns:CheapListings(id, limit)
-          if n and n > 0 then
-            others[#others + 1] = { id = id, limit = math.floor(limit), reason = "de", worth = opt.value, n = n, cost = avg }
+        local yield = ns:DisenchantYield(id)
+        if yield then
+          local worth = bandWorth[yield]
+          if not worth then
+            worth = 0
+            for _, m in ipairs(yield) do
+              local b = ns:BestOption(m[1])
+              if b then worth = worth + b.value * m[2] end
+            end
+            bandWorth[yield] = worth
+          end
+          local limit = math.floor(worth * keep)
+          -- If a vendor pays more than disenchanting is worth, it's a vendor flip instead.
+          local sell = ns:GetSellPrice(id)
+          if limit > 0 and rec.m <= limit and not (sell and sell >= worth) then
+            local n, avg = ns:CheapListings(id, limit)
+            if n and n > 0 then
+              others[#others + 1] = { id = id, limit = limit, reason = "de", worth = worth, n = n, cost = avg }
+            end
           end
         end
       end
@@ -1168,8 +1187,10 @@ local function listRow(i)
     GameTooltip:AddLine(ns.ItemName(id), 1, 1, 1)
     GameTooltip:AddDoubleLine("Bags", tostring(bags), 0.8, 0.8, 0.8, 1, 1, 1)
     GameTooltip:AddDoubleLine("Bank", tostring(bank), 0.8, 0.8, 0.8, 1, 1, 1)
+    local mail = ns:InTheMail(id)
+    if mail > 0 then GameTooltip:AddDoubleLine("In the mail (bought)", tostring(mail), 0.8, 0.8, 0.8, 1, 1, 1) end
     for name, n in pairs(byAlt) do GameTooltip:AddDoubleLine(name, tostring(n), 0.8, 0.8, 0.8, 1, 1, 1) end
-    GameTooltip:AddLine("Have counts this character's bags and bank. Bank as of your last visit; other characters as of their last login on this account.", 0.6, 0.6, 0.6, true)
+    GameTooltip:AddLine("Have counts this character's bags, bank and auction house purchases still in the mail. Bank as of your last visit; other characters as of their last login on this account.", 0.6, 0.6, 0.6, true)
     if alts == 0 then GameTooltip:AddLine("None on your other characters.", 0.6, 0.6, 0.6) end
     GameTooltip:Show()
   end)

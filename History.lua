@@ -178,6 +178,8 @@ local function onMoney()
     -- Non-commodity purchases (gear) are always one item.
     local id = (h and h.item) or lastShownItem
     addLog(ns.db.purchases, { t = now, c = who, id = id, q = (h and h.qty) or 1, a = math.abs(delta) })
+    -- It comes by mail: shopping lists count it as had until it's taken (ShoppingLists.lua).
+    if ns.NoteBoughtToMail then ns:NoteBoughtToMail(id, (h and h.qty) or 1) end
     -- Gear: the addon doesn't save prices from gear pages (one page shows one stat
     -- version), so take the bought one off the saved listings instead. Otherwise a
     -- gear flip stays on Vendor flips until the next full scan (owner's test, October 1:
