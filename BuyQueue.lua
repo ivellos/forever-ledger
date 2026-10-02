@@ -1611,21 +1611,38 @@ ns:On("AUCTION_HOUSE_CLOSED", function()
   if side and not InCombatLockdown() then ClearOverrideBindings(side) end
 end)
 
--- After any scan, new finds join the queue (the current item stays where it is).
+-- New finds join the queue (the current item stays where it is).
+local function rebuildNow()
+  if not active() then return end
+  Q.list, Q.built = buildQueue(), GetTime()
+  if Q.cur then
+    local found = false
+    for i, e in ipairs(Q.list) do
+      if e.id == Q.cur.id then Q.list[i] = Q.cur; found = true end
+    end
+    if not found then table.insert(Q.list, 1, Q.cur) end
+  end
+  refreshQueue()
+  if not Q.cur then prepare() end
+end
+
+-- A price just saved made a vendor flip (watch pass or your own search): into the
+-- queue within a second, not at the end of the pass, which could be 2 minutes (owner,
+-- October 2: flips showed on the Vendor flips tab before the queue).
+local flipRebuild = false
+local function soonForFlip(_, id)
+  if flipRebuild or not active() or not ns:VendorFlip(id) then return end
+  flipRebuild = true
+  C_Timer.After(1, function() flipRebuild = false; rebuildNow() end)
+end
+
+ns:OnReady(function()
+  hooksecurefunc(ns, "CheckFlip", soonForFlip)
+end)
+
+-- After any scan, new finds join the queue.
 ns:OnReady(function()
   -- Scroll to buy used to start on: switch it off once for everyone (owner, October 2).
   if not S().wheelOffOnce then S().wheel, S().wheelOffOnce = false, true end
-  hooksecurefunc(ns, "CheckDeals", function()
-    if not active() then return end
-    Q.list, Q.built = buildQueue(), GetTime()
-    if Q.cur then
-      local found = false
-      for i, e in ipairs(Q.list) do
-        if e.id == Q.cur.id then Q.list[i] = Q.cur; found = true end
-      end
-      if not found then table.insert(Q.list, 1, Q.cur) end
-    end
-    refreshQueue()
-    if not Q.cur then prepare() end
-  end)
+  hooksecurefunc(ns, "CheckDeals", rebuildNow)
 end)
