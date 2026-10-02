@@ -8,13 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - Deals tab: filter by kind (All, Materials, Gear, Other) and search by name. (Gear was being filed under Other at first; fixed, which also fixes how sell speed judges gear.)
 
-### Fixed
-- Deals: when half or more of what's listed is that cheap, the price has dropped rather than being a bargain (Greater Magic Essence at 1s 30c "usually" 20s 90c, with 2,381 that cheap, from when essences were scarce early in the beta). Those are now rated Thin, hidden unless you tick Show thin data too, and say why.
-
-### Added
 - Sell speed: tooltips and the Deals tab say how fast an item sells (Fast, Steady, Slow, Rare, or No sales seen), judged against items of the same kind. It counts listings that vanished between full scans before they could have expired, using each listing's time left, and leaves out ones reposted cheaper. It shows once there are 3 hours of scans compared; Watch flips gets there fastest. Deals that don't sell are rated less sure. Settings, Tooltips can turn the line off.
 
+### Changed
+- Buy queue buys faster: after buying one piece of gear it goes straight to the next cheap listing on the page it already has, instead of searching again each time. After buying every stack under the limit it moves on without a second look.
+
 ### Fixed
+- Deals: when half or more of what's listed is that cheap, the price has dropped rather than being a bargain (Greater Magic Essence at 1s 30c "usually" 20s 90c, with 2,381 that cheap, from when essences were scarce early in the beta). Those are now rated Thin, hidden unless you tick Show thin data too, and say why.
 - Characters are filed under their full name ("Iveilos Veren"), not just the first name, so two characters with the same first name no longer share one record (gold, recipes, bags and the rest). Each character's saved data moves over by itself the first time it logs in.
 
 ## [0.8.0] - 2026-10-02

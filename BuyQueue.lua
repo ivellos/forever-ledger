@@ -311,21 +311,25 @@ local function planCommodity()
   local n = AH.GetNumCommoditySearchResults(e.id) or 0
   local full = not AH.HasFullCommoditySearchResults or AH.HasFullCommoditySearchResults(e.id)
   local cash, qty, cost = GetMoney(), 0, 0
+  -- all: every listing at or under the limit is in this purchase (none stopped by
+  -- "want" or your gold), so there's no need to look again after buying it.
+  local all = full
   for i = 1, n do
     local r = AH.GetCommoditySearchResultInfo(e.id, i)
-    if not (r and r.unitPrice) or r.unitPrice > e.limit then break end
+    if not (r and r.unitPrice) or r.unitPrice > e.limit then all = true; break end
     local k = (r.quantity or 0) - (r.numOwnerItems or 0)
+    local avail = k
     if e.want then k = math.min(k, e.want - qty) end
     k = math.min(k, math.floor((cash - cost) / r.unitPrice))
     if k > 0 then qty, cost = qty + k, cost + k * r.unitPrice end
-    if (e.want and qty >= e.want) or cash - cost < r.unitPrice then break end
+    if k < avail then all = false; break end
   end
   if qty == 0 then
     if n == 0 and not full then return end   -- more results on the way
     finishTarget(("none left at %s or less."):format(limitText(e)))
     return
   end
-  Q.plan = { kind = "commodity", qty = qty, cost = cost }
+  Q.plan = { kind = "commodity", qty = qty, cost = cost, all = all }
   setState("ready")
 end
 
@@ -335,7 +339,8 @@ local function planItem(key)
   local cash, best, count, stacks = GetMoney(), nil, 0, 0
   for i = 1, n do
     local r = AH.GetItemSearchResultInfo(key, i)
-    if r and r.auctionID and r.buyoutAmount and r.buyoutAmount > 0 and r.buyoutAmount <= e.limit and not r.containsOwnerItem then
+    if r and r.auctionID and r.buyoutAmount and r.buyoutAmount > 0 and r.buyoutAmount <= e.limit and not r.containsOwnerItem
+      and not (e.boughtIDs and e.boughtIDs[r.auctionID]) then
       if (r.quantity or 1) > 1 then
         stacks = stacks + 1
       elseif r.buyoutAmount <= cash then
@@ -365,10 +370,28 @@ local function planItem(key)
   setState("ready")
 end
 
--- After a purchase: look again, there may be more.
-local function again()
+-- After a purchase: look again, there may be more. reuse: a single item was bought, so
+-- take the next cheap listing from the page already loaded instead of searching again,
+-- which cost about a second per purchase (owner, October 2: "slow to buy with the scroll").
+-- A failed purchase or no reply always searches again.
+local function again(reuse)
+  local p = Q.plan
   Q.plan, Q.tries = nil, 0
-  if Q.cur and Q.cur.want and Q.cur.want <= 0 then finishTarget("you have all you wanted."); return end
+  local e = Q.cur
+  if e and e.want and e.want <= 0 then finishTarget("you have all you wanted."); return end
+  if e and p and reuse and p.kind == "item" and p.key then
+    e.boughtIDs = e.boughtIDs or {}
+    e.boughtIDs[p.auctionID] = true
+    setState("search")
+    planItem(p.key)
+    -- The page had gone after all: search for real.
+    if Q.state == "search" and Q.cur == e then search() end
+    return
+  end
+  if e and p and reuse and p.kind == "commodity" and p.all then
+    finishTarget(("bought every one at %s or less."):format(limitText(e)))
+    return
+  end
   search()
 end
 
@@ -495,7 +518,7 @@ end)
 ns:On("COMMODITY_PURCHASE_SUCCEEDED", function()
   if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "commodity") then return end
   bought(Q.plan.qty, Q.plan.total or Q.plan.cost)
-  again()
+  again(true)
 end)
 
 ns:On("COMMODITY_PURCHASE_FAILED", function()
@@ -507,7 +530,7 @@ end)
 local function itemBought()
   if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "item") then return end
   bought(1, Q.plan.price)
-  again()
+  again(true)
 end
 ns:On("AUCTION_HOUSE_PURCHASE_COMPLETED", itemBought)
 -- Also the chat line, in case the client has no event for it: "You won an auction for X".

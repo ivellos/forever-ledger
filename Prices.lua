@@ -665,6 +665,19 @@ local function soldTracker()
     if compare and prev.items[id] then note(id, prev.items[id], g) end
   end
   function t.finish()
+    -- Why there was nothing to compare with, for checking (/fl debug).
+    if not compare then
+      local why = ("Sell speed: nothing to compare with yet (%s). This scan is saved for next time."):format(
+        not prev and "no earlier full scan saved"
+        or prev.market ~= market and ("the last one was for " .. tostring(prev.market))
+        or gap < 60 and "the last one was under a minute ago"
+        or ("the last one was %d hours ago"):format(math.floor(gap / 3600)))
+      ns:Debug(why)
+      local log = ns.db.sellCheckLog or {}
+      ns.db.sellCheckLog = log
+      log[#log + 1] = date("%m-%d %H:%M ") .. why
+      while #log > 30 do table.remove(log, 1) end
+    end
     if compare then
       -- Items with nothing listed now.
       for id, before in pairs(prev.items) do
