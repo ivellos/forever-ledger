@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Forever Ledger Discord
+    url: https://discord.gg/WKsCtvupeC
+    about: Questions and help, and the quickest way to report a bug (/bug) or suggest a feature (/feature).
