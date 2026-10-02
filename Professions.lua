@@ -17,7 +17,7 @@ function ns:GetChar()
   local c = ns.db.chars[key]
   if not c then c = { profs = {} }; ns.db.chars[key] = c end
   c.profs = c.profs or {}
-  c.name = UnitName("player")
+  c.name = ns.FullName()
   c.realm = GetRealmName()
   c.class = select(2, UnitClass("player"))
   c.level = UnitLevel("player")

@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- Characters are filed under their full name ("Iveilos Veren"), not just the first name, so two characters with the same first name no longer share one record (gold, recipes, bags and the rest). Each character's saved data moves over by itself the first time it logs in.
+
 ## [0.8.0] - 2026-10-02
 
 ### Highlights

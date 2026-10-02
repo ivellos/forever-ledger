@@ -140,8 +140,56 @@ function ns.ItemIDFromLink(link)
   return tonumber(link:match("item:(%d+)"))
 end
 
+-- The character's full name. Forever names have a first and last name, and UnitName
+-- returns them as two values ("Iveilos", "Veren"); elsewhere the second value is a realm
+-- or nothing, so a plain name is used then.
+function ns.FullName()
+  local first, last = UnitName("player")
+  first = first or "?"
+  if last and last ~= "" and not last:find("-", 1, true) then return first .. " " .. last end
+  return first
+end
+
+-- Saved data used to be filed under the first name only, so two characters named
+-- "Iveilos ..." would have shared one record: gold, recipes, everything. Now it's the
+-- full name. The first time each character logs in, everything filed under its old key
+-- moves to the new one (whoever logs in first takes a record two characters shared).
+-- Tables keyed by character (chars, gold, money, inventory, favor...) have the key
+-- renamed; log entries that note the character (c = key, char = key) are rewritten.
+local function moveCharacterKey(old, new)
+  local db = ns.db
+  local moved = 0
+  for _, t in pairs(db) do
+    if type(t) == "table" then
+      if t[old] ~= nil and t[new] == nil then
+        t[new], t[old] = t[old], nil
+        moved = moved + 1
+      end
+      for _, v in pairs(t) do
+        if type(v) == "table" then
+          if v.c == old then v.c = new; moved = moved + 1 end
+          if v.char == old then v.char = new; moved = moved + 1 end
+        end
+      end
+    end
+  end
+  return moved
+end
+
 function ns.CharKey()
-  return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
+  local realm = GetRealmName() or "?"
+  local first = UnitName("player") or "?"
+  local key = ns.FullName() .. "-" .. realm
+  local old = first .. "-" .. realm
+  if key ~= old and ns.db then
+    ns.db.charKeysMoved = ns.db.charKeysMoved or {}
+    if not ns.db.charKeysMoved[key] then
+      ns.db.charKeysMoved[key] = true
+      local n = moveCharacterKey(old, key)
+      if n > 0 and ns.Debug then ns:Debug(("Saved data moved from %s to %s (%d places)."):format(old, key, n)) end
+    end
+  end
+  return key
 end
 
 -- Forever is realmless: the "realm" is the ruleset, and each ruleset + faction is one auction house.
