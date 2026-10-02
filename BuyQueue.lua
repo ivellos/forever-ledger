@@ -623,7 +623,8 @@ local function statusText()
   for _, x in ipairs(laneList()) do if x.waiting then waiting = waiting + 1 end end
   return "Nothing to buy right now.", Q.note or (waiting > 0
     and ("%d waiting for a lower price (greyed below)."):format(waiting)
-    or "Keep this open: new finds show up here."), "Check"
+    or (S().wheel and "New finds show up here; scroll down over this strip to buy them."
+      or "Keep this open: new finds show up here.")), "Check"
 end
 
 -- A section that isn't armed: what it has, and how to start it.
@@ -761,18 +762,33 @@ local function buildQueueView(parent)
   v:SetPoint("TOPLEFT", 0, -30)
   v:SetPoint("BOTTOMRIGHT")
 
-  -- Which sections to show.
-  local x = 10
+  -- A toolbar band under the tabs, set apart by its shade and a line below (owner,
+  -- October 2: a cleaner split between the tabs and the buttons).
+  local bar = CreateFrame("Frame", nil, v)
+  bar:SetPoint("TOPLEFT", 1, 0)
+  bar:SetPoint("TOPRIGHT", -1, 0)
+  bar:SetHeight(30)
+  T:Fill(bar, { 1, 1, 1, 0.035 })
+  local line = bar:CreateTexture(nil, "BORDER")
+  line:SetPoint("BOTTOMLEFT")
+  line:SetPoint("BOTTOMRIGHT")
+  line:SetHeight(1)
+  line:SetColorTexture(T.border[1], T.border[2], T.border[3], 0.25)
+
+  -- Which sections to show, and Scroll to buy, on one row.
+  local x = 12
   for _, d in ipairs(LANES) do
-    local cb = T:Check(v, function(self) S()[d.setting] = self:GetChecked(); rebuildNow() end)
-    cb:SetPoint("TOPLEFT", x, -8)
+    local cb = T:Check(bar, function(self) S()[d.setting] = self:GetChecked(); rebuildNow() end)
+    cb:SetPoint("LEFT", x, 0)
     cb.label:SetText(d.title)
     cb:SetChecked(S()[d.setting])
-    x = x + 20 + cb.label:GetStringWidth() + 16
+    x = x + 20 + cb.label:GetStringWidth() + 18
   end
-  local wheel = T:Check(v, function(self) S().wheel = self:GetChecked(); refreshQueue() end)
-  wheel:SetPoint("TOPLEFT", 10, -28)
-  wheel.label:SetText("Scroll to buy (wheel down over a section's top strip)")
+  local wheel = T:Check(bar, function(self) S().wheel = self:GetChecked(); refreshQueue() end)
+  wheel.label:SetText("Scroll to buy")
+  -- The label sits to the right of the box: move the pair left by the label's width.
+  wheel:ClearAllPoints()
+  wheel:SetPoint("RIGHT", bar, "RIGHT", -(wheel.label:GetStringWidth() + 18), 0)
   wheel:SetChecked(S().wheel)
   wheel:SetHitRectInsets(0, -(wheel.label:GetStringWidth() + 8), 0, 0)
   wheel:SetScript("OnEnter", function(self)
@@ -803,7 +819,7 @@ end
 -- Stack the ticked sections, splitting the height between them.
 local function layoutLanes(v)
   local t = ticked()
-  local top, bottom, gap = 50, 36, 6
+  local top, bottom, gap = 38, 36, 6
   local h = v:GetHeight() - top - bottom
   local n = #t
   v.empty:SetShown(n == 0)
@@ -841,7 +857,10 @@ local function fillLane(L)
   L.stripBg:SetColorTexture(1, 1, 1, armed and 0.07 or 0.03)
   local ready = 0
   for _, x in ipairs(list) do if not x.waiting then ready = ready + 1 end end
-  L.title:SetText(("%s  |cff888888%d|r%s"):format(d.title, ready, armed and "   |cff7fd39cbuying from this one|r" or ""))
+  -- Where to scroll, said in the section itself rather than on the checkbox.
+  L.title:SetText(("%s  |cff888888%d|r%s"):format(d.title, ready,
+    armed and (S().wheel and "   |cff7fd39cbuying from this one: scroll down over this strip|r"
+      or "   |cff7fd39cbuying from this one|r") or ""))
   local a, b, label
   if armed then
     a, b, label = statusText()
