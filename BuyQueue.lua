@@ -243,9 +243,15 @@ function search()
   -- Gear: find its stat versions first (one row each in the search list).
   if e.gear and not Q.key then
     local name = ns.GetItemInfo(e.id) or ns.ItemName(e.id)
+    -- Every quality, like the game's own search box: with only "exact match" the lookup
+    -- found nothing at all (owner's test, October 2: 0 rows for every item).
     local filters = {}
-    if Enum and Enum.AuctionHouseFilter and Enum.AuctionHouseFilter.ExactMatch then
-      filters[1] = Enum.AuctionHouseFilter.ExactMatch
+    local F = Enum and Enum.AuctionHouseFilter
+    if F then
+      for name, value in pairs(F) do
+        if type(name) == "string" and name:find("Quality$") then filters[#filters + 1] = value end
+      end
+      if F.ExactMatch then filters[#filters + 1] = F.ExactMatch end
     end
     setState("browse")
     -- The queue's own searches aren't the page you're looking at (History.lua, the tint).
@@ -430,7 +436,13 @@ ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
         local tok = Q.tok
         C_Timer.After(2.5, function()
           Q.browseWait = nil
-          if Q.tok == tok and Q.state == "browse" and Q.cur == e then finishTarget("none listed.") end
+          if Q.tok == tok and Q.state == "browse" and Q.cur == e then
+            -- The lookup found nothing: search the item itself instead. That shows one
+            -- stat version's listings, and any version under the limit will do.
+            ns:Debug("Buy queue: no versions found for", ns.ItemName(e.id), "- searching the item itself.")
+            Q.key, Q.keys, Q.tries = AH.MakeItemKey(e.id), {}, 0
+            search()
+          end
         end)
       end
       return
