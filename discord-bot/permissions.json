@@ -58,7 +58,11 @@
       }
     },
     "Community": {
-      "permissions": {}
+      "permissions": {},
+      "create": [
+        { "name": "showcase", "type": "text",
+          "topic": "Show off your best flips, deals and gold graphs. What worked, what you made, screenshots welcome." }
+      ]
     }
   }
 }

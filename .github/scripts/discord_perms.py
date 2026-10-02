@@ -149,8 +149,34 @@ def desired(roles, channels):
     return want
 
 
+def create_missing(roles, channels, apply):
+    """Channels listed under a category's "create" that don't exist yet: made (as text,
+    announcement or forum channels) with the category's permissions."""
+    cfg = json.load(open(CONFIG, encoding="utf-8"))
+    kinds = {"text": 0, "announcement": 5, "forum": 15}
+    cats = {c["name"]: c for c in channels if c["type"] == 4}
+    made = 0
+    for cat_name, spec in cfg.get("categories", {}).items():
+        cat = cats.get(cat_name)
+        for ch in spec.get("create", []):
+            if cat and any(c["name"] == ch["name"] and c.get("parent_id") == cat["id"] for c in channels):
+                continue
+            made += 1
+            print(f"[{cat_name}]: create #{ch['name']} ({ch.get('type', 'text')})" + (f": {ch['topic']}" if ch.get("topic") else ""))
+            if apply and cat:
+                call("POST", f"/guilds/{GUILD}/channels", {
+                    "name": ch["name"], "type": kinds[ch.get("type", "text")], "parent_id": cat["id"],
+                    "topic": ch.get("topic", ""),
+                    "permission_overwrites": [{"id": o["id"], "type": o["type"], "allow": o["allow"], "deny": o["deny"]}
+                                              for o in cat.get("permission_overwrites", [])],
+                })
+    return made
+
+
 def plan_or_apply(apply):
     roles, channels = load()
+    if create_missing(roles, channels, apply) and apply:
+        roles, channels = load()                 # include the new channels below
     want = desired(roles, channels)
     by_id = {c["id"]: c for c in channels}
     changes = 0
