@@ -55,16 +55,16 @@ end
 ---------------------------------------------------------------------------
 local done, skipped = {}, {}   -- [itemID] = GetTime() nothing left; [itemID] = true skipped this session
 
--- Each kind of thing to buy is its own section ("lane") in the queue: vendor flips,
--- disenchanting, good deals, shopping lists (owner, October 2: so someone working on a
--- shopping list can't buy a flip by accident, and someone farming flips can just keep
--- scrolling). Returns { flips = {...}, de = {...}, deals = {...}, lists = {...} }.
+-- Each kind of thing to buy is its own section ("lane") in the queue: vendor flips and
+-- shopping lists (owner, October 2: so someone working on a shopping list can't buy a
+-- flip by accident, and someone farming flips can just keep scrolling).
+-- Returns { flips = {...}, lists = {...} }.
 local function buildQueue()
   local s = S()
   local market = ns.db.prices[ns.MarketKey()] or {}
   local now = GetTime()
-  local lanes = { flips = {}, de = {}, deals = {}, lists = {} }
-  local seen = { flips = {}, de = {}, deals = {}, lists = {} }
+  local lanes = { flips = {}, lists = {} }
+  local seen = { flips = {}, lists = {} }
   local function add(lane, e)
     if seen[lane][e.id] or skipped[e.id] or (done[e.id] and now - done[e.id] < DONE_FOR) then return end
     seen[lane][e.id] = true
@@ -112,50 +112,6 @@ local function buildQueue()
     for _, e in ipairs(byProfit(list)) do add("flips", e) end
   end
   lap("flips")
-
-  if s.disenchant then
-    -- What a disenchant is worth depends only on the item level band, so work it out once
-    -- per band, not through every item's full list of options.
-    local keep = 1 - (ns.db.settings.margin or 10) / 100
-    local bandWorth, list = {}, {}
-    for id, rec in pairs(market) do
-      if rec.m and not rec.none and isGear(id) then
-        local yield = ns:DisenchantYield(id)
-        if yield then
-          local worth = bandWorth[yield]
-          if not worth then
-            worth = 0
-            for _, m in ipairs(yield) do
-              local b = ns:BestOption(m[1])
-              if b then worth = worth + b.value * m[2] end
-            end
-            bandWorth[yield] = worth
-          end
-          local limit = math.floor(worth * keep)
-          if limit > 0 and rec.m <= limit then
-            local n, avg = ns:CheapListings(id, limit)
-            if n and n > 0 then
-              list[#list + 1] = { id = id, limit = limit, reason = "de", worth = worth, n = n, cost = avg }
-            end
-          end
-        end
-      end
-    end
-    for _, e in ipairs(byProfit(list)) do add("de", e) end
-  end
-  lap("disenchant")
-
-  if s.deals then
-    local list = {}
-    for _, d in ipairs(ns:FindDeals(6 * 3600)) do
-      if d.kind == "usual" and d.level == "good" and d.limit and ns:DealShown(d) then
-        list[#list + 1] = { id = d.id, limit = math.floor(d.limit), reason = "deal", worth = d.resell,
-          n = d.listed, cost = d.cost or d.price, deal = d }
-      end
-    end
-    for _, e in ipairs(byProfit(list)) do add("deals", e) end
-  end
-  lap("deals")
   return lanes
 end
 buildQueue = ns.Timed("Buy queue", buildQueue)
@@ -167,7 +123,7 @@ buildQueue = ns.Timed("Buy queue", buildQueue)
 ---------------------------------------------------------------------------
 -- Q.lanes: the sections' lists. Q.armed: the one section that looks things up and buys,
 -- chosen by you (a click, or the wheel over its strip); nil = none. Q.cur is from it.
-local Q = { lanes = { flips = {}, de = {}, deals = {}, lists = {} }, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
+local Q = { lanes = { flips = {}, lists = {} }, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
 
 -- The armed section's list.
 local function laneList() return (Q.armed and Q.lanes[Q.armed]) or {} end
@@ -601,10 +557,11 @@ local STRIP_H = 46
 local STRIP_BIG = 84    -- a section on its own
 
 -- The sections, in the order they're stacked. setting: the box that turns it on.
+-- Disenchanting and good deals were sections too; they moved back out (owner, October 2:
+-- the Disenchant finder shows item levels and the Deals tab has the detail, so the queue
+-- is for flips and shopping lists).
 local LANES = {
   { key = "flips", setting = "flips", title = "Vendor flips" },
-  { key = "de", setting = "disenchant", title = "Disenchant" },
-  { key = "deals", setting = "deals", title = "Good deals" },
   { key = "lists", setting = "lists", title = "Shopping lists" },
 }
 local LANE_BY_KEY = {}
@@ -631,8 +588,6 @@ end
 local function reasonLine(e)
   if not e then return "" end
   if e.reason == "flip" then return ("Vendor flip: a vendor pays %s."):format(money(e.worth)) end
-  if e.reason == "de" then return ("Disenchant: worth about %s."):format(money(e.worth)) end
-  if e.reason == "deal" then return ("Below its usual price: resells for about %s."):format(money(e.worth)) end
   if e.reason == "list" then
     return ("Shopping list %s: up to %s%s."):format(e.list or "", limitText(e),
       e.want and (", %d more wanted"):format(e.want) or "")
@@ -727,16 +682,6 @@ local function laneRow(L, i)
     GameTooltip:SetItemByID(self.entry.id)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(reasonLine(self.entry), T.accent[1], T.accent[2], T.accent[3], true)
-    -- A deal: the same "why it's a deal" as the Deals tab.
-    if self.entry.deal and ns.DealExplain then
-      for _, l in ipairs(ns:DealExplain(self.entry.deal)) do
-        if l.head then GameTooltip:AddLine(l.head, T.accent[1], T.accent[2], T.accent[3])
-        elseif l.note then
-          local c = l.color or { 0.75, 0.75, 0.75 }
-          GameTooltip:AddLine(l.note, c[1], c[2], c[3], true)
-        else GameTooltip:AddDoubleLine(l[1], l[2], 0.8, 0.8, 0.8, 1, 1, 1) end
-      end
-    end
     if self.entry.waiting then
       GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or Search list again later.", 1, 0.82, 0, true)
     end
