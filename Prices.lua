@@ -758,6 +758,13 @@ function Scan:Next()
     end)
     return
   end
+  -- Any scan makes room for the buy queue for a moment after each of its lookups and
+  -- purchases, then carries on (owner, October 2: buy while scanning, with "a moving
+  -- delay every time I scroll to buy", not a wait for the whole scan).
+  if ns.queueBusyUntil and GetTime() < ns.queueBusyUntil then
+    C_Timer.After(0.5, function() self:Next() end)
+    return
+  end
   -- The flip watch's quiet checks wait while you're searching yourself, so they don't
   -- talk over the page you're buying from.
   if self.quiet and ns.lastUserSearch and GetTime() - ns.lastUserSearch < 20 then
@@ -876,7 +883,10 @@ end
 if C_AuctionHouse and hooksecurefunc then
   for _, fn in ipairs({ "SendSearchQuery", "SendBrowseQuery", "SearchForItemKeys" }) do
     if C_AuctionHouse[fn] then
-      hooksecurefunc(C_AuctionHouse, fn, function() if not Scan.sending then ns.lastUserSearch = GetTime() end end)
+      -- The buy queue's lookups use their own short pause (ns.queueBusyUntil) instead.
+      hooksecurefunc(C_AuctionHouse, fn, function()
+        if not Scan.sending and not ns.queueSending then ns.lastUserSearch = GetTime() end
+      end)
     end
   end
 end

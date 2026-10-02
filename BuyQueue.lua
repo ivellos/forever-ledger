@@ -217,14 +217,15 @@ end
 function search()
   local e = Q.cur
   if not e or not active() then setState("idle"); return end
-  -- Our own scans (materials, full) come first; the flip watch's quiet checks pause
-  -- for 20 seconds after each of our searches by themselves.
-  if throttled() or (ns.Scan.active and not ns.Scan.quiet) then
-    Q.waitFor = ns.Scan.active and "the scan to finish" or "the auction house"
+  -- Only a full scan (a few seconds) is waited for. Other scans pause for a moment after
+  -- each lookup and purchase of ours instead (Prices.lua Scan:Next).
+  if throttled() or (ns.Scan.active and ns.Scan.full) then
+    Q.waitFor = ns.Scan.full and "the full scan to finish" or "the auction house"
     setState("wait")
     timeout(1, search)
     return
   end
+  ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 2)
   Q.tries = (Q.tries or 0) + 1
   if Q.tries > 3 then finishTarget("no reply from the auction house."); return end
   -- Gear: find its stat versions first (one row each in the search list).
@@ -357,6 +358,8 @@ local lastAct = 0
 function ns:BuyQueueAct()
   if not active() or GetTime() - lastAct < 0.15 then return end
   lastAct = GetTime()
+  -- Scans step aside for a few seconds after each buy, and longer while you keep going.
+  ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 4)
   local e, p = Q.cur, Q.plan
   if Q.state == "ready" and p and p.kind == "commodity" then
     local ok, err = pcall(AH.StartCommoditiesPurchase, e.id, p.qty)
