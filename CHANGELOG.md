@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Vendor flips have their own settings: the least profit worth your time, as a share of the vendor price (0% counts anything below it) and as an amount each. They used to share the shuffles' safety margin, but selling to a vendor has no risk, only effort. The same rule sets "buy up to" on the auction house and the below-vendor-price deal alerts.
+
 ### Fixed
 - Gear flips stayed on Vendor flips after their cheap listings were gone (Raider's Chestpiece, Priest's Mace, Soldier's Armor). The auction house's search list shows each item's cheapest price live, and saved listings below it are now dropped.
 - With the flip watch running, gear you bought was logged as the last item the watch looked at (a Soldier's Armor purchase showed as Curved Dagger).

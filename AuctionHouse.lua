@@ -30,10 +30,10 @@ function ns:BuyLimit(id)
   if not id then return end
   local limit, option = ns:BuyAtOrBelow(id)
   local reason = option and REASONS[option.kind]
-  -- Selling to a vendor: the same safety margin as vendor flips and deal alerts, so the
-  -- auction house and the Vendor flips tab give the same "buy up to" (was vendor price - 1c).
+  -- Selling to a vendor: the Vendor flips settings, so the auction house and the
+  -- Vendor flips tab give the same "buy up to".
   local sell = ns:GetSellPrice(id)
-  local vendorLimit = sell and math.floor(sell * (1 - (ns.db.settings.margin or 10) / 100))
+  local vendorLimit = sell and sell > 0 and ns:VendorFlipLimit(sell)
   if vendorLimit and vendorLimit > 0 and (not limit or vendorLimit > limit) then limit, reason = vendorLimit, REASONS.vendor end
   if limit then return limit, reason or { badge = "BUY", word = "Worth buying" } end
 end

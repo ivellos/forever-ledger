@@ -159,11 +159,21 @@ end
 -- One item as a vendor flip, or nil: only the listings cheap enough to profit after the
 -- safety margin count, at their own prices. The Vendor flips tab and the flip alerts
 -- both use this, so whatever the tab shows also chimes.
+-- The most worth paying to sell straight to a vendor that pays `sell`. Selling to a
+-- vendor has no risk, only effort, so the profit you want is your choice (Settings,
+-- Vendor flips): at least dealVendorPct% of the vendor price and at least dealVendorMin
+-- copper, and always at least 1c (owner, October 2: "even if it's 1c less I make money").
+function ns:VendorFlipLimit(sell)
+  local s = ns.db.settings
+  local need = math.max(math.ceil(sell * (s.dealVendorPct or 10) / 100), s.dealVendorMin or 0, 1)
+  return sell - need
+end
+
 function ns:VendorFlip(id)
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   local sell = rec and rec.m and not rec.none and ns:GetSellPrice(id)
   if not (sell and sell > rec.m) or ns:GetVendorBuyPrice(id) then return end
-  local maxBuy = sell * (1 - (ns.db.settings.margin or 10) / 100)
+  local maxBuy = ns:VendorFlipLimit(sell)
   local n, avg = ns:CheapListings(id, maxBuy)
   if not (n and n > 0 and avg) then return end
   return {

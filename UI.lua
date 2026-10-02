@@ -366,6 +366,12 @@ local SETTINGS = {
       { "auto", "Auto" }, { "own", "My scans" }, { "Auctionator", "Auctionator" }, { "TSM", "TSM" }, { "Auctioneer", "Auctioneer" } },
     help = "Auto uses your own scans while they're fresh, then other auction addons." },
 
+  { section = "Vendor flips" },
+  { key = "dealVendorPct", label = "Least profit, share of price", kind = "number", suffix = "% of vendor price", min = 0, max = 99, after = recalc,
+    help = "Selling to a vendor has no risk, only the effort of buying. 0 counts any listing below vendor price." },
+  { key = "dealVendorMin", label = "Least profit each", kind = "money", after = recalc,
+    help = "For example 10c or 1s. \"off\" for no minimum. A flip needs both this and the share above." },
+
   { section = "Deal alerts", rules = true },
   { key = "dealUsualPct", label = "Below usual price by", kind = "number", suffix = "% or more", min = 1, max = 99 },
   { key = "dealWindow", label = "Usual price over", kind = "choice", options = {
@@ -376,9 +382,6 @@ local SETTINGS = {
     help = "Auto uses TSM's history where it has a price, otherwise your own scans." },
   { key = "dealUsualMin", label = "Least resale profit each", kind = "money",
     help = "Deals tab: profit after the auction house cut, reselling at the usual price or under the next listing. \"off\" for no minimum." },
-  { key = "dealVendorPct", label = "Below vendor price by", kind = "number", suffix = "% or more", min = 0, max = 99 },
-  { key = "dealVendorMin", label = "Least vendor profit each", kind = "money",
-    help = "For example 1s or 50c. \"off\" for no minimum." },
   { key = "dealSound", label = "Chime", kind = "check", help = "Plays the raid warning sound when a scan finds new deals." },
 
   { section = "Tooltips" },

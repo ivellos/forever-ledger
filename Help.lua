@@ -29,7 +29,7 @@ ns.HELP = {
   } },
   { "Shuffles and vendor flips", {
     { "Shuffles", "Buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; Work it walks you through them with one-click buttons." },
-    { "Vendor flips", "Things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it." },
+    { "Vendor flips", "Things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it. Settings, Vendor flips sets the least profit worth your time, as a share of the vendor price and as an amount." },
     { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },
   { "Deals", {
