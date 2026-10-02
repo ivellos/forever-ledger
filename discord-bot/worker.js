@@ -39,6 +39,8 @@ const FORMS = {
   },
 };
 
+const ALIASES = { feature: "idea" };
+
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
@@ -199,7 +201,8 @@ export default {
     if (i.type === 1) return json({ type: 1 });   // Discord's check that we're here
 
     if (i.type === 2) {                            // a slash command
-      const name = i.data && i.data.name;
+      // /feature is the same form as /idea (the forum is called feature-request).
+      const name = ALIASES[i.data && i.data.name] || (i.data && i.data.name);
       if (FORMS[name]) return json(modal(name, name === "bug" ? await recentVersions() : []));
       return json({ type: 4, data: { content: "Unknown command.", flags: EPHEMERAL } });
     }
