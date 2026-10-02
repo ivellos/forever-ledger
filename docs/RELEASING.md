@@ -11,10 +11,13 @@ While the version starts with `0.`, GitHub marks releases as pre-releases.
 ## Steps
 
 1. In `CHANGELOG.md`, rename `## [Unreleased]` to the new version and date, for example `## [0.2.0] - 2026-10-05`, then add a fresh empty `## [Unreleased]` above it.
-2. Commit with the summary `Release 0.2.0` and push.
-3. In GitHub Desktop, open the **History** tab, right-click that commit and choose **Create Tag**. Name it `v0.2.0` (with the `v`).
-4. Click **Push origin** (or **Push tags**).
-5. Open the **Actions** tab on GitHub and wait for "Build release" to turn green, about a minute.
-6. Open **Releases**. The new version is there with the zip attached and the changelog notes filled in.
+2. Under the new version, add a `### Highlights` list: 5 to 7 short bullets like `- **Deals tab**: listings well below their usual price, with why each one is a deal`. This becomes the Discord announcement; the rest of the notes are counted ("Plus 13 more changes and 15 bug fixes").
+3. Commit with the summary `Release 0.2.0` and push.
+4. In GitHub Desktop, open the **History** tab, right-click that commit and choose **Create Tag**. Name it `v0.2.0` (with the `v`).
+5. Click **Push origin** (or **Push tags**).
+6. Open the **Actions** tab on GitHub and wait for "Build release" to turn green, about a minute.
+7. Open **Releases**. The new version is there with the zip attached and the changelog notes filled in. The same run uploads it to CurseForge and Wago and posts the announcement in the Discord #announcements channel.
+
+To re-post an announcement or upload an old version again, run "Build release" by hand from the Actions tab with the tag and the boxes you want ("Only show the announcement in the log" previews without posting).
 
 You never edit the version number in the addon files. The release build fills it in from the tag.
