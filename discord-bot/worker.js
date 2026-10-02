@@ -160,19 +160,32 @@ async function submit(env, interaction, kind) {
     const forumId = env[f.forum];
     const forum = await discord(env, "GET", `/channels/${forumId}`);
     const tag = (forum.available_tags || []).find((t) => t.name === f.tag);
-    const thread = await discord(env, "POST", `/channels/${forumId}/threads`, {
+    const post = {
       name: (v.title || f.title).slice(0, 100),
       applied_tags: tag ? [tag.id] : [],
       message: { content: postText(kind, v, user), allowed_mentions: { users: [user.id] } },
-    });
+    };
+    let thread;
+    try {
+      thread = await discord(env, "POST", `/channels/${forumId}/threads`, post);
+    } catch (e) {
+      // A moderator-only tag needs Manage Threads; post without it rather than fail.
+      if (!post.applied_tags.length) throw e;
+      console.log("Posting with the tag failed, trying without:", e.message);
+      thread = await discord(env, "POST", `/channels/${forumId}/threads`, { ...post, applied_tags: [] });
+    }
     await discord(env, "PATCH", followup, {
       content: `Thanks! Your ${kind === "bug" ? "bug report" : "idea"} is posted: <#${thread.id}>\n` +
         "You can add screenshots by replying there. It goes to our GitHub tracker within about 15 minutes.",
     });
   } catch (e) {
     console.log("Form submit failed:", e.message);
-    await discord(env, "PATCH", followup, { content: "Sorry, something went wrong posting that. Please try again in a minute." })
-      .catch(() => {});
+    // Only the person who sent the form sees this; the detail helps fix it.
+    const detail = (e.message || "").replace(/^[A-Z]+ \/[^ ]+ -> /, "").slice(0, 300);
+    await discord(env, "PATCH", followup, {
+      content: "Sorry, something went wrong posting that. Please try again in a minute, or ask in #help.\n" +
+        "`" + detail.replace(/`/g, "'") + "`",
+    }).catch(() => {});
   }
 }
 
