@@ -74,7 +74,9 @@ function ns.ItemName(id)
     ns.nameWanted[id] = true
     if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
   end
-  return "item " .. id
+  -- Items the game hasn't loaded (or doesn't have yet, like flasks above the beta's
+  -- level cap): the original Classic name (ClassicItems.lua).
+  return (ns.CLASSIC_ITEMS and ns.CLASSIC_ITEMS[id]) or ("item " .. id)
 end
 
 ns:On("GET_ITEM_INFO_RECEIVED", function(id, success)

@@ -24,6 +24,7 @@ Ledger.lua
 Deals.lua
 Crates.lua
 ClassicRecipes.lua
+ClassicItems.lua
 RecipesTab.lua
 UI.lua
 Help.lua

@@ -68,6 +68,49 @@ function ns:ResolveItem(text)
   for itemID, n in pairs(ns.db.itemNames or {}) do
     if n:lower() == lower then return itemID end
   end
+  for itemID, n in pairs(ns.CLASSIC_ITEMS or {}) do
+    if n:lower() == lower then return itemID end
+  end
+end
+
+-- Items whose name contains what was typed, for the suggestions under the add box:
+-- names this addon has seen in Forever (scans, bags), and original Classic items.
+-- Names starting with the text come first. Returns up to `max` { id, name }.
+local nameIndex, nameIndexSize
+local function buildNameIndex()
+  local seen, list = {}, {}
+  for id, n in pairs(ns.db.itemNames or {}) do
+    seen[id] = true
+    list[#list + 1] = { id = id, name = n, lower = n:lower() }
+  end
+  for id, n in pairs(ns.CLASSIC_ITEMS or {}) do
+    if not seen[id] then list[#list + 1] = { id = id, name = n, lower = n:lower() } end
+  end
+  table.sort(list, function(a, b) return a.lower < b.lower end)
+  return list
+end
+
+function ns:FindItemsByName(text, max)
+  text = (text or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+  if #text < 2 then return {} end
+  local count = 0
+  for _ in pairs(ns.db.itemNames or {}) do count = count + 1 end
+  if not nameIndex or count ~= nameIndexSize then nameIndex, nameIndexSize = buildNameIndex(), count end
+  local starts, contains = {}, {}
+  for _, e in ipairs(nameIndex) do
+    local at = e.lower:find(text, 1, true)
+    if at == 1 then
+      starts[#starts + 1] = e
+      if #starts >= max then break end
+    elseif at and #contains < max then
+      contains[#contains + 1] = e
+    end
+  end
+  for _, e in ipairs(contains) do
+    if #starts >= max then break end
+    starts[#starts + 1] = e
+  end
+  return starts
 end
 
 -- How many you have of an item on this character, bags and bank.
@@ -107,7 +150,16 @@ local function recipeIndex()
   return idx
 end
 
-function ns:RecipeFor(id) return recipeIndex()[id] end
+-- Falls back to the original Classic recipe (ClassicItems.lua), marked classic.
+function ns:RecipeFor(id)
+  local r = recipeIndex()[id]
+  if r then return r end
+  local c = ns.CLASSIC_CRAFTS and ns.CLASSIC_CRAFTS[id]
+  if not c then return end
+  local mats = {}
+  for i = 1, #c[4], 2 do mats[#mats + 1] = { c[4][i], c[4][i + 1] } end
+  return { r = mats, oq = c[1], prof = c[2], skill = c[3], classic = true }
+end
 
 -- The most to pay for a material by default: its usual (typical) price from your scans,
 -- else the average of the cheapest listings. You can type your own on the list.

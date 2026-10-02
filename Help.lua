@@ -37,7 +37,7 @@ ns.HELP = {
     { "Safe by design", "It never pays more than the limit shown (checked again on the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. Untick Scroll anywhere to buy so only the Buy button buys. Right-click an item to skip it." },
     { "Shopping lists", "Named lists of items with the most you'd pay and how many you want to have, for example raid consumables or twink gear. With the list open, shift-click an item to add it (or drag it, or type its name). /fl lists opens them anywhere, so you can plan before you go to the auction house." },
     { "Buy or craft", "Set an item to Craft and the list shows the materials for the number you want, less what you have, with the most to pay for each (your usual price unless you type one). Materials a vendor sells are marked vendor." },
-    { "Search and buy", "Search this list checks everything on it in one click. Items and materials at or under your price join the buy queue." },
+    { "Search and buy", "Search this list checks everything on it in one click. Items and materials at or under your price join the buy queue; the rest wait at its bottom, greyed. Typing a name suggests items (Enter takes the top one), even ones the game hasn't loaded yet. Hover Have for bags, bank and other characters." },
   } },
   { "Deals", {
     { "Deals tab", "Listings well below the price an item is usually cheapest at, to buy and resell: price now, usual low, how many are worth buying, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },

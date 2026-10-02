@@ -72,13 +72,15 @@ local function buildQueue()
     e.gear = isGear(e.id)
     out[#out + 1] = e
   end
-  -- Shopping lists first, in list order: they're what you asked for.
+  -- Shopping lists first, in list order: they're what you asked for. Ones not cheap
+  -- enough right now still show, greyed at the end, so you can see they're watched
+  -- (owner, October 2: "not clear how to add it to the buy queue, it's blank").
+  local waiting = {}
   if s.lists then
     for _, t in ipairs(ns:ShoppingTargets()) do
       local n, avg = ns:CheapListings(t.id, t.limit)
-      if n ~= 0 then
-        add({ id = t.id, limit = t.limit, reason = "list", list = t.list, want = t.want, n = n, cost = avg })
-      end
+      local e = { id = t.id, limit = t.limit, reason = "list", list = t.list, want = t.want, n = n, cost = avg }
+      if n == 0 then e.waiting = true; waiting[#waiting + 1] = e else add(e) end
     end
   end
   local others = {}
@@ -115,6 +117,7 @@ local function buildQueue()
   for _, e in ipairs(others) do e.profit = ((e.worth or 0) - (e.cost or e.limit)) * (e.n or 1) end
   table.sort(others, function(a, b) return a.profit > b.profit end)
   for _, e in ipairs(others) do add(e) end
+  for _, e in ipairs(waiting) do add(e) end
   return out
 end
 buildQueue = ns.Timed("Buy queue", buildQueue)
@@ -207,7 +210,11 @@ function prepare()
   if #Q.list == 0 or GetTime() - (Q.built or 0) > REBUILD_EVERY then
     Q.list, Q.built = buildQueue(), GetTime()
   end
-  local e = Q.list[1]
+  -- The first one that's cheap enough; waiting list items are only looked up when clicked.
+  local e
+  for _, x in ipairs(Q.list) do
+    if not x.waiting then e = x; break end
+  end
   if not e then setState("idle"); return end
   Q.cur, Q.plan, Q.key, Q.keys, Q.tries = e, nil, nil, nil, 0
   search()
@@ -460,8 +467,12 @@ local function statusText()
       ("%d at or under %s. "):format(p.count, money(e.limit)) .. reasonLine(e), "Buy"
   end
   if st == "buying" then return "Buying " .. name .. "...", "", "..." end
-  if #Q.list == 0 then
-    return "Nothing worth buying right now.", "Run a scan or Watch flips: new finds join the queue.", "Check"
+  local ready, waiting = 0, 0
+  for _, x in ipairs(Q.list) do if x.waiting then waiting = waiting + 1 else ready = ready + 1 end end
+  if ready == 0 then
+    return "Nothing worth buying right now.", waiting > 0
+      and ("%d shopping list %s waiting for a lower price (greyed below). Search the list to check again."):format(waiting, waiting == 1 and "item is" or "items are")
+      or "Run a scan or Watch flips: new finds join the queue.", "Check"
   end
   return "Ready.", "", "Start"
 end
@@ -597,6 +608,9 @@ local function queueRow(i)
     GameTooltip:SetItemByID(self.entry.id)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(reasonLine(self.entry), T.accent[1], T.accent[2], T.accent[3], true)
+    if self.entry.waiting then
+      GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or Search this list again later.", 1, 0.82, 0, true)
+    end
     GameTooltip:AddLine("Click to buy this one next. Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end)
@@ -627,12 +641,18 @@ refreshQueue = function()
     r.stripe:SetShown(i % 2 == 0)
     r.current:SetShown(e == Q.cur)
     r.icon:SetTexture(ns:ItemIcon(e.id))
-    r.name:SetText(ns.ItemName(e.id))
+    r.icon:SetDesaturated(e.waiting and true or false)
+    r.name:SetText(e.waiting and ("|cff888888" .. ns.ItemName(e.id) .. "|r") or ns.ItemName(e.id))
     local rs = REASONS[e.reason]
-    r.why:SetText(("|cff%s%s|r"):format(rs.color, rs.badge))
+    r.why:SetText(e.waiting and "|cff888888WAIT|r" or ("|cff%s%s|r"):format(rs.color, rs.badge))
     r.limit:SetText(money(e.limit))
-    r.n:SetText(e.n and tostring(e.n) or "?")
-    r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
+    r.n:SetText(e.waiting and "0" or (e.n and tostring(e.n) or "?"))
+    if e.waiting then
+      local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
+      r.profit:SetText(rec and rec.m and not rec.none and ("|cff888888now " .. ns.MoneyPlain(rec.m) .. "|r") or "|cff888888none|r")
+    else
+      r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
+    end
     r:Show()
   end
   for i = #Q.list + 1, #v.rows do v.rows[i]:Hide() end
@@ -691,6 +711,7 @@ local function addFromBox(v)
   v.max:SetText("")
   v.qty:SetText("")
   v.pendingID = nil
+  v.sug:Hide()
   v.add:ClearFocus(); v.max:ClearFocus(); v.qty:ClearFocus()
   Q.built = 0
   refreshLists()
@@ -761,7 +782,67 @@ local function buildListsView(parent)
   v.add = hinted(v, 196, "Shift-click, drag or type an item", "LEFT")
   v.add:SetPoint("TOPLEFT", 10, -62)
   v.add:HookScript("OnTextChanged", function(self) v.pendingID = ns.ItemIDFromLink(self:GetText()) end)
-  v.add:SetScript("OnEnterPressed", function() addFromBox(v) end)
+
+  -- Suggestions while you type a name (owner, October 2): up to 8 items whose name
+  -- matches, including ones the game hasn't loaded. Click one, or Enter for the top one.
+  local sug = CreateFrame("Frame", nil, v)
+  sug:SetPoint("TOPLEFT", v.add, "BOTTOMLEFT", 0, -2)
+  sug:SetWidth(300)
+  sug:SetFrameStrata("DIALOG")
+  T:Fill(sug, { 0.05, 0.05, 0.05, 0.98 })
+  T:Border(sug)
+  sug.buttons = {}
+  sug:Hide()
+  v.sug = sug
+  local function pick(e)
+    v.add:SetText(e.name)
+    v.pendingID = e.id
+    sug:Hide()
+    v.max:SetFocus()
+  end
+  local function suggest(text)
+    local found = (not ns.ItemIDFromLink(text)) and ns:FindItemsByName(text, 8) or {}
+    v.suggestions = found
+    if #found == 0 then sug:Hide(); return end
+    for i, e in ipairs(found) do
+      local b = sug.buttons[i]
+      if not b then
+        b = CreateFrame("Button", nil, sug)
+        b:SetHeight(20)
+        b:SetPoint("TOPLEFT", 2, -2 - (i - 1) * 20)
+        b:SetPoint("RIGHT", -2, 0)
+        local hl = b:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
+        b.icon = b:CreateTexture(nil, "ARTWORK")
+        b.icon:SetSize(16, 16)
+        b.icon:SetPoint("LEFT", 2, 0)
+        b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        b.text = T:Text(b, 11)
+        b.text:SetPoint("LEFT", b.icon, "RIGHT", 4, 0)
+        b.text:SetPoint("RIGHT", -4, 0)
+        b.text:SetJustifyH("LEFT")
+        b.text:SetWordWrap(false)
+        b:SetScript("OnClick", function(self) pick(self.e) end)
+        sug.buttons[i] = b
+      end
+      b.e = e
+      b.icon:SetTexture(ns:ItemIcon(e.id))
+      b.text:SetText(e.name)
+      b:Show()
+    end
+    for i = #found + 1, #sug.buttons do sug.buttons[i]:Hide() end
+    sug:SetHeight(#found * 20 + 4)
+    sug:Show()
+  end
+  v.add:HookScript("OnTextChanged", function(self, userInput) if userInput then suggest(self:GetText()) end end)
+  -- A click on a suggestion takes the focus first, so hide a moment later.
+  v.add:HookScript("OnEditFocusLost", function() C_Timer.After(0.2, function() if not v.add:HasFocus() then sug:Hide() end end) end)
+  v.add:SetScript("OnEnterPressed", function()
+    if sug:IsShown() and not v.pendingID and v.suggestions and v.suggestions[1] then pick(v.suggestions[1]); return end
+    addFromBox(v)
+  end)
+  v.add:SetScript("OnEscapePressed", function(self) sug:Hide(); self:ClearFocus() end)
   local function drop()
     local kind, id, link = GetCursorInfo()
     if kind == "item" and id then
@@ -875,6 +956,10 @@ local function listRow(i)
       GameTooltip:AddLine(" ")
       GameTooltip:AddLine(recipe and ("Crafted with %s%s."):format(recipe.prof or "a profession", recipe.who and (" (" .. recipe.who .. ")") or "")
         or "No recipe known for it yet.", T.accent[1], T.accent[2], T.accent[3], true)
+      if recipe and recipe.classic then
+        GameTooltip:AddLine(("Original Classic recipe (skill %d, makes %g): Forever may differ. Open the profession window on a character who knows it to use theirs."):format(
+          recipe.skill or 0, recipe.oq or 1), 0.7, 0.7, 0.7, true)
+      end
     end
     GameTooltip:Show()
   end)
@@ -925,6 +1010,25 @@ local function listRow(i)
   r.need:SetPoint("RIGHT", r, "LEFT", C.want + 28, 0)
   r.have = T:Text(r, 11, T.dim)
   r.have:SetPoint("RIGHT", r, "LEFT", C.have, 0)
+  -- Hover Have: where they are (bags, bank, other characters on this account).
+  r.haveHit = CreateFrame("Frame", nil, r)
+  r.haveHit:SetPoint("LEFT", C.want + 32, 0)
+  r.haveHit:SetSize(C.have - C.want - 30, 22)
+  r.haveHit:EnableMouse(true)
+  r.haveHit:SetScript("OnEnter", function(self)
+    local id = (r.kind == "item" and r.entry.id) or (r.kind == "mat" and r.mat.id)
+    if not id then return end
+    local bags, bank, alts, byAlt = ns:ItemLocations(id)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(ns.ItemName(id), 1, 1, 1)
+    GameTooltip:AddDoubleLine("Bags", tostring(bags), 0.8, 0.8, 0.8, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Bank", tostring(bank), 0.8, 0.8, 0.8, 1, 1, 1)
+    for name, n in pairs(byAlt) do GameTooltip:AddDoubleLine(name, tostring(n), 0.8, 0.8, 0.8, 1, 1, 1) end
+    GameTooltip:AddLine("Have counts this character's bags and bank. Bank as of your last visit; other characters as of their last login on this account.", 0.6, 0.6, 0.6, true)
+    if alts == 0 then GameTooltip:AddLine("None on your other characters.", 0.6, 0.6, 0.6) end
+    GameTooltip:Show()
+  end)
+  r.haveHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
   r.now = T:Text(r, 11)
   r.now:SetPoint("RIGHT", r, "LEFT", C.now, 0)
   r.remove = T:Button(r, "x", 16, function()
@@ -954,7 +1058,8 @@ end
 
 -- Price now, green at or under the limit; for vendor items, the vendor's price.
 local function nowText(id, limit, vendor)
-  if vendor then return "|cff888888vendor|r " .. money(vendor) end
+  -- "vendor" is already in the Up to column; here just the price, grey.
+  if vendor then return "|cff888888" .. ns.MoneyPlain(vendor) .. "|r" end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   if rec and rec.none then return "|cff888888none|r", false end
   if rec and rec.m then
@@ -975,6 +1080,7 @@ local function showRow(r, kind)
   r.qty:SetShown(item)
   r.need:SetShown(mat)
   r.have:SetShown(item or mat)
+  r.haveHit:SetShown(item or mat)
   r.now:SetShown(item or mat)
   r.remove:SetShown(item)
   r.head:SetShown(text)
@@ -1073,8 +1179,15 @@ refreshLists = function()
   elseif not ns:IsAHOpen() then
     v.info:SetText("Open the auction house to search and buy.")
   else
-    v.info:SetText(("%d at or under your price%s. Those join the buy queue."):format(cheap,
-      toBuy > 0 and (", %d materials to buy"):format(toBuy) or ""))
+    local noPrice = 0
+    for _, e in ipairs(list.items) do if e.mode ~= "craft" and (e.max or 0) == 0 then noPrice = noPrice + 1 end end
+    if noPrice > 0 then
+      v.info:SetText(("%d %s no price: set Most each so the buy queue buys %s."):format(noPrice,
+        noPrice == 1 and "item has" or "items have", noPrice == 1 and "it" or "them"))
+    else
+      v.info:SetText(("%d at or under your price%s. They join the buy queue; the rest wait there, greyed."):format(cheap,
+        toBuy > 0 and (", %d materials to buy"):format(toBuy) or ""))
+    end
   end
 end
 refreshLists = ns.Timed("Shopping lists view", refreshLists)
