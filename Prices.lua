@@ -122,20 +122,35 @@ end)
 -- Forever reports a 1c vendor price for some items vendors won't buy (essences, October 2:
 -- Greater Magic Essence "Sell to vendor 1c", but the vendor refuses it). The item's own
 -- tooltip data tells: sellable items have a sell price line (type 11), these don't.
--- Checked once per item per session; unknown counts as sellable.
+-- Checked once per item per session; unknown counts as sellable. Right after a reload the
+-- tooltip data can be missing lines that come later (Runed Copper Rod was called
+-- unsellable once, October 2), so "no line" only counts if it's still true 3 s later.
 local SELL_LINE = (Enum and Enum.TooltipDataLineType and Enum.TooltipDataLineType.SellPrice) or 11
-local sellable = {}
+local sellable, checking = {}, {}
+local function hasSellLine(id)
+  local ok, data = pcall(C_TooltipInfo and C_TooltipInfo.GetItemByID or error, id)
+  if not (ok and data and data.lines and #data.lines > 0) then return nil end
+  for _, l in ipairs(data.lines) do
+    if l.type == SELL_LINE then return true end
+  end
+  return false
+end
 local function canSell(id)
   if sellable[id] ~= nil then return sellable[id] end
-  local ok, data = pcall(C_TooltipInfo and C_TooltipInfo.GetItemByID or error, id)
-  if not (ok and data and data.lines and #data.lines > 0) then return true end
-  local yes = false
-  for _, l in ipairs(data.lines) do
-    if l.type == SELL_LINE then yes = true; break end
+  local yes = hasSellLine(id)
+  if yes then sellable[id] = true end
+  if yes == false and not checking[id] and C_Timer then
+    checking[id] = true
+    C_Timer.After(3, function()
+      checking[id] = nil
+      if hasSellLine(id) == false then
+        sellable[id] = false
+        ns:Debug("No sell price line:", ns.ItemName(id) or id, "- vendors won't buy it.")
+        if ns.InvalidateValues then ns:InvalidateValues(true) end
+      end
+    end)
   end
-  sellable[id] = yes
-  if not yes then ns:Debug("No sell price line:", ns.ItemName(id) or id, "- vendors won't buy it.") end
-  return yes
+  return true
 end
 
 function ns:GetSellPrice(id)
