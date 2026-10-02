@@ -44,6 +44,9 @@ Everything the addon does, at a high level. The same text is in the game under *
 - **Sections**: Vendor flips and Shopping lists are each their own section, stacked when both are ticked (one on its own gets a big strip to scroll over), each with its own list and its own strip at the top ("Buy Edged Bastard Sword for 9s", and a Buy button). **Only the section you click is the one you buy from**: it gets a bright border and says "buying from this one", and only it looks things up on the auction house. The others just show what the last scan found. A section on its own (flips only, say) starts by itself; shopping lists only ever start when you click them. Scans and the flip watch add to the sections but never switch which one you're buying from, so working on a shopping list never buys a flip by accident, and farming flips never buys from a list.
 - **Farming flips**: tick only Vendor flips, tick **Scroll to buy**, and leave the mouse over the flips strip. When the flip watch chimes, scroll down to buy; an empty section just waits for the next one.
 - **Safe by design**: it never pays more than the limit shown (checked again against the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. **Scroll to buy** starts off; it only works over the top strip of the section you're buying from. Click a row to buy that one next; right-click to skip it. Gear sold in stacks is left for you to buy on the page.
+
+![Buy queue with Vendor flips and Scroll to buy ticked](images/buy-queue.png)
+
 - **Shopping lists**: named lists of items with the most you'd pay each and how many you want to have, for example raid consumables or twink gear to watch for. Pick a list from the dropdown at the top; every list ticked **Use in the buy queue** feeds the queue at the same time. With the list open, shift-click an item from your bags or a chat link to add it, drag it in, or start typing its name and pick from the suggestions (Enter takes the top one). Suggestions include items the game hasn't loaded yet, from original Classic. Hover **Have** to see how many are in your bags, bank and on your other characters. `/fl lists` opens your lists anywhere (a window you can move), so you can plan before you go to the auction house.
 - **Want means**: each list picks one.
   - **Keep this many** (the default): Want is how many you want to *have*. Bags, bank and auction house purchases still in the mail count, and the queue only buys what you're short of. After a raid, **Buy again** tops you back up to the number. Best for consumables you keep in stock.
@@ -63,6 +66,8 @@ Everything the addon does, at a high level. The same text is in the game under *
   If none of your characters knows the recipe, the original Classic recipe is used (hover the item to see it); Forever may have changed some.
 - **Search list** checks every item and material in one click; those at or under your price turn green and join the buy queue. Items not cheap enough yet wait at the bottom of the buy queue, greyed, so you can see they're being watched.
 - The panel's third tab is the **Disenchant finder** (below).
+
+![A shopping list with an item set to Craft and its materials](images/shopping-list.png)
 
 ## Deals
 

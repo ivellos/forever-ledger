@@ -10,7 +10,8 @@ A gold-making addon built specifically for **WoW Forever**. It scans the auction
 
 - **Tooltips that answer "what's this worth?"** The best way to turn an item into gold, the most it's worth paying, what it disenchants into, and which of your recipes use it. One line with Shift for more, if you prefer.
 - **Deals.** Listings well below their usual price, with why each one is a deal: the usual price and how many days of scans it's based on, the price now, the next listing up, and the resale profit after the auction house cut. Each deal is rated Good, Fair or Thin.
-- **Vendor flips.** Things on the auction house for less than a vendor pays. Watch flips keeps scanning while the auction house is open and chimes when one shows up.
+- **Buy queue.** Vendor flips (things on the auction house for less than a vendor pays) and your shopping lists, lined up beside the auction house: click Buy, or scroll over it, to buy the next one. Watch flips keeps scanning while the auction house is open and chimes when a new flip shows up.
+- **Shopping lists.** Named lists with the most you'd pay and how many you want (raid consumables, twink gear), saved and shareable. Set an item to Craft and the list shows the materials you need, less what you have.
 - **Shuffles.** Buy materials, craft, disenchant or convert, and sell, ranked by gold per hour. Work it walks you through each step with one-click buttons.
 - **On the auction house.** Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE).
 - **Disenchant finder.** Green armor and weapons by item level, with what each is worth to disenchant and the odds of each material.
@@ -66,6 +67,7 @@ See the [roadmap](https://github.com/ivellos/forever-ledger/blob/main/ROADMAP.md
 | `/fl margin 10` | Safety margin for shuffles and "buy at or below", in percent |
 | `/fl seconds 3` | Seconds per craft, used for profit per hour |
 | `/fl watch` | Watch flips: keep scanning while the auction house is open, chime on a new vendor flip |
+| `/fl queue`, `/fl lists` | The buy queue or shopping lists beside the auction house (lists open anywhere) |
 | `/fl deals` | Open the Deals tab (`/fl deals list` in chat, `/fl deals settings` for the options; they're also in the Settings tab) |
 | `/fl customers` / `/fl work` | The Customers window: requests from chat, ads, and work done |
 | `/fl session` | Open the Work it window for the running session |

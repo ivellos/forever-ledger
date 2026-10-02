@@ -1661,7 +1661,7 @@ refreshLists = function()
     v.info:SetText(("|cff7fd39cYou have all the materials:|r %d to craft, then it's complete."):format(craftsReady))
   elseif not ns:IsAHOpen() then
     v.info:SetText(("%d of %d items done%s. Open the auction house to search and buy."):format(done, #list.items,
-      matsShort > 0 and (", %d materials short"):format(matsShort) or ""))
+      matsShort > 0 and (", %d %s short"):format(matsShort, matsShort == 1 and "material" or "materials") or ""))
     v.info:SetText("Open the auction house to search and buy.")
   else
     local noPrice = 0
@@ -1673,7 +1673,7 @@ refreshLists = function()
         noPrice == 1 and "item has" or "items have", noPrice == 1 and "it" or "them"))
     else
       v.info:SetText(("%d of %d done. %d at your price%s: in the buy queue."):format(done, #list.items, cheap,
-        toBuy > 0 and (", %d materials short"):format(toBuy) or ""))
+        toBuy > 0 and (", %d %s short"):format(toBuy, toBuy == 1 and "material" or "materials") or ""))
     end
   end
 end

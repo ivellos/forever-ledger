@@ -6,8 +6,6 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Being tested now
 
-- **Buy queue (scroll to buy)** and **shopping lists**: everything worth buying in one queue beside the auction house, bought one mouse wheel tick at a time as Blizzard requires; named lists with the most you'd pay and how many you want.
-
 - **Arcane Salvager**: measuring how much it really improves disenchanting (nothing official says), then a plan for using it well: saving up greens and disenchanting them in 15-minute Salvager windows when the extra materials are worth more than the Salvager costs.
 - **Neutral auction houses**: prices kept as their own market, a 15% cut in the math, and items only one faction can buy, to sell to the other side.
 - **Where recipes come from**: original Classic vendor, drop and trainer locations are shown as "(Classic)" until players confirm them in Forever.

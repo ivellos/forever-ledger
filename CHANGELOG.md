@@ -5,66 +5,47 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-### Added
-- Buy queue: a panel beside the auction house (the Buy queue button) lines up vendor flips and shopping list items, each in its own section. (Disenchanting and good deals were in it for a while; they're back in the Disenchant finder and the Deals tab, which show more.) It finds the next one by itself, and each tick of the mouse wheel down (or a click on Buy) buys it; stacks of materials take a second tick to confirm the final price. It never pays more than the limit or more than you have. /fl queue.
-- Shopping lists: named lists of items with the most you'd pay and how many you want to have (raid consumables, twink gear...). With a list open, shift-click items to add them (or drag or type them). Set an item to Craft and the list shows the materials you need for it instead. Search this list checks them all in one click, and those at or under your price join the buy queue. /fl lists opens them anywhere, not just at the auction house. Typing a name suggests matching items, including every original Classic item the game hasn't loaded yet (like flasks above the beta's level cap; ones that can't be bought are marked and listed last), and Craft uses the original Classic recipe when none of your characters knows it. Hover Have to see bags, bank and your other characters. List items not cheap enough yet wait in the buy queue, greyed. Prices can be typed any way (2g 50s, 1.5g, 25s, or a plain number for gold) with a tip showing what they'll be, and "any" (or Any price for a whole list) buys the cheapest until you have enough, at most 3 times the usual price.
-- Shopping lists show how far along they are: Have turns green when you have enough, the list name shows 3/5 done, and the bottom line says Complete (or that you have every material and just need to craft).
-- Scroll to buy now works over the top box of the buy queue (with Buy in it), starts off, and turns itself off when the queue runs out, so nobody buys by accident.
-- Shopping lists: "Want means" Keep this many (have that many: Buy again tops you up) or Buy this many (buy that many whatever you have: Buy again buys it all again), chosen per list.
-- Buy queue: it pauses its lookups while you search the auction house yourself (clicking flips in the main window, the search box), so it doesn't replace the page you're buying from (pages spun and buys were refused). It carries on a few seconds after you stop, or at once when you click Buy.
-- Buy queue: unticking a kind (Disenchant, Vendor flips...) now drops the item the queue was on if it was of that kind; it used to stay and keep buying (a disenchant green after Disenchant was unticked).
-- Buy queue: an item that's both a vendor flip and worth disenchanting shows once as FLIP+DE, with both values in its tooltip, instead of under whichever earned more. When the queue moves to the next item, an auction house page still showing the last one goes back to the search list instead of spinning on "Searching...".
-- Buy queue: the lookup for gear found nothing at all (it asked for exact matches but no item qualities); it now asks for every quality, like the search box, and falls back to searching the item itself.
-- Buy queue: gear flips all dropped out at once as "none left" (the first reply to a lookup can be empty or the previous search's); a reply without the item no longer counts.
-- Buy queue: no more "waiting for the scan to finish". The queue looks up and buys while any scan runs (only a full scan's few seconds are waited for); the scan pauses for a moment after each lookup and each buy, and carries on by itself.
-- Buy queue: a new vendor flip joins it within a second of being found, not at the end of the flip watch's pass.
-- Buy queue: gear never got bought (every stat version's reply was ignored and the item dropped out after three tries); any version is taken now. The queue's background searches no longer count as the page you're looking at, which showed the wrong "buy up to" on item pages and could log a gear purchase as the wrong item. With /fl debug on, it says why an item leaves the queue.
-- New and imported shopping lists start with "Use in the buy queue" off; tick it when you want the queue to buy from that list.
-- Buy again (and changing an item's Want or price) puts items back in the buy queue at once; they were kept out for 2 minutes after the queue last finished them.
-- Shopping lists count what you bought on the auction house that's still in the mail, so the queue doesn't buy it again before you collect it (hover Have to see it).
-- The buy queue works out disenchant values per item level band, so rebuilding it is much quicker.
-- Shopping lists: a dropdown of all your lists instead of arrows. Items stay done once you have enough, saved through reloads, so the queue doesn't refill them after you use some; Buy again starts a list over.
-- Share and import shopping lists as plain text (for Discord or a friend). Import also takes a plain list of item names, item numbers or Wowhead links. Items can be added by Wowhead link too.
-- /fl perf also shows the addon's memory use (after clearing leftovers), how long it took to load, and the biggest parts of the saved data.
+## [0.8.0] - 2026-10-02
 
-### Fixed (buy queue and lists)
-- Typing in a shopping list's price or Want box lost the cursor after a second, as the list redrew itself; it now waits while you type.
-- The Vendor flips tab no longer works out every shuffle each time the flip watch saves a price (about 195 ms each, many times a minute): it works out just the flips, at most every 2 seconds.
+### Highlights
+- **Buy queue**: vendor flips and shopping list items lined up beside the auction house; click Buy, or scroll over it, to buy the next one
+- **Shopping lists**: named lists with the most you'd pay and how many you want, saved, shareable, and searched in one click
+- **Craft from a list**: set an item to Craft and the list shows the materials you need, less what you have
+- **Every Classic item**: type any item name and pick it, even ones above the beta's level cap
+- **Vendor flip settings**: choose the least profit worth your time, as a share of the vendor price or an amount
+- **Better deals and shuffles**: deals judged against an item's usual cheapest price, and no more absurd shuffle returns
+- **Discord**: report bugs and ideas with /bug and /feature, and get told in your thread when a fix is live
+
+### Added
+- Buy queue: the Buy queue button under the auction house opens a panel beside it with vendor flips and your shopping list items, each in its own section. Click a section to buy from it (it gets a bright border); it looks up the next item by itself, and a click on Buy buys it. Stacks of materials take a second click to confirm the final price. It never pays more than the limit, checked again on the final price, or more than you have. Only the section you clicked looks anything up or buys, and scans never switch it, so a shopping list and the flip watch don't get in each other's way. /fl queue.
+- Scroll to buy: with it ticked, each tick of the mouse wheel down over your section's top strip buys, and it keeps working while the section is empty, so new flips can be bought the moment they show up. A section on its own gets a big strip to scroll over. It starts off.
+- The flip watch adds new flips to the queue within a second of finding them, and a full scan that finds some opens the queue if it's closed. Scans pause for a moment after each of the queue's lookups and buys, and the queue pauses while you search the auction house yourself, so neither replaces the page the other is using.
+- Shopping lists: named lists of items with the most you'd pay each and how many you want. Add items by shift-clicking them, dragging them in, typing an item number or Wowhead link, or typing a name and picking from the suggestions. Pick a list from the dropdown; tick "Use in the buy queue" for the queue to buy from it. Search list checks everything on it in one click. /fl lists opens them anywhere, not just at the auction house.
+- Want means: per list, Keep this many (bags, bank and auction house purchases still in the mail count; Buy again tops you up after you use some) or Buy this many (Bought counts purchases since Buy again; Buy again buys it all again). Items stay done once you have enough, so the queue doesn't refill them, and the list shows how far along it is (3/5, Complete).
+- Craft: set a list item to Craft and the list shows the materials for the number you want, less what you have, with the most to pay for each (your usual price unless you type one). Materials vendors sell are marked. When none of your characters knows the recipe, the original Classic one is used.
+- Prices can be typed any way (2g 50s, 1.5g, 25s, or a plain number for gold), with a tip showing what they'll be. "any", or Any price for a whole list, buys the cheapest until you have enough, never more than 3 times the usual price.
+- Share and Import shopping lists as plain text, for Discord or a friend. Import also takes a plain list of item names or Wowhead links.
+- Every original Classic item's name and recipe is built in, so you can find and plan items the game hasn't loaded yet; ones that can't be bought are marked.
+- Hover Have on a shopping list to see how many are in your bags, bank, the mail and on your other characters.
+- Vendor flips have their own settings: the least profit worth your time, as a share of the vendor price (0% counts anything below it) and as an amount each.
+- Crates: the money a turn-in pays back is taken off the cost ("Pays back" and "Net cost" columns), and crates that pay back more than they cost show a green profit.
+- Prices seen at a merchant note your standing with them: "Vendor sells it for 4c at Honored".
+- Discord: the Help tab and guide link the Forever Ledger Discord, where /bug and /feature report bugs and ideas. Your report becomes a GitHub issue; your replies are copied to it, and your thread is told when the fix is live.
+- "Your data" in the Help tab, the guide and the README: everything stays on your PC.
+- /fl perf also shows memory use, how long the addon took to load, and the biggest parts of the saved data.
 
 ### Changed
-- Buy queue sections: each ticked kind (Vendor flips, Disenchant, Good deals, Shopping lists) has its own section with its own list and Buy strip. Only the section you click is the one you buy from (bright border); the others just show what the last scan found. Scans and the flip watch never switch it, so a shopping list and the flip watch don't get in each other's way. Scroll to buy works over that section's strip, even while it's empty. A section on its own gets a big strip and Buy button, a large target to scroll over.
-- The Vendor flips tab is gone: vendor flips are bought from the Buy queue beside the auction house. A full scan that finds flips opens the Buy queue if it's closed (it never switches a tab you're on); the flip watch's quick checks only chime.
-- The Disenchant finder moved into the new side panel: the button under the auction house is now Buy queue, and the finder is its third tab.
-- Vendor flips have their own settings: the least profit worth your time, as a share of the vendor price (0% counts anything below it) and as an amount each. They used to share the shuffles' safety margin, but selling to a vendor has no risk, only effort. The same rule sets "buy up to" on the auction house and the below-vendor-price deal alerts.
+- The Vendor flips tab is gone: vendor flips are bought from the Buy queue. The Disenchant finder is now a tab of the same panel, next to Shopping lists.
+- Deals are measured against the price an item is usually cheapest at, not its typical price, so there are far fewer and far more believable deals.
+- Plays nice with Auctionator and TSM: the first time either is found, Forever Ledger turns off what they already cover (for now the price lines in tooltips) and says so once, with a button to keep them on.
 
 ### Fixed
-- Items vendors won't buy (Greater Magic Essence) showed "Sell to vendor 1c": the game gives them a 1c price. The addon now checks the item's own tooltip for a sell price and shows no vendor price when there isn't one.
-- Gear flips stayed on Vendor flips after their cheap listings were gone (Raider's Chestpiece, Priest's Mace, Soldier's Armor). The auction house's search list shows each item's cheapest price live, and saved listings below it are now dropped.
-- With the flip watch running, gear you bought was logged as the last item the watch looked at (a Soldier's Armor purchase showed as Curved Dagger).
-- Shuffles that end on the auction house showed absurd returns (Simple Linen Pants 10,564%): the item was valued at the average of a few pricey listings. What selling brings is now the lowest of today's cheapest listing, that average, and the usual cheapest price from your scans.
-- Greater Magic Wand showed as a deal after the October 1 patch made crafted wands vendor for 1 copper: its "usual price" came from before the change. Price history from before an item's vendor price changed is now ignored.
-- What a vendor pays now always follows the game's current item data (the tooltip's Sell Price); the remembered price is only used until the game has loaded the item. The October 1 beta build made crafted wands sell for 1 copper (Greater Magic Wand was 15s), and the old remembered price would have kept wand shuffles on the list.
-
-### Changed
-- Prices seen at a merchant now note your standing with that merchant and the character: "Vendor sells it for 4c at Honored" in tooltips, since reputation (and Forever's Bartering perk) lowers what vendors charge.
-
-### Added
-- Crates: the money a turn-in pays back (Apprentice about 2s 50c, green crates 5s, learned from your own turn-ins like the Favor) is taken off the cost. A new "Pays back" column, "Net cost" in place of Total, gold per Favor after the payout, and crates that pay back more than they cost show a green profit ("free" Favor).
-- With /fl debug on, scans report what the game tells about each listing (time left, seller), to plan a better sell speed.
-- Discord: when you reply in your bug or idea thread, your reply is copied to its GitHub issue, and when a release fixes it, the thread gets a "Now live in X" message.
-- "Help and community" in the Help tab and the guide: the Forever Ledger Discord (discord.gg/WKsCtvupeC), with /bug and /feature forms for reports and ideas.
-- "Your data" in the Help tab, the guide and the README: everything stays on your PC; the addon only sends live sync to your own paired character and ads you click to post.
-
-### Changed
-- Plays nice with Auctionator and TSM: the first time either is found, Forever Ledger switches off what they already cover (for now the auction and vendor price lines in tooltips) and says so once, with a button to keep them on. Settings can change it any time. This replaces the old one-line-tooltip question.
-- Deals are measured against the price an item is usually *cheapest* at, not its typical price (which includes dearer listings), and profit assumes reselling at that usual cheapest price or just under the next listing. Gray Woolen Robe at 40s showed as 27% off while it was normally listed from 38s; it's no longer a deal. Only listings that still make the minimum profit count towards "Profit all". Expect far fewer, more believable deals.
-
-### Fixed
-- Gear vendor flips now drop off as soon as you buy them (Hefty Battlehammer stayed until the next full scan): a gear purchase is taken off the saved listings.
-- Vendor flip alerts: a flip could appear on the Vendor flips tab without a chime (Roasted Boar Meat). Alerts now follow the tab exactly, fire as soon as the flip watch or your own search finds a flip instead of at the end of a two-minute pass, name each new flip in chat, and an item that stops being a flip alerts again if it comes back.
-
-### Added
-- Scans now also collect a rough sell speed (listings that disappear between full scans, compared across logins). It isn't shown yet: in the beta, full scans don't return the same listings each time, so the counts aren't reliable. It will appear on the Deals tab once it is.
+- Shuffles that end on the auction house showed absurd returns (Simple Linen Pants 10,564%); what selling brings now uses the item's usual cheapest price.
+- What a vendor pays follows the game's current item data, and price history from before a vendor price changed is ignored (crafted wands now sell for 1 copper, and the Greater Magic Wand stopped showing as a deal).
+- Items vendors won't buy (essences, dust, shards) showed "Sell to vendor 1c"; they show no vendor price now.
+- Gear flips dropped off as soon as their cheap listings were gone or bought, not at the next full scan, and gear purchases are logged under the right item.
+- Flip alerts follow the flips exactly and fire as soon as a flip is found.
+- The flips list no longer works out every shuffle each time a price is saved, which caused a small hitch every few seconds.
 
 ## [0.7.0] - 2026-09-30
 
@@ -188,7 +169,7 @@ A new look, a dashboard and a ledger, deal alerts, and tools for working a shuff
 - Work it: a small window for doing one shuffle, opened from any shuffle or vendor flip. Click an item to search the auction house for it or buy it from the open vendor (one click, one purchase). A Craft button starts the first craft; if that profession's window is closed, the first click opens it and the second crafts. One Runs number sets what to buy, how many to craft and the session goal.
 - Sessions: count what you spend on a shuffle's materials, earn from its products, and runs done, with profit and profit per hour, until you stop. A chime and "Goal reached" when you hit your goal. `/fl session` opens it.
 - Deal alerts after each scan (chime, on-screen message, chat list): listings well below their usual price (percent and period of your choice, from this addon's price history or TradeSkillMaster's when installed), or below what a vendor pays. `/fl deals` lists them.
-- On the auction house: listings worth buying are tinted on an item's buy page, with "Worth buying up to …: N available" above; search results are tinted too.
+- On the auction house: listings worth buying are tinted on an item's buy page, with "Worth buying up to â€¦: N available" above; search results are tinted too.
 - History, recorded from now on: each character's gold, money in and out by source, auction house sales (with quantity and buyer) and purchases, vendor trades per item (12 months), and price history per item (daily for 30 days, weekly for 2 years, all-time lowest and average). `/fl money` shows today's money.
 - Settings tab with controls for every setting.
 - The ledger window can be resized, and remembers its size.
@@ -209,7 +190,7 @@ Value engine, shuffle finder and vendor flips. Tested on the Forever beta. The i
 - Vendor floors: the guaranteed value of a material when a known recipe turns it into something a vendor buys.
 - Disenchant values for green armor and weapons up to item level 20: a "Disenchant" option in "Worth to you", a "Craft X, disenchant" option for materials, and a "Disenchants to about" tooltip line. Only shown when one of your characters has Enchanting. Crafted wands and other Enchanting products are skipped, since Forever doesn't allow disenchanting them.
 - Essence conversions in "Worth to you": splitting a greater essence into 3 lesser, and combining 3 lesser into a greater, for every essence type. Disenchant values use them too.
-- "Worth to you" follows chains up to 4 steps long, for example Linen Cloth → Bolt of Linen Cloth → Heavy Linen Gloves → disenchant → Greater Magic Wand → vendor. Only the three best recipes are listed.
+- "Worth to you" follows chains up to 4 steps long, for example Linen Cloth â†’ Bolt of Linen Cloth â†’ Heavy Linen Gloves â†’ disenchant â†’ Greater Magic Wand â†’ vendor. Only the three best recipes are listed.
 - Inside a chain, auction house prices with fewer than 5 listings are ignored, so one overpriced listing can't inflate values.
 - Shuffle finder: `/fl shuffles` lists the best shuffles in two groups, ones that end with vendor sales (safe) and ones that end on the auction house (depend on buyers). Each shows what to buy, profit per craft, return and a rough profit per hour. `/fl shuffles all` lists everything, including one-off deals with fewer than 5 listed.
 - Shuffles tab in the ledger window: the same two groups as `/fl shuffles`, one row each with profit, return and profit per hour. Click a row to see what to buy and each step. Refresh recalculates. Items that disenchant the same way are grouped into one row, for example "Item level 16-20 green armor (27 items)".
