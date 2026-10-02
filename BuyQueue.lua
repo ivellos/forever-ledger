@@ -55,10 +55,6 @@ local function sorts()
   return SORTS or {}
 end
 
-local function sameKey(a, b)
-  return a and b and a.itemID == b.itemID and (a.itemLevel or 0) == (b.itemLevel or 0)
-    and (a.itemSuffix or 0) == (b.itemSuffix or 0) and (a.battlePetSpeciesID or 0) == (b.battlePetSpeciesID or 0)
-end
 
 ---------------------------------------------------------------------------
 -- What's in the queue
@@ -203,6 +199,7 @@ local function finishTarget(note)
     done[e.id] = GetTime()
     for i, x in ipairs(Q.list) do if x == e then table.remove(Q.list, i); break end end
     Q.note = ns.ItemName(e.id) .. ": " .. note
+    ns:Debug("Buy queue:", ns.ItemName(e.id), "-", note)
   end
   Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
   setState("idle")
@@ -238,13 +235,18 @@ function search()
       filters[1] = Enum.AuctionHouseFilter.ExactMatch
     end
     setState("browse")
+    -- The queue's own searches aren't the page you're looking at (History.lua, the tint).
+    ns.queueSending = true
     local ok, err = pcall(AH.SendBrowseQuery, { searchString = name, sorts = sorts(), filters = filters, itemClassFilters = {} })
+    ns.queueSending = false
     if not ok then ns:Debug("Buy queue: browse failed", err); finishTarget("couldn't search for it."); return end
     timeout(5, search)
     return
   end
   setState("search")
+  ns.queueSending = true
   local ok, err = pcall(AH.SendSearchQuery, Q.key or AH.MakeItemKey(e.id), sorts(), true)
+  ns.queueSending = false
   if not ok then ns:Debug("Buy queue: search failed", err); finishTarget("couldn't search for it."); return end
   timeout(5, search)
 end
@@ -323,6 +325,11 @@ local function planItem(key)
   end
   if not best then
     if n == 0 and AH.HasFullItemSearchResults and not AH.HasFullItemSearchResults(key) then return end
+    -- For testing why an item drops out: what the page had.
+    local r1 = n > 0 and AH.GetItemSearchResultInfo(key, 1)
+    ns:Debug(("Buy queue: %s page has %d listings; cheapest %s each, %s; limit %s."):format(ns.ItemName(e.id), n,
+      r1 and r1.buyoutAmount and ns.MoneyPlain(r1.buyoutAmount) or "?", r1 and (("quantity %d%s"):format(r1.quantity or 1,
+      r1.containsOwnerItem and ", yours" or "")) or "", e.limit == math.huge and "any" or ns.MoneyPlain(e.limit)))
     -- Gear: the next stat version that had one cheap enough.
     if Q.keys and #Q.keys > 0 then
       Q.key, Q.tries = table.remove(Q.keys, 1), 0
@@ -362,7 +369,10 @@ function ns:BuyQueueAct()
     setState("buying")
     timeout(10, again)
   elseif Q.state == "ready" and p and p.kind == "item" then
+    -- So the purchase is logged under the right item (History.lua's PlaceBid hook).
+    ns.queueBidItem = e.id
     local ok, err = pcall(AH.PlaceBid, p.auctionID, p.price)
+    ns.queueBidItem = nil
     if not ok then ns:Print("Couldn't buy that: " .. tostring(err)); again(); return end
     setState("buying")
     timeout(6, again)
@@ -400,7 +410,9 @@ end)
 
 ns:On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
   if not (Q.cur and itemKey and itemKey.itemID == Q.cur.id) then return end
-  if Q.key and not sameKey(itemKey, Q.key) then return end
+  -- Any stat version of the item will do (they all sell to a vendor and disenchant the
+  -- same), and the reply's key can differ in detail from the one asked for: matching it
+  -- exactly ignored every gear reply (owner's test, October 2).
   if Q.state == "search" or (Q.state == "ready" and Q.plan and Q.plan.kind == "item") then planItem(itemKey) end
 end)
 

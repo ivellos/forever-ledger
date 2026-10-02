@@ -184,7 +184,7 @@ local function onMoney()
     -- version), so take the bought one off the saved listings instead. Otherwise a
     -- gear flip stays on Vendor flips until the next full scan (owner's test, October 1:
     -- Hefty Battlehammer). Commodities are saved from the page, so they're left alone.
-    if not h and id and ns.RemoveBought then
+    if (not h or h.single) and id and ns.RemoveBought then
       local ok, err = pcall(ns.RemoveBought, ns, id, 1, math.abs(delta))
       if not ok then ns:Debug("Couldn't take the purchase off the listings:", err) end
     end
@@ -277,7 +277,18 @@ ns:OnReady(function()
   -- running": with the flip watch on, a scan is always running, so your pages were
   -- ignored and a Soldier's Armor purchase was put down as Curved Dagger, October 2.)
   hook(C_AuctionHouse, "SendSearchQuery", function(itemKey)
-    if itemKey and itemKey.itemID and not (ns.Scan and ns.Scan.sending) then lastShownItem = itemKey.itemID end
+    -- Not the buy queue's own searches either: they run in the background while you
+    -- look at another page (owner, October 2: a Stout Battlehammer page showed Crag
+    -- Boar Rib's 4c limit).
+    if itemKey and itemKey.itemID and not (ns.Scan and ns.Scan.sending) and not ns.queueSending then
+      lastShownItem = itemKey.itemID
+    end
+  end)
+  -- Buying one listing (gear and other single items): which item. The buy queue says
+  -- which; otherwise it's the page you're on.
+  hook(C_AuctionHouse, "PlaceBid", function()
+    local id = ns.queueBidItem or lastShownItem
+    if id then hint({ source = "ahBuy", item = id, qty = 1, single = true }) end
   end)
   pruneGold()
   -- Remove bad 0-gold readings saved before they were skipped, for characters that
