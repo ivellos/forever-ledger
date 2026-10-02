@@ -1056,7 +1056,14 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       else
         ns:Print(("Another addon ran a full scan; Forever Ledger read it too: %d listings across %d items in %ds."):format(n, items, secs))
       end
-      if ns.CheckDeals then C_Timer.After(0.5, function() ns:CheckDeals() end) end
+      -- ns.fullScanDone: alerts from this check may open the Buy queue (Shuffles.lua).
+      if ns.CheckDeals then
+        C_Timer.After(0.5, function()
+          ns.fullScanDone = true
+          ns:CheckDeals()
+          ns.fullScanDone = nil
+        end)
+      end
       if ns.SyncSoon then ns:SyncSoon() end
       ns:RefreshUI()
       if mine and ns.FlipWatchNext then ns.FlipWatchNext() end

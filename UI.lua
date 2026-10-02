@@ -100,7 +100,7 @@ local setView, layoutShuffles, buildSettings, buildTable
 local TABS = {
   { key = "dashboard", label = "Dashboard" },
   { key = "shuffles", label = "Shuffles" },
-  { key = "flips", label = "Vendor flips" },
+  -- Vendor flips moved to the Buy queue beside the auction house (owner, October 2).
   { key = "deals", label = "Deals" },
   { key = "ledger", label = "Ledger" },
   { key = "crates", label = "Crates", setting = "crates" },
@@ -286,10 +286,11 @@ function ns:RefreshDealsIfShown()
   if main and main:IsShown() and main.view == "deals" then ns:RefreshDeals() end
 end
 
--- After a scan finds vendor flips: open the Vendor flips tab, worked out afresh.
+-- After a full scan finds vendor flips: open the Buy queue beside the auction house, if
+-- it's closed. It never switches a tab you're on (a shopping list you're working on),
+-- and the flip watch's quick checks don't open anything (owner, October 2).
 function ns:OpenFlips()
-  ns:ToggleUI("flips")
-  ns:RefreshShuffles()
+  if ns.OpenBuyQueueGently then ns:OpenBuyQueueGently() end
 end
 
 function ns:ToggleUI(view)
@@ -413,8 +414,8 @@ local SETTINGS = {
   { section = "Auction house" },
   { key = "ahHighlight", label = "Mark good buys", kind = "check",
     help = "Listings at or below an item's buy limit get a green tint, bar and BUY badge." },
-  { key = "openFlips", label = "Open Vendor flips after a scan", kind = "check",
-    help = "When a scan finds items below vendor price, open the Vendor flips tab instead of listing them in chat." },
+  { key = "openFlips", label = "Open the Buy queue after a full scan", kind = "check",
+    help = "When a full scan finds vendor flips and the Buy queue beside the auction house is closed, open it. The flip watch's quick checks only chime." },
 
   { section = "Customers" },
   { key = "customers", label = "Customer finder", kind = "check",

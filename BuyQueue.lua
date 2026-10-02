@@ -1687,6 +1687,18 @@ function ns:ToggleSidePanel()
   side:SetShown(S().shown)
 end
 
+-- New flips from a full scan: open the panel on the Buy queue if it's closed. If it's
+-- open, leave it alone, whatever tab you're on.
+function ns:OpenBuyQueueGently()
+  if not (ns:IsAHOpen() and AuctionHouseFrame) then return end
+  ensureSide()
+  if side:IsShown() then return end
+  place()
+  S().shown = true
+  side:Show()
+  showTab("queue")
+end
+
 function ns:ShowSidePanel(tab)
   ensureSide()
   place()

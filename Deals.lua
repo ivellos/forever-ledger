@@ -68,7 +68,7 @@ function ns:BuildDeals(parent)
   f.intro:SetPoint("RIGHT", f, "RIGHT", -220, 0)
   f.intro:SetJustifyH("LEFT")
   f.intro:SetText("Listings well below the price they're usually cheapest at, to buy and resell. Hover a deal for why it's one; "
-    .. "click it to search the auction house. Items below what a vendor pays are on Vendor flips.")
+    .. "click it to search the auction house. Items below what a vendor pays are in the Buy queue at the auction house.")
 
   f.thin = T:Check(f, function(self)
     ns.db.settings.dealShowThin = self:GetChecked()
