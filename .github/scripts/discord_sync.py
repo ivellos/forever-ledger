@@ -103,13 +103,17 @@ def poll():
         except RuntimeError:
             first = {}
         author = (first.get("author") or {}).get("global_name") or (first.get("author") or {}).get("username") or "someone"
+        # Posts from the /bug and /idea forms are written by the bot and name the
+        # player themselves ("Reported by ..."), so don't credit the bot.
+        from_form = (first.get("author") or {}).get("bot")
         text = (first.get("content") or "").strip() or "(no text)"
         images = [a["url"] for a in first.get("attachments", [])]
         link = f"https://discord.com/channels/{GUILD}/{t['id']}"
         body = "\n\n".join(filter(None, [
             text,
             "\n".join(f"![attachment]({u})" for u in images),
-            f"---\nPosted in Discord #{'bug-reports' if kind == 'bug' else 'feature-requests'} by **{author}**: {link}",
+            f"---\nPosted in Discord #{'bug-reports' if kind == 'bug' else 'feature-requests'}"
+            + ("" if from_form else f" by **{author}**") + f": {link}",
             f"{MARKER}{t['id']}",
         ]))
         issue = github("POST", f"/repos/{REPO}/issues", {"title": t["name"][:250], "body": body, "labels": [LABELS[kind]]})
