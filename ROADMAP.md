@@ -58,6 +58,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Prices for other addons' lists**: what GearQuest's suggested upgrades cost on the auction house right now, and what Dungeon Journal's boss loot is worth per run, when those addons are installed.
 - **UI styles**: choose the look: EllesmereUI (current), Retail, Classic or Forever.
 - **Shopping list** across shuffles.
+- **Macro library**: a searchable library of useful macros by class and purpose, each explained, with one-click "create". Players will be able to suggest macros on the Discord and vote for the most useful ones.
 
 ## Community data
 
