@@ -153,6 +153,14 @@ buildQueue = ns.Timed("Buy queue", buildQueue)
 -- price (commodity: waiting for the final price), confirm, buying.
 ---------------------------------------------------------------------------
 local Q = { list = {}, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
+
+-- Let items back into the queue at once (Buy again, a changed Want or price, a new
+-- item): a finished item is otherwise kept out for 2 minutes, so Buy again did nothing
+-- (owner, October 2: Crafted Light Shot).
+local function unpark(ids)
+  for _, id in ipairs(ids) do done[id], skipped[id] = nil, nil end
+  Q.built = 0
+end
 local side, queueView, listsView   -- frames, built when the auction house first opens
 local refreshQueue                  -- redraws the queue view
 
@@ -747,6 +755,7 @@ local function addFromBox(v)
   end
   local qty = tonumber(v.qty:GetText())
   ns:AddToShoppingList(list, id, max, qty and qty > 0 and math.floor(qty) or nil)
+  unpark({ id })
   v.add:SetText("")
   v.max:SetText("")
   v.qty:SetText("")
@@ -1027,7 +1036,10 @@ local function buildListsView(parent)
     local list = currentList()
     if not list then return end
     ns:BuyListAgain(list)
-    Q.built = 0
+    local ids = {}
+    for _, e in ipairs(list.items) do ids[#ids + 1] = e.id end
+    for _, m in ipairs((ns:ListMaterials(list))) do ids[#ids + 1] = m.id end
+    unpark(ids)
     ns:Print(("%s: everything you're short of goes back in the buy queue."):format(list.name))
     refreshLists()
   end, 22)
@@ -1082,6 +1094,7 @@ local function onModifiedClick(link)
   end
   local list = currentList() or ns:NewShoppingList("Shopping list")
   ns:AddToShoppingList(list, id)
+  unpark({ id })
   Q.built = 0
   ns:Print(("Added %s to %s. Set the most you'd pay and how many you want on the list."):format(link, list.name))
   refreshLists()
@@ -1152,7 +1165,7 @@ local function listRow(i)
         list.matMax[r.mat.id] = value ~= 0 and value or nil
       end
     end
-    Q.built = 0
+    unpark({ (r.kind == "item" and r.entry.id) or (r.mat and r.mat.id) })
   end, "g", true)
   r.max:SetWidth(64)
   r.max:SetPoint("LEFT", C.max, 0)
@@ -1168,7 +1181,7 @@ local function listRow(i)
     -- Wanting more than you have opens a done item again.
     if r.entry.qty ~= old and ns:HaveCount(r.entry.id) < (r.entry.qty or 1) then r.entry.done = nil end
     self:SetText(r.entry.qty and tostring(r.entry.qty) or "")
-    Q.built = 0
+    if r.entry.qty ~= old then unpark({ r.entry.id }) end
   end)
   r.need = T:Text(r, 11)
   r.need:SetPoint("RIGHT", r, "LEFT", C.want + 28, 0)
