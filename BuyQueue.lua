@@ -598,6 +598,7 @@ ns:On("PLAYER_REGEN_ENABLED", updateBinding)
 ---------------------------------------------------------------------------
 local ROW_H = 18
 local STRIP_H = 46
+local STRIP_BIG = 84    -- a section on its own
 
 -- The sections, in the order they're stacked. setting: the box that turns it on.
 local LANES = {
@@ -749,6 +750,7 @@ local function buildLane(v, d)
   strip:SetPoint("TOPLEFT", 1, -1)
   strip:SetPoint("TOPRIGHT", -1, -1)
   strip:SetHeight(STRIP_H)
+  L.strip = strip
   L.stripBg = T:Fill(strip, { 1, 1, 1, 0.04 })
   strip:SetScript("OnClick", function() arm(d.key) end)
   -- The wheel over the strip: makes this the section you buy from, then (with Scroll to
@@ -766,13 +768,13 @@ local function buildLane(v, d)
   L.icon:SetPoint("TOPLEFT", 6, -18)
   L.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   L.line1 = T:Text(strip, 12)
-  L.line1:SetPoint("TOPLEFT", 36, -17)
-  L.line1:SetPoint("RIGHT", strip, "RIGHT", -84, 0)
+  L.line1:SetPoint("TOPLEFT", L.icon, "TOPRIGHT", 6, 1)
+  L.line1:SetPoint("RIGHT", strip, "RIGHT", -100, 0)
   L.line1:SetJustifyH("LEFT")
   L.line1:SetWordWrap(false)
   L.line2 = T:Text(strip, 10, T.dim)
   L.line2:SetPoint("TOPLEFT", L.line1, "BOTTOMLEFT", 0, -2)
-  L.line2:SetPoint("RIGHT", strip, "RIGHT", -84, 0)
+  L.line2:SetPoint("RIGHT", strip, "RIGHT", -100, 0)
   L.line2:SetJustifyH("LEFT")
   L.line2:SetWordWrap(false)
   L.buy = T:Button(strip, "Buy", 72, function()
@@ -853,6 +855,15 @@ local function layoutLanes(v)
   local on = {}
   for i, d in ipairs(t) do
     local L = v.lanes[d.key]
+    -- One section on its own gets a big strip and Buy button: a large target to rest
+    -- the mouse on and scroll while farming (owner, October 2).
+    local big = n == 1
+    L.strip:SetHeight(big and STRIP_BIG or STRIP_H)
+    L.buy:SetSize(big and 88 or 72, big and 60 or 34)
+    L.buy:GetFontString():SetFont(T.font, big and 16 or 14, "")
+    L.icon:SetSize(big and 36 or 24, big and 36 or 24)
+    L.line1:SetFont(T.font, big and 13 or 12, "")
+    L.line2:SetWordWrap(big)   -- room for two lines in the big strip
     L:ClearAllPoints()
     L:SetPoint("TOPLEFT", 6, -(top + (i - 1) * (each + gap)))
     L:SetPoint("RIGHT", v, "RIGHT", -6, 0)
