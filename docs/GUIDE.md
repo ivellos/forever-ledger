@@ -40,6 +40,13 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 ![Vendor flips tab](images/vendor-flips.png)
 
+## Buy queue and shopping lists
+
+- **Buy queue**: click **Buy queue** under the auction house. A panel beside it lines up everything worth buying right now: vendor flips, greens worth disenchanting, items from your shopping lists, and (if you tick it) good deals. The addon looks up the next one by itself; **each tick of the mouse wheel down, or a click on Buy, buys it**. Stacks of materials take a second tick: the first asks the auction house for the final price, the second confirms it. `/fl queue` opens it.
+- **Safe by design**: it never pays more than the limit shown (checked again against the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. Untick **Scroll anywhere to buy** if you only want the Buy button to buy. Click a row to buy that one next; right-click to skip it. Gear sold in stacks is left for you to buy on the page.
+- **Shopping lists**: named lists of items with the most you'd pay each and how many you want to have, for example raid consumables (or their materials) or twink gear to watch for. Shift-click an item from your bags or a chat link, drag it in, or type its exact name. **Search this list** checks every item in one click; those at or under your price turn green and join the buy queue. `/fl lists` opens it.
+- The panel's third tab is the **Disenchant finder** (below).
+
 ## Deals
 
 - **Deals tab**: listings well below the price an item is usually *cheapest* at, to buy and resell. Each row shows the price now, the usual low (the middle of each day's cheapest price over the period set in Settings), how far below it is, how many are worth buying, the profit after the auction house cut (each and for all of them), and how sure the deal is: **Good**, **Fair** or **Thin**. Comparing with the usual cheapest price, not the typical one, means a deal is a real bargain, not just today's normal low.
@@ -50,7 +57,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 ## Disenchanting
 
-- **Disenchant finder** (beside the auction house): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material.
+- **Disenchant finder** (beside the auction house: Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material.
 - The **Disenchant** button in Work it disenchants the shuffle's items one click at a time. `/fl de` shows your own results.
 
 ![Disenchant finder beside the auction house](images/disenchant-finder.png)
@@ -113,6 +120,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 | `/fl` | Open or close the window |
 | `/fl scan` | Full scan if allowed, otherwise your materials |
 | `/fl watch` | Start or stop the flip watch |
+| `/fl queue`, `/fl lists` | The buy queue or shopping lists beside the auction house |
 | `/fl customers`, `/fl work` | The Customers window, or its Work done view |
 | `/fl de` | Your disenchant results |
 | `/fl deals` | Open the Deals tab (`/fl deals list` lists them in chat) |

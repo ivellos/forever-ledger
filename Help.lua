@@ -32,6 +32,11 @@ ns.HELP = {
     { "Vendor flips", "Things on the auction house for less than a vendor pays. After a scan finds some, the tab opens by itself; click a flip to search for it. Settings, Vendor flips sets the least profit worth your time, as a share of the vendor price and as an amount." },
     { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },
+  { "Buy queue and shopping lists", {
+    { "Buy queue", "Click Buy queue on the auction house: a panel beside it lines up everything worth buying (vendor flips, greens worth disenchanting, your shopping lists, and good deals if you tick them). It finds the next one by itself; each tick of the mouse wheel down, or a click on Buy, buys it. Stacks of materials take a second tick to confirm the final price. /fl queue." },
+    { "Safe by design", "It never pays more than the limit shown (checked again on the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. Untick Scroll anywhere to buy so only the Buy button buys. Right-click an item to skip it." },
+    { "Shopping lists", "Named lists of items with the most you'd pay and how many you want to have, for example raid consumables or twink gear. Shift-click, drag or type an item to add it. Search this list checks them all in one click; those at or under your price join the buy queue. /fl lists." },
+  } },
   { "Deals", {
     { "Deals tab", "Listings well below the price an item is usually cheapest at, to buy and resell: price now, usual low, how many are worth buying, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },
     { "Why it's a deal", "Hover a deal: the usual cheapest and typical prices and how many days of your scans they come from, how many are usually listed, and the next listing up. Profit assumes you resell at the usual cheapest price or just under the next listing, whichever is lower. Click to search the auction house." },
@@ -39,7 +44,7 @@ ns.HELP = {
     { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },
   { "Disenchanting", {
-    { "Disenchant finder", "Beside the auction house: green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds." },
+    { "Disenchant finder", "Beside the auction house (Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds." },
     { "Work it", "The Disenchant button disenchants the shuffle's items one click at a time. /fl de shows your own results." },
   } },
   { "Recipes and trainers", {

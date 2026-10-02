@@ -30,4 +30,6 @@ Help.lua
 Work.lua
 Sync.lua
 AuctionHouse.lua
+ShoppingLists.lua
+BuyQueue.lua
 Probe.lua

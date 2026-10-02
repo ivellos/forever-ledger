@@ -709,6 +709,22 @@ function Scan:StartWatch()
   self:Next()
 end
 
+-- Search a given list of items once (Shopping lists, "Search this list"). Prices are
+-- saved like any scan, so the list shows what's on the auction house right now.
+function Scan:StartList(ids, label)
+  if not C_AuctionHouse then return end
+  if not ahOpen then ns:Print("Open the auction house first."); return end
+  if self.active then ns:Print("A scan is already running. Type /fl stop to cancel it."); return end
+  if #ids == 0 then ns:Print("That list has no items yet."); return end
+  self.started = GetTime()
+  self.queue = {}
+  for i, id in ipairs(ids) do self.queue[i] = id end
+  self.items, self.retry, self.retrying = #self.queue, {}, false
+  self.total, self.done, self.active, self.pending = #self.queue, 0, true, nil
+  ns:Print(("Searching %d items from %s."):format(self.total, label or "your list"))
+  self:Next()
+end
+
 function Scan:Next()
   if not self.active then return end
   if #self.queue == 0 then

@@ -5,7 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Buy queue: a panel beside the auction house (the Buy queue button) lines up everything worth buying: vendor flips, greens worth disenchanting, shopping list items and, if you want, good deals. It finds the next one by itself, and each tick of the mouse wheel down (or a click on Buy) buys it; stacks of materials take a second tick to confirm the final price. It never pays more than the limit or more than you have. /fl queue.
+- Shopping lists: named lists of items with the most you'd pay and how many you want to have (raid consumables, twink gear...). Shift-click, drag or type items in; Search this list checks them all in one click, and those at or under your price join the buy queue. /fl lists.
+
 ### Changed
+- The Disenchant finder moved into the new side panel: the button under the auction house is now Buy queue, and the finder is its third tab.
 - Vendor flips have their own settings: the least profit worth your time, as a share of the vendor price (0% counts anything below it) and as an amount each. They used to share the shuffles' safety margin, but selling to a vendor has no risk, only effort. The same rule sets "buy up to" on the auction house and the below-vendor-price deal alerts.
 
 ### Fixed

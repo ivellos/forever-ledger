@@ -6,6 +6,8 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Being tested now
 
+- **Buy queue (scroll to buy)** and **shopping lists**: everything worth buying in one queue beside the auction house, bought one mouse wheel tick at a time as Blizzard requires; named lists with the most you'd pay and how many you want.
+
 - **Arcane Salvager**: measuring how much it really improves disenchanting (nothing official says), then a plan for using it well: saving up greens and disenchanting them in 15-minute Salvager windows when the extra materials are worth more than the Salvager costs.
 - **Neutral auction houses**: prices kept as their own market, a 15% cut in the math, and items only one faction can buy, to sell to the other side.
 - **Where recipes come from**: original Classic vendor, drop and trainer locations are shown as "(Classic)" until players confirm them in Forever.
@@ -14,8 +16,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 ## Gold making
 
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
-- **Shopping lists**: named lists of items with the most you'd pay (raid consumables or their materials, twink gear, crafting materials), searched in one click on the auction house, and shown in the buy queue when they're cheap enough.
-- **Buy queue (scroll to buy)**: on the auction house, a queue of everything worth buying right now (vendor flips, greens below their disenchant value, cheap shuffle materials, good deals, your own targets like "Linen Cloth at 1s"). Watch flips chimes when something new appears, and each turn of your mouse wheel buys the next one, one purchase per scroll as Blizzard requires.
+- **Shopping list rules**: besides single items, rules like "green armor up to 4s" or "level 29 BoE gear for rogues", and importing Auctionator shopping lists.
 - **Your auctions**: undercut and sold alerts for what you've listed, with the price to repost at.
 - **Vendor or auction house?**: on the Sell tab, what each item in your bags would net on the auction house after the cut and deposit against what a vendor pays, with a one-click list to vendor the rest.
 - **Deals per stat version**: judge "of the Monkey" against other Monkey versions, not the item as a whole.

@@ -39,9 +39,12 @@ local DEFAULTS = {
   historySold = {},   -- [marketKey][itemID] = "day:gone:minutes:closeMinutes|..." listings gone between full scans (sell speed)
   -- soldSnap = { t, market, items = { [itemID] = "price:count" } }: the last full scan's counts (Prices.lua), no default
   historyQty = {},    -- [marketKey][itemID] = "day:listed|..." most listed seen each day (last 30 days)
+  shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true,
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
     svcCrafting = true, svcFood = true, svcPortal = true, svcSummon = true, svcLockpick = true,
+    -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
+    buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = true, tab = "queue" },
     tipMode = "full", tipOptions = 3, tipPrice = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true },
 }
 
@@ -362,6 +365,10 @@ function ns:ApiReport()
     "C_Map.GetBestMapForUnit", "C_Map.SetUserWaypoint",
     "C_ChatInfo.SendAddonMessage", "C_ChatInfo.RegisterAddonMessagePrefix", "ChatFrame_AddMessageEventFilter",
     "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
+    -- Buy queue (BuyQueue.lua): buying needs these, each from a click or a mouse wheel tick.
+    "C_AuctionHouse.StartCommoditiesPurchase", "C_AuctionHouse.CancelCommoditiesPurchase", "C_AuctionHouse.PlaceBid",
+    "C_AuctionHouse.SendBrowseQuery", "C_AuctionHouse.GetBrowseResults", "C_AuctionHouse.HasFullBrowseResults",
+    "C_AuctionHouse.GetItemCommodityStatus", "SetOverrideBindingClick",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
     -- Pets (owner, September 30: planning a pet collection module; Forever's collection
     -- window has no pet tab yet). Modern journal, and Classic's older companion list.
@@ -447,6 +454,10 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns.Scan:Start("full")
   elseif msg == "watch" then
     ns:ToggleFlipWatch()
+  elseif msg == "queue" or msg == "buy" then
+    ns:ShowSidePanel("queue")
+  elseif msg == "lists" or msg == "list" then
+    ns:ShowSidePanel("lists")
   elseif msg == "customers" then
     ns:ShowCustomers()
   elseif msg == "work" or msg == "worklog" then
@@ -563,6 +574,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto/own/auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl session, /fl de, /fl pair <name>, /fl sync, /fl tooltip, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl queue, /fl lists, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto/own/auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl session, /fl de, /fl pair <name>, /fl sync, /fl tooltip, /fl api, /fl debug")
   end
 end

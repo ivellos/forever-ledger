@@ -261,12 +261,12 @@ local function finderItems()
   return out, waiting
 end
 
-local function buildFinder()
-  local ah = AuctionHouseFrame
-  finder = CreateFrame("Frame", "ForeverLedgerDisenchantFinder", ah)
-  finder:SetPoint("TOPLEFT", ah, "TOPRIGHT", 4, 0)
-  finder:SetPoint("BOTTOMLEFT", ah, "BOTTOMRIGHT", 4, 0)
-  finder:SetWidth(420)
+-- The finder is one tab of the side panel beside the auction house (BuyQueue.lua), below
+-- its row of tabs.
+local function buildFinder(side)
+  finder = CreateFrame("Frame", "ForeverLedgerDisenchantFinder", side)
+  finder:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -30)
+  finder:SetPoint("BOTTOMRIGHT", side, "BOTTOMRIGHT", 0, 0)
   finder:EnableMouse(true)
   T:Fill(finder, T.bg)
   T:Border(finder)
@@ -443,8 +443,13 @@ local function buildFinder()
   finder.count:SetPoint("LEFT", refresh, "RIGHT", 10, 0)
 
   finder:SetScript("OnShow", changed)
-  finder:SetShown(s.shown)
-  if s.shown then C_Timer.After(0.1, changed) end
+  finder:Hide()
+end
+
+-- The finder frame inside the side panel, built the first time it's needed.
+function ns:DisenchantFinderFrame(side)
+  if not finder and side then buildFinder(side) end
+  return finder
 end
 
 local function finderRow(i)
@@ -561,21 +566,26 @@ end
 ns:On("AUCTION_HOUSE_SHOW", function()
   C_Timer.After(0.2, function()
     if not AuctionHouseFrame then return end
-    if not finder then buildFinder() end
+    -- One button for the side panel (Buy queue, Shopping lists, Disenchant finder):
+    -- a button each wouldn't fit beside Blizzard's tabs.
     if not ns.ahFinderButton then
       local b = CreateFrame("Button", nil, AuctionHouseFrame, "UIPanelButtonTemplate")
       b:SetSize(132, 24)
-      b:SetText("Disenchant finder")
+      b:SetText("Buy queue")
       if ns.ahFullButton then b:SetPoint("RIGHT", ns.ahFullButton, "LEFT", -4, 0)
       else b:SetPoint("TOPRIGHT", AuctionHouseFrame, "BOTTOMRIGHT", -260, -2) end
       b:SetFrameLevel(AuctionHouseFrame:GetFrameLevel() + 20)
-      b:SetScript("OnClick", function()
-        local s = finderSettings()
-        s.shown = not finder:IsShown()
-        finder:SetShown(s.shown)
+      b:SetScript("OnClick", function() ns:ToggleSidePanel() end)
+      b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Buy queue, shopping lists and disenchant finder", 1, 1, 1)
+        GameTooltip:AddLine("A panel beside the auction house. The buy queue lines up everything worth buying; each mouse wheel tick (or click) buys the next one.", nil, nil, nil, true)
+        GameTooltip:Show()
       end)
+      b:SetScript("OnLeave", function() GameTooltip:Hide() end)
       ns.ahFinderButton = b
     end
+    if ns.SetUpSidePanel then ns:SetUpSidePanel() end
     -- Flip watch on/off (/fl watch).
     if not ns.ahWatchButton then
       local w = CreateFrame("Button", nil, AuctionHouseFrame, "UIPanelButtonTemplate")

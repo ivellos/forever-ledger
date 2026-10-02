@@ -98,8 +98,9 @@ local function buttonLook(b, hover)
 end
 
 -- A flat button. Supports SetText and SetEnabled like Blizzard's, plus SetSelected.
-function T:Button(parent, label, width, onClick, height)
-  local b = CreateFrame("Button", nil, parent)
+-- name: a global name, only for buttons a key binding clicks (the buy queue's Buy).
+function T:Button(parent, label, width, onClick, height, name)
+  local b = CreateFrame("Button", name, parent)
   b:SetSize(width, height or 24)
   b.bg = T:Fill(b, T.button)
   T:Border(b)
