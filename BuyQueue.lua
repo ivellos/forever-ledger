@@ -843,7 +843,7 @@ local function buildListsView(parent)
       b:SetPoint("TOPLEFT", 0, -(i - 1) * 20)
       b:SetPoint("RIGHT", 0, 0)
       local doneN = 0
-      for _, e in ipairs(l.items) do if e.done or ns:HaveCount(e.id) >= (e.qty or 1) then doneN = doneN + 1 end end
+      for _, e in ipairs(l.items) do if ns:ItemDone(e, l) then doneN = doneN + 1 end end
       b.text:SetText(("%s%s|r  |cff888888%d/%d%s|r"):format(i == cur and T:AccentCode() or "|cffffffff", l.name,
         doneN, #l.items, l.on and "" or ", not in queue"))
       b:Show()
@@ -905,9 +905,40 @@ local function buildListsView(parent)
   end)
   v.any:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+  -- What Want means for this list (owner, October 2: both, made clear).
+  local wantLabel = T:Text(v, 12, T.dim)
+  wantLabel:SetPoint("TOPLEFT", 12, -64)
+  wantLabel:SetText("Want means:")
+  v.wantMode = T:Choice(v, { { value = "keep", label = "Keep this many" }, { value = "buy", label = "Buy this many" } }, function(value)
+    local list = currentList()
+    if not list then return end
+    list.wantMode = value == "buy" and "buy" or nil
+    -- A different meaning: start counting afresh.
+    ns:BuyListAgain(list)
+    local ids = {}
+    for _, e in ipairs(list.items) do ids[#ids + 1] = e.id end
+    unpark(ids)
+    refreshLists()
+  end)
+  v.wantMode:SetPoint("LEFT", wantLabel, "RIGHT", 8, 0)
+  for _, b in ipairs(v.wantMode.buttons) do
+    b:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      if self.value == "keep" then
+        GameTooltip:AddLine("Keep this many", 1, 1, 1)
+        GameTooltip:AddLine("Want is how many you want to have: bags, bank and what's in the mail count. The queue only buys what you're short of. After you use some, Buy again tops you back up. Good for raid consumables you keep in stock.", nil, nil, nil, true)
+      else
+        GameTooltip:AddLine("Buy this many", 1, 1, 1)
+        GameTooltip:AddLine("Want is how many to buy, whatever you already have. The list counts what's been bought since Buy again (the Bought column). Buy again buys the whole amount again. Good for \"I need 20 of these for a craft\".", nil, nil, nil, true)
+      end
+      GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+
   -- Add an item: shift-click, drag, or type its name; the most you'd pay; how many.
   v.add = hinted(v, 196, "Shift-click, drag or type an item", "LEFT")
-  v.add:SetPoint("TOPLEFT", 10, -62)
+  v.add:SetPoint("TOPLEFT", 10, -88)
   v.add:HookScript("OnTextChanged", function(self) v.pendingID = ns.ItemIDFromLink(self:GetText()) end)
 
   -- Suggestions while you type a name (owner, October 2): up to 8 items whose name
@@ -994,18 +1025,20 @@ local function buildListsView(parent)
   addB:SetPoint("LEFT", v.qty, "RIGHT", 4, 0)
 
   local header = CreateFrame("Frame", nil, v)
-  header:SetPoint("TOPLEFT", 6, -92)
-  header:SetPoint("TOPRIGHT", -6, -92)
+  header:SetPoint("TOPLEFT", 6, -116)
+  header:SetPoint("TOPRIGHT", -6, -116)
   header:SetHeight(20)
   T:Fill(header, { 1, 1, 1, 0.05 })
+  v.headers = {}
   for _, c in ipairs({ { "Item", 8, "LEFT" }, { "Get", C.get, "LEFT" }, { "Most each", C.max, "LEFT" }, { "Want", C.want, "LEFT" },
                        { "Have", C.have, "RIGHT" }, { "Now", C.now, "RIGHT" } }) do
     local fs = T:Text(header, 11, T.dim)
     if c[3] == "LEFT" then fs:SetPoint("LEFT", c[2], 0) else fs:SetPoint("RIGHT", header, "LEFT", c[2], 0) end
     fs:SetText(c[1])
+    v.headers[c[1]] = fs
   end
   v.sf, v.content = T:Scroll(v)
-  v.sf:SetPoint("TOPLEFT", 6, -114)
+  v.sf:SetPoint("TOPLEFT", 6, -138)
   v.sf:SetPoint("BOTTOMRIGHT", -6, 58)
   v.rows = {}
 
@@ -1203,7 +1236,11 @@ local function listRow(i)
     local mail = ns:InTheMail(id)
     if mail > 0 then GameTooltip:AddDoubleLine("In the mail (bought)", tostring(mail), 0.8, 0.8, 0.8, 1, 1, 1) end
     for name, n in pairs(byAlt) do GameTooltip:AddDoubleLine(name, tostring(n), 0.8, 0.8, 0.8, 1, 1, 1) end
-    GameTooltip:AddLine("Have counts this character's bags, bank and auction house purchases still in the mail. Bank as of your last visit; other characters as of their last login on this account.", 0.6, 0.6, 0.6, true)
+    if ns:BuyMode(currentList()) then
+      GameTooltip:AddLine("This list is set to Buy this many: the column counts what's been bought since Buy again (auction house purchases, from the queue or by hand). Where you have them is shown above.", 0.6, 0.6, 0.6, true)
+    else
+      GameTooltip:AddLine("Have counts this character's bags, bank and auction house purchases still in the mail. Bank as of your last visit; other characters as of their last login on this account.", 0.6, 0.6, 0.6, true)
+    end
     if alts == 0 then GameTooltip:AddLine("None on your other characters.", 0.6, 0.6, 0.6) end
     GameTooltip:Show()
   end)
@@ -1283,6 +1320,11 @@ refreshLists = function()
   v.on:SetShown(list ~= nil)
   v.any:SetChecked(list and list.anyPrice)
   v.any:SetShown(list ~= nil)
+  local buyMode = ns:BuyMode(list)
+  v.wantMode:SetValue(buyMode and "buy" or "keep")
+  v.wantMode:SetShown(list ~= nil)
+  -- Buy this many counts what's been bought, so the column says so.
+  v.headers.Have:SetText(buyMode and "Bought" or "Have")
 
   -- What to show: the list's items, then the materials for its Craft items.
   local show = {}
@@ -1329,8 +1371,10 @@ refreshLists = function()
       if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
       -- Have against Want (1 if no number): green when you have enough. Done stays
       -- done (grey Have) after you use some, until Buy again.
+      -- Buy this many shows what's been bought instead.
       local have, want = ns:HaveCount(e.id), e.qty or 1
-      local isDone = ns:ItemDone(e)
+      if buyMode then have = craft and have or (e.bought or 0) end
+      local isDone = ns:ItemDone(e, list)
       if isDone then done = done + 1 end
       r.have:SetText((have >= want and "|cff7fd39c" or isDone and "|cff888888" or "|cffffd100") .. have .. "|r")
       if isDone then
@@ -1354,7 +1398,8 @@ refreshLists = function()
         r.max:SetTextColor(1, 1, 1, m.own and 1 or 0.55)   -- grey: the usual price, not one you typed
       end
       r.need:SetText(m.buy > 0 and ("|cffffd100%d|r"):format(m.need) or ("|cff7fd39c%d|r"):format(m.need))
-      r.have:SetText(m.buy > 0 and ("|cffffd100" .. m.have .. "|r") or ("|cff7fd39c" .. m.have .. "|r"))
+      local got = buyMode and m.bought or m.have
+      r.have:SetText(m.buy > 0 and ("|cffffd100" .. got .. "|r") or ("|cff7fd39c" .. got .. "|r"))
       if m.buy > 0 then matsShort = matsShort + 1 end
       r.now:SetText(m.done and "|cff7fd39cdone|r" or (nowText(m.id, m.limit, m.vendor)))
       if m.buy > 0 and not m.vendor then toBuy = toBuy + 1 end
@@ -1379,7 +1424,7 @@ refreshLists = function()
   local craftsReady = 0
   if list then
     for _, e in ipairs(list.items) do
-      if e.mode == "craft" and not ns:ItemDone(e) then craftsReady = craftsReady + 1 end
+      if e.mode == "craft" and not ns:ItemDone(e, list) then craftsReady = craftsReady + 1 end
     end
   end
   if ns.Scan.active then

@@ -149,6 +149,7 @@ local HEADER = "Forever Ledger shopping list: "
 function ns:ExportShoppingList(list)
   local lines = { HEADER .. list.name }
   if list.anyPrice then lines[#lines + 1] = "any price" end
+  if ns:BuyMode(list) then lines[#lines + 1] = "buy this many" end
   for _, e in ipairs(list.items) do
     local parts = { e.id .. " " .. ns.ItemName(e.id) }
     if e.mode == "craft" then parts[#parts + 1] = "craft" end
@@ -185,6 +186,9 @@ function ns:ImportShoppingLists(text)
     elseif lower == "any price" then
       if not list then newList() end
       list.anyPrice = true
+    elseif lower == "buy this many" or lower == "keep this many" then
+      if not list then newList() end
+      list.wantMode = lower == "buy this many" and "buy" or nil
     elseif line:find("|Hitem:", 1, true) then
       -- A pasted item link (it has | in it, so it's read whole).
       local id = ns.ItemIDFromLink(line)
@@ -246,6 +250,7 @@ function ns:NoteBoughtToMail(id, qty)
   local now = bagsAndBank(id)
   w.n, w.base, w.t = w.n + qty, w.base and math.min(w.base, now) or now, time()
   ns.db.onTheWay[id] = w
+  ns:NoteListPurchase(id, qty)
 end
 
 function ns:InTheMail(id)
@@ -343,25 +348,76 @@ end
 -- and stays done, saved, even after you use some, until you click Buy again. The same
 -- for a material once you have enough of it.
 ---------------------------------------------------------------------------
-function ns:ItemDone(e)
-  if not e.done and ns:HaveCount(e.id) >= (e.qty or 1) then e.done = true end
+-- Two ways to read Want (owner, October 2: "the option for both, if we can make it clear"):
+--   "keep" (the default): keep this many, counting bags, bank and the mail; Buy again
+--     tops you up to it after you've used some (raid consumables).
+--   "buy": buy this many, whatever you have; what's bought since Buy again counts (e.bought,
+--     list.matBought), and Buy again buys the whole amount again.
+function ns:BuyMode(list) return list and list.wantMode == "buy" end
+
+function ns:ItemDone(e, list)
+  if not e.done then
+    if ns:BuyMode(list) then
+      if e.mode == "craft" then
+        -- Done once every material for it is bought.
+        local recipe = ns:RecipeFor(e.id)
+        local all = recipe and list.matDone and true
+        for _, r in ipairs(recipe and recipe.r or {}) do
+          if not list.matDone[r[1]] then all = false end
+        end
+        if all then e.done = true end
+      elseif (e.bought or 0) >= (e.qty or 1) then
+        e.done = true
+      end
+    elseif ns:HaveCount(e.id) >= (e.qty or 1) then
+      e.done = true
+    end
+  end
   return e.done or false
 end
 
 function ns:BuyListAgain(list)
-  for _, e in ipairs(list.items) do e.done = nil end
-  list.matDone = nil
+  for _, e in ipairs(list.items) do e.done, e.bought = nil, nil end
+  list.matDone, list.matBought = nil, nil
+end
+
+-- An auction house purchase: lists set to "buy this many" count it, items first, then
+-- materials, only up to what each still needs.
+function ns:NoteListPurchase(id, qty)
+  for _, list in ipairs(data().lists) do
+    if ns:BuyMode(list) and qty > 0 then
+      for _, e in ipairs(list.items) do
+        if e.id == id and e.mode ~= "craft" and not e.done and qty > 0 then
+          local add = math.min(qty, (e.qty or 1) - (e.bought or 0))
+          if add > 0 then e.bought, qty = (e.bought or 0) + add, qty - add end
+        end
+      end
+      if qty > 0 then
+        for _, m in ipairs((ns:ListMaterials(list))) do
+          if m.id == id and m.buy > 0 then
+            local add = math.min(qty, m.buy)
+            list.matBought = list.matBought or {}
+            list.matBought[id] = (list.matBought[id] or 0) + add
+            qty = qty - add
+          end
+        end
+      end
+    end
+  end
 end
 
 function ns:ListMaterials(list)
+  local buyMode = ns:BuyMode(list)
   local need, order, missing = {}, {}, {}
   for _, e in ipairs(list.items) do
-    if e.mode == "craft" and not ns:ItemDone(e) then
+    -- Buy this many: materials for the whole amount, done or not (they show as done).
+    -- Keep this many: only for what you're short of.
+    if e.mode == "craft" and (buyMode or not ns:ItemDone(e, list)) then
       local recipe = ns:RecipeFor(e.id)
       if not recipe then
         missing[#missing + 1] = e.id
       else
-        local short = math.max(0, (e.qty or 1) - ns:HaveCount(e.id))
+        local short = buyMode and (e.qty or 1) or math.max(0, (e.qty or 1) - ns:HaveCount(e.id))
         local crafts = math.ceil(short / math.max(recipe.oq or 1, 1))
         for _, r in ipairs(recipe.r) do
           local mat, qty = r[1], r[2] or 1
@@ -377,12 +433,13 @@ function ns:ListMaterials(list)
       local have = ns:HaveCount(mat)
       local _, vrec = ns:GetVendorBuyPrice(mat)
       local limit, own = ns:MaterialLimit(list, mat)
-      local buy = math.max(0, need[mat] - have)
+      local bought = list.matBought and list.matBought[mat] or 0
+      local buy = math.max(0, need[mat] - (buyMode and bought or have))
       -- Enough once is enough: crafting uses them up, but they don't go back on the list.
       list.matDone = list.matDone or {}
       if buy == 0 then list.matDone[mat] = true end
       if list.matDone[mat] then buy = 0 end
-      out[#out + 1] = { id = mat, need = need[mat], have = have, buy = buy, done = list.matDone[mat],
+      out[#out + 1] = { id = mat, need = need[mat], have = have, bought = bought, buy = buy, done = list.matDone[mat],
         vendor = vrec and not vrec.lim and vrec.p or nil, limit = limit, own = own }
     end
   end
@@ -399,9 +456,11 @@ function ns:ShoppingTargets()
     if list.on then
       for _, e in ipairs(list.items) do
         local max = list.anyPrice and -1 or (e.max or 0)
-        if e.mode ~= "craft" and max ~= 0 and not seen[e.id] and not ns:ItemDone(e) then
-          -- Without a Want number, just one.
-          local want = math.max(0, (e.qty or 1) - ns:HaveCount(e.id))
+        if e.mode ~= "craft" and max ~= 0 and not seen[e.id] and not ns:ItemDone(e, list) then
+          -- Without a Want number, just one. Buy this many: less what's been bought;
+          -- keep this many: less what you have.
+          local got = ns:BuyMode(list) and (e.bought or 0) or ns:HaveCount(e.id)
+          local want = math.max(0, (e.qty or 1) - got)
           if want > 0 then
             seen[e.id] = true
             out[#out + 1] = { id = e.id, limit = max == -1 and ns:AnyPriceLimit(e.id) or max, any = max == -1,
