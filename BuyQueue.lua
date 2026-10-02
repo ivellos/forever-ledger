@@ -81,6 +81,14 @@ local function buildQueue()
   -- Shopping lists first, in list order: they're what you asked for. Ones not cheap
   -- enough right now still show, greyed at the end, so you can see they're watched
   -- (owner, October 2: "not clear how to add it to the buy queue, it's blank").
+  -- Each part timed on its own for /fl perf (the whole took about 180 ms, October 2).
+  local clock = debugprofilestop or function() return GetTime() * 1000 end
+  local t0 = clock()
+  local function lap(label)
+    local t1 = clock()
+    if ns.PerfNote then ns.PerfNote("Buy queue: " .. label, t1 - t0) end
+    t0 = t1
+  end
   local waiting = {}
   if s.lists then
     for _, t in ipairs(ns:ShoppingTargets()) do
@@ -89,6 +97,7 @@ local function buildQueue()
       if n == 0 then e.waiting = true; waiting[#waiting + 1] = e else add(e) end
     end
   end
+  lap("lists")
   local others = {}
   if s.flips then
     for id in pairs(market) do
@@ -99,6 +108,7 @@ local function buildQueue()
       end
     end
   end
+  lap("flips")
   if s.disenchant then
     -- What a disenchant is worth depends only on the item level band, so work it out once
     -- per band, not through every item's full list of options (that took about 180 ms
@@ -131,6 +141,7 @@ local function buildQueue()
       end
     end
   end
+  lap("disenchant")
   if s.deals then
     for _, d in ipairs(ns:FindDeals(6 * 3600)) do
       if d.kind == "usual" and d.level == "good" and d.limit and ns:DealShown(d) then
@@ -143,6 +154,7 @@ local function buildQueue()
   table.sort(others, function(a, b) return a.profit > b.profit end)
   for _, e in ipairs(others) do add(e) end
   for _, e in ipairs(waiting) do add(e) end
+  lap("deals and sorting")
   return out
 end
 buildQueue = ns.Timed("Buy queue", buildQueue)
