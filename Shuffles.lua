@@ -225,22 +225,30 @@ function ns:FindShuffles()
     end
   end
 
-  for id in pairs(market) do
-    local f = ns:VendorFlip(id)
-    if f then flips[#flips + 1] = f end
-  end
-
   local function byHour(a, b) return a.perHour > b.perHour end
   vendor, ah = groupDisenchants(vendor), groupDisenchants(ah)
   table.sort(vendor, byHour)
   table.sort(ah, byHour)
   table.sort(oneOff, byHour)
-  -- Vendor flips have no crafting time, so rank them by total profit on offer.
+  return vendor, ah, oneOff, ns:FindVendorFlips()
+end
+
+-- Just the vendor flips: far quicker than every shuffle, so the Vendor flips tab can
+-- follow the flip watch without a hitch (owner's /fl perf, October 2: the whole
+-- shuffle search ran 29 times in 106 seconds at about 195 ms each).
+-- Vendor flips have no crafting time, so they're ranked by total profit on offer.
+function ns:FindVendorFlips()
+  local flips = {}
+  for id in pairs(ns.db.prices[ns.MarketKey()] or {}) do
+    local f = ns:VendorFlip(id)
+    if f then flips[#flips + 1] = f end
+  end
   table.sort(flips, function(a, b)
     return a.profit * math.min(a.buys[1].listed or 20, 20) > b.profit * math.min(b.buys[1].listed or 20, 20)
   end)
-  return vendor, ah, oneOff, flips
+  return flips
 end
+ns.FindVendorFlips = ns.Timed("Finding vendor flips", ns.FindVendorFlips)
 
 local function where(b)
   return b.listed and (b.listed .. " listed") or "vendor"

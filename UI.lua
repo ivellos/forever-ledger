@@ -264,10 +264,22 @@ setView = function(view)
   end
 end
 
--- The flip watch calls this after each pass: if the Vendor flips tab is on screen,
--- work it out again so its list and "(time)" stay current.
+-- The flip watch and price saves call this: if the Vendor flips tab is on screen, work
+-- out just the flips again (not every shuffle, which took 195 ms each time), at most
+-- every 2 seconds.
+local flipsQueued = false
 function ns:RefreshFlipsIfShown()
-  if main and main:IsShown() and main.view == "flips" then ns:RefreshShuffles() end
+  if not (main and main:IsShown() and main.view == "flips") or flipsQueued then return end
+  flipsQueued = true
+  C_Timer.After(2, function()
+    flipsQueued = false
+    if not (main:IsShown() and main.view == "flips") then return end
+    if not main.shuffles then ns:RefreshShuffles(); return end
+    main.shuffles.flips = ns:FindVendorFlips()
+    main.shuffleInfo:SetText(("%d shuffles, %d vendor flips (%s). Click to search the AH, right-click for details."):format(
+      #main.shuffles.vendor + #main.shuffles.ah + #main.shuffles.oneOff, #main.shuffles.flips, date("%H:%M")))
+    layoutShuffles()
+  end)
 end
 
 function ns:RefreshDealsIfShown()

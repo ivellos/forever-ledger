@@ -1119,6 +1119,12 @@ end
 refreshLists = function()
   local v = listsView
   if not v or not v:IsVisible() then return end
+  -- While you're typing in a row's price or Want box, leave the rows alone: redrawing
+  -- hides and shows boxes, which took the cursor away after a second (owner, October 2:
+  -- "basically unusable").
+  local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+  local row = focus and focus.GetParent and focus:GetParent()
+  if row and row.GetParent and row:GetParent() == v.content then return end
   local list, idx = ns:CurrentShoppingList()
   local lists = ns:ShoppingLists()
   v.title:SetText(list and ("%s |cff888888(%d of %d)|r"):format(list.name, idx, #lists) or "No lists yet: click New")

@@ -237,10 +237,42 @@ function ns:PrintPerf(reset)
   local update = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or UpdateAddOnMemoryUsage
   local usage = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or GetAddOnMemoryUsage
   if update and usage then
+    -- Before and after clearing leftovers: the first counts memory the game hasn't
+    -- tidied up yet (84.6 MB on October 2), the second what the addon really holds.
     pcall(update)
-    local ok, kb = pcall(usage, ADDON)
-    if ok and kb then print(("  Memory: %.1f MB"):format(kb / 1024)) end
+    local ok, before = pcall(usage, ADDON)
+    collectgarbage("collect")
+    pcall(update)
+    local ok2, after = pcall(usage, ADDON)
+    if ok and ok2 and before and after then
+      print(("  Memory: %.1f MB in use, %.1f MB before clearing leftovers."):format(after / 1024, before / 1024))
+    end
   end
+  -- The biggest parts of the saved data, roughly (entries, and KB of text where it's text).
+  local function measure(t, depth)
+    local n, bytes = 0, 0
+    for k, v in pairs(t) do
+      n = n + 1
+      if type(k) == "string" then bytes = bytes + #k end
+      if type(v) == "string" then bytes = bytes + #v
+      elseif type(v) == "table" and depth > 0 then
+        local n2, b2 = measure(v, depth - 1)
+        bytes = bytes + b2 + n2 * 16
+      else bytes = bytes + 8 end
+    end
+    return n, bytes
+  end
+  local parts = {}
+  for key, v in pairs(ns.db or {}) do
+    if type(v) == "table" then
+      local n, bytes = measure(v, 4)
+      parts[#parts + 1] = { key = key, n = n, kb = bytes / 1024 }
+    end
+  end
+  table.sort(parts, function(a, b) return a.kb > b.kb end)
+  local out = {}
+  for i = 1, math.min(6, #parts) do out[i] = ("%s %.0f KB"):format(parts[i].key, parts[i].kb) end
+  print("  Biggest saved data (rough): " .. table.concat(out, ", "))
   if ns.loadMs then
     print(("  Loading the addon's files took %.0f ms, setting up saved data %.0f ms."):format(ns.loadMs, ns.readyMs or 0))
   end
