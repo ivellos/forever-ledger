@@ -127,38 +127,9 @@ def poll():
         made += 1
         print(f"Thread {t['id']} '{t['name']}' -> issue #{issue['number']}")
     print(f"Done: {made} new issue(s).")
-    try:
-        sticky()
-    except Exception as e:                       # never let the notice break the sync
-        print("Sticky notice skipped:", e)
 
 
-STICKY_CHANNEL = "help"
-STICKY_TEXT = (
-    "**Need to report a bug or suggest a feature?** Use **/bug** or **/feature** in any channel. "
-    "They go straight to our tracker and you'll get updates in your post.\n"
-    "This channel is for the community to help each other get the most out of Forever Ledger: "
-    "questions, tips and how-tos."
-)
-
-
-def sticky():
-    """Keeps a short notice as the newest message in #help: if anyone posted since,
-    the old notice is deleted and posted again at the bottom (checked with the poll)."""
-    channels = discord("GET", f"/guilds/{GUILD}/channels")
-    help_ch = next((c for c in channels if c["name"] == STICKY_CHANNEL and c["type"] == 0), None)
-    if not help_ch:
-        print("No #help channel, no sticky.")
-        return
-    me = discord("GET", "/users/@me")["id"]
-    recent = discord("GET", f"/channels/{help_ch['id']}/messages?limit=50") or []
-    if recent and recent[0]["author"]["id"] == me and recent[0].get("content") == STICKY_TEXT:
-        return                                   # still the newest message
-    for m in recent:
-        if m["author"]["id"] == me and m.get("content", "").startswith("**Need to report a bug"):
-            discord("DELETE", f"/channels/{help_ch['id']}/messages/{m['id']}")
-    discord("POST", f"/channels/{help_ch['id']}/messages", {"content": STICKY_TEXT, "allowed_mentions": {"parse": []}})
-    print("Sticky notice moved to the bottom of #help.")
+# (The #help sticky notice is StickyBot's job since October 1, not this script's.)
 
 
 def issue_event():
