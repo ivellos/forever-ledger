@@ -20,7 +20,7 @@ const FORMS = {
     tag: "New",
     fields: [
       { id: "title", label: "Short title", style: 1, required: true, max: 90, placeholder: "e.g. Deals tab is empty after a full scan" },
-      { id: "version", label: "Addon version", style: 1, required: true, max: 20, placeholder: "Shown at the top of the /fl window, e.g. 0.7.0" },
+      { id: "version", label: "Addon version (top of the /fl window)", select: "versions" },
       { id: "what", label: "What happened?", style: 2, required: true, max: 1500 },
       { id: "expected", label: "What did you expect instead?", style: 2, required: false, max: 600 },
       { id: "details", label: "How to make it happen, error text, /fl api", style: 2, required: false, max: 1800,
@@ -73,27 +73,67 @@ async function discord(env, method, path, body) {
   return text ? JSON.parse(text) : null;
 }
 
-function modal(kind) {
+// The last 5 releases from GitHub, newest first, kept for an hour (Cloudflare's cache),
+// so /bug opens fast and new releases show up by themselves. Falls back to none.
+const RELEASES = "https://api.github.com/repos/ivellos/forever-ledger/releases?per_page=5";
+async function recentVersions() {
+  const cache = caches.default;
+  const key = new Request(RELEASES);
+  let r = await cache.match(key);
+  if (!r) {
+    try {
+      const live = await fetch(RELEASES, { headers: { "User-Agent": "forever-ledger-bot", Accept: "application/vnd.github+json" } });
+      if (!live.ok) return [];
+      r = new Response(await live.text(), { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=3600" } });
+      await cache.put(key, r.clone());
+    } catch (e) {
+      return [];
+    }
+  }
+  try {
+    return (await r.json()).map((x) => (x.tag_name || "").replace(/^v/, "")).filter(Boolean).slice(0, 5);
+  } catch (e) {
+    return [];
+  }
+}
+
+// Forms use Discord's newer layout: each field in a Label, so a dropdown can sit among
+// the text boxes.
+function modal(kind, versions) {
   const f = FORMS[kind];
   return {
     type: 9,
     data: {
       custom_id: kind + "_form",
       title: f.title,
-      components: f.fields.map((x) => ({
-        type: 1,
-        components: [{
-          type: 4, custom_id: x.id, label: x.label, style: x.style, required: x.required,
-          max_length: x.max, placeholder: x.placeholder,
-        }],
-      })),
+      components: f.fields.map((x) => {
+        if (x.select === "versions") {
+          const options = versions.map((v, i) => ({ label: v + (i === 0 ? " (latest)" : ""), value: v, default: i === 0 }));
+          options.push({ label: "Newer test build", value: "test build" });
+          options.push({ label: "Older / not sure", value: "older or not sure", default: versions.length === 0 });
+          return { type: 18, label: x.label, component: { type: 3, custom_id: x.id, options, required: true } };
+        }
+        return {
+          type: 18,
+          label: x.label,
+          component: { type: 4, custom_id: x.id, style: x.style, required: x.required, max_length: x.max, placeholder: x.placeholder },
+        };
+      }),
     },
   };
 }
 
+// Answers come back as Labels holding one field each (or older action rows).
 function formValues(data) {
   const v = {};
-  for (const row of data.components || []) for (const c of row.components || []) v[c.custom_id] = (c.value || "").trim();
+  const take = (c) => {
+    if (!c || !c.custom_id) return;
+    v[c.custom_id] = c.values ? c.values.join(", ") : (c.value || "").trim();
+  };
+  for (const row of data.components || []) {
+    take(row.component);
+    for (const c of row.components || []) take(c);
+  }
   return v;
 }
 
@@ -147,7 +187,7 @@ export default {
 
     if (i.type === 2) {                            // a slash command
       const name = i.data && i.data.name;
-      if (FORMS[name]) return json(modal(name));
+      if (FORMS[name]) return json(modal(name, name === "bug" ? await recentVersions() : []));
       return json({ type: 4, data: { content: "Unknown command.", flags: EPHEMERAL } });
     }
 
