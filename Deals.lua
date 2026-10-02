@@ -90,9 +90,12 @@ function ns:BuildDeals(parent)
   local hint = T:Text(f.search, 11, T.section)
   hint:SetPoint("LEFT", 6, 0)
   hint:SetText("Search by name")
+  -- Redraw once you pause typing, not on every letter (each redraw takes about 0.1 s).
+  local pending
   f.search:SetScript("OnTextChanged", function(self)
     hint:SetShown(self:GetText() == "" and not self:HasFocus())
-    ns:RefreshDeals()
+    if pending then pending:Cancel() end
+    pending = C_Timer.NewTimer(0.3, function() pending = nil; ns:RefreshDeals() end)
   end)
   f.search:SetScript("OnEditFocusGained", function() hint:Hide() end)
   f.search:SetScript("OnEditFocusLost", function(self) hint:SetShown(self:GetText() == "") end)

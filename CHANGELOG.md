@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Deals tab: filter by kind (All, Materials, Gear, Other) and search by name.
+- Deals tab: filter by kind (All, Materials, Gear, Other) and search by name. (Gear was being filed under Other at first; fixed, which also fixes how sell speed judges gear.)
 
 ### Fixed
 - Deals: when half or more of what's listed is that cheap, the price has dropped rather than being a bargain (Greater Magic Essence at 1s 30c "usually" 20s 90c, with 2,381 that cheap, from when essences were scarce early in the beta). Those are now rated Thin, hidden unless you tick Show thin data too, and say why.

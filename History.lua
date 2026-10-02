@@ -514,7 +514,10 @@ local instantInfo = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 -- What kind of item: "gear" (armor and weapons), "goods" (stacks: materials,
 -- consumables) or "other" (recipes, single items). Also the Deals tab's filter.
 function ns:ItemKind(id)
-  local _, _, _, _, _, classID = instantInfo and instantInfo(id)
+  if not instantInfo then return "other" end
+  -- (Called on its own line: "instantInfo and instantInfo(id)" keeps only the first
+  -- value, the item ID, so nothing ever counted as gear. Owner's screenshot, October 2.)
+  local _, _, _, _, _, classID = instantInfo(id)
   if classID == 2 or classID == 4 then return "gear" end
   local stack = select(8, ns.GetItemInfo(id))
   if stack and stack > 1 then return "goods" end
