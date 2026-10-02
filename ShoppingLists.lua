@@ -28,7 +28,8 @@ end
 
 function ns:NewShoppingList(name)
   local d = data()
-  d.lists[#d.lists + 1] = { name = name, on = true, items = {} }
+  -- Not in the buy queue until you tick it (owner, October 2).
+  d.lists[#d.lists + 1] = { name = name, on = false, items = {} }
   d.current = #d.lists
   return d.lists[d.current]
 end
