@@ -304,10 +304,26 @@ end
 -- Materials for the list's Craft items: { { id, need, have, buy, vendor, limit, own } }
 -- (vendor: a vendor sells it, so it isn't bought on the auction house), and the Craft
 -- items with no recipe known.
+---------------------------------------------------------------------------
+-- Done (owner, October 2: "make sure things don't keep getting refilled into the buy
+-- queue"). Once you have the number you want of an item (Want, or 1), it's marked done
+-- and stays done, saved, even after you use some, until you click Buy again. The same
+-- for a material once you have enough of it.
+---------------------------------------------------------------------------
+function ns:ItemDone(e)
+  if not e.done and ns:HaveCount(e.id) >= (e.qty or 1) then e.done = true end
+  return e.done or false
+end
+
+function ns:BuyListAgain(list)
+  for _, e in ipairs(list.items) do e.done = nil end
+  list.matDone = nil
+end
+
 function ns:ListMaterials(list)
   local need, order, missing = {}, {}, {}
   for _, e in ipairs(list.items) do
-    if e.mode == "craft" then
+    if e.mode == "craft" and not ns:ItemDone(e) then
       local recipe = ns:RecipeFor(e.id)
       if not recipe then
         missing[#missing + 1] = e.id
@@ -328,7 +344,12 @@ function ns:ListMaterials(list)
       local have = ns:HaveCount(mat)
       local _, vrec = ns:GetVendorBuyPrice(mat)
       local limit, own = ns:MaterialLimit(list, mat)
-      out[#out + 1] = { id = mat, need = need[mat], have = have, buy = math.max(0, need[mat] - have),
+      local buy = math.max(0, need[mat] - have)
+      -- Enough once is enough: crafting uses them up, but they don't go back on the list.
+      list.matDone = list.matDone or {}
+      if buy == 0 then list.matDone[mat] = true end
+      if list.matDone[mat] then buy = 0 end
+      out[#out + 1] = { id = mat, need = need[mat], have = have, buy = buy, done = list.matDone[mat],
         vendor = vrec and not vrec.lim and vrec.p or nil, limit = limit, own = own }
     end
   end
@@ -345,11 +366,10 @@ function ns:ShoppingTargets()
     if list.on then
       for _, e in ipairs(list.items) do
         local max = list.anyPrice and -1 or (e.max or 0)
-        if e.mode ~= "craft" and max ~= 0 and not seen[e.id] then
-          -- Any price needs a number: without one, just one.
-          local qty = e.qty or (max == -1 and 1 or nil)
-          local want = qty and math.max(0, qty - ns:HaveCount(e.id)) or nil
-          if want ~= 0 then
+        if e.mode ~= "craft" and max ~= 0 and not seen[e.id] and not ns:ItemDone(e) then
+          -- Without a Want number, just one.
+          local want = math.max(0, (e.qty or 1) - ns:HaveCount(e.id))
+          if want > 0 then
             seen[e.id] = true
             out[#out + 1] = { id = e.id, limit = max == -1 and ns:AnyPriceLimit(e.id) or max, any = max == -1,
               want = want, list = list.name }

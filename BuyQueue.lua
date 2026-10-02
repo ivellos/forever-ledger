@@ -228,7 +228,7 @@ function prepare()
       S().wheel = false
       updateBinding()
       if queueView and queueView.wheel then queueView.wheel:SetChecked(false) end
-      Q.note = "The queue is empty, so Scroll anywhere to buy is now off. Tick it again when you want it."
+      Q.note = "Queue empty: scroll to buy is now off."
     end
     setState("idle")
     return
@@ -433,14 +433,13 @@ ns:On("ADDON_ACTION_BLOCKED", blocked)
 ns:On("ADDON_ACTION_FORBIDDEN", blocked)
 
 ---------------------------------------------------------------------------
--- Scroll anywhere to buy: while the queue is open, the mouse wheel down clicks Buy.
+-- Scroll to buy: the mouse wheel down over the top box (with Buy in it) buys. A
+-- "scroll anywhere" key binding was tried first, but in the beta it only ever worked
+-- over that box (the auction house and other windows take the wheel themselves), so
+-- it's just the box now (owner, October 2). This only clears a binding left from before.
 ---------------------------------------------------------------------------
 function updateBinding()
-  if not side or InCombatLockdown() or not SetOverrideBindingClick then return end
-  ClearOverrideBindings(side)
-  if active() and S().wheel then
-    SetOverrideBindingClick(side, true, "MOUSEWHEELDOWN", BUY_BUTTON, "LeftButton")
-  end
+  if side and not InCombatLockdown() and ClearOverrideBindings then ClearOverrideBindings(side) end
 end
 ns:On("PLAYER_REGEN_ENABLED", updateBinding)
 
@@ -528,11 +527,10 @@ local function buildQueueView(parent)
   local buy = T:Button(box, "Buy", 84, function() ns:BuyQueueAct() end, 56, BUY_BUTTON)
   buy:SetPoint("RIGHT", -8, 0)
   buy:GetFontString():SetFont(T.font, 15, "")
-  -- Key bindings (the mouse wheel) may click on the way down; mouse clicks on the way up.
-  buy:RegisterForClicks("AnyUp", "AnyDown")
-  buy:EnableMouseWheel(true)
-  buy:SetScript("OnMouseWheel", function(_, delta) if delta < 0 then ns:BuyQueueAct() end end)
   v.buy = buy
+  -- Scroll to buy (when ticked): the wheel down anywhere over this box, Buy included.
+  box:EnableMouseWheel(true)
+  box:SetScript("OnMouseWheel", function(_, delta) if delta < 0 and S().wheel then ns:BuyQueueAct() end end)
 
   -- What goes in the queue.
   local y = -88
@@ -547,13 +545,13 @@ local function buildQueueView(parent)
   end
   local wheel = T:Check(v, function(self) S().wheel = self:GetChecked(); updateBinding(); refreshQueue() end)
   wheel:SetPoint("TOPLEFT", 10, y - 20)
-  wheel.label:SetText("Scroll anywhere to buy (mouse wheel down)")
+  wheel.label:SetText("Scroll to buy (mouse wheel down over the box above)")
   wheel:SetChecked(S().wheel)
   wheel:SetHitRectInsets(0, -(wheel.label:GetStringWidth() + 8), 0, 0)
   wheel:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine("Scroll anywhere to buy", 1, 1, 1)
-    GameTooltip:AddLine("While this tab is open at the auction house, each tick of the mouse wheel down buys the next item (stacks of materials take a second tick to confirm). Off: only a click on Buy, or scrolling over it, buys.", nil, nil, nil, true)
+    GameTooltip:AddLine("Scroll to buy", 1, 1, 1)
+    GameTooltip:AddLine("With the mouse over the box at the top (the one with Buy in it), each tick of the wheel down buys the next item; stacks of materials take a second tick to confirm. Off: only clicking Buy buys. It turns itself off when the queue runs out.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -643,7 +641,7 @@ refreshQueue = function()
   local a, b, label = statusText()
   v.line1:SetText(a)
   v.line2:SetText(b)
-  v.line3:SetText(Q.note or (S().wheel and "Scroll down anywhere, or click Buy." or "Click Buy, or scroll down over it."))
+  v.line3:SetText(Q.note or (S().wheel and "Scroll down over this box, or click Buy." or "Click Buy."))
   v.icon:SetTexture(Q.cur and ns:ItemIcon(Q.cur.id) or "Interface\\Icons\\INV_Misc_Coin_01")
   v.buy:SetText(label)
   v.buy:SetSelected(Q.state == "confirm")
@@ -762,36 +760,98 @@ local function buildListsView(parent)
   v:SetPoint("BOTTOMRIGHT")
   v:EnableMouse(true)
 
-  -- Which list: < name >, and New / Rename / Delete.
-  local prev = T:Button(v, "<", 22, function() local _, i = ns:CurrentShoppingList(); ns:SelectShoppingList(i - 1); refreshLists() end, 22)
-  prev:SetPoint("TOPLEFT", 10, -8)
-  v.title = T:Text(v, 13, T.accent)
-  v.title:SetPoint("LEFT", prev, "RIGHT", 8, 0)
-  v.title:SetWidth(150)
+  -- Which list: a dropdown of every list (owner, October 2: instead of arrows), and
+  -- New / Rename / Delete.
+  local pick = T:Button(v, "", 210, nil, 22)
+  pick:SetPoint("TOPLEFT", 10, -8)
+  v.title = pick:GetFontString()
+  v.title:ClearAllPoints()
+  v.title:SetPoint("LEFT", 8, 0)
+  v.title:SetPoint("RIGHT", -20, 0)
   v.title:SetJustifyH("LEFT")
   v.title:SetWordWrap(false)
-  local nextB = T:Button(v, ">", 22, function() local _, i = ns:CurrentShoppingList(); ns:SelectShoppingList(i + 1); refreshLists() end, 22)
-  nextB:SetPoint("LEFT", prev, "RIGHT", 166, 0)
+  local arrow = T:Text(pick, 11, T.dim)
+  arrow:SetPoint("RIGHT", -7, 0)
+  arrow:SetText("v")
+
+  -- The menu: up to 10 names at a time, scrolling if there are more.
+  local menu = CreateFrame("Frame", nil, v)
+  menu:SetPoint("TOPLEFT", pick, "BOTTOMLEFT", 0, -2)
+  menu:SetWidth(260)
+  menu:SetFrameStrata("DIALOG")
+  menu:EnableMouse(true)
+  T:Fill(menu, { 0.05, 0.05, 0.05, 0.98 })
+  T:Border(menu)
+  menu.sf, menu.content = T:Scroll(menu)
+  menu.sf:SetPoint("TOPLEFT", 2, -2)
+  menu.sf:SetPoint("BOTTOMRIGHT", -2, 2)
+  menu.buttons = {}
+  menu:Hide()
+  local function fillMenu()
+    local lists = ns:ShoppingLists()
+    local _, cur = ns:CurrentShoppingList()
+    menu.content:SetWidth(menu:GetWidth() - 16)
+    for i, l in ipairs(lists) do
+      local b = menu.buttons[i]
+      if not b then
+        b = CreateFrame("Button", nil, menu.content)
+        b:SetHeight(20)
+        local hl = b:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
+        b.text = T:Text(b, 12)
+        b.text:SetPoint("LEFT", 6, 0)
+        b.text:SetPoint("RIGHT", -6, 0)
+        b.text:SetJustifyH("LEFT")
+        b.text:SetWordWrap(false)
+        b:SetScript("OnClick", function(self)
+          ns:SelectShoppingList(self.index)
+          menu:Hide()
+          refreshLists()
+        end)
+        menu.buttons[i] = b
+      end
+      b.index = i
+      b:SetPoint("TOPLEFT", 0, -(i - 1) * 20)
+      b:SetPoint("RIGHT", 0, 0)
+      local doneN = 0
+      for _, e in ipairs(l.items) do if e.done or ns:HaveCount(e.id) >= (e.qty or 1) then doneN = doneN + 1 end end
+      b.text:SetText(("%s%s|r  |cff888888%d/%d%s|r"):format(i == cur and T:AccentCode() or "|cffffffff", l.name,
+        doneN, #l.items, l.on and "" or ", not in queue"))
+      b:Show()
+    end
+    for i = #lists + 1, #menu.buttons do menu.buttons[i]:Hide() end
+    menu.content:SetHeight(math.max(#lists * 20, 20))
+    menu:SetHeight(math.min(#lists, 10) * 20 + 4)
+    menu.sf.UpdateScrollBar()
+  end
+  pick:SetScript("OnClick", function()
+    if menu:IsShown() or #ns:ShoppingLists() == 0 then menu:Hide(); return end
+    fillMenu()
+    menu:Show()
+  end)
+  v:HookScript("OnHide", function() menu:Hide() end)
+
   local new = T:Button(v, "New", 50, function()
     StaticPopup_Show("FOREVER_LEDGER_LIST_NAME", "Name for the new shopping list:", nil,
       { fn = function(name) ns:NewShoppingList(name); refreshLists() end })
   end, 22)
-  new:SetPoint("LEFT", nextB, "RIGHT", 8, 0)
-  local rename = T:Button(v, "Rename", 62, function()
+  new:SetPoint("LEFT", pick, "RIGHT", 6, 0)
+  local rename = T:Button(v, "Rename", 58, function()
     local list = currentList()
     if not list then return end
     StaticPopup_Show("FOREVER_LEDGER_LIST_NAME", "New name for this list:", nil,
       { default = list.name, fn = function(name) list.name = name; refreshLists() end })
   end, 22)
   rename:SetPoint("LEFT", new, "RIGHT", 4, 0)
-  local delete = T:Button(v, "Delete", 56, function()
+  local delete = T:Button(v, "Delete", 54, function()
     local list, i = ns:CurrentShoppingList()
     if not list then return end
     StaticPopup_Show("FOREVER_LEDGER_LIST_DELETE", ("Delete the shopping list \"%s\"?"):format(list.name), nil,
       { fn = function() ns:DeleteShoppingList(i); Q.built = 0; refreshLists() end })
   end, 22)
   delete:SetPoint("LEFT", rename, "RIGHT", 4, 0)
-  v.listButtons = { prev, nextB, rename, delete }
+  v.listButtons = { rename, delete }
 
   v.on = T:Check(v, function(self)
     local list = currentList()
@@ -921,7 +981,7 @@ local function buildListsView(parent)
   v.sf:SetPoint("BOTTOMRIGHT", -6, 58)
   v.rows = {}
 
-  local searchB = T:Button(v, "Search this list", 120, function()
+  local searchB = T:Button(v, "Search list", 96, function()
     local list = currentList()
     if not list then return end
     local ids, seen = {}, {}
@@ -942,6 +1002,24 @@ local function buildListsView(parent)
       ns:ExportShoppingList(list))
   end, 22)
   share:SetPoint("BOTTOMRIGHT", -84, 8)
+  -- Buy again: everything on the list counts as not done, so the queue buys what's
+  -- missing (next raid).
+  local again = T:Button(v, "Buy again", 80, function()
+    local list = currentList()
+    if not list then return end
+    ns:BuyListAgain(list)
+    Q.built = 0
+    ns:Print(("%s: everything you're short of goes back in the buy queue."):format(list.name))
+    refreshLists()
+  end, 22)
+  again:SetPoint("RIGHT", share, "LEFT", -4, 0)
+  again:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Buy again", 1, 1, 1)
+    GameTooltip:AddLine("Items stay done once you've had enough of them, even after you use some, so the queue doesn't keep refilling them. Click this to start the list over: whatever you're short of now goes back in the queue.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  again:HookScript("OnLeave", function() GameTooltip:Hide() end)
   v.share = share
   local import = T:Button(v, "Import", 70, function()
     ns:ShowTextWindow("Import shopping lists",
@@ -1066,7 +1144,10 @@ local function listRow(i)
   r.qty:SetPoint("LEFT", C.want, 0)
   r.qty:SetScript("OnEditFocusLost", function(self)
     local n = tonumber(self:GetText())
+    local old = r.entry.qty
     r.entry.qty = n and n > 0 and math.floor(n) or nil
+    -- Wanting more than you have opens a done item again.
+    if r.entry.qty ~= old and ns:HaveCount(r.entry.id) < (r.entry.qty or 1) then r.entry.done = nil end
     self:SetText(r.entry.qty and tostring(r.entry.qty) or "")
     Q.built = 0
   end)
@@ -1162,7 +1243,7 @@ refreshLists = function()
   if row and row.GetParent and row:GetParent() == v.content then return end
   local list, idx = ns:CurrentShoppingList()
   local lists = ns:ShoppingLists()
-  v.title:SetText(list and ("%s |cff888888(%d of %d)|r"):format(list.name, idx, #lists) or "No lists yet: click New")
+  v.title:SetText(list and list.name or "No lists yet: click New")
   for _, b in ipairs(v.listButtons) do b:SetEnabled(list ~= nil) end
   v.on:SetChecked(list and list.on)
   v.on:SetShown(list ~= nil)
@@ -1212,13 +1293,19 @@ refreshLists = function()
       r.maxText:SetText(craft and "crafted" or "any")
       if not craft and not r.max:HasFocus() then r.max:SetValue(e.max or 0) end
       if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
-      -- Have against Want (1 if no number): green when you have enough.
+      -- Have against Want (1 if no number): green when you have enough. Done stays
+      -- done (grey Have) after you use some, until Buy again.
       local have, want = ns:HaveCount(e.id), e.qty or 1
-      if have >= want then done = done + 1 end
-      r.have:SetText(have >= want and ("|cff7fd39c" .. have .. "|r") or ("|cffffd100" .. have .. "|r"))
-      local text, ok = nowText(e.id, not craft and (any and ns:AnyPriceLimit(e.id) or e.max) or nil)
-      r.now:SetText(text)
-      if ok then cheap = cheap + 1 end
+      local isDone = ns:ItemDone(e)
+      if isDone then done = done + 1 end
+      r.have:SetText((have >= want and "|cff7fd39c" or isDone and "|cff888888" or "|cffffd100") .. have .. "|r")
+      if isDone then
+        r.now:SetText("|cff7fd39cdone|r")
+      else
+        local text, ok = nowText(e.id, not craft and (any and ns:AnyPriceLimit(e.id) or e.max) or nil)
+        r.now:SetText(text)
+        if ok then cheap = cheap + 1 end
+      end
     elseif s.kind == "mat" then
       local m = s.m
       r.mat = m
@@ -1235,7 +1322,7 @@ refreshLists = function()
       r.need:SetText(m.buy > 0 and ("|cffffd100%d|r"):format(m.need) or ("|cff7fd39c%d|r"):format(m.need))
       r.have:SetText(m.buy > 0 and ("|cffffd100" .. m.have .. "|r") or ("|cff7fd39c" .. m.have .. "|r"))
       if m.buy > 0 then matsShort = matsShort + 1 end
-      r.now:SetText((nowText(m.id, m.limit, m.vendor)))
+      r.now:SetText(m.done and "|cff7fd39cdone|r" or (nowText(m.id, m.limit, m.vendor)))
       if m.buy > 0 and not m.vendor then toBuy = toBuy + 1 end
     else
       r.head:SetText(s.text)
@@ -1249,8 +1336,7 @@ refreshLists = function()
   v.sf.UpdateScrollBar()
   -- The list's progress beside its name.
   if list and #list.items > 0 then
-    v.title:SetText(("%s %s %s%d/%d|r"):format(list.name,
-      #lists > 1 and ("|cff888888(%d of %d)|r"):format(idx, #lists) or "",
+    v.title:SetText(("%s  %s%d/%d|r"):format(list.name,
       done == #list.items and "|cff7fd39c" or "|cffffd100", done, #list.items))
   end
   v.searchB:SetEnabled(list ~= nil and #show > 0 and ns:IsAHOpen() and not ns.Scan.active)
@@ -1259,7 +1345,7 @@ refreshLists = function()
   local craftsReady = 0
   if list then
     for _, e in ipairs(list.items) do
-      if e.mode == "craft" and ns:HaveCount(e.id) < (e.qty or 1) then craftsReady = craftsReady + 1 end
+      if e.mode == "craft" and not ns:ItemDone(e) then craftsReady = craftsReady + 1 end
     end
   end
   if ns.Scan.active then
