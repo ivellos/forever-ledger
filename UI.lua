@@ -405,6 +405,8 @@ local SETTINGS = {
   { key = "tipOptions", label = "Ways under Worth to you", kind = "number", suffix = "ways", min = 1, max = 10,
     help = "How many ways to use an item to list, best first." },
   { key = "tipPrice", label = "Auction and vendor prices", kind = "check" },
+  { key = "tipSpeed", label = "How fast it sells", kind = "check",
+    help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by." },
   { key = "tipWorth", label = "Worth to you", kind = "check" },
   { key = "tipBuy", label = "Buy at or below", kind = "check" },
   { key = "tipDisenchant", label = "Disenchants to", kind = "check" },

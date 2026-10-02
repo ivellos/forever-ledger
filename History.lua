@@ -452,9 +452,14 @@ local function soldEntry(e)
   return tonumber(d), tonumber(g), tonumber(m), tonumber(c) or tonumber(m)
 end
 
+-- historySold2 since October 2: counted from listings that can't have expired (time
+-- left). The old historySold (counts of listings that went down, mostly noise) is kept
+-- but no longer used.
+local SOLD_TABLE = "historySold2"
+
 function ns:RecordSold(id, gone, minutes, close)
   if not ns.db or minutes <= 0 then return end
-  local sold = marketTable("historySold")
+  local sold = marketTable(SOLD_TABLE)
   local d = today()
   local s = sold[id] or ""
   local closeMin = close and minutes or 0
@@ -475,11 +480,76 @@ end
 function ns:SellRate(id, window)
   local from = today() - math.min(ns.PRICE_WINDOWS[window or "all"] or math.huge, DAILY_DAYS)
   local gone, minutes, close = 0, 0, 0
-  for e in (marketTable("historySold")[id] or ""):gmatch("[^|]+") do
+  for e in (marketTable(SOLD_TABLE)[id] or ""):gmatch("[^|]+") do
     local day, g, m, c = soldEntry(e)
     if day and day >= from then gone, minutes, close = gone + g, minutes + m, close + c end
   end
   return gone, minutes, close
+end
+
+---------------------------------------------------------------------------
+-- Sell speed rating (owner's design, October 2): judged against items of the same kind,
+-- since Copper Ore is expected to move in bulk and a sword isn't. Turnover is units
+-- bought a day for each one usually listed: 4 a day with 5 listed beats 100 listed and
+-- none selling. Rare items that are seldom listed but go when they are get their own
+-- rating. Shown only after 3 hours of scans compared (the flip watch gets there fastest).
+---------------------------------------------------------------------------
+local SPEED_MIN_MINUTES = 180
+local SPEED_NONE_MINUTES = 12 * 60   -- this long with none bought: "no sales seen"
+local SPEED = {
+  fast = { label = "Fast", color = "7fd39c" },
+  steady = { label = "Steady", color = "c8e37c" },
+  slow = { label = "Slow", color = "ffd100" },
+  rare = { label = "Rare, sells quickly", color = "7fb8ff" },
+  none = { label = "No sales seen", color = "ee8597" },
+}
+-- Turnover needed for Fast and Steady, per kind.
+local SPEED_STEPS = {
+  goods = { 0.5, 0.15 },   -- stackable materials and consumables
+  gear = { 1, 0.3 },
+  other = { 1, 0.3 },      -- recipes, single items
+}
+
+local instantInfo = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+local function speedKind(id)
+  local _, _, _, _, _, classID = instantInfo and instantInfo(id)
+  if classID == 2 or classID == 4 then return "gear" end
+  local stack = select(8, ns.GetItemInfo(id))
+  if stack and stack > 1 then return "goods" end
+  return "other"
+end
+
+-- Returns nil and the minutes of scans so far when there isn't enough yet; otherwise
+-- { key, label, color, perDay, listed, hours, kind }.
+function ns:SellSpeed(id)
+  local gone, minutes = ns:SellRate(id, "month")
+  if minutes < SPEED_MIN_MINUTES then return nil, minutes end
+  local perDay = gone / minutes * 1440
+  local stats = ns:PriceStats(id, "month")
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  local listed = (stats and stats.listed) or (rec and not rec.none and rec.q) or 0
+  local kind = speedKind(id)
+  local key
+  if gone == 0 then
+    if minutes < SPEED_NONE_MINUTES then return nil, minutes end
+    key = "none"
+  elseif kind ~= "goods" and listed <= 2 and perDay >= 1 then
+    key = "rare"
+  else
+    local steps = SPEED_STEPS[kind]
+    local turnover = perDay / math.max(listed, 1)
+    key = (turnover >= steps[1] and "fast") or (turnover >= steps[2] and "steady") or "slow"
+  end
+  local s = SPEED[key]
+  return { key = key, label = s.label, color = s.color, perDay = perDay, listed = listed,
+    hours = minutes / 60, kind = kind }
+end
+
+-- "Steady, about 12 a day (40 listed)" for tooltips and the Deals tab.
+function ns:SellSpeedText(sp)
+  local per = sp.perDay >= 1 and ("about %d a day"):format(math.floor(sp.perDay + 0.5))
+    or sp.perDay > 0 and "under 1 a day" or "none bought"
+  return ("|cff%s%s|r, %s (%s listed)"):format(sp.color, sp.label, per, math.floor(sp.listed + 0.5))
 end
 
 local function median(list)

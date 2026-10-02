@@ -41,6 +41,7 @@ local DEFAULTS = {
   historySold = {},   -- [marketKey][itemID] = "day:gone:minutes:closeMinutes|..." listings gone between full scans (sell speed)
   -- soldSnap = { t, market, items = { [itemID] = "price:count" } }: the last full scan's counts (Prices.lua), no default
   historyQty = {},    -- [marketKey][itemID] = "day:listed|..." most listed seen each day (last 30 days)
+  historySold2 = {},  -- [marketKey][itemID] = "day:bought:minutes:minutes|..." units that vanished though they couldn't have expired (sell speed, since October 2)
   shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true,
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
@@ -48,7 +49,7 @@ local DEFAULTS = {
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
     -- wheel starts off so nobody buys by accident (owner, October 2).
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = false, tab = "queue" },
-    tipMode = "full", tipOptions = 3, tipPrice = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true },
+    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true },
 }
 
 local function copyDefaults(src, dst)

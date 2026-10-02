@@ -629,7 +629,6 @@ end
 local DEAL_MIN_DAYS = 4        -- fewer days of scans than this is thin data
 local DEAL_GOOD_DAYS = 7       -- this many or more (with steady prices) can be good
 local STEADY, JUMPY = 1.6, 2.5 -- spread (upper quarter / lower quarter of daily prices)
-local SLOW_MINUTES = 6 * 60    -- this long watched with nothing gone: "may sell slowly"
 local LEVELS = { "thin", "fair", "good" }
 local LEVEL = { thin = 1, fair = 2, good = 3 }
 
@@ -703,17 +702,16 @@ local function judgeUsual(id, rec)
     level = lower(level)
     d.warnings[#d.warnings + 1] = "Usually only one is listed: it may sell slowly, or the usual price may be one hopeful seller."
   end
-  -- Sell speed: listings gone between full scans (a low estimate of sales).
-  -- Hidden unless /fl debug is on (September 30: full scans don't return the same
-  -- listings each time, so the counts were mostly noise). Still collected meanwhile.
-  local gone, minutes, close = ns:SellRate(id, s.dealWindow)
-  if s.debug and minutes >= 60 then
-    d.soldPerDay, d.soldHours = gone / minutes * 1440, minutes / 60
-    -- Rough unless most of it comes from the flip watch's scans 15 minutes apart.
-    d.soldRough = close < minutes / 2
-    if gone == 0 and minutes >= SLOW_MINUTES then
+  -- Sell speed (History.lua SellSpeed): listings bought between full scans, from time
+  -- left, rated against items of the same kind. A deal that doesn't sell isn't one.
+  local sp = ns.SellSpeed and ns:SellSpeed(id)
+  if sp then
+    d.speed, d.soldPerDay, d.soldHours = sp, sp.perDay, sp.hours
+    if sp.key == "none" or sp.key == "slow" then
       level = lower(level)
-      d.warnings[#d.warnings + 1] = ("None disappeared in %d hours of scans: it may sell slowly."):format(math.floor(minutes / 60))
+      d.warnings[#d.warnings + 1] = sp.key == "none"
+        and ("None bought in %d hours of scans: it may not sell."):format(math.floor(sp.hours))
+        or "It sells slowly for how many are listed."
     end
   end
   if not nextUp then
@@ -800,13 +798,9 @@ function ns:DealExplain(d)
     if st.points >= 4 and st.q1 ~= st.q3 then pair("Typical, most days", ns.Money(st.q1) .. " to " .. ns.Money(st.q3)) end
     if st.listed then pair("Listed each day", tostring(st.listed)) end
   end
-  if d.soldPerDay then
-    pair("Gone between scans", (d.soldPerDay >= 1 and ("about %d a day"):format(math.floor(d.soldPerDay + 0.5))
-      or d.soldPerDay > 0 and "less than 1 a day" or "none") .. (" (%d h of scans)"):format(math.floor(d.soldHours + 0.5)))
-    if d.soldRough then
-      L[#L + 1] = { note = "Rough guess: mostly from scans hours apart, where expired listings count as gone too. Run Watch flips for a better figure.",
-        color = { 0.75, 0.75, 0.75 } }
-    end
+  if d.speed then
+    pair("Sells", ns:SellSpeedText(d.speed))
+    pair("Judged on", ("%d h of scans compared"):format(math.floor(d.speed.hours + 0.5)))
   end
 
   L[#L + 1] = { head = "If you resell" }
@@ -817,7 +811,7 @@ function ns:DealExplain(d)
   L[#L + 1] = { head = "How sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) }
   L[#L + 1] = { note = ns.DEAL_LEVEL_WHY[d.level] or "", color = { 0.75, 0.75, 0.75 } }
   for _, w in ipairs(d.warnings) do L[#L + 1] = { note = w, color = { 1, 0.6, 0.3 } } end
-  L[#L + 1] = { note = "The auction house shows what's listed, not what sold. \"Gone between scans\" is a best guess from listings that vanished: only close to right with Watch flips running (a scan every 15 minutes).",
+  L[#L + 1] = { note = "The auction house shows what's listed, not what sold. \"Sells\" counts listings that vanished before they could have expired (bought, or cancelled): a low estimate that gets better the more full scans you run, fastest with Watch flips.",
     color = { 0.5, 0.5, 0.5 } }
   return L
 end

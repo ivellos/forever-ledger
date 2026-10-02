@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Sell speed: tooltips and the Deals tab say how fast an item sells (Fast, Steady, Slow, Rare, or No sales seen), judged against items of the same kind. It counts listings that vanished between full scans before they could have expired, using each listing's time left, and leaves out ones reposted cheaper. It shows once there are 3 hours of scans compared; Watch flips gets there fastest. Deals that don't sell are rated less sure. Settings, Tooltips can turn the line off.
+
 ### Fixed
 - Characters are filed under their full name ("Iveilos Veren"), not just the first name, so two characters with the same first name no longer share one record (gold, recipes, bags and the rest). Each character's saved data moves over by itself the first time it logs in.
 

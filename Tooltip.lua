@@ -45,6 +45,12 @@ local function addLines(tt, id, forceFull)
     tt:AddDoubleLine("Ledger price", "none listed " .. ns.Age(rec.t), LR, LG, LB, 0.7, 0.7, 0.7)
   end
 
+  -- How fast it sells, once there are enough scans to say (History.lua SellSpeed).
+  if on("tipSpeed") and ns.SellSpeed then
+    local ok, sp = pcall(ns.SellSpeed, ns, id)
+    if ok and sp then tt:AddDoubleLine("Sells", ns:SellSpeedText(sp), LR, LG, LB, 1, 1, 1) end
+  end
+
   -- Gear with random stats: the price of this exact version ("of the Eagle"). An auction
   -- house group ("Items in this group may vary") has no one version: its link carries a
   -- general bonus ID (3524, beta September 30) and the plain name, so it lists the

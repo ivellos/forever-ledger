@@ -546,125 +546,146 @@ end
 ns.RecordPrice = record
 
 ---------------------------------------------------------------------------
--- Sell speed: the auction house never says what sold, but between two full scans a
--- few hours apart, reasonably priced listings that vanished were mostly bought (some
--- expired or were cancelled). Each full scan notes, per item, how many units were
--- listed at up to 1.25 x its typical price; the next full scan counts how many of
--- those are gone. New listings in between hide some sales, so it's a low estimate.
--- History.lua keeps the totals per day (RecordSold, SellRate).
--- Best effort (owner, September 30: most players won't watch the AH all day): the last
--- full scan is saved (soldSnap), so the first scan of a session compares with the last
--- one before it, up to 12 hours apart. Pairs more than 30 minutes apart are "rough":
--- expired listings count as gone too. Only the flip watch's scans every 15 minutes give
--- a fair picture; the Deals tab says which.
+-- Sell speed (owner's design, October 2). The auction house never says what sold, but
+-- a full scan says how long each listing has left, in bands: 1 under 30 minutes, 2 up
+-- to 2 hours, 3 up to 12, 4 up to 48. Between two full scans, a listing that vanished
+-- although it had more time left than the gap between the scans can't have expired: it
+-- was bought, or cancelled. Listings are matched by price and amount; when one vanishes
+-- and the same amount turns up cheaper, it was reposted (an undercut), not bought.
+-- Vanished listings that might have expired aren't counted, so it's a low estimate.
+-- Each full scan is saved (soldSnap), so scans up to 12 hours apart can be compared;
+-- the flip watch's scans every 15 minutes count the most. History.lua keeps the totals
+-- per day (RecordSold) and turns them into a rating (SellSpeed).
 ---------------------------------------------------------------------------
-local SOLD_MAX_GAP = 12 * 3600  -- scans further apart than this aren't compared
-local SOLD_CLOSE = 30 * 60      -- pairs this close are "watched", further apart "rough"
-local SOLD_PRICE = 1.25         -- "reasonably priced": up to this times the typical price
-local lastSnap                  -- { t, market, items = { [id] = { price, count } } }
-local olderSnap                 -- the one before lastSnap, for the "came back" check (memory only)
+local SOLD_MAX_GAP = 12 * 3600   -- scans further apart than this aren't compared
+-- The least time a listing in each band still had left.
+local MIN_LEFT = { [1] = 0, [2] = 30 * 60, [3] = 2 * 3600, [4] = 12 * 3600 }
+local lastSnap   -- { t, market, items = { [id] = { ["price:amount"] = "bands", ... } } }
 
--- The saved copy of the last full scan's counts: items[id] = "price:count".
+-- Saved as items[id] = "price:amount:bands;..." (bands: one digit per listing).
 local function loadSnap()
   local s = ns.db.soldSnap
-  if not (s and s.t and s.items) then return end
+  if not (s and s.t and s.items and s.v == 2) then return end
   local items = {}
   for id, v in pairs(s.items) do
-    local p, n = v:match("^(%d+):(%d+)$")
-    if p then items[id] = { tonumber(p), tonumber(n) } end
+    local g = {}
+    for p, q, b in v:gmatch("(%d+):(%d+):(%d+)") do g[p .. ":" .. q] = b end
+    items[id] = g
   end
   return { t = s.t, market = s.market, items = items }
 end
 
 local function saveSnap(snap)
   local items = {}
-  for id, v in pairs(snap.items) do
-    if v[2] > 0 then items[id] = ("%d:%d"):format(v[1], v[2]) end
+  for id, g in pairs(snap.items) do
+    local parts = {}
+    for key, bands in pairs(g) do parts[#parts + 1] = key .. ":" .. bands end
+    if #parts > 0 then items[id] = table.concat(parts, ";") end
   end
-  ns.db.soldSnap = { t = snap.t, market = snap.market, items = items }
+  ns.db.soldSnap = { v = 2, t = snap.t, market = snap.market, items = items }
 end
 
-local function countUpTo(units, price)
-  local n = 0
-  for _, u in ipairs(units) do if u[1] <= price then n = n + u[2] end end
-  return n
+-- One item's listings as { ["price:amount"] = "bands" }.
+local function groupListings(units)
+  local g = {}
+  for _, u in ipairs(units) do
+    local key = u[1] .. ":" .. u[2]
+    g[key] = (g[key] or "") .. tostring(math.max(0, math.min(9, u[4] or 0)))
+  end
+  return g
 end
 
--- Collects one full scan's items and compares them with the previous full scan.
+-- Units bought (surely gone, not reposted), and units that might have expired, between
+-- two looks at one item `gap` seconds apart. after = nil: none listed now.
+local function compareListings(before, after, gap)
+  local vanished, fresh = {}, {}
+  for key, bands in pairs(before) do
+    local a, b = #bands, after and after[key] and #after[key] or 0
+    if a > b then
+      local p, q = key:match("^(%d+):(%d+)$")
+      local list = {}
+      for c in bands:gmatch("%d") do list[#list + 1] = tonumber(c) end
+      -- The ones that vanished are taken as those with the least time left: the most
+      -- likely to have simply expired.
+      table.sort(list)
+      for i = 1, a - b do
+        local band = list[i]
+        vanished[#vanished + 1] = { price = tonumber(p), qty = tonumber(q),
+          sure = band >= 2 and MIN_LEFT[band] and gap < MIN_LEFT[band] }
+      end
+    end
+  end
+  for key, bands in pairs(after or {}) do
+    local had = before[key] and #before[key] or 0
+    if #bands > had then
+      local p, q = key:match("^(%d+):(%d+)$")
+      for _ = 1, #bands - had do fresh[#fresh + 1] = { price = tonumber(p), qty = tonumber(q) } end
+    end
+  end
+  local gone, maybe, reposted = 0, 0, 0
+  for _, v in ipairs(vanished) do
+    if v.sure then
+      local repost
+      for k, f in ipairs(fresh) do
+        if f.qty == v.qty and f.price < v.price then repost = k; break end
+      end
+      if repost then
+        table.remove(fresh, repost)
+        reposted = reposted + v.qty
+      else
+        gone = gone + v.qty
+      end
+    else
+      maybe = maybe + v.qty
+    end
+  end
+  return gone, maybe, reposted
+end
+
+-- Collects one full scan's listings and compares them with the previous full scan.
 local function soldTracker()
   local now, market = time(), ns.MarketKey()
   local prev = lastSnap or loadSnap()
-  local compare = prev and prev.market == market and now - prev.t >= 60 and now - prev.t <= SOLD_MAX_GAP
-  local close = compare and now - prev.t <= SOLD_CLOSE
+  local gap = prev and now - prev.t or 0
+  local compare = prev and prev.market == market and gap >= 60 and gap <= SOLD_MAX_GAP
   local snap = { t = now, market = market, items = {} }
-  local seen = {}
+  local seen, top = {}, {}
+  local totGone, totMaybe, totReposted = 0, 0, 0
   local t = {}
-  -- For checking (/fl debug): units that went down vs up, and the biggest drops.
-  -- "Came back": units that dropped between the two previous scans and reappeared now.
-  -- If most come back, full scans return a different slice of the auction house each
-  -- time (beta, September 30: 10,890 down and 26,559 up in 16 minutes).
-  local down, up, missing, drops = 0, 0, 0, {}
-  local older = compare and olderSnap and olderSnap.market == market and olderSnap
-  local lastDrop, cameBack = 0, 0
+  local function note(id, before, after)
+    local gone, maybe, reposted = compareListings(before, after, gap)
+    totGone, totMaybe, totReposted = totGone + gone, totMaybe + maybe, totReposted + reposted
+    if gone > 0 then top[#top + 1] = { id, gone } end
+    if ns.RecordSold then pcall(ns.RecordSold, ns, id, gone, gap / 60, true) end
+  end
   function t.add(id, units)
     seen[id] = true
-    local rec = (ns.db.prices[market] or {})[id]
-    local limit = rec and rec.a and math.floor(rec.a * SOLD_PRICE)
-    if limit then snap.items[id] = { limit, countUpTo(units, limit) } end
-    local p = compare and prev.items[id]
-    local o = older and older.items[id]
-    if p and o then
-      local before = countUpTo(units, p[1])
-      local dropped = o[2] - p[2]
-      if dropped > 0 then
-        lastDrop = lastDrop + dropped
-        cameBack = cameBack + math.min(dropped, math.max(0, before - p[2]))
-      end
-    end
-    if p and p[2] > 0 and ns.RecordSold then
-      local nowN = countUpTo(units, p[1])
-      if nowN < p[2] then
-        down = down + (p[2] - nowN)
-        drops[#drops + 1] = { id, p[2], nowN }
-      else
-        up = up + (nowN - p[2])
-      end
-      pcall(ns.RecordSold, ns, id, math.max(0, p[2] - nowN), (now - prev.t) / 60, close)
-    end
+    local g = groupListings(units)
+    snap.items[id] = g
+    if compare and prev.items[id] then note(id, prev.items[id], g) end
   end
   function t.finish()
-    if compare and ns.RecordSold then
-      -- Items with nothing listed now: everything that was listed is gone.
-      for id, p in pairs(prev.items) do
-        if not seen[id] and p[2] > 0 then
-          missing = missing + 1
-          pcall(ns.RecordSold, ns, id, p[2], (now - prev.t) / 60, close)
-        end
+    if compare then
+      -- Items with nothing listed now.
+      for id, before in pairs(prev.items) do
+        if not seen[id] then note(id, before, nil) end
       end
       -- Also kept in saved data (last 30 lines), since busy chat scrolls them away:
       -- /fl sellcheck prints them.
       local log = ns.db.sellCheckLog or {}
       ns.db.sellCheckLog = log
-      local function note(text)
+      local function line(text)
         ns:Debug(text)
         log[#log + 1] = date("%m-%d %H:%M ") .. text
         while #log > 30 do table.remove(log, 1) end
       end
-      note(("Sell speed: compared with the full scan %d minutes ago (%s)."):format(
-        math.floor((now - prev.t) / 60), close and "watched" or "rough: expired listings count too"))
-      -- If scans don't return the same listings each time, "down" and "up" are both big
-      -- and similar (noise), not mostly "down" (sales).
-      note(("Sell speed check: %d units went down, %d went up, %d items vanished completely."):format(down, up, missing))
-      table.sort(drops, function(a, b) return a[2] - a[3] > b[2] - b[3] end)
-      for i = 1, math.min(5, #drops) do
-        note(("  %s: %d then %d"):format(ns.ItemName(drops[i][1]) or drops[i][1], drops[i][2], drops[i][3]))
-      end
-      if older then
-        note(("Sell speed came-back check: of %d units that went down last time, %d came back this time (%d%%)."):format(
-          lastDrop, cameBack, lastDrop > 0 and math.floor(cameBack / lastDrop * 100 + 0.5) or 0))
+      line(("Sell speed: compared with the full scan %d minutes ago. Bought (or cancelled) for sure: %d units; reposted cheaper: %d; might have expired, not counted: %d."):format(
+        math.floor(gap / 60), totGone, totReposted, totMaybe))
+      table.sort(top, function(a, b) return a[2] > b[2] end)
+      for i = 1, math.min(5, #top) do
+        line(("  %s: %d bought"):format(ns.ItemName(top[i][1]) or top[i][1], top[i][2]))
       end
     end
-    olderSnap = compare and prev or nil
     lastSnap = snap
     saveSnap(snap)
   end
@@ -965,7 +986,8 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   -- number in its link) so tooltips can price the exact version (Gillee's AH video).
   local isGear, getLink = {}, C_AuctionHouse.GetReplicateItemLink
   local samples = 0
-  local probe = ns.db.settings.debug and { owner = 0, bands = {}, tl = C_AuctionHouse.GetReplicateItemTimeLeft } or nil
+  local timeLeft = C_AuctionHouse.GetReplicateItemTimeLeft
+  local probe = ns.db.settings.debug and { owner = 0, bands = {}, tl = timeLeft } or nil
   local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
   local function suffixOf(idx, itemID)
     if not (getLink and instant) then return end
@@ -1003,21 +1025,22 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
     local stop = math.min(i + 2000, n)
     for idx = i, stop - 1 do
       local _, _, count, _, _, _, _, _, _, buyout, _, _, _, owner, ownerFull, _, itemID = C_AuctionHouse.GetReplicateItemInfo(idx)
-      -- Sell speed research (/fl debug): does a full scan say how long each listing has
-      -- left, and who listed it? Either would tell sold-early apart from expired.
+      -- How long each listing has left, as a band (1 under 30 minutes, 2 up to 2 hours,
+      -- 3 up to 12, 4 up to 48): sell speed uses it to tell a sale from an expiry.
+      local band = 0
+      if timeLeft then
+        local ok, b = pcall(timeLeft, idx)
+        band = ok and tonumber(b) or 0
+      end
       if probe then
         if owner and owner ~= "" or ownerFull and ownerFull ~= "" then probe.owner = probe.owner + 1 end
-        if probe.tl then
-          local ok, band = pcall(probe.tl, idx)
-          band = ok and band or "?"
-          probe.bands[band] = (probe.bands[band] or 0) + 1
-        end
+        if probe.tl then probe.bands[band] = (probe.bands[band] or 0) + 1 end
       end
       if itemID and buyout and buyout > 0 then
         count = math.max(count or 1, 1)
         local t = byItem[itemID]
         if not t then t = {}; byItem[itemID] = t end
-        t[#t + 1] = { math.floor(buyout / count + 0.5), count, suffixOf(idx, itemID) }
+        t[#t + 1] = { math.floor(buyout / count + 0.5), count, suffixOf(idx, itemID), band }
       end
     end
     i = stop

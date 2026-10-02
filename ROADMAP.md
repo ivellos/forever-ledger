@@ -9,7 +9,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Arcane Salvager**: measuring how much it really improves disenchanting (nothing official says), then a plan for using it well: saving up greens and disenchanting them in 15-minute Salvager windows when the extra materials are worth more than the Salvager costs.
 - **Neutral auction houses**: prices kept as their own market, a 15% cut in the math, and items only one faction can buy, to sell to the other side.
 - **Where recipes come from**: original Classic vendor, drop and trainer locations are shown as "(Classic)" until players confirm them in Forever.
-- **Sell speed**: a rating per item built from weeks of scans, judged against items of the same kind (materials are expected to move in bulk, gear slowly), so "4 a day with 5 listed" beats "100 listed and none selling". Shown only once there's enough data.
+- **Sell speed**: a rating per item (Fast, Steady, Slow, Rare, No sales seen), judged against items of the same kind, from listings that vanished before they could have expired. In the addon now and building up data; next: comparing items against each other within their kind, and spotting patches that change what sells.
 
 ## Gold making
 

@@ -19,7 +19,7 @@ local COLUMNS = {
   { key = "worth", label = "Usual low", width = 80, right = true },   -- the usual cheapest price
   { key = "pct", label = "Below", width = 46, right = true },
   { key = "listed", label = "Cheap", width = 44, right = true },
-  { key = "sold", label = "Gone/day", width = 60, right = true, debugOnly = true },   -- not reliable yet
+  { key = "sold", label = "Sells", width = 60, right = true },   -- the sell speed rating
   { key = "each", label = "Profit each", width = 80, right = true },
   { key = "total", label = "Profit all", width = 84, right = true },
   { key = "level", label = "Sure", width = 70 },
@@ -38,7 +38,7 @@ end
 local f
 local rows, headers = {}, {}
 
--- The columns shown: Gone/day only with /fl debug on, until sell speed is reliable.
+-- The columns shown (a column marked debugOnly only with /fl debug on).
 local function shownColumns()
   local out = {}
   for _, c in ipairs(COLUMNS) do
@@ -179,11 +179,11 @@ local function show(d, key)
   if key == "pct" then return ("%d%%"):format(math.floor(d.pct * 100 + 0.5)) end
   if key == "listed" then return tostring(d.listed) end
   if key == "sold" then
-    if not d.soldPerDay then return dim("?") end
-    -- "~" marks a rough figure (mostly scans hours apart).
-    local mark = d.soldRough and "~" or ""
-    if d.soldPerDay == 0 then return "|cffee8597" .. mark .. "0|r" end
-    return mark .. (d.soldPerDay < 1 and "<1" or tostring(math.floor(d.soldPerDay + 0.5)))
+    -- The rating's first word (Fast, Steady, Slow, Rare, No); "?" until there are 3
+    -- hours of scans to judge by.
+    if not d.speed then return dim("?") end
+    local short = d.speed.key == "none" and "None" or d.speed.label:match("^(%a+)")
+    return ("|cff%s%s|r"):format(d.speed.color, short)
   end
   if key == "each" or key == "total" then
     local v = d[key]
