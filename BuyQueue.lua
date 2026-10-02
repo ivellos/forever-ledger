@@ -828,7 +828,7 @@ local function buildListsView(parent)
       end
       b.e = e
       b.icon:SetTexture(ns:ItemIcon(e.id))
-      b.text:SetText(e.name)
+      b.text:SetText(e.bound and (e.name .. " |cff888888(can't be bought)|r") or e.name)
       b:Show()
     end
     for i = #found + 1, #sug.buttons do sug.buttons[i]:Hide() end

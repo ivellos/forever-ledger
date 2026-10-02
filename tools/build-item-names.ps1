@@ -18,19 +18,20 @@ $inv = [Globalization.CultureInfo]::InvariantCulture
 function Q([string]$s) { '"' + ($s -replace '\\', '\\' -replace '"', '\"') + '"' }
 function Num($n) { ([double]$n).ToString($inv) }
 
-# Original Classic only (later expansions start around 24000), and tradeable things.
-$goods = 'Consumable', 'Trade Goods', 'Recipe', 'Reagent', 'Projectile', 'Container', 'Gem', 'Quiver'
+# Every original Classic item (later expansions start around 24000; owner, October 2:
+# "as much of the database as possible, not just what's in the beta"). Items that bind
+# when picked up, and quest items, are listed in CLASSIC_BOUND so suggestions can put
+# the ones you can buy first.
 $byId = @{}
 foreach ($it in $items) { $byId[[int]$it.itemId] = $it }
 $keep = @{}
+$bound = New-Object System.Collections.Generic.List[int]
 foreach ($it in $items) {
   $id = [int]$it.itemId
-  if ($id -gt 24000) { continue }
-  if ($goods -contains $it.class) { $keep[$id] = $true; continue }
-  if (($it.class -eq 'Armor' -or $it.class -eq 'Weapon') -and $it.quality -ne 'Poor' -and $it.quality -ne 'Common') {
-    $labels = @($it.tooltip | ForEach-Object { $_.label })
-    if ($labels -contains 'Binds when equipped') { $keep[$id] = $true }
-  }
+  if ($id -gt 24000 -or $it.class -eq 'Glyph' -or $it.class -eq 'Money') { continue }
+  $keep[$id] = $true
+  $labels = @($it.tooltip | ForEach-Object { $_.label })
+  if ($it.class -eq 'Quest' -or $labels -contains 'Binds when picked up' -or $labels -contains 'Quest Item') { $bound.Add($id) }
 }
 
 # Recipes for kept items, and their materials' names too.
@@ -67,11 +68,14 @@ local _, ns = ...
 --
 -- CLASSIC_ITEMS[itemID] = name
 -- CLASSIC_CRAFTS[itemID] = { made per craft, profession, skill, { material, count, material, count, ... } }
+-- CLASSIC_BOUND = "id,id,..." items that bind when picked up, and quest items (can't be bought)
 ns.CLASSIC_ITEMS = {
 $($names.ToString())}
 
 ns.CLASSIC_CRAFTS = {
 $($crafts.ToString())}
+
+ns.CLASSIC_BOUND = "$(($bound | Sort-Object) -join ',')"
 "@
 [IO.File]::WriteAllText((Join-Path (Get-Location) "ClassicItems.lua"), $out, (New-Object Text.UTF8Encoding $false))
-"ClassicItems.lua: $($keep.Count) names, $nCrafts recipes."
+"ClassicItems.lua: $($keep.Count) names ($($bound.Count) bound), $nCrafts recipes."

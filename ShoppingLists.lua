@@ -76,41 +76,58 @@ end
 -- Items whose name contains what was typed, for the suggestions under the add box:
 -- names this addon has seen in Forever (scans, bags), and original Classic items.
 -- Names starting with the text come first. Returns up to `max` { id, name }.
+-- Original Classic items that can't be bought (bind when picked up, quest items).
+local boundSet
+function ns:IsClassicBound(id)
+  if not boundSet then
+    boundSet = {}
+    for n in (ns.CLASSIC_BOUND or ""):gmatch("%d+") do boundSet[tonumber(n)] = true end
+  end
+  return boundSet[id] or false
+end
+
+-- Sorted by name, items you can buy before bound ones.
 local nameIndex, nameIndexSize
 local function buildNameIndex()
   local seen, list = {}, {}
   for id, n in pairs(ns.db.itemNames or {}) do
     seen[id] = true
-    list[#list + 1] = { id = id, name = n, lower = n:lower() }
+    list[#list + 1] = { id = id, name = n, lower = n:lower(), bound = ns:IsClassicBound(id) }
   end
   for id, n in pairs(ns.CLASSIC_ITEMS or {}) do
-    if not seen[id] then list[#list + 1] = { id = id, name = n, lower = n:lower() } end
+    if not seen[id] then list[#list + 1] = { id = id, name = n, lower = n:lower(), bound = ns:IsClassicBound(id) } end
   end
-  table.sort(list, function(a, b) return a.lower < b.lower end)
+  table.sort(list, function(a, b)
+    if a.bound ~= b.bound then return not a.bound end
+    return a.lower < b.lower
+  end)
   return list
 end
 
+-- Names starting with the text first, then names containing it; bound items last.
 function ns:FindItemsByName(text, max)
   text = (text or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
   if #text < 2 then return {} end
   local count = 0
   for _ in pairs(ns.db.itemNames or {}) do count = count + 1 end
   if not nameIndex or count ~= nameIndexSize then nameIndex, nameIndexSize = buildNameIndex(), count end
-  local starts, contains = {}, {}
+  local groups = { {}, {}, {}, {} }   -- starts, contains, bound starts, bound contains
   for _, e in ipairs(nameIndex) do
     local at = e.lower:find(text, 1, true)
-    if at == 1 then
-      starts[#starts + 1] = e
-      if #starts >= max then break end
-    elseif at and #contains < max then
-      contains[#contains + 1] = e
+    if at then
+      local g = groups[(e.bound and 2 or 0) + (at == 1 and 1 or 2)]
+      if #g < max then g[#g + 1] = e end
+      if not e.bound and at == 1 and #g >= max then break end
     end
   end
-  for _, e in ipairs(contains) do
-    if #starts >= max then break end
-    starts[#starts + 1] = e
+  local out = {}
+  for _, g in ipairs(groups) do
+    for _, e in ipairs(g) do
+      if #out >= max then return out end
+      out[#out + 1] = e
+    end
   end
-  return starts
+  return out
 end
 
 -- How many you have of an item on this character, bags and bank.
