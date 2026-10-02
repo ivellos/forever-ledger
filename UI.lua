@@ -1220,6 +1220,30 @@ local function ioWindow()
   return io
 end
 
+-- The same text window for other things to copy or paste (shopping lists). With
+-- actionLabel and onAction(text), a button acts on what was pasted; onAction returns
+-- ok, message.
+function ns:ShowTextWindow(title, help, text, actionLabel, onAction)
+  local f = ioWindow()
+  f.title:SetText(title)
+  f.help:SetText(help)
+  f.eb:SetText(text or "")
+  if actionLabel then
+    f.action:SetText(actionLabel)
+    f.action:SetScript("OnClick", function()
+      local ok, msg = onAction(f.eb:GetText())
+      if msg then ns:Print(msg) end
+      if ok then f:Hide() end
+    end)
+    f.action:Show()
+  else
+    f.action:Hide()
+  end
+  f:Show()
+  f.eb:SetFocus()
+  if text and text ~= "" then f.eb:HighlightText() end
+end
+
 function ns:ShowExport()
   local f = ioWindow()
   f.title:SetText("Export")

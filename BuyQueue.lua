@@ -156,7 +156,7 @@ local function throttled()
   return AH.IsThrottledMessageSystemReady and not AH.IsThrottledMessageSystemReady()
 end
 
-local search, prepare
+local search, prepare, updateBinding
 
 local function finishTarget(note)
   local e = Q.cur
@@ -221,7 +221,18 @@ function prepare()
   for _, x in ipairs(Q.list) do
     if not x.waiting then e = x; break end
   end
-  if not e then setState("idle"); return end
+  if not e then
+    -- Nothing left to buy: scroll to buy switches itself off, so a wheel tick later
+    -- can't buy something new by surprise (owner, October 2).
+    if S().wheel then
+      S().wheel = false
+      updateBinding()
+      if queueView and queueView.wheel then queueView.wheel:SetChecked(false) end
+      Q.note = "The queue is empty, so Scroll anywhere to buy is now off. Tick it again when you want it."
+    end
+    setState("idle")
+    return
+  end
   Q.cur, Q.plan, Q.key, Q.keys, Q.tries = e, nil, nil, nil, 0
   search()
 end
@@ -424,7 +435,7 @@ ns:On("ADDON_ACTION_FORBIDDEN", blocked)
 ---------------------------------------------------------------------------
 -- Scroll anywhere to buy: while the queue is open, the mouse wheel down clicks Buy.
 ---------------------------------------------------------------------------
-local function updateBinding()
+function updateBinding()
   if not side or InCombatLockdown() or not SetOverrideBindingClick then return end
   ClearOverrideBindings(side)
   if active() and S().wheel then
@@ -546,6 +557,7 @@ local function buildQueueView(parent)
     GameTooltip:Show()
   end)
   wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  v.wheel = wheel
 
   -- The queue.
   y = y - 46
@@ -906,7 +918,7 @@ local function buildListsView(parent)
   end
   v.sf, v.content = T:Scroll(v)
   v.sf:SetPoint("TOPLEFT", 6, -114)
-  v.sf:SetPoint("BOTTOMRIGHT", -6, 36)
+  v.sf:SetPoint("BOTTOMRIGHT", -6, 58)
   v.rows = {}
 
   local searchB = T:Button(v, "Search this list", 120, function()
@@ -920,10 +932,33 @@ local function buildListsView(parent)
   end, 22)
   searchB:SetPoint("BOTTOMLEFT", 10, 8)
   v.searchB = searchB
+
+  -- Share a list as text (Discord, a friend), or import one (Magic, October 2).
+  local share = T:Button(v, "Share", 70, function()
+    local list = currentList()
+    if not list then return end
+    ns:ShowTextWindow("Share \"" .. list.name .. "\"",
+      "Press Ctrl+C to copy, then paste it in Discord (between ``` marks keeps it tidy) or send it to a friend. They paste it into Import on their Shopping lists tab.",
+      ns:ExportShoppingList(list))
+  end, 22)
+  share:SetPoint("BOTTOMRIGHT", -84, 8)
+  v.share = share
+  local import = T:Button(v, "Import", 70, function()
+    ns:ShowTextWindow("Import shopping lists",
+      "Paste a shared list with Ctrl+V and click Import. A plain list of item names (or Wowhead links), one per line, works too. Your own lists are never changed: an import with the same name is added as a new list.",
+      "", "Import", function(text)
+        local ok, msg = ns:ImportShoppingLists(text)
+        if ok then Q.built = 0; refreshLists() end
+        return ok, msg
+      end)
+  end, 22)
+  import:SetPoint("BOTTOMRIGHT", -10, 8)
+
   v.info = T:Text(v, 11, T.dim)
-  v.info:SetPoint("LEFT", searchB, "RIGHT", 10, 0)
+  v.info:SetPoint("BOTTOMLEFT", 12, 36)
   v.info:SetPoint("RIGHT", v, "RIGHT", -10, 0)
   v.info:SetJustifyH("LEFT")
+  v.info:SetWordWrap(false)
 
   -- Keep Now and Have current (a list search, things bought or crafted).
   local elapsed = 0
@@ -1213,7 +1248,7 @@ refreshLists = function()
   elseif not list then
     v.info:SetText("Click New to start a list.")
   elseif #list.items == 0 then
-    v.info:SetText("Add items above: \"max each\" is the most you'd pay, \"want\" how many you want to have.")
+    v.info:SetText("Add items above, or Import a shared list.")
   elseif not ns:IsAHOpen() then
     v.info:SetText("Open the auction house to search and buy.")
   else
@@ -1222,11 +1257,11 @@ refreshLists = function()
       if e.mode ~= "craft" and (e.max or 0) == 0 and not list.anyPrice then noPrice = noPrice + 1 end
     end
     if noPrice > 0 then
-      v.info:SetText(("%d %s no price: set Most each so the buy queue buys %s."):format(noPrice,
+      v.info:SetText(("%d %s no price: set Most each (or any) to buy %s."):format(noPrice,
         noPrice == 1 and "item has" or "items have", noPrice == 1 and "it" or "them"))
     else
-      v.info:SetText(("%d at or under your price%s. They join the buy queue; the rest wait there, greyed."):format(cheap,
-        toBuy > 0 and (", %d materials to buy"):format(toBuy) or ""))
+      v.info:SetText(("%d at your price%s: in the buy queue. The rest wait there."):format(cheap,
+        toBuy > 0 and (", %d materials short"):format(toBuy) or ""))
     end
   end
 end
@@ -1361,6 +1396,8 @@ end)
 
 -- After any scan, new finds join the queue (the current item stays where it is).
 ns:OnReady(function()
+  -- Scroll to buy used to start on: switch it off once for everyone (owner, October 2).
+  if not S().wheelOffOnce then S().wheel, S().wheelOffOnce = false, true end
   hooksecurefunc(ns, "CheckDeals", function()
     if not active() then return end
     Q.list, Q.built = buildQueue(), GetTime()

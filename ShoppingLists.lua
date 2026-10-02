@@ -58,7 +58,8 @@ end
 function ns:ResolveItem(text)
   text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
   if text == "" then return nil end
-  local id = ns.ItemIDFromLink(text) or tonumber(text)
+  -- An item link, a plain item number, or a Wowhead address (".../item=13510/...").
+  local id = ns.ItemIDFromLink(text) or tonumber(text) or tonumber(text:match("item=(%d+)") or "")
   if id then return id end
   local name = text:gsub('^"(.*)"$', "%1")
   local _, link = ns.GetItemInfo(name)
@@ -130,6 +131,101 @@ function ns:FindItemsByName(text, max)
   return out
 end
 ns.FindItemsByName = ns.Timed("Item name search", ns.FindItemsByName)
+
+---------------------------------------------------------------------------
+-- Sharing lists (Magic, October 2: "share shopping lists with each other via the
+-- Discord"). Plain text anyone can read, edit or write by hand, one item per line:
+--   Forever Ledger shopping list: Raid prep
+--   any price
+--   13510 Flask of the Titans | want 2
+--   2772 Iron Ore | max 1g 50s | want 20
+--   13511 Flask of Distilled Wisdom | craft | want 3
+-- Import also takes plain item names, item links and Wowhead addresses, one per line.
+-- Nothing in it is run as code.
+---------------------------------------------------------------------------
+local HEADER = "Forever Ledger shopping list: "
+
+function ns:ExportShoppingList(list)
+  local lines = { HEADER .. list.name }
+  if list.anyPrice then lines[#lines + 1] = "any price" end
+  for _, e in ipairs(list.items) do
+    local parts = { e.id .. " " .. ns.ItemName(e.id) }
+    if e.mode == "craft" then parts[#parts + 1] = "craft" end
+    if e.mode ~= "craft" and e.max == -1 then parts[#parts + 1] = "max any"
+    elseif e.mode ~= "craft" and (e.max or 0) > 0 then parts[#parts + 1] = "max " .. ns.MoneyPlain(e.max) end
+    if e.qty then parts[#parts + 1] = "want " .. e.qty end
+    lines[#lines + 1] = table.concat(parts, " | ")
+  end
+  return table.concat(lines, "\n")
+end
+
+-- Reads one or more pasted lists. Returns ok, message.
+function ns:ImportShoppingLists(text)
+  local made, items, unknown = {}, 0, {}
+  local list
+  local function newList(name)
+    name = (name or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then name = "Imported list" end
+    -- Don't overwrite a list you have: "Raid prep (2)".
+    local taken = {}
+    for _, l in ipairs(ns:ShoppingLists()) do taken[l.name] = true end
+    local base, n = name, 1
+    while taken[name] do n = n + 1; name = ("%s (%d)"):format(base, n) end
+    list = ns:NewShoppingList(name)
+    made[#made + 1] = list
+  end
+  for raw in (text or ""):gmatch("[^\r\n]+") do
+    local line = raw:gsub("^%s+", ""):gsub("%s+$", "")
+    local lower = line:lower()
+    if line == "" or line:match("^```") then
+      -- blank, or a Discord code block fence
+    elseif lower:find(HEADER:lower(), 1, true) == 1 then
+      newList(line:sub(#HEADER + 1))
+    elseif lower == "any price" then
+      if not list then newList() end
+      list.anyPrice = true
+    elseif line:find("|Hitem:", 1, true) then
+      -- A pasted item link (it has | in it, so it's read whole).
+      local id = ns.ItemIDFromLink(line)
+      if id then
+        if not list then newList() end
+        ns:AddToShoppingList(list, id)
+        items = items + 1
+      end
+    else
+      local fields = {}
+      for f in line:gmatch("[^|]+") do fields[#fields + 1] = f:gsub("^%s+", ""):gsub("%s+$", "") end
+      local first = fields[1] or ""
+      -- "13510 Flask of the Titans": the number is the item; otherwise the whole field.
+      local id = tonumber(first:match("^(%d+)%s") or "") or ns:ResolveItem(first)
+      if id then
+        if not list then newList() end
+        local max, qty, craft
+        for i = 2, #fields do
+          local f = fields[i]:lower()
+          if f == "craft" then craft = true
+          elseif f:match("^want%s") then qty = tonumber(f:match("^want%s+(%d+)"))
+          elseif f:match("^max%s") then max = ns.ParseMoneyLoose(f:match("^max%s+(.+)$"), "g") end
+        end
+        local e = ns:AddToShoppingList(list, id, max, qty)
+        if craft then e.mode = "craft" end
+        items = items + 1
+      else
+        unknown[#unknown + 1] = first
+      end
+    end
+  end
+  if #made == 0 then
+    return false, "Nothing to import: paste a shared list (it starts with \"" .. HEADER .. "\"), or item names, one per line."
+  end
+  local names = {}
+  for _, l in ipairs(made) do names[#names + 1] = l.name end
+  local msg = ("Imported %d %s (%s) with %d items."):format(#made, #made == 1 and "list" or "lists", table.concat(names, ", "), items)
+  if #unknown > 0 then
+    msg = msg .. (" Couldn't find %d: %s."):format(#unknown, table.concat(unknown, ", "):sub(1, 200))
+  end
+  return true, msg
+end
 
 -- How many you have of an item on this character, bags and bank.
 function ns:HaveCount(id)
