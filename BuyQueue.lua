@@ -23,6 +23,7 @@ local WIDTH = 420
 local DONE_FOR = 120        -- seconds an item with nothing left stays out of the queue
 local REBUILD_EVERY = 20    -- seconds before the queue is worked out again
 local BUY_BUTTON = "ForeverLedgerBuyNext"
+local USER_QUIET = 8        -- seconds after your own search before the queue looks things up again
 
 local function S() return ns.db.settings.buyQueue end
 local function money(c) return ns.Money(math.floor((c or 0) + 0.5)) end
@@ -225,6 +226,17 @@ function search()
     timeout(1, search)
     return
   end
+  -- You're searching the auction house yourself (a flip clicked in the main window, the
+  -- search box): the queue's lookups would replace your page, so it waits until you've
+  -- stopped for a few seconds (owner's test, October 2: pages spinning, buys refused).
+  -- Clicking Buy or a queue row isn't "searching yourself" (Q.userPicked).
+  if not Q.userPicked and ns.lastUserSearch and GetTime() - ns.lastUserSearch < USER_QUIET then
+    Q.waitText = "Paused while you search the auction house yourself."
+    setState("wait")
+    timeout(1, search)
+    return
+  end
+  Q.userPicked, Q.waitText = nil, nil
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 2)
   Q.tries = (Q.tries or 0) + 1
   if Q.tries > 3 then finishTarget("no reply from the auction house."); return end
@@ -283,6 +295,7 @@ end
 local function choose(e)
   if Q.state == "price" or Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
   Q.cur, Q.plan, Q.key, Q.keys, Q.tries = e, nil, nil, nil, 0
+  Q.userPicked = true
   search()
 end
 
@@ -379,9 +392,14 @@ function ns:BuyQueueAct()
     if not ok then ns:Print("Couldn't buy that: " .. tostring(err)); again(); return end
     setState("buying")
     timeout(6, again)
+  elseif Q.state == "wait" and Q.waitText then
+    -- Paused for your own searching: Buy means go now.
+    Q.userPicked = true
+    search()
   elseif Q.state == "idle" and not Q.cur then
     -- Nothing under way: look again (at most every 3 seconds, as a spun wheel sends many ticks).
     if GetTime() - (Q.built or 0) > 3 then Q.built = 0 end
+    Q.userPicked = true
     prepare()
   end
 end
@@ -542,7 +560,10 @@ local function statusText()
   if not ns:IsAHOpen() then
     return "Open the auction house to use the buy queue.", "Shopping lists can be made anywhere: /fl lists.", "Buy"
   end
-  if st == "wait" then return ("Waiting for %s..."):format(Q.waitFor or "the auction house"), "", "..." end
+  if st == "wait" then
+    if Q.waitText then return Q.waitText, "It carries on a few seconds after you stop, or click Buy to go now.", "Buy" end
+    return ("Waiting for %s..."):format(Q.waitFor or "the auction house"), "", "..."
+  end
   if st == "browse" or st == "search" then return "Looking for " .. name .. "...", reasonLine(e), "..." end
   if st == "ready" and p and p.kind == "commodity" then
     return ("Buy %d %s for %s"):format(p.qty, name, money(p.cost)),
