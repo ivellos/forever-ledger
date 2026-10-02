@@ -23,7 +23,7 @@ local WIDTH = 420
 local DONE_FOR = 120        -- seconds an item with nothing left stays out of the queue
 local REBUILD_EVERY = 20    -- seconds before the queue is worked out again
 local BUY_BUTTON = "ForeverLedgerBuyNext"
-local USER_QUIET = 8        -- seconds after your own search before the queue looks things up again
+local USER_QUIET = 3        -- seconds after your own search before the queue looks things up again
 
 local function S() return ns.db.settings.buyQueue end
 local function money(c) return ns.Money(math.floor((c or 0) + 0.5)) end
