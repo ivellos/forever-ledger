@@ -24,6 +24,10 @@ on:
         description: "Post the announcement on Discord"
         type: boolean
         default: false
+      dry_run:
+        description: "Only show the announcement in the log, don't post it"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -135,24 +139,22 @@ jobs:
           echo "Uploaded Forever Ledger $VERSION to Wago ($STABILITY, Forever $GAME)."
 
       # Discord #announcements, through the channel's webhook (secret
-      # DISCORD_ANNOUNCE_WEBHOOK, posts as "Forever Ledger"): the version's changelog
-      # notes in an embed, cut to fit Discord's limit, with the download links.
+      # DISCORD_ANNOUNCE_WEBHOOK, posts as "Forever Ledger"), built from the changelog
+      # notes by .github/scripts/discord_announce.py. The repo variable
+      # DISCORD_UPDATES_ROLE (a role ID, optional) adds a ping for that role.
       - name: Announce on Discord
         if: github.event_name == 'push' || inputs.announce
         continue-on-error: true
         env:
           DISCORD_ANNOUNCE_WEBHOOK: ${{ secrets.DISCORD_ANNOUNCE_WEBHOOK }}
+          UPDATES_ROLE: ${{ vars.DISCORD_UPDATES_ROLE }}
         run: |
           if [ -z "$DISCORD_ANNOUNCE_WEBHOOK" ]; then echo "No DISCORD_ANNOUNCE_WEBHOOK secret, skipping."; exit 0; fi
           VERSION="${{ steps.ver.outputs.version }}"
-          URL="https://github.com/${{ github.repository }}/releases/tag/v${VERSION}"
-          jq -n --rawfile notes release-notes.md --arg v "$VERSION" --arg url "$URL" '
-            ($notes | if length > 3500 then .[0:3500] + "\n\n... and more: see the full notes." else . end) as $body
-            | { embeds: [ {
-                title: ("Forever Ledger " + $v + " is out"),
-                url: $url,
-                color: 12165887,
-                description: ($body + "\n\n**Download:** [CurseForge](https://www.curseforge.com/wow/addons/forever-ledger) | [Wago](https://addons.wago.io/addons/forever-ledger) | [GitHub](" + $url + ")\nYour addon app (CurseForge, Wago, WowUp) will offer the update.")
-              } ] }' > discord.json
+          URL="https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md"
+          # The script comes from main, so a re-announce of an old tag uses today's format.
+          git fetch -q origin main && git show origin/main:.github/scripts/discord_announce.py > announce.py
+          python3 announce.py release-notes.md "$VERSION" "$URL" "$UPDATES_ROLE" > discord.json
+          if [ "${{ inputs.dry_run }}" = "true" ]; then echo "Dry run, not posting:"; jq -r .content discord.json; exit 0; fi
           curl -sS --fail-with-body -H "Content-Type: application/json" -d @discord.json "$DISCORD_ANNOUNCE_WEBHOOK"
           echo "Announced Forever Ledger $VERSION on Discord."
