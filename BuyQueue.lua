@@ -441,6 +441,9 @@ local function statusText()
   local e, p = Q.cur, Q.plan
   local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. "|r") or ""
   local st = Q.state
+  if not ns:IsAHOpen() then
+    return "Open the auction house to use the buy queue.", "Shopping lists can be made anywhere: /fl lists.", "Buy"
+  end
   if st == "wait" then return ("Waiting for %s..."):format(Q.waitFor or "the auction house"), "", "..." end
   if st == "browse" or st == "search" then return "Looking for " .. name .. "...", reasonLine(e), "..." end
   if st == "ready" and p and p.kind == "commodity" then
@@ -672,9 +675,10 @@ StaticPopupDialogs["FOREVER_LEDGER_LIST_DELETE"] = {
 
 local refreshLists
 
+local function currentList() return (ns:CurrentShoppingList()) end
+
 local function addFromBox(v)
-  local list = ns:CurrentShoppingList()
-  if not list then ns:Print("Make a list first: click New."); return end
+  local list = currentList() or ns:NewShoppingList("Shopping list")
   local id = v.pendingID or ns:ResolveItem(v.add:GetText())
   if not id then
     ns:Print("Couldn't find that item. Shift-click it from your bags or a chat link, drag it here, or type its exact name.")
@@ -691,6 +695,22 @@ local function addFromBox(v)
   Q.built = 0
   refreshLists()
 end
+
+-- A text box with a grey hint inside while it's empty.
+local function hinted(parent, width, hint, justify)
+  local eb = T:EditBox(parent, width, justify)
+  local fs = T:Text(eb, 11, T.section)
+  if justify == "LEFT" then fs:SetPoint("LEFT", 6, 0) else fs:SetPoint("CENTER") end
+  fs:SetText(hint)
+  local function update(self) fs:SetShown(self:GetText() == "" and not self:HasFocus()) end
+  eb:SetScript("OnTextChanged", update)
+  eb:SetScript("OnEditFocusGained", function() fs:Hide() end)
+  eb:SetScript("OnEditFocusLost", update)
+  return eb
+end
+
+-- Columns (x from the left of a row).
+local C = { name = 22, get = 160, max = 206, want = 274, have = 336, now = 376, x = 380 }
 
 local function buildListsView(parent)
   local v = CreateFrame("Frame", nil, parent)
@@ -714,7 +734,7 @@ local function buildListsView(parent)
   end, 22)
   new:SetPoint("LEFT", nextB, "RIGHT", 8, 0)
   local rename = T:Button(v, "Rename", 62, function()
-    local list = ns:CurrentShoppingList()
+    local list = currentList()
     if not list then return end
     StaticPopup_Show("FOREVER_LEDGER_LIST_NAME", "New name for this list:", nil,
       { default = list.name, fn = function(name) list.name = name; refreshLists() end })
@@ -730,24 +750,17 @@ local function buildListsView(parent)
   v.listButtons = { prev, nextB, rename, delete }
 
   v.on = T:Check(v, function(self)
-    local list = ns:CurrentShoppingList()
+    local list = currentList()
     if list then list.on = self:GetChecked(); Q.built = 0 end
   end)
   v.on:SetPoint("TOPLEFT", 12, -40)
-  v.on.label:SetText("Buy from this list in the buy queue (items with a price)")
+  v.on:SetHitRectInsets(0, -300, 0, 0)
+  v.on.label:SetText("Use this list in the buy queue")
 
   -- Add an item: shift-click, drag, or type its name; the most you'd pay; how many.
-  v.add = T:EditBox(v, 196, "LEFT")
+  v.add = hinted(v, 196, "Shift-click, drag or type an item", "LEFT")
   v.add:SetPoint("TOPLEFT", 10, -62)
-  v.addHint = T:Text(v.add, 11, T.section)
-  v.addHint:SetPoint("LEFT", 6, 0)
-  v.addHint:SetText("Shift-click, drag or type an item")
-  v.add:SetScript("OnTextChanged", function(self)
-    v.addHint:SetShown(self:GetText() == "" and not self:HasFocus())
-    v.pendingID = ns.ItemIDFromLink(self:GetText())
-  end)
-  v.add:SetScript("OnEditFocusGained", function() v.addHint:Hide() end)
-  v.add:SetScript("OnEditFocusLost", function(self) v.addHint:SetShown(self:GetText() == "") end)
+  v.add:HookScript("OnTextChanged", function(self) v.pendingID = ns.ItemIDFromLink(self:GetText()) end)
   v.add:SetScript("OnEnterPressed", function() addFromBox(v) end)
   local function drop()
     local kind, id, link = GetCursorInfo()
@@ -761,41 +774,22 @@ local function buildListsView(parent)
   v.add:SetScript("OnReceiveDrag", drop)
   v.add:SetScript("OnMouseDown", function() if GetCursorInfo() then drop() end end)
   v:SetScript("OnReceiveDrag", drop)
-
-  v.max = T:EditBox(v, 70)
+  v.max = hinted(v, 70, "max each")
   v.max:SetPoint("LEFT", v.add, "RIGHT", 4, 0)
-  v.maxHint = T:Text(v.max, 11, T.section)
-  v.maxHint:SetPoint("CENTER")
-  v.maxHint:SetText("max")
-  v.max:SetScript("OnTextChanged", function(self) v.maxHint:SetShown(self:GetText() == "" and not self:HasFocus()) end)
-  v.max:SetScript("OnEditFocusGained", function() v.maxHint:Hide() end)
-  v.max:SetScript("OnEditFocusLost", function(self) v.maxHint:SetShown(self:GetText() == "") end)
   v.max:SetScript("OnEnterPressed", function() addFromBox(v) end)
-  v.qty = T:EditBox(v, 44)
+  v.qty = hinted(v, 44, "want")
   v.qty:SetPoint("LEFT", v.max, "RIGHT", 4, 0)
-  v.qtyHint = T:Text(v.qty, 11, T.section)
-  v.qtyHint:SetPoint("CENTER")
-  v.qtyHint:SetText("want")
-  v.qty:SetScript("OnTextChanged", function(self) v.qtyHint:SetShown(self:GetText() == "" and not self:HasFocus()) end)
-  v.qty:SetScript("OnEditFocusGained", function() v.qtyHint:Hide() end)
-  v.qty:SetScript("OnEditFocusLost", function(self) v.qtyHint:SetShown(self:GetText() == "") end)
   v.qty:SetScript("OnEnterPressed", function() addFromBox(v) end)
   local addB = T:Button(v, "Add", 60, function() addFromBox(v) end, 22)
   addB:SetPoint("LEFT", v.qty, "RIGHT", 4, 0)
-
-  -- Shift-clicking an item while the box has the cursor puts its link in.
-  if ChatEdit_InsertLink then
-    hooksecurefunc("ChatEdit_InsertLink", function(link)
-      if v.add:HasFocus() and type(link) == "string" then v.add:SetText(link) end
-    end)
-  end
 
   local header = CreateFrame("Frame", nil, v)
   header:SetPoint("TOPLEFT", 6, -92)
   header:SetPoint("TOPRIGHT", -6, -92)
   header:SetHeight(20)
   T:Fill(header, { 1, 1, 1, 0.05 })
-  for _, c in ipairs({ { "Item", 8, "LEFT" }, { "Most I'd pay", 200, "LEFT" }, { "Want", 280, "LEFT" }, { "Have", 340, "RIGHT" }, { "Now", 396, "RIGHT" } }) do
+  for _, c in ipairs({ { "Item", 8, "LEFT" }, { "Get", C.get, "LEFT" }, { "Most each", C.max, "LEFT" }, { "Want", C.want, "LEFT" },
+                       { "Have", C.have, "RIGHT" }, { "Now", C.now, "RIGHT" } }) do
     local fs = T:Text(header, 11, T.dim)
     if c[3] == "LEFT" then fs:SetPoint("LEFT", c[2], 0) else fs:SetPoint("RIGHT", header, "LEFT", c[2], 0) end
     fs:SetText(c[1])
@@ -806,10 +800,12 @@ local function buildListsView(parent)
   v.rows = {}
 
   local searchB = T:Button(v, "Search this list", 120, function()
-    local list = ns:CurrentShoppingList()
+    local list = currentList()
     if not list then return end
-    local ids = {}
-    for _, e in ipairs(list.items) do ids[#ids + 1] = e.id end
+    local ids, seen = {}, {}
+    local function add(id) if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
+    for _, e in ipairs(list.items) do if e.mode ~= "craft" then add(e.id) end end
+    for _, m in ipairs((ns:ListMaterials(list))) do if not m.vendor then add(m.id) end end
     ns.Scan:StartList(ids, list.name)
   end, 22)
   searchB:SetPoint("BOTTOMLEFT", 10, 8)
@@ -819,7 +815,7 @@ local function buildListsView(parent)
   v.info:SetPoint("RIGHT", v, "RIGHT", -10, 0)
   v.info:SetJustifyH("LEFT")
 
-  -- Keep "Now" current while a list search runs.
+  -- Keep Now and Have current (a list search, things bought or crafted).
   local elapsed = 0
   v:SetScript("OnUpdate", function(_, dt)
     elapsed = elapsed + dt
@@ -827,6 +823,28 @@ local function buildListsView(parent)
   end)
   return v
 end
+
+-- Shift-click an item while the Shopping lists tab is open: it goes on the list (or in
+-- the add box, if you're typing there). The auction house's own search box gets it too;
+-- that's Blizzard's and can't be stopped (owner, October 2).
+local function onModifiedClick(link)
+  local v = listsView
+  if not (v and v:IsVisible() and type(link) == "string") then return end
+  if IsModifiedClick and not IsModifiedClick("CHATLINK") then return end
+  local id = ns.ItemIDFromLink(link)
+  if not id then return end
+  if v.add:HasFocus() or v.max:HasFocus() or v.qty:HasFocus() then
+    v.add:SetText(link)
+    v.pendingID = id
+    return
+  end
+  local list = currentList() or ns:NewShoppingList("Shopping list")
+  ns:AddToShoppingList(list, id)
+  Q.built = 0
+  ns:Print(("Added %s to %s. Set the most you'd pay and how many you want on the list."):format(link, list.name))
+  refreshLists()
+end
+if HandleModifiedItemClick then hooksecurefunc("HandleModifiedItemClick", onModifiedClick) end
 
 local function listRow(i)
   local v = listsView
@@ -837,105 +855,233 @@ local function listRow(i)
   r.stripe = T:Fill(r, { 1, 1, 1, 0.025 })
   r.hit = CreateFrame("Button", nil, r)
   r.hit:SetPoint("LEFT", 0, 0)
-  r.hit:SetSize(196, 24)
+  r.hit:SetSize(C.get - 4, 24)
   r.icon = r.hit:CreateTexture(nil, "ARTWORK")
   r.icon:SetSize(16, 16)
   r.icon:SetPoint("LEFT", 2, 0)
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   r.name = T:Text(r.hit, 11)
   r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
-  r.name:SetWidth(170)
+  r.name:SetWidth(C.get - C.name - 6)
   r.name:SetJustifyH("LEFT")
   r.name:SetWordWrap(false)
   r.hit:SetScript("OnEnter", function(self)
+    local id = (r.kind == "item" and r.entry.id) or (r.kind == "mat" and r.mat.id)
+    if not id then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetItemByID(r.entry.id)
+    GameTooltip:SetItemByID(id)
+    if r.kind == "item" and r.entry.mode == "craft" then
+      local recipe = ns:RecipeFor(id)
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(recipe and ("Crafted with %s%s."):format(recipe.prof or "a profession", recipe.who and (" (" .. recipe.who .. ")") or "")
+        or "No recipe known for it yet.", T.accent[1], T.accent[2], T.accent[3], true)
+    end
     GameTooltip:Show()
   end)
   r.hit:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  r.max = T:MoneyBox(r, function(value) r.entry.max = value; Q.built = 0 end)
-  r.max:SetWidth(76)
-  r.max:SetPoint("LEFT", 196, 0)
-  r.qty = T:EditBox(r, 40)
-  r.qty:SetPoint("LEFT", 278, 0)
+
+  r.mode = T:Button(r, "Buy", 42, function()
+    r.entry.mode = r.entry.mode ~= "craft" and "craft" or nil
+    Q.built = 0
+    refreshLists()
+  end, 20)
+  r.mode:SetPoint("LEFT", C.get, 0)
+  r.mode:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Buy or craft", 1, 1, 1)
+    GameTooltip:AddLine("Buy: get it on the auction house, up to the price you set. Craft: make it instead; the materials you're short of are listed below and go in the buy queue.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  r.mode:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  r.kindText = T:Text(r, 11, T.section)
+  r.kindText:SetPoint("LEFT", C.get + 4, 0)
+
+  r.max = T:MoneyBox(r, function(value)
+    if r.kind == "item" then
+      r.entry.max = value
+    elseif r.kind == "mat" then
+      local list = currentList()
+      if list then
+        list.matMax = list.matMax or {}
+        list.matMax[r.mat.id] = value > 0 and value or nil
+      end
+    end
+    Q.built = 0
+  end)
+  r.max:SetWidth(64)
+  r.max:SetPoint("LEFT", C.max, 0)
+  r.maxText = T:Text(r, 11, T.section)
+  r.maxText:SetPoint("LEFT", C.max + 6, 0)
+
+  r.qty = T:EditBox(r, 30)
+  r.qty:SetPoint("LEFT", C.want, 0)
   r.qty:SetScript("OnEditFocusLost", function(self)
     local n = tonumber(self:GetText())
     r.entry.qty = n and n > 0 and math.floor(n) or nil
     self:SetText(r.entry.qty and tostring(r.entry.qty) or "")
     Q.built = 0
   end)
+  r.need = T:Text(r, 11)
+  r.need:SetPoint("RIGHT", r, "LEFT", C.want + 28, 0)
   r.have = T:Text(r, 11, T.dim)
-  r.have:SetPoint("RIGHT", r, "LEFT", 334, 0)
+  r.have:SetPoint("RIGHT", r, "LEFT", C.have, 0)
   r.now = T:Text(r, 11)
-  r.now:SetPoint("RIGHT", r, "LEFT", 380, 0)
-  r.remove = T:Button(r, "x", 18, function()
-    local list = ns:CurrentShoppingList()
+  r.now:SetPoint("RIGHT", r, "LEFT", C.now, 0)
+  r.remove = T:Button(r, "x", 16, function()
+    local list = currentList()
     if not list then return end
     for k, e in ipairs(list.items) do if e == r.entry then table.remove(list.items, k); break end end
     Q.built = 0
     refreshLists()
-  end, 18)
-  r.remove:SetPoint("RIGHT", -2, 0)
+  end, 16)
+  r.remove:SetPoint("LEFT", C.x, 0)
+
+  -- Section heading and notes.
+  r.head = T:Text(r, 12, T.accent)
+  r.head:SetPoint("LEFT", 4, 0)
+  r.head:SetPoint("RIGHT", r, "RIGHT", -4, 0)
+  r.head:SetJustifyH("LEFT")
+  r.headCols = {}
+  for _, c in ipairs({ { "Up to", C.max }, { "Need", C.want } }) do
+    local fs = T:Text(r, 11, T.dim)
+    fs:SetPoint("LEFT", c[2], 0)
+    fs:SetText(c[1])
+    r.headCols[#r.headCols + 1] = fs
+  end
   v.rows[i] = r
   return r
+end
+
+-- Price now, green at or under the limit; for vendor items, the vendor's price.
+local function nowText(id, limit, vendor)
+  if vendor then return "|cff888888vendor|r " .. money(vendor) end
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if rec and rec.none then return "|cff888888none|r", false end
+  if rec and rec.m then
+    local ok = limit and limit > 0 and rec.m <= limit
+    return (ok and "|cff7fd39c" or "|cffffffff") .. money(rec.m) .. "|r", ok
+  end
+  return "|cff888888?|r", false
+end
+
+local function showRow(r, kind)
+  r.kind = kind
+  local item, mat, text = kind == "item", kind == "mat", kind == "head" or kind == "note"
+  r.hit:SetShown(item or mat)
+  r.mode:SetShown(item)
+  r.kindText:SetShown(mat)
+  r.max:SetShown(false)
+  r.maxText:SetShown(false)
+  r.qty:SetShown(item)
+  r.need:SetShown(mat)
+  r.have:SetShown(item or mat)
+  r.now:SetShown(item or mat)
+  r.remove:SetShown(item)
+  r.head:SetShown(text)
+  for _, fs in ipairs(r.headCols) do fs:SetShown(kind == "head") end
 end
 
 refreshLists = function()
   local v = listsView
   if not v or not v:IsVisible() then return end
-  local list = ns:CurrentShoppingList()
+  local list, idx = ns:CurrentShoppingList()
   local lists = ns:ShoppingLists()
-  v.title:SetText(list and ("%s |cff888888(%d of %d)|r"):format(list.name, select(2, ns:CurrentShoppingList()), #lists) or "No lists yet: click New")
+  v.title:SetText(list and ("%s |cff888888(%d of %d)|r"):format(list.name, idx, #lists) or "No lists yet: click New")
   for _, b in ipairs(v.listButtons) do b:SetEnabled(list ~= nil) end
   v.on:SetChecked(list and list.on)
   v.on:SetShown(list ~= nil)
-  local items = list and list.items or {}
-  local market = ns.db.prices[ns.MarketKey()] or {}
+
+  -- What to show: the list's items, then the materials for its Craft items.
+  local show = {}
+  local mats, missing = {}, {}
+  if list then
+    for _, e in ipairs(list.items) do show[#show + 1] = { kind = "item", e = e } end
+    mats, missing = ns:ListMaterials(list)
+    if #mats > 0 or #missing > 0 then
+      show[#show + 1] = { kind = "head", text = "Materials to craft them" }
+      for _, m in ipairs(mats) do show[#show + 1] = { kind = "mat", m = m } end
+      for _, id in ipairs(missing) do
+        show[#show + 1] = { kind = "note", text = ("|cffee8597No recipe known for %s:|r open its profession window on the character who makes it."):format(ns.ItemName(id)) }
+      end
+    end
+  end
+
   local width = v.sf:GetWidth() - 12
   v.content:SetWidth(width)
-  local cheap = 0
-  for i, e in ipairs(items) do
+  local cheap, toBuy, y = 0, 0, 0
+  for i, s in ipairs(show) do
     local r = listRow(i)
-    r.entry = e
+    showRow(r, s.kind)
     r:ClearAllPoints()
-    r:SetPoint("TOPLEFT", v.content, "TOPLEFT", 0, -(i - 1) * 24)
+    r:SetPoint("TOPLEFT", v.content, "TOPLEFT", 0, -y)
     r:SetWidth(width)
-    r.stripe:SetShown(i % 2 == 0)
-    r.icon:SetTexture(ns:ItemIcon(e.id))
-    r.name:SetText(ns.ItemName(e.id))
-    if not r.max:HasFocus() then r.max:SetValue(e.max or 0) end
-    if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
-    local have = ns:HaveCount(e.id)
-    r.have:SetText(tostring(have))
-    local rec = market[e.id]
-    if rec and rec.none then
-      r.now:SetText("|cff888888none|r")
-    elseif rec and rec.m then
-      local ok = (e.max or 0) > 0 and rec.m <= e.max
+    r:SetHeight(s.kind == "note" and 30 or 24)
+    y = y + r:GetHeight()
+    r.stripe:SetShown(i % 2 == 0 and (s.kind == "item" or s.kind == "mat"))
+    if s.kind == "item" then
+      local e = s.e
+      r.entry = e
+      r.icon:SetTexture(ns:ItemIcon(e.id))
+      r.name:SetText(ns.ItemName(e.id))
+      local craft = e.mode == "craft"
+      r.max:SetTextColor(1, 1, 1, 1)
+      r.mode:SetText(craft and "Craft" or "Buy")
+      r.mode:SetSelected(craft)
+      r.max:SetShown(not craft)
+      r.maxText:SetShown(craft)
+      r.maxText:SetText("crafted")
+      if not craft and not r.max:HasFocus() then r.max:SetValue(e.max or 0) end
+      if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
+      r.have:SetText(tostring(ns:HaveCount(e.id)))
+      local text, ok = nowText(e.id, not craft and e.max or nil)
+      r.now:SetText(text)
       if ok then cheap = cheap + 1 end
-      r.now:SetText((ok and "|cff7fd39c" or "|cffffffff") .. money(rec.m) .. "|r")
+    elseif s.kind == "mat" then
+      local m = s.m
+      r.mat = m
+      r.icon:SetTexture(ns:ItemIcon(m.id))
+      r.name:SetText(ns.ItemName(m.id))
+      r.kindText:SetText("for craft")
+      r.max:SetShown(not m.vendor)
+      r.maxText:SetShown(m.vendor ~= nil)
+      r.maxText:SetText("vendor")
+      if not m.vendor and not r.max:HasFocus() then
+        r.max:SetValue(m.limit or 0)
+        r.max:SetTextColor(1, 1, 1, m.own and 1 or 0.55)   -- grey: the usual price, not one you typed
+      end
+      r.need:SetText(m.buy > 0 and ("|cffffd100%d|r"):format(m.need) or ("|cff7fd39c%d|r"):format(m.need))
+      r.have:SetText(tostring(m.have))
+      r.now:SetText((nowText(m.id, m.limit, m.vendor)))
+      if m.buy > 0 and not m.vendor then toBuy = toBuy + 1 end
     else
-      r.now:SetText("|cff888888?|r")
+      r.head:SetText(s.text)
+      r.head:SetFont(T.font, s.kind == "head" and 12 or 11, "")
+      r.head:SetWordWrap(s.kind == "note")
     end
     r:Show()
   end
-  for i = #items + 1, #v.rows do v.rows[i]:Hide() end
-  v.content:SetHeight(math.max(#items * 24, 24))
+  for i = #show + 1, #v.rows do v.rows[i]:Hide() end
+  v.content:SetHeight(math.max(y, 24))
   v.sf.UpdateScrollBar()
-  v.searchB:SetEnabled(list ~= nil and #items > 0 and ns:IsAHOpen() and not ns.Scan.active)
+  v.searchB:SetEnabled(list ~= nil and #show > 0 and ns:IsAHOpen() and not ns.Scan.active)
   if ns.Scan.active then
     v.info:SetText("Searching...")
-  elseif list then
-    v.info:SetText(#items == 0 and "Add items above. \"max\" is the most you'd pay each; \"want\" how many you want to have."
-      or ("%d of %d at or under your price. Those join the buy queue."):format(cheap, #items))
+  elseif not list then
+    v.info:SetText("Click New to start a list.")
+  elseif #list.items == 0 then
+    v.info:SetText("Add items above: \"max each\" is the most you'd pay, \"want\" how many you want to have.")
+  elseif not ns:IsAHOpen() then
+    v.info:SetText("Open the auction house to search and buy.")
   else
-    v.info:SetText("")
+    v.info:SetText(("%d at or under your price%s. Those join the buy queue."):format(cheap,
+      toBuy > 0 and (", %d materials to buy"):format(toBuy) or ""))
   end
 end
 refreshLists = ns.Timed("Shopping lists view", refreshLists)
 
 ---------------------------------------------------------------------------
--- The side panel and its tabs
+-- The side panel and its tabs. Beside the auction house when it's open; anywhere else
+-- (/fl lists) it's a window of its own you can move, so lists can be made before a raid.
 ---------------------------------------------------------------------------
 local TABS = { { "queue", "Buy queue" }, { "lists", "Shopping lists" }, { "finder", "Disenchant finder" } }
 
@@ -959,14 +1105,34 @@ local function showTab(tab)
   if tab == "lists" then refreshLists() end
 end
 
-function ns:SetUpSidePanel()
+-- Beside the auction house, or on its own in the middle of the screen.
+local function place()
   local ah = AuctionHouseFrame
-  if side or not ah then return end
-  side = CreateFrame("Frame", "ForeverLedgerSidePanel", ah)
-  side:SetPoint("TOPLEFT", ah, "TOPRIGHT", 4, 0)
-  side:SetPoint("BOTTOMLEFT", ah, "BOTTOMRIGHT", 4, 0)
-  side:SetWidth(WIDTH)
+  side:ClearAllPoints()
+  if ah and ah:IsShown() then
+    side:SetParent(ah)
+    side:SetFrameStrata(ah:GetFrameStrata())
+    side:SetPoint("TOPLEFT", ah, "TOPRIGHT", 4, 0)
+    side:SetPoint("BOTTOMLEFT", ah, "BOTTOMRIGHT", 4, 0)
+    side:SetWidth(WIDTH)
+    side.floating = false
+  else
+    side:SetParent(UIParent)
+    side:SetFrameStrata("HIGH")
+    side:SetSize(WIDTH, 560)
+    side:SetPoint("CENTER")
+    side.floating = true
+  end
+  side.close:SetShown(side.floating)
+end
+
+local function ensureSide()
+  if side then return side end
+  side = CreateFrame("Frame", "ForeverLedgerSidePanel", UIParent)
+  side:SetSize(WIDTH, 560)
   side:EnableMouse(true)
+  side:SetMovable(true)
+  side:SetClampedToScreen(true)
   T:Fill(side, T.bg)
   T:Border(side)
   local strip = CreateFrame("Frame", nil, side)
@@ -974,6 +1140,11 @@ function ns:SetUpSidePanel()
   strip:SetPoint("TOPRIGHT", -1, -1)
   strip:SetHeight(28)
   T:Fill(strip, T.header)
+  -- Drag the tab row to move it when it's on its own.
+  strip:EnableMouse(true)
+  strip:RegisterForDrag("LeftButton")
+  strip:SetScript("OnDragStart", function() if side.floating then side:StartMoving() end end)
+  strip:SetScript("OnDragStop", function() side:StopMovingOrSizing() end)
   side.tabs = {}
   local x = 4
   for _, t in ipairs(TABS) do
@@ -983,6 +1154,8 @@ function ns:SetUpSidePanel()
     x = x + b:GetWidth()
     side.tabs[#side.tabs + 1] = b
   end
+  side.close = T:Button(strip, "x", 22, function() side:Hide() end, 22)
+  side.close:SetPoint("RIGHT", -3, 0)
   queueView = buildQueueView(side)
   listsView = buildListsView(side)
   ns:DisenchantFinderFrame(side)
@@ -992,25 +1165,33 @@ function ns:SetUpSidePanel()
     Q.cur, Q.plan, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"
     updateBinding()
   end)
-  side:SetShown(S().shown and true or false)
-  if side:IsShown() then showTab(S().tab or "queue") end
+  -- Escape closes it when it's on its own.
+  tinsert(UISpecialFrames, "ForeverLedgerSidePanel")
+  side:Hide()
+  return side
+end
+
+-- The auction house opened: put the panel beside it if it was open last time.
+function ns:SetUpSidePanel()
+  if not AuctionHouseFrame then return end
+  ensureSide()
+  -- Already open on its own (a list being made): keep it open, now beside the auction house.
+  local keep = side.floating and side:IsShown()
+  place()
+  if S().shown or keep then side:Show(); showTab(S().tab or "queue") else side:Hide() end
 end
 
 function ns:ToggleSidePanel()
-  if not side then ns:SetUpSidePanel() end
-  if not side then return end
+  ensureSide()
+  place()
   S().shown = not side:IsShown()
   side:SetShown(S().shown)
 end
 
 function ns:ShowSidePanel(tab)
-  if not (ns:IsAHOpen() and AuctionHouseFrame) then
-    ns:Print("Open the auction house: the buy queue, shopping lists and disenchant finder sit beside it.")
-    return
-  end
-  if not side then ns:SetUpSidePanel() end
-  if not side then return end
-  S().shown = true
+  ensureSide()
+  place()
+  if not side.floating then S().shown = true end
   side:Show()
   showTab(tab or S().tab or "queue")
 end

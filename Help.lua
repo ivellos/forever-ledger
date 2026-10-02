@@ -35,7 +35,9 @@ ns.HELP = {
   { "Buy queue and shopping lists", {
     { "Buy queue", "Click Buy queue on the auction house: a panel beside it lines up everything worth buying (vendor flips, greens worth disenchanting, your shopping lists, and good deals if you tick them). It finds the next one by itself; each tick of the mouse wheel down, or a click on Buy, buys it. Stacks of materials take a second tick to confirm the final price. /fl queue." },
     { "Safe by design", "It never pays more than the limit shown (checked again on the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. Untick Scroll anywhere to buy so only the Buy button buys. Right-click an item to skip it." },
-    { "Shopping lists", "Named lists of items with the most you'd pay and how many you want to have, for example raid consumables or twink gear. Shift-click, drag or type an item to add it. Search this list checks them all in one click; those at or under your price join the buy queue. /fl lists." },
+    { "Shopping lists", "Named lists of items with the most you'd pay and how many you want to have, for example raid consumables or twink gear. With the list open, shift-click an item to add it (or drag it, or type its name). /fl lists opens them anywhere, so you can plan before you go to the auction house." },
+    { "Buy or craft", "Set an item to Craft and the list shows the materials for the number you want, less what you have, with the most to pay for each (your usual price unless you type one). Materials a vendor sells are marked vendor." },
+    { "Search and buy", "Search this list checks everything on it in one click. Items and materials at or under your price join the buy queue." },
   } },
   { "Deals", {
     { "Deals tab", "Listings well below the price an item is usually cheapest at, to buy and resell: price now, usual low, how many are worth buying, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },
