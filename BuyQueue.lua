@@ -390,17 +390,38 @@ end
 ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
   local e = Q.cur
   if Q.state ~= "browse" or not e then return end
-  local keys = {}
+  local keys, rows, ours, cheapest = {}, 0, 0, nil
   for _, r in ipairs(AH.GetBrowseResults() or {}) do
-    if r.itemKey and r.itemKey.itemID == e.id and r.minPrice and r.minPrice > 0 and r.minPrice <= e.limit then
-      keys[#keys + 1] = r.itemKey
+    rows = rows + 1
+    if r.itemKey and r.itemKey.itemID == e.id then
+      ours = ours + 1
+      if r.minPrice and r.minPrice > 0 then cheapest = math.min(cheapest or math.huge, r.minPrice) end
+      if r.minPrice and r.minPrice > 0 and r.minPrice <= e.limit then keys[#keys + 1] = r.itemKey end
     end
   end
+  ns:Debug(("Buy queue: looking up %s: %d rows, %d of them this item, cheapest %s, limit %s."):format(ns.ItemName(e.id),
+    rows, ours, cheapest and ns.MoneyPlain(cheapest) or "-", e.limit == math.huge and "any" or ns.MoneyPlain(e.limit)))
   if #keys == 0 then
+    -- A list without this item at all isn't the answer yet: the first one can be empty
+    -- or the previous search's (owner's test, October 2: every gear flip dropped at once
+    -- as "none left", then Battering Hammer was bought by hand under the limit). Wait a
+    -- moment for the real one; if nothing comes, it really isn't listed.
+    if ours == 0 then
+      if not Q.browseWait then
+        Q.browseWait = true
+        local tok = Q.tok
+        C_Timer.After(2.5, function()
+          Q.browseWait = nil
+          if Q.tok == tok and Q.state == "browse" and Q.cur == e then finishTarget("none listed.") end
+        end)
+      end
+      return
+    end
     if AH.HasFullBrowseResults and not AH.HasFullBrowseResults() then return end
     finishTarget(("none left at %s or less."):format(limitText(e)))
     return
   end
+  Q.browseWait = nil
   Q.keys = keys
   Q.key, Q.tries = table.remove(Q.keys, 1), 0
   search()

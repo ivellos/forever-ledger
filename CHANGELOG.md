@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shopping lists show how far along they are: Have turns green when you have enough, the list name shows 3/5 done, and the bottom line says Complete (or that you have every material and just need to craft).
 - Scroll to buy now works over the top box of the buy queue (with Buy in it), starts off, and turns itself off when the queue runs out, so nobody buys by accident.
 - Shopping lists: "Want means" Keep this many (have that many: Buy again tops you up) or Buy this many (buy that many whatever you have: Buy again buys it all again), chosen per list.
+- Buy queue: gear flips all dropped out at once as "none left" (the first reply to a lookup can be empty or the previous search's); a reply without the item no longer counts.
 - Buy queue: no more "waiting for the scan to finish". The queue looks up and buys while any scan runs (only a full scan's few seconds are waited for); the scan pauses for a moment after each lookup and each buy, and carries on by itself.
 - Buy queue: a new vendor flip joins it within a second of being found, not at the end of the flip watch's pass.
 - Buy queue: gear never got bought (every stat version's reply was ignored and the item dropped out after three tries); any version is taken now. The queue's background searches no longer count as the page you're looking at, which showed the wrong "buy up to" on item pages and could log a gear purchase as the wrong item. With /fl debug on, it says why an item leaves the queue.
