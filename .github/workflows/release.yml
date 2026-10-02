@@ -158,6 +158,6 @@ jobs:
           git show origin/main:.github/scripts/discord_announce.py > announce.py
           git show origin/main:CHANGELOG.md > changelog-main.md
           python3 announce.py changelog-main.md "$VERSION" "$URL" "$UPDATES_ROLE" > discord.json
-          if [ "${{ inputs.dry_run }}" = "true" ]; then echo "Dry run, not posting:"; jq -r .content discord.json; exit 0; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then echo "Dry run, not posting:"; jq -r '.content, .embeds[0].title, .embeds[0].description' discord.json; exit 0; fi
           curl -sS --fail-with-body -H "Content-Type: application/json" -d @discord.json "$DISCORD_ANNOUNCE_WEBHOOK"
           echo "Announced Forever Ledger $VERSION on Discord."

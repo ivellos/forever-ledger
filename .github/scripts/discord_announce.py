@@ -51,7 +51,8 @@ features = sections.get("added", []) + sections.get("changed", [])
 fixes = sections.get("fixed", [])
 highlights = sections.get("highlights", [])
 
-lines = [f"## Forever Ledger {version} is live on CurseForge, Wago and GitHub"]
+title = f"Forever Ledger {version} is live on CurseForge, Wago and GitHub"
+lines = []
 extras = []
 if highlights:
     lines.append("Major updates/features include:")
@@ -72,10 +73,20 @@ elif features:
 if extras:
     lines.append("- Plus " + " and ".join(extras) + ".")
 lines += ["", "**Full patch notes:**", url]
-if role:
-    lines += ["", f"<@&{role}>", "*Want a ping when there's an update? Pick the Updates role in Channels & Roles.*"]
 
-content = "\n".join(lines)
-if len(content) > 2000:   # Discord's limit for a message
-    content = content[:1990].rsplit("\n", 1)[0]
-print(json.dumps({"content": content, "allowed_mentions": {"roles": [role] if role else []}}))
+# The announcement sits in an embed (purple bar, linked title, the coin icon); the
+# role ping goes in the message text above it, since pings inside embeds don't notify.
+description = "\n".join(lines)
+if len(description) > 4000:   # Discord's limit for an embed description
+    description = description[:3990].rsplit("\n", 1)[0]
+embed = {
+    "title": title,
+    "url": url,
+    "color": 0xB9A2FF,
+    "description": description,
+    "thumbnail": {"url": "https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/icon.png"},
+}
+content = ""
+if role:
+    content = f"<@&{role}>\n*Want a ping when there's an update? Pick the Updates role in Channels & Roles.*"
+print(json.dumps({"content": content, "embeds": [embed], "allowed_mentions": {"roles": [role] if role else []}}))
