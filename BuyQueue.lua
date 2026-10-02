@@ -39,6 +39,7 @@ local REASONS = {
   flip = { badge = "FLIP", color = "7fd39c" },
   de = { badge = "DE", color = "7fb8ff" },
   deal = { badge = "DEAL", color = "ffd100" },
+  both = { badge = "FLIP+DE", color = "7fd39c" },
 }
 
 local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
@@ -148,6 +149,23 @@ local function buildQueue()
     end
   end
   for _, e in ipairs(others) do e.profit = ((e.worth or 0) - (e.cost or e.limit)) * (e.n or 1) end
+  -- An item that's both a vendor flip and worth disenchanting shows once, as FLIP+DE,
+  -- with the better of the two (owner, October 2: "DE and flip got crossed").
+  local byID = {}
+  for _, e in ipairs(others) do
+    local o = byID[e.id]
+    if not o then
+      byID[e.id] = e
+    elseif (o.reason == "flip" and e.reason == "de") or (o.reason == "de" and e.reason == "flip") then
+      local best, other = o, e
+      if e.profit > o.profit then best, other = e, o end
+      best.both = { reason = other.reason, worth = other.worth, limit = other.limit }
+      best.reason = "both"
+      byID[e.id] = best
+    end
+  end
+  others = {}
+  for _, e in pairs(byID) do others[#others + 1] = e end
   table.sort(others, function(a, b) return a.profit > b.profit end)
   for _, e in ipairs(others) do add(e) end
   for _, e in ipairs(waiting) do add(e) end
@@ -194,6 +212,18 @@ end
 
 local search, prepare, updateBinding
 
+-- The auction house keeps one item search at a time: when the queue looks up the next
+-- item, a page still showing the last one spins on "Searching..." for good (owner,
+-- October 2). Go back to the search list instead, which shows the queue's lookups.
+local function leaveStalePage()
+  local ah = AuctionHouseFrame
+  if not (ah and ah.SetDisplayMode and AuctionHouseFrameDisplayMode and AuctionHouseFrameDisplayMode.Buy) then return end
+  local item, commodity = ah.ItemBuyFrame, ah.CommoditiesBuyFrame
+  if (item and item:IsShown()) or (commodity and commodity:IsShown()) then
+    pcall(ah.SetDisplayMode, ah, AuctionHouseFrameDisplayMode.Buy)
+  end
+end
+
 local function finishTarget(note)
   local e = Q.cur
   if e then
@@ -238,6 +268,7 @@ function search()
   end
   Q.userPicked, Q.waitText = nil, nil
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 2)
+  leaveStalePage()
   Q.tries = (Q.tries or 0) + 1
   if Q.tries > 3 then finishTarget("no reply from the auction house."); return end
   -- Gear: find its stat versions first (one row each in the search list).
@@ -558,6 +589,12 @@ local function reasonLine(e)
   if e.reason == "flip" then return ("Vendor flip: a vendor pays %s."):format(money(e.worth)) end
   if e.reason == "de" then return ("Disenchant: worth about %s."):format(money(e.worth)) end
   if e.reason == "deal" then return ("Below its usual price: resells for about %s."):format(money(e.worth)) end
+  if e.reason == "both" and e.both then
+    local flip = e.both.reason == "flip" and e.both.worth or e.worth
+    local de = e.both.reason == "de" and e.both.worth or e.worth
+    return ("Vendor flip and disenchant: a vendor pays %s, disenchanting is worth about %s. Buying up to the better one."):format(
+      money(flip), money(de))
+  end
   if e.reason == "list" then
     return ("Shopping list %s: up to %s%s."):format(e.list or "", limitText(e),
       e.want and (", %d more wanted"):format(e.want) or "")
