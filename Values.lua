@@ -14,10 +14,20 @@ end
 
 -- What one unit fetches on the auction house after the cut. With needListings,
 -- thin markets (fewer than MIN_LISTED listed) don't count.
+-- What selling one on the auction house brings, after the cut. Selling means listing at
+-- or under the cheapest, so this is the lowest of the price used for buying (the average
+-- of the cheapest 20 listed), today's cheapest, and the usual cheapest from price history
+-- (owner's test, October 1: Simple Linen Pants showed 10,564% return, valued at the
+-- average of a few hopeful listings).
 local function ahSale(id, needListings)
   local p, _, _, rec = ns:GetPrice(id)
   if not p then return end
   if needListings and rec and rec.q and rec.q < MIN_LISTED then return end
+  if rec and rec.m and not rec.none and rec.m < p then p = rec.m end
+  if ns.PriceStats then
+    local ok, st = pcall(ns.PriceStats, ns, id, "month")
+    if ok and st and st.points >= 4 and st.low and st.low < p then p = st.low end
+  end
   return p * (1 - ns:AHCut())
 end
 

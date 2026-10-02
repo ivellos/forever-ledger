@@ -109,6 +109,16 @@ end)
 -- whenever the game has the item, its current price is used and the remembered one
 -- updated if it changed (October 1 build: crafted wands went from 15s to 1 copper).
 -- Reputation doesn't change what vendors pay you, only what they charge.
+-- Crafted wands changed vendor price in the October 1 build, before the addon noticed
+-- changes: mark them once, so their pre-patch auction history is ignored.
+ns:OnReady(function()
+  if not ns.LocalDay then return end
+  local patchDay = ns.LocalDay(time({ year = 2026, month = 10, day = 1, hour = 12 }))
+  for _, id in ipairs({ 11287, 11288, 11289, 11290 }) do   -- Lesser/Greater Magic, Lesser/Greater Mystic Wand
+    if not ns.db.vendorSellChanged[id] then ns.db.vendorSellChanged[id] = patchDay end
+  end
+end)
+
 function ns:GetSellPrice(id)
   local saved = ns.db.vendorSell[id]
   local name, _, _, _, _, _, _, _, _, _, live = getItemInfo(id)
@@ -116,6 +126,8 @@ function ns:GetSellPrice(id)
     ns.db.vendorSell[id] = live
     if saved ~= nil then
       ns:Debug("Vendor price changed:", ns.ItemName(id) or id, ns.Money(saved), "->", ns.Money(live))
+      -- Price history from before today no longer applies (History.lua historyStart).
+      if ns.LocalDay then ns.db.vendorSellChanged[id] = ns.LocalDay() end
       if ns.InvalidateValues then ns:InvalidateValues() end
     end
     return live

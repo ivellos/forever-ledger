@@ -398,11 +398,21 @@ end
 -- Periods for "usual price", in days.
 ns.PRICE_WINDOWS = { week = 7, month = 30, ["3months"] = 91, ["6months"] = 182, year = 365, all = math.huge }
 
+-- Price history from before an item's vendor price changed is left out: the old vendor
+-- price held the auction price up or down (October 1 build: crafted wands went from
+-- 15s to 1 copper at vendors, so their "usual price" of about 15s no longer applies).
+-- vendorSellChanged[id] = the local day the change was seen (Prices.lua GetSellPrice).
+local function historyStart(id, from)
+  local changed = ns.db and ns.db.vendorSellChanged and ns.db.vendorSellChanged[id]
+  if changed and changed > from then return changed end
+  return from
+end
 -- The usual price over a period: the median of the daily (and weekly, for older
 -- times) typical prices, leaving today out. Returns the price and how many points it used.
 function ns:UsualPrice(id, window)
   local d = today()
   local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
+  from = historyStart(id, from)
   local points = {}
   for day, _, typ in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
     day = tonumber(day)
@@ -472,6 +482,7 @@ end
 function ns:PriceStats(id, window)
   local d = today()
   local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
+  from = historyStart(id, from)
   local typ, low, first, days = {}, {}, nil, 0
   for day, m, a in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
     day = tonumber(day)

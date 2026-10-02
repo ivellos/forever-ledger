@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- Shuffles that end on the auction house showed absurd returns (Simple Linen Pants 10,564%): the item was valued at the average of a few pricey listings. What selling brings is now the lowest of today's cheapest listing, that average, and the usual cheapest price from your scans.
+- Greater Magic Wand showed as a deal after the October 1 patch made crafted wands vendor for 1 copper: its "usual price" came from before the change. Price history from before an item's vendor price changed is now ignored.
 - What a vendor pays now always follows the game's current item data (the tooltip's Sell Price); the remembered price is only used until the game has loaded the item. The October 1 beta build made crafted wands sell for 1 copper (Greater Magic Wand was 15s), and the old remembered price would have kept wand shuffles on the list.
 
 ### Changed

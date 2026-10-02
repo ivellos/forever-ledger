@@ -24,6 +24,7 @@ local DEFAULTS = {
   recipeTypes = {}, -- [recipeID] = "shuffle" | "sells" | "notsale" | "loss", the player's own choice (RecipesTab.lua)
   crates = {},      -- [crate itemID] = { name, level, bundles = { { { qty, name }, ... } } } read from tooltips
   crateFavor = {},  -- [crate name] = { sum, n } Favor paid, learned from turn-ins
+  vendorSellChanged = {}, -- [itemID] = local day its vendor sell price was seen to change (older price history is ignored)
   crateMoney = {},  -- [crate name] = { sum, n } copper a turn-in paid besides the Favor, learned too
   favor = {},       -- [charKey] = Merchant's Favor held
   inventory = {},   -- [charKey] = { bags = { [itemID] = count }, bank = { ... }, t, bankT } (Inventory.lua, not synced)
