@@ -1037,6 +1037,9 @@ local function buildListsView(parent)
     fs:SetText(c[1])
     v.headers[c[1]] = fs
   end
+  -- "Bought" is wider than "Have": nudge it right so it doesn't run into Want.
+  v.headers.Have:ClearAllPoints()
+  v.headers.Have:SetPoint("RIGHT", header, "LEFT", C.have + 8, 0)
   v.sf, v.content = T:Scroll(v)
   v.sf:SetPoint("TOPLEFT", 6, -138)
   v.sf:SetPoint("BOTTOMRIGHT", -6, 58)

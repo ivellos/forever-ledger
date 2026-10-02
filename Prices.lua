@@ -129,6 +129,7 @@ end)
 -- unsellable once, October 2), so "no line" only counts if it's still true 3 s later.
 local SELL_LINE = (Enum and Enum.TooltipDataLineType and Enum.TooltipDataLineType.SellPrice) or 11
 local sellable, checking = {}, {}
+local unsellableNames, unsellableTimer = {}, false
 local function hasSellLine(id)
   local ok, data = pcall(C_TooltipInfo and C_TooltipInfo.GetItemByID or error, id)
   if not (ok and data and data.lines and #data.lines > 0) then return nil end
@@ -147,7 +148,17 @@ local function canSell(id)
       checking[id] = nil
       if hasSellLine(id) == false then
         sellable[id] = false
-        ns:Debug("No sell price line:", ns.ItemName(id) or id, "- vendors won't buy it.")
+        -- One debug line for all of them, not one each (owner: 70 lines after a reload).
+        unsellableNames[#unsellableNames + 1] = ns.ItemName(id) or tostring(id)
+        if not unsellableTimer then
+          unsellableTimer = true
+          C_Timer.After(5, function()
+            unsellableTimer = false
+            ns:Debug(("No sell price line on %d items, so vendors won't buy them: %s."):format(
+              #unsellableNames, table.concat(unsellableNames, ", "):sub(1, 300)))
+            unsellableNames = {}
+          end)
+        end
         if ns.InvalidateValues then ns:InvalidateValues(true) end
       end
     end)
