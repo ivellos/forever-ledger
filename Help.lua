@@ -65,6 +65,11 @@ ns.HELP = {
     { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online." },
     { "Export and import", "On the Characters tab, to copy everything across by hand." },
   } },
+  { "Help and community", {
+    { "Discord", "discord.gg/WKsCtvupeC: updates, questions, and WoW Forever news." },
+    { "Found a bug?", "Type /bug on the Discord and fill in the short form. Include /fl api output or the BugSack error if you can." },
+    { "Have an idea?", "Type /feature on the Discord. You'll get updates in your post." },
+  } },
   { "Your data", {
     { "Stays on your PC", "Everything Forever Ledger records is kept in its saved file on your computer. Nothing is sent to the author or anyone else." },
     { "What it keeps", "Prices and their history, vendor and trainer locations you've seen, your characters' recipes, gold, sales and purchases, bags and bank, chat requests it spotted, and your work log." },

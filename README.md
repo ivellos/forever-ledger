@@ -3,6 +3,8 @@
 A gold-making addon built specifically for **WoW Forever**. It scans the auction house and shows what every item is actually worth to *you*: sell it, vendor it, disenchant it, or craft it into something better. Then it points you at the best buys.
 
 > **Status:** pre-release, tested in the Forever beta and updated often. Expect the odd rough edge, and please report it.
+>
+> **Discord:** [discord.gg/WKsCtvupeC](https://discord.gg/WKsCtvupeC) for updates, help, bug reports and ideas.
 
 ## Features
 
@@ -48,7 +50,7 @@ The [guide](https://github.com/ivellos/forever-ledger/blob/main/docs/GUIDE.md) e
 
 ## What's next
 
-See the [roadmap](https://github.com/ivellos/forever-ledger/blob/main/ROADMAP.md) for planned features. Ideas are welcome in [Issues](https://github.com/ivellos/forever-ledger/issues).
+See the [roadmap](https://github.com/ivellos/forever-ledger/blob/main/ROADMAP.md) for planned features. Ideas are welcome: use **/feature** on our [Discord](https://discord.gg/WKsCtvupeC), or open an [issue](https://github.com/ivellos/forever-ledger/issues).
 
 ## Commands
 
@@ -81,9 +83,9 @@ See the [roadmap](https://github.com/ivellos/forever-ledger/blob/main/ROADMAP.md
 | `/fl api` | Show which game functions are available (useful in bug reports) |
 | `/fl debug` | Turn debug messages on or off |
 
-## Reporting a bug
+## Community and bug reports
 
-Open an [issue](https://github.com/ivellos/forever-ledger/issues/new/choose) and include the output of `/fl api` and any error text from BugSack.
+Join the **[Forever Ledger Discord](https://discord.gg/WKsCtvupeC)** for updates, help and WoW Forever news. To report a bug, type **/bug** there and fill in the short form (or open an [issue](https://github.com/ivellos/forever-ledger/issues/new/choose) on GitHub); include the output of `/fl api` and any error text from BugSack if you can.
 
 ## Project layout
 

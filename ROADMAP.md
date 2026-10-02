@@ -1,6 +1,6 @@
 # Forever Ledger roadmap
 
-What's planned for Forever Ledger. These are plans, not promises: the order changes with what players find useful, and anything that depends on how WoW Forever works gets tested first. Ideas and feedback are welcome in [Issues](https://github.com/ivellos/forever-ledger/issues).
+What's planned for Forever Ledger. These are plans, not promises: the order changes with what players find useful, and anything that depends on how WoW Forever works gets tested first. Ideas and feedback are welcome: use **/feature** on our [Discord](https://discord.gg/WKsCtvupeC), or open an [issue](https://github.com/ivellos/forever-ledger/issues).
 
 What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Releases](https://github.com/ivellos/forever-ledger/releases).
 

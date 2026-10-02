@@ -93,6 +93,12 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 - **Live sync** (`/fl pair First Last`) sends prices and recipes between your two accounts while both are online. Export and import work too.
 
+## Help and community
+
+- **Discord:** [discord.gg/WKsCtvupeC](https://discord.gg/WKsCtvupeC) for updates, questions and WoW Forever news.
+- **Found a bug?** Type **/bug** on the Discord and fill in the short form (version, what happened, how to make it happen). Add the `/fl api` output or the BugSack error if you can. It goes to our tracker and you'll get updates in your post.
+- **Have an idea?** Type **/feature** on the Discord.
+
 ## Your data
 
 - Everything Forever Ledger records stays in its saved file on your own PC. **Nothing is sent to the author or anyone else.**
