@@ -1,0 +1,64 @@
+{
+  "_about": "Forever Ledger Discord: channel permissions per category, with per-channel exceptions. Applied by .github/workflows/discord-permissions.yml (report / plan / apply). Every channel gets its category's permissions plus anything listed under its name.",
+  "categories": {
+    "Info": {
+      "permissions": {
+        "@everyone": {
+          "allow": ["View Channel", "Read Message History", "Add Reactions"],
+          "deny": ["Send Messages / Create Posts", "Send Messages in Threads / Posts", "Create Public Threads", "Create Private Threads",
+                   "Attach Files", "Embed Links", "Mention @everyone and All Roles", "Send TTS Messages", "Create Polls",
+                   "Use Application Commands"]
+        },
+        "Bots": {
+          "allow": ["View Channel", "Send Messages / Create Posts", "Embed Links", "Attach Files", "Read Message History"]
+        }
+      }
+    },
+    "WoW Forever News": {
+      "permissions": {
+        "@everyone": {
+          "allow": ["View Channel", "Read Message History", "Add Reactions"],
+          "deny": ["Send Messages / Create Posts", "Send Messages in Threads / Posts", "Create Public Threads", "Create Private Threads",
+                   "Attach Files", "Embed Links", "Mention @everyone and All Roles", "Send TTS Messages", "Send Voice Messages",
+                   "Create Polls", "Use Application Commands"]
+        },
+        "Bots": {
+          "allow": ["View Channel", "Send Messages / Create Posts", "Embed Links", "Attach Files", "Read Message History"]
+        }
+      }
+    },
+    "Support": {
+      "permissions": {
+        "Bots": {
+          "allow": ["View Channel", "Send Messages / Create Posts", "Send Messages in Threads / Posts", "Embed Links",
+                    "Attach Files", "Read Message History"]
+        }
+      },
+      "channels": {
+        "bug-reports": {
+          "@everyone": {
+            "allow": ["View Channel", "Read Message History", "Add Reactions", "Send Messages in Threads / Posts", "Attach Files"],
+            "deny": ["Send Messages / Create Posts", "Create Public Threads", "Create Private Threads"]
+          },
+          "Bots": {
+            "allow": ["View Channel", "Send Messages / Create Posts", "Send Messages in Threads / Posts", "Embed Links",
+                      "Attach Files", "Read Message History", "Manage Threads / Posts"]
+          }
+        },
+        "feature-request": {
+          "@everyone": {
+            "allow": ["View Channel", "Read Message History", "Add Reactions", "Send Messages in Threads / Posts", "Attach Files"],
+            "deny": ["Send Messages / Create Posts", "Create Public Threads", "Create Private Threads"]
+          },
+          "Bots": {
+            "allow": ["View Channel", "Send Messages / Create Posts", "Send Messages in Threads / Posts", "Embed Links",
+                      "Attach Files", "Read Message History", "Manage Threads / Posts"]
+          }
+        }
+      }
+    },
+    "Community": {
+      "permissions": {}
+    }
+  }
+}
