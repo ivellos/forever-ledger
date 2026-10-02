@@ -720,6 +720,9 @@ local function buildLane(v, d)
   end)
   L.title = T:Text(strip, 11, T.accent)
   L.title:SetPoint("TOPLEFT", 6, -4)
+  L.title:SetPoint("RIGHT", strip, "RIGHT", -100, 0)
+  L.title:SetJustifyH("LEFT")
+  L.title:SetWordWrap(false)
   L.icon = strip:CreateTexture(nil, "ARTWORK")
   L.icon:SetSize(24, 24)
   L.icon:SetPoint("TOPLEFT", 6, -18)
@@ -859,7 +862,7 @@ local function fillLane(L)
   for _, x in ipairs(list) do if not x.waiting then ready = ready + 1 end end
   -- Where to scroll, said in the section itself rather than on the checkbox.
   L.title:SetText(("%s  |cff888888%d|r%s"):format(d.title, ready,
-    armed and (S().wheel and "   |cff7fd39cbuying from this one: scroll down over this strip|r"
+    armed and (S().wheel and "   |cff7fd39cbuying here, scroll this strip|r"
       or "   |cff7fd39cbuying from this one|r") or ""))
   local a, b, label
   if armed then
