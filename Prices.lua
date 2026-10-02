@@ -122,6 +122,13 @@ end)
 function ns:GetSellPrice(id)
   local saved = ns.db.vendorSell[id]
   local name, _, _, _, _, _, _, _, _, _, live = getItemInfo(id)
+  -- Items vendors won't buy report no price (Greater Magic Essence, October 2: nil while
+  -- an old saved 1c was still shown). Remember them as 0 and show no vendor price.
+  if name and (live == nil or live == 0) then
+    if saved and saved > 0 then ns.db.vendorSell[id] = 0 end
+    return nil
+  end
+  if saved == 0 then saved = nil end
   if name and live and live ~= saved then
     ns.db.vendorSell[id] = live
     if saved ~= nil then
@@ -132,8 +139,10 @@ function ns:GetSellPrice(id)
     end
     return live
   end
-  if saved == nil then ns:RememberItem(id) end
-  return ns.db.vendorSell[id]
+  if ns.db.vendorSell[id] == nil then ns:RememberItem(id) end
+  local p = ns.db.vendorSell[id]
+  if p == 0 then return nil end
+  return p
 end
 
 function ns:GetVendorBuyPrice(id)
