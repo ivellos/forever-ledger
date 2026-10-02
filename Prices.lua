@@ -360,6 +360,56 @@ function ns:RemoveBought(id, qty, each)
   if ns.RefreshFlipsIfShown then C_Timer.After(0.5, function() ns:RefreshFlipsIfShown() end) end
 end
 
+-- The auction house says an item's cheapest listing is now `price`: saved listings below
+-- that are gone (bought by you or someone else), so take them off the ladder. Used for
+-- gear, whose item pages show one stat version at a time and so can't be saved whole
+-- (owner test, October 2: Raider's Chestpiece stayed a flip at 7s after the 7s ones
+-- were gone, and the browse list said 8s).
+function ns:DropBelow(id, price)
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if not (rec and rec.l and rec.l ~= "" and not rec.none and rec.m and rec.m < price) then return end
+  local out, gone, prev, cum = {}, 0, 0, 0
+  for p, c in rec.l:gmatch("(%d+):(%d+)") do
+    p, c = tonumber(p), tonumber(c)
+    if p < price then
+      gone = gone + (c - prev)
+    else
+      cum = cum + (c - prev)
+      out[#out + 1] = p .. ":" .. cum
+    end
+    prev = c
+  end
+  rec.q = math.max(0, (rec.q or 0) - gone)
+  rec.l = table.concat(out, ",")
+  rec.m = price
+  ns:Debug("Auction house list: cheapest", ns.ItemName(id) or id, "is now", ns.Money(price) .. ";", gone, "cheaper saved listings are gone.")
+  if ns.CheckFlip then ns:CheckFlip(id) end
+  if ns.InvalidateValues then ns:InvalidateValues(true) end
+  if ns.RefreshFlipsIfShown then C_Timer.After(0.5, function() ns:RefreshFlipsIfShown() end) end
+end
+
+-- The browse list (search by name, one row per version with its cheapest price) is
+-- live, so it tells us when cheap gear listings have gone. Only trusted once the list
+-- is complete, so the cheapest of all rows is the item's cheapest.
+if C_AuctionHouse and C_AuctionHouse.GetBrowseResults then
+  ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
+    if C_AuctionHouse.HasFullBrowseResults and not C_AuctionHouse.HasFullBrowseResults() then return end
+    local cheapest = {}
+    for _, r in ipairs(C_AuctionHouse.GetBrowseResults() or {}) do
+      local id = r.itemKey and r.itemKey.itemID
+      if id and r.minPrice and r.minPrice > 0 and (r.totalQuantity or 1) > 0 then
+        cheapest[id] = math.min(cheapest[id] or math.huge, r.minPrice)
+      end
+    end
+    local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    for id, price in pairs(cheapest) do
+      -- Gear only: commodities are saved whole from their own page.
+      local _, _, _, _, _, classID = instant(id)
+      if classID == 2 or classID == 4 then ns:DropBelow(id, price) end
+    end
+  end)
+end
+
 -- units: list of { unitPrice, quantity }
 local function record(id, units, src)
   if ns.InvalidateValues then ns:InvalidateValues() end

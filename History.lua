@@ -271,9 +271,11 @@ ns:OnReady(function()
     hint({ source = "ahBuy", item = itemID, qty = quantity })
   end)
   -- The auction house window asks for an item's listings when you open it. Our own
-  -- scans do too, so those are ignored.
+  -- scans do too, so those are ignored. (Checks the scan's own sends, not "a scan is
+  -- running": with the flip watch on, a scan is always running, so your pages were
+  -- ignored and a Soldier's Armor purchase was put down as Curved Dagger, October 2.)
   hook(C_AuctionHouse, "SendSearchQuery", function(itemKey)
-    if itemKey and itemKey.itemID and not (ns.Scan and ns.Scan.active) then lastShownItem = itemKey.itemID end
+    if itemKey and itemKey.itemID and not (ns.Scan and ns.Scan.sending) then lastShownItem = itemKey.itemID end
   end)
   pruneGold()
   -- Remove bad 0-gold readings saved before they were skipped, for characters that
