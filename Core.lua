@@ -351,7 +351,7 @@ function ns:ApiReport()
     "C_TradeSkillUI.GetAllRecipeIDs", "C_TradeSkillUI.GetRecipeInfo", "C_TradeSkillUI.GetRecipeSchematic",
     "C_TradeSkillUI.GetRecipeNumReagents", "C_TradeSkillUI.GetBaseProfessionInfo", "C_TradeSkillUI.GetTradeSkillLine",
     "GetProfessions", "GetNumSkillLines",
-    "C_AuctionHouse.SendSearchQuery", "C_AuctionHouse.ReplicateItems", "C_AuctionHouse.GetCommoditySearchResultInfo",
+    "C_AuctionHouse.SendSearchQuery", "C_AuctionHouse.ReplicateItems", "C_AuctionHouse.GetReplicateItemTimeLeft","C_AuctionHouse.GetCommoditySearchResultInfo",
     "C_AuctionHouse.GetItemSearchResultInfo", "C_MerchantFrame.GetItemInfo", "GetMerchantItemInfo",
     "TooltipDataProcessor.AddTooltipPostCall", "C_Item.GetItemInfo",
     "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",

@@ -697,6 +697,12 @@ local function commodityUnits(itemID)
   local units = {}
   for i = 1, n do
     local r = C_AuctionHouse.GetCommoditySearchResultInfo(itemID, i)
+    -- Sell speed research (/fl debug): what one search result tells us, once a session.
+    if r and i == 1 and ns.db.settings.debug and not ns.commodityProbed then
+      ns.commodityProbed = true
+      ns:Debug("Listing details (search):", "time left", tostring(r.timeLeftSeconds), "s, auction",
+        tostring(r.auctionID), ", sellers", tostring(r.totalNumberOfOwners), ", quantity", tostring(r.quantity))
+    end
     if r and r.unitPrice then units[#units + 1] = { r.unitPrice, r.quantity or 1 } end
   end
   return units, n
@@ -826,6 +832,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   -- number in its link) so tooltips can price the exact version (Gillee's AH video).
   local isGear, getLink = {}, C_AuctionHouse.GetReplicateItemLink
   local samples = 0
+  local probe = ns.db.settings.debug and { owner = 0, bands = {}, tl = C_AuctionHouse.GetReplicateItemTimeLeft } or nil
   local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
   local function suffixOf(idx, itemID)
     if not (getLink and instant) then return end
@@ -862,7 +869,17 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   local function chunk()
     local stop = math.min(i + 2000, n)
     for idx = i, stop - 1 do
-      local _, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = C_AuctionHouse.GetReplicateItemInfo(idx)
+      local _, _, count, _, _, _, _, _, _, buyout, _, _, _, owner, ownerFull, _, itemID = C_AuctionHouse.GetReplicateItemInfo(idx)
+      -- Sell speed research (/fl debug): does a full scan say how long each listing has
+      -- left, and who listed it? Either would tell sold-early apart from expired.
+      if probe then
+        if owner and owner ~= "" or ownerFull and ownerFull ~= "" then probe.owner = probe.owner + 1 end
+        if probe.tl then
+          local ok, band = pcall(probe.tl, idx)
+          band = ok and band or "?"
+          probe.bands[band] = (probe.bands[band] or 0) + 1
+        end
+      end
       if itemID and buyout and buyout > 0 then
         count = math.max(count or 1, 1)
         local t = byItem[itemID]
@@ -888,6 +905,13 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       -- For checking gear versions (/fl debug): did the scan see any "of the Eagle" listings?
       ns:Debug(("Gear versions: %d listings with random stats across %d items (link function: %s)."):format(
         versions, gearWith, getLink and "yes" or "missing"))
+      if probe then
+        local bands = {}
+        for b, c in pairs(probe.bands) do bands[#bands + 1] = tostring(b) .. "=" .. c end
+        table.sort(bands)
+        ns:Debug(("Listing details: seller name on %d of %d; time left %s."):format(probe.owner, n,
+          probe.tl and (#bands > 0 and table.concat(bands, ", ") or "none read") or "function missing"))
+      end
       ns.db.lastFullScan = time()
       readingFull = false
       if not ahOpen then ns.neutralAH = nil end
