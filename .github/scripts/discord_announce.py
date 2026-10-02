@@ -84,7 +84,7 @@ embed = {
     "url": url,
     "color": 0xB9A2FF,
     "description": description,
-    "thumbnail": {"url": "https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/icon-discord.png"},
+    "thumbnail": {"url": "https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/icon.png"},
 }
 content = ""
 if role:
