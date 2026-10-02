@@ -129,6 +129,7 @@ function ns:FindItemsByName(text, max)
   end
   return out
 end
+ns.FindItemsByName = ns.Timed("Item name search", ns.FindItemsByName)
 
 -- How many you have of an item on this character, bags and bank.
 function ns:HaveCount(id)
@@ -178,9 +179,25 @@ function ns:RecipeFor(id)
   return { r = mats, oq = c[1], prof = c[2], skill = c[3], classic = true }
 end
 
+-- "Any price" (owner, October 2: "times where you just have to eat the costs", raids):
+-- buy the cheapest ones there are, but never more than 3 times the usual price when we
+-- know it, so a joke listing at 999g can't be bought by a wheel tick.
+local ANY_CAP = 3
+function ns:AnyPriceLimit(id)
+  local stats = ns.PriceStats and ns:PriceStats(id, "month")
+  local usual = stats and stats.points >= 3 and stats.usual
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  local now = rec and not rec.none and (rec.a or rec.m)
+  local base = usual or now
+  if not base then return math.huge end
+  return math.floor(math.max(base * ANY_CAP, rec and rec.m or 0))
+end
+
 -- The most to pay for a material by default: its usual (typical) price from your scans,
 -- else the average of the cheapest listings. You can type your own on the list.
+-- Second value: true if you typed it, "any" for any price.
 function ns:MaterialLimit(list, id)
+  if list.anyPrice or (list.matMax and list.matMax[id] == -1) then return ns:AnyPriceLimit(id), "any" end
   if list.matMax and list.matMax[id] then return list.matMax[id], true end
   local stats = ns.PriceStats and ns:PriceStats(id, "month")
   if stats and stats.points >= 3 and stats.usual then return math.floor(stats.usual), false end
@@ -231,18 +248,22 @@ function ns:ShoppingTargets()
   for _, list in ipairs(data().lists) do
     if list.on then
       for _, e in ipairs(list.items) do
-        if e.mode ~= "craft" and (e.max or 0) > 0 and not seen[e.id] then
-          local want = e.qty and math.max(0, e.qty - ns:HaveCount(e.id)) or nil
+        local max = list.anyPrice and -1 or (e.max or 0)
+        if e.mode ~= "craft" and max ~= 0 and not seen[e.id] then
+          -- Any price needs a number: without one, just one.
+          local qty = e.qty or (max == -1 and 1 or nil)
+          local want = qty and math.max(0, qty - ns:HaveCount(e.id)) or nil
           if want ~= 0 then
             seen[e.id] = true
-            out[#out + 1] = { id = e.id, limit = e.max, want = want, list = list.name }
+            out[#out + 1] = { id = e.id, limit = max == -1 and ns:AnyPriceLimit(e.id) or max, any = max == -1,
+              want = want, list = list.name }
           end
         end
       end
       for _, m in ipairs((ns:ListMaterials(list))) do
         if m.buy > 0 and not m.vendor and m.limit and not seen[m.id] then
           seen[m.id] = true
-          out[#out + 1] = { id = m.id, limit = m.limit, want = m.buy, list = list.name }
+          out[#out + 1] = { id = m.id, limit = m.limit, any = m.own == "any", want = m.buy, list = list.name }
         end
       end
     end

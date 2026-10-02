@@ -26,6 +26,12 @@ local BUY_BUTTON = "ForeverLedgerBuyNext"
 
 local function S() return ns.db.settings.buyQueue end
 local function money(c) return ns.Money(math.floor((c or 0) + 0.5)) end
+-- An entry's limit as words: "any price" ones say so (and how high they'd go).
+local function limitText(e)
+  if not e.any then return money(e.limit) end
+  if e.limit == math.huge then return "any price" end
+  return "any price (at most " .. money(e.limit) .. ", 3 times usual)"
+end
 
 local REASONS = {
   list = { badge = "LIST", color = "b9a2ff" },
@@ -79,7 +85,7 @@ local function buildQueue()
   if s.lists then
     for _, t in ipairs(ns:ShoppingTargets()) do
       local n, avg = ns:CheapListings(t.id, t.limit)
-      local e = { id = t.id, limit = t.limit, reason = "list", list = t.list, want = t.want, n = n, cost = avg }
+      local e = { id = t.id, limit = t.limit, any = t.any, reason = "list", list = t.list, want = t.want, n = n, cost = avg }
       if n == 0 then e.waiting = true; waiting[#waiting + 1] = e else add(e) end
     end
   end
@@ -243,7 +249,7 @@ local function planCommodity()
   end
   if qty == 0 then
     if n == 0 and not full then return end   -- more results on the way
-    finishTarget(("none left at %s or less."):format(money(e.limit)))
+    finishTarget(("none left at %s or less."):format(limitText(e)))
     return
   end
   Q.plan = { kind = "commodity", qty = qty, cost = cost }
@@ -274,7 +280,7 @@ local function planItem(key)
       return
     end
     finishTarget(stacks > 0 and ("%d listed as stacks: buy those on the page."):format(stacks)
-      or ("none left at %s or less."):format(money(e.limit)))
+      or ("none left at %s or less."):format(limitText(e)))
     return
   end
   Q.plan = { kind = "item", auctionID = best.auctionID, price = best.buyoutAmount, key = key, count = count }
@@ -329,7 +335,7 @@ ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
   end
   if #keys == 0 then
     if AH.HasFullBrowseResults and not AH.HasFullBrowseResults() then return end
-    finishTarget(("none left at %s or less."):format(money(e.limit)))
+    finishTarget(("none left at %s or less."):format(limitText(e)))
     return
   end
   Q.keys = keys
@@ -438,7 +444,7 @@ local function reasonLine(e)
   if e.reason == "de" then return ("Disenchant: worth about %s."):format(money(e.worth)) end
   if e.reason == "deal" then return ("Below its usual price: resells for about %s."):format(money(e.worth)) end
   if e.reason == "list" then
-    return ("Shopping list %s: up to %s%s."):format(e.list or "", money(e.limit),
+    return ("Shopping list %s: up to %s%s."):format(e.list or "", limitText(e),
       e.want and (", %d more wanted"):format(e.want) or "")
   end
   return ""
@@ -455,7 +461,7 @@ local function statusText()
   if st == "browse" or st == "search" then return "Looking for " .. name .. "...", reasonLine(e), "..." end
   if st == "ready" and p and p.kind == "commodity" then
     return ("Buy %d %s for %s"):format(p.qty, name, money(p.cost)),
-      ("%s each, up to %s. "):format(money(p.cost / p.qty), money(e.limit)) .. reasonLine(e), "Buy"
+      ("%s each, up to %s. "):format(money(p.cost / p.qty), limitText(e)) .. reasonLine(e), "Buy"
   end
   if st == "price" then return "Getting the final price for " .. name .. "...", "", "..." end
   if st == "confirm" and p then
@@ -464,7 +470,7 @@ local function statusText()
   end
   if st == "ready" and p and p.kind == "item" then
     return ("Buy %s for %s"):format(name, money(p.price)),
-      ("%d at or under %s. "):format(p.count, money(e.limit)) .. reasonLine(e), "Buy"
+      ("%d at or under %s. "):format(p.count, limitText(e)) .. reasonLine(e), "Buy"
   end
   if st == "buying" then return "Buying " .. name .. "...", "", "..." end
   local ready, waiting = 0, 0
@@ -645,7 +651,7 @@ refreshQueue = function()
     r.name:SetText(e.waiting and ("|cff888888" .. ns.ItemName(e.id) .. "|r") or ns.ItemName(e.id))
     local rs = REASONS[e.reason]
     r.why:SetText(e.waiting and "|cff888888WAIT|r" or ("|cff%s%s|r"):format(rs.color, rs.badge))
-    r.limit:SetText(money(e.limit))
+    r.limit:SetText(e.any and "any" or money(e.limit))
     r.n:SetText(e.waiting and "0" or (e.n and tostring(e.n) or "?"))
     if e.waiting then
       local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
@@ -704,7 +710,12 @@ local function addFromBox(v)
     ns:Print("Couldn't find that item. Shift-click it from your bags or a chat link, drag it here, or type its exact name.")
     return
   end
-  local max = ns.ParseMoney(v.max:GetText()) or 0
+  local max = ns.ParseMoneyLoose(v.max:GetText(), "g")
+  if not max then
+    ns:Print("Couldn't read that price. Try 2g 50s, 1.5g, 25s, 75c, a plain number for gold, or any.")
+    v.max:SetFocus()
+    return
+  end
   local qty = tonumber(v.qty:GetText())
   ns:AddToShoppingList(list, id, max, qty and qty > 0 and math.floor(qty) or nil)
   v.add:SetText("")
@@ -775,8 +786,24 @@ local function buildListsView(parent)
     if list then list.on = self:GetChecked(); Q.built = 0 end
   end)
   v.on:SetPoint("TOPLEFT", 12, -40)
-  v.on:SetHitRectInsets(0, -300, 0, 0)
-  v.on.label:SetText("Use this list in the buy queue")
+  v.on:SetHitRectInsets(0, -170, 0, 0)
+  v.on.label:SetText("Use in the buy queue")
+
+  -- Any price: the list is what you need, whatever it costs (raid prep).
+  v.any = T:Check(v, function(self)
+    local list = currentList()
+    if list then list.anyPrice = self:GetChecked() or nil; Q.built = 0; refreshLists() end
+  end)
+  v.any:SetPoint("TOPLEFT", 200, -40)
+  v.any:SetHitRectInsets(0, -170, 0, 0)
+  v.any.label:SetText("Any price (just what I need)")
+  v.any:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Any price", 1, 1, 1)
+    GameTooltip:AddLine("For lists where you just need the items, like raid prep: prices are ignored and the buy queue buys the cheapest ones until you have the number you want (1 if no number is set). It never pays more than 3 times an item's usual price, so a joke listing can't slip in. Type any in one item's price for just that item.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  v.any:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   -- Add an item: shift-click, drag, or type its name; the most you'd pay; how many.
   v.add = hinted(v, 196, "Shift-click, drag or type an item", "LEFT")
@@ -856,6 +883,8 @@ local function buildListsView(parent)
   v.add:SetScript("OnMouseDown", function() if GetCursorInfo() then drop() end end)
   v:SetScript("OnReceiveDrag", drop)
   v.max = hinted(v, 70, "max each")
+  v.max.allowAny = true
+  T:MoneyPreview(v.max, "g")
   v.max:SetPoint("LEFT", v.add, "RIGHT", 4, 0)
   v.max:SetScript("OnEnterPressed", function() addFromBox(v) end)
   v.qty = hinted(v, 44, "want")
@@ -988,11 +1017,11 @@ local function listRow(i)
       local list = currentList()
       if list then
         list.matMax = list.matMax or {}
-        list.matMax[r.mat.id] = value > 0 and value or nil
+        list.matMax[r.mat.id] = value ~= 0 and value or nil
       end
     end
     Q.built = 0
-  end)
+  end, "g", true)
   r.max:SetWidth(64)
   r.max:SetPoint("LEFT", C.max, 0)
   r.maxText = T:Text(r, 11, T.section)
@@ -1096,6 +1125,8 @@ refreshLists = function()
   for _, b in ipairs(v.listButtons) do b:SetEnabled(list ~= nil) end
   v.on:SetChecked(list and list.on)
   v.on:SetShown(list ~= nil)
+  v.any:SetChecked(list and list.anyPrice)
+  v.any:SetShown(list ~= nil)
 
   -- What to show: the list's items, then the materials for its Craft items.
   local show = {}
@@ -1133,13 +1164,14 @@ refreshLists = function()
       r.max:SetTextColor(1, 1, 1, 1)
       r.mode:SetText(craft and "Craft" or "Buy")
       r.mode:SetSelected(craft)
-      r.max:SetShown(not craft)
-      r.maxText:SetShown(craft)
-      r.maxText:SetText("crafted")
+      local any = list.anyPrice or e.max == -1
+      r.max:SetShown(not craft and not list.anyPrice)
+      r.maxText:SetShown(craft or list.anyPrice)
+      r.maxText:SetText(craft and "crafted" or "any")
       if not craft and not r.max:HasFocus() then r.max:SetValue(e.max or 0) end
       if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
       r.have:SetText(tostring(ns:HaveCount(e.id)))
-      local text, ok = nowText(e.id, not craft and e.max or nil)
+      local text, ok = nowText(e.id, not craft and (any and ns:AnyPriceLimit(e.id) or e.max) or nil)
       r.now:SetText(text)
       if ok then cheap = cheap + 1 end
     elseif s.kind == "mat" then
@@ -1148,11 +1180,11 @@ refreshLists = function()
       r.icon:SetTexture(ns:ItemIcon(m.id))
       r.name:SetText(ns.ItemName(m.id))
       r.kindText:SetText("for craft")
-      r.max:SetShown(not m.vendor)
-      r.maxText:SetShown(m.vendor ~= nil)
-      r.maxText:SetText("vendor")
-      if not m.vendor and not r.max:HasFocus() then
-        r.max:SetValue(m.limit or 0)
+      r.max:SetShown(not m.vendor and not list.anyPrice)
+      r.maxText:SetShown(m.vendor ~= nil or list.anyPrice)
+      r.maxText:SetText(m.vendor and "vendor" or "any")
+      if not m.vendor and not list.anyPrice and not r.max:HasFocus() then
+        r.max:SetValue(m.own == "any" and -1 or m.limit or 0)
         r.max:SetTextColor(1, 1, 1, m.own and 1 or 0.55)   -- grey: the usual price, not one you typed
       end
       r.need:SetText(m.buy > 0 and ("|cffffd100%d|r"):format(m.need) or ("|cff7fd39c%d|r"):format(m.need))
@@ -1180,7 +1212,9 @@ refreshLists = function()
     v.info:SetText("Open the auction house to search and buy.")
   else
     local noPrice = 0
-    for _, e in ipairs(list.items) do if e.mode ~= "craft" and (e.max or 0) == 0 then noPrice = noPrice + 1 end end
+    for _, e in ipairs(list.items) do
+      if e.mode ~= "craft" and (e.max or 0) == 0 and not list.anyPrice then noPrice = noPrice + 1 end
+    end
     if noPrice > 0 then
       v.info:SetText(("%d %s no price: set Most each so the buy queue buys %s."):format(noPrice,
         noPrice == 1 and "item has" or "items have", noPrice == 1 and "it" or "them"))

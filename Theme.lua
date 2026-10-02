@@ -165,18 +165,52 @@ function T:Number(parent, opts, onChange)
   return f
 end
 
--- An amount of money typed as "1g 50s", "25s" or "75c". 0 shows as "off".
-function T:MoneyBox(parent, onChange)
+-- While typing a price, a small tip shows what it will be saved as ("= 2g 50s").
+function T:MoneyPreview(eb, plainUnit)
+  eb:HookScript("OnTextChanged", function(self, userInput)
+    if not userInput then return end
+    local v = ns.ParseMoneyLoose(self:GetText(), plainUnit)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    if v == -1 then
+      GameTooltip:AddLine("= any price", 1, 1, 1)
+    elseif v then
+      GameTooltip:AddLine("= " .. (v > 0 and ns.Money(v) or "off"), 1, 1, 1)
+    else
+      GameTooltip:AddLine("Not a price yet", 1, 0.5, 0.5)
+    end
+    GameTooltip:AddLine(("Enter saves. Examples: 2g 50s, 1.5g, 25s, 75c%s%s."):format(
+      plainUnit == "g" and ", or 3 for 3g" or "", self.allowAny and ", any" or ""), 0.7, 0.7, 0.7, true)
+    GameTooltip:Show()
+  end)
+  eb:HookScript("OnEditFocusLost", function() GameTooltip:Hide() end)
+end
+
+-- An amount of money. Type it any way ("2g 50s", "1.5g", "25s", a plain number in
+-- plainUnit); it's tidied up when you press Enter or click away. 0 shows as "off".
+-- allowAny: "any" is accepted (-1), for shopping lists.
+function T:MoneyBox(parent, onChange, plainUnit, allowAny)
   local eb = editBox(parent, 100)
-  local function show(v) eb:SetText((v or 0) > 0 and ns.MoneyPlain(v) or "off") end
+  eb.allowAny = allowAny
+  local function show(v)
+    v = v or 0
+    eb:SetText((v < 0 and "any") or (v > 0 and ns.MoneyPlain(v)) or "off")
+  end
   function eb:SetValue(v) self.value = v; show(v) end
   eb:SetScript("OnEscapePressed", function(self) show(self.value); self:ClearFocus() end)
+  -- Clicking in selects what's there, so typing replaces it.
+  eb:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
   eb:SetScript("OnEditFocusLost", function(self)
-    local text = self:GetText():lower()
-    local v = (text == "off" or text == "") and 0 or ns.ParseMoney(text)
-    if v and v ~= self.value then self.value = v; onChange(v) end
+    local v = ns.ParseMoneyLoose(self:GetText(), plainUnit)
+    if v == -1 and not allowAny then v = nil end
+    if not v then
+      ns:Print(("Couldn't read that price. Try 2g 50s, 1.5g, 25s or 75c%s."):format(allowAny and ", or any" or ""))
+    elseif v ~= self.value then
+      self.value = v
+      onChange(v)
+    end
     show(self.value)
   end)
+  T:MoneyPreview(eb, plainUnit)
   return eb
 end
 

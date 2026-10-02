@@ -1,4 +1,6 @@
 local ADDON, ns = ...
+-- When the addon's files started loading (Core.lua is first), for /fl perf.
+ns.loadStart = debugprofilestop and debugprofilestop() or nil
 do
   local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
   local ok, v = pcall(getMeta, ADDON, "Version")
@@ -110,6 +112,28 @@ function ns.ParseMoney(s)
   return total
 end
 
+-- Forgiving price input for boxes you type in (owner, October 2: forcing "2s 40c" felt
+-- buggy). Takes "2g 50s", "2g50s", "1.5g", "2.5s", "75c", "2,5g", a plain number in
+-- plainUnit ("g", "s" or "c", default copper), "off" or empty (0), and "any" (-1).
+-- nil if it can't be read.
+function ns.ParseMoneyLoose(s, plainUnit)
+  s = (s or ""):lower():gsub(",", "."):gsub("^%s+", ""):gsub("%s+$", "")
+  if s == "" or s == "off" or s == "none" or s == "0" then return 0 end
+  if s == "any" or s == "*" then return -1 end
+  local n = tonumber(s)
+  if n then
+    if n < 0 then return nil end
+    return math.floor(n * ((plainUnit == "g" and 10000) or (plainUnit == "s" and 100) or 1) + 0.5)
+  end
+  local total, found = 0, false
+  local rest = s:gsub("(%d*%.?%d+)%s*([gsc])", function(num, unit)
+    found = true
+    total = total + tonumber(num) * ((unit == "g" and 10000) or (unit == "s" and 100) or 1)
+    return ""
+  end)
+  if found and rest:gsub("[%s%a]", "") == "" and not rest:find("%d") then return math.floor(total + 0.5) end
+end
+
 function ns.ItemIDFromLink(link)
   if type(link) ~= "string" then return nil end
   return tonumber(link:match("item:(%d+)"))
@@ -209,6 +233,17 @@ function ns:PrintPerf(reset)
     local r = rows[i]
     print(("  %s: slowest %.0f ms, %d times, %.0f ms total"):format(r.label, r.p.max, r.p.n, r.p.ms))
   end
+  -- Memory and loading, to see whether the data files (ClassicItems.lua) cost much.
+  local update = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or UpdateAddOnMemoryUsage
+  local usage = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or GetAddOnMemoryUsage
+  if update and usage then
+    pcall(update)
+    local ok, kb = pcall(usage, ADDON)
+    if ok and kb then print(("  Memory: %.1f MB"):format(kb / 1024)) end
+  end
+  if ns.loadMs then
+    print(("  Loading the addon's files took %.0f ms, setting up saved data %.0f ms."):format(ns.loadMs, ns.readyMs or 0))
+  end
 end
 
 ns.readyCallbacks = {}
@@ -216,6 +251,8 @@ function ns:OnReady(fn) table.insert(ns.readyCallbacks, fn) end
 
 ns:On("ADDON_LOADED", function(name)
   if name ~= ADDON then return end
+  local t = clock()
+  if ns.loadStart then ns.loadMs = t - ns.loadStart end
   ForeverLedgerDB = ForeverLedgerDB or {}
   copyDefaults(DEFAULTS, ForeverLedgerDB)
   ns.db = ForeverLedgerDB
@@ -223,6 +260,7 @@ ns:On("ADDON_LOADED", function(name)
     local ok, err = pcall(fn)
     if not ok then geterrorhandler()(err) end
   end
+  ns.readyMs = clock() - t
 end)
 
 ---------------------------------------------------------------------------
