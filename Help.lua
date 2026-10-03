@@ -139,14 +139,15 @@ ns.HELP_FAQ = {
 
 ---------------------------------------------------------------------------
 -- The Help tab: a list of topics on the left, the chosen topic on the right (its
--- entries, then its questions). The choice is kept in settings.helpTopic.
+-- entries, then its questions). Opens on the first topic each time (owner, October 3:
+-- no need to remember the last one; ns.helpTopic, set back by UI.lua's setView).
 ---------------------------------------------------------------------------
 local TOPIC_W = 170
 local NAV_W = 170
 local hv
 
 local function topicIndex()
-  local want = ns.db.settings.helpTopic
+  local want = ns.helpTopic
   for i, s in ipairs(ns.HELP) do if s[1] == want then return i end end
   return 1
 end
@@ -165,7 +166,7 @@ function ns:BuildHelp(parent)
   hv.navSf, hv.nav = navSf, nav
   for i, section in ipairs(ns.HELP) do
     local b = T:Button(nav, section[1], NAV_W - 16, function()
-      ns.db.settings.helpTopic = section[1]
+      ns.helpTopic = section[1]
       ns:RefreshHelp()
       hv.sf:SetVerticalScroll(0)
     end, 21)

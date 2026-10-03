@@ -252,6 +252,7 @@ end
 setView = function(view)
   main.view = view
   main.lastRefresh = nil   -- a tab you clicked draws at once
+  if view == "help" then ns.helpTopic = nil end   -- Help opens on Getting started
   for key, tab in pairs(main.tabs) do tab:SetSelected(key == view) end
   local shown = main.views[view]
   for _, v in pairs(main.views) do v:SetShown(v == shown) end
