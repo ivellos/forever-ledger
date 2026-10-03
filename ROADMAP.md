@@ -15,6 +15,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
 - **Shopping list rules**: besides single items, rules like "green armor up to 4s" or "level 29 BoE gear for rogues", and importing Auctionator shopping lists.
+- **Watch list and rare finds**: a list of items you're after (a rare appearance, a BoE epic) with the most you'd pay, checked on every scan; plus alerts for items that are almost never listed and for valuable items listed well under their usual price.
 - **Your auctions**: undercut and sold alerts for what you've listed, with the price to repost at.
 - **Vendor or auction house?**: on the Sell tab, what each item in your bags would net on the auction house after the cut and deposit against what a vendor pays, with a one-click list to vendor the rest.
 - **Deals per stat version**: judge "of the Monkey" against other Monkey versions, not the item as a whole.
