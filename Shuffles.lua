@@ -171,7 +171,12 @@ end
 
 function ns:VendorFlip(id)
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
-  local sell = rec and rec.m and not rec.none and ns:GetSellPrice(id)
+  if not (rec and rec.m and not rec.none) then return end
+  -- A quick look at the vendor price first: the full check reads the item's tooltip (can
+  -- vendors buy it?), which over every listed item took up to 210 ms (/fl perf, October 3).
+  local raw = select(11, ns.GetItemInfo(id)) or ns.db.vendorSell[id]
+  if raw and raw <= rec.m then return end
+  local sell = ns:GetSellPrice(id)
   if not (sell and sell > rec.m) or ns:GetVendorBuyPrice(id) then return end
   local maxBuy = ns:VendorFlipLimit(sell)
   local n, avg = ns:CheapListings(id, maxBuy)
