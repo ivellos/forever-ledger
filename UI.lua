@@ -420,6 +420,8 @@ local SETTINGS = {
     help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by (and, in the first day, at least 3 sales)." },
   { key = "tipQuest", label = "Quests that need it", kind = "check",
     help = "Quests that ask for the item (original Classic quests; Forever may have changed some), and \"keep it\" when this character will want it later." },
+  { key = "tipQuestMine", label = "  Only quests this character still needs", kind = "check",
+    help = "Leaves out quests this character has done, ones grey for its level, and other classes' quests. Off: all of them, marked (done), (too low) or (other class), handy when selling to others." },
   { key = "tipWorth", label = "Worth to you", kind = "check" },
   { key = "tipBuy", label = "Buy at or below", kind = "check" },
   { key = "tipDisenchant", label = "Disenchants to", kind = "check" },

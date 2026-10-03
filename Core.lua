@@ -47,7 +47,7 @@ local DEFAULTS = {
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
     -- wheel starts off so nobody buys by accident (owner, October 2).
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = false, tab = "queue" },
-    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true },
+    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true },
 }
 
 local function copyDefaults(src, dst)
@@ -494,6 +494,8 @@ function ns:ApiReport()
     "GetNumLootItems", "GetLootSlotInfo", "GetLootSlotLink", "GetLootSourceInfo", "C_Container.GetContainerNumSlots",
     "GetNumTrainerServices", "GetTrainerServiceInfo", "GetTrainerServiceSkillReq", "GetTrainerServiceCost",
     "C_Map.GetBestMapForUnit", "C_Map.SetUserWaypoint",
+    "C_QuestLog.GetAllCompletedQuestIDs", "GetQuestsCompleted", "C_QuestLog.GetTitleForQuestID",
+    "C_QuestLog.RequestLoadQuestByID", "GetQuestGreenRange",
     "C_ChatInfo.SendAddonMessage", "C_ChatInfo.RegisterAddonMessagePrefix", "ChatFrame_AddMessageEventFilter",
     "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
     -- Buy queue (BuyQueue.lua): buying needs these, each from a click or a mouse wheel tick.

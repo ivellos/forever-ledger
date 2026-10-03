@@ -111,8 +111,94 @@ local function build()
   if #missing > 0 then ns:Debug("Quest items not in the Classic list:", table.concat(missing, ", ")) end
 end
 
+---------------------------------------------------------------------------
+-- Quests this character has done (owner, October 3: hide them). The game lists the
+-- numbers of completed quests; their names come from the game's quest data, which may
+-- have to load first. Only names on the list above are kept, per character:
+-- chars[key].questsDone = { [quest name, lower case] = true }.
+---------------------------------------------------------------------------
+local wanted   -- [quest name, lower case] = true
+local function wantedNames()
+  if not wanted then
+    wanted = {}
+    for _, q in ipairs(QUESTS) do wanted[q[1]:lower()] = true end
+  end
+  return wanted
+end
+
+local function doneTable()
+  local c = ns.db and ns.db.chars[ns.CharKey()]
+  if not c then return {} end
+  c.questsDone = c.questsDone or {}
+  return c.questsDone
+end
+
+local function noteTitle(title)
+  if title and wantedNames()[title:lower()] then doneTable()[title:lower()] = true end
+end
+
+local loading = {}   -- [questID] = true while its name loads
+local function titleOf(questID)
+  local get = C_QuestLog and C_QuestLog.GetTitleForQuestID
+  local ok, title = pcall(get or error, questID)
+  if ok and title and title ~= "" then return title end
+  if C_QuestLog and C_QuestLog.RequestLoadQuestByID then
+    loading[questID] = true
+    pcall(C_QuestLog.RequestLoadQuestByID, questID)
+  end
+end
+
+ns:On("QUEST_DATA_LOAD_RESULT", function(questID, success)
+  if not (questID and loading[questID]) then return end
+  loading[questID] = nil
+  if success then noteTitle(titleOf(questID)) end
+end)
+
+-- Once a session, a little at a time: every completed quest's name.
+local function readCompleted()
+  local ids = {}
+  if C_QuestLog and C_QuestLog.GetAllCompletedQuestIDs then
+    local ok, list = pcall(C_QuestLog.GetAllCompletedQuestIDs)
+    if ok and type(list) == "table" then ids = list end
+  elseif GetQuestsCompleted then
+    local ok, set = pcall(GetQuestsCompleted)
+    if ok and type(set) == "table" then for id in pairs(set) do ids[#ids + 1] = id end end
+  end
+  local i = 0
+  local function step()
+    for _ = 1, 50 do
+      i = i + 1
+      local id = ids[i]
+      if not id then
+        ns:Debug("Quests done read:", #ids, "completed quests, of which on the quest-items list:", (function()
+          local n = 0
+          for _ in pairs(doneTable()) do n = n + 1 end
+          return n
+        end)())
+        return
+      end
+      noteTitle(titleOf(id))
+    end
+    C_Timer.After(0.1, step)
+  end
+  step()
+end
+ns:OnReady(function() C_Timer.After(15, readCompleted) end)
+ns:On("QUEST_TURNED_IN", function(questID) if questID then noteTitle(titleOf(questID)) end end)
+
+-- How many levels below you a quest turns grey (the game's green range).
+local function greenRange(level)
+  if GetQuestGreenRange then
+    local ok, r = pcall(GetQuestGreenRange)
+    if ok and type(r) == "number" and r > 0 then return r end
+  end
+  -- Classic's rule when the game doesn't say: 5 levels at low level, growing to 10.
+  return level <= 5 and 5 or math.min(10, 5 + math.floor(level / 10))
+end
+
 -- Quests that need this item, for your faction: { { quest, where, level, count, class,
--- keep = true if this character will want it later }, ... }, or nil.
+-- keep = true if this character will want it later, mine = false if it's done, grey or
+-- another class's }, ... }, or nil.
 function ns:QuestNeeds(id)
   if not byItem then build() end
   local list = id and byItem[id]
@@ -120,12 +206,18 @@ function ns:QuestNeeds(id)
   local mine = (UnitFactionGroup("player") or ""):sub(1, 1)
   local level = UnitLevel("player") or 1
   local _, class = UnitClass("player")
+  local done = doneTable()
+  local grey = level - greenRange(level)
   local out = {}
   for _, q in ipairs(list) do
     if q.faction == "B" or q.faction == mine then
       local copy = {}
       for k, v in pairs(q) do copy[k] = v end
-      copy.keep = level <= q.level and (not q.class or q.class == class)
+      copy.done = done[q.quest:lower()] or false
+      copy.grey = q.level <= grey
+      copy.otherClass = q.class ~= nil and q.class ~= class
+      copy.mine = not (copy.done or copy.grey or copy.otherClass)
+      copy.keep = copy.mine and level <= q.level
       out[#out + 1] = copy
     end
   end
@@ -137,12 +229,16 @@ function ns:QuestLines(id, compact)
   local needs = ns:QuestNeeds(id)
   if not needs then return end
   local lines, more = {}, 0
+  -- Settings, Tooltips: only quests this character still has ahead (on by default).
+  local onlyMine = ns.db.settings.tipQuestMine ~= false
   for _, q in ipairs(needs) do
-    if not compact or q.keep then
+    if (not compact or q.keep) and (q.mine or not onlyMine) then
       if #lines < 3 then
         lines[#lines + 1] = {
-          text = ("Quest: %s (%s, level %d%s), needs %d"):format(q.quest, q.where, q.level,
-            q.class and (", " .. q.class:sub(1, 1) .. q.class:sub(2):lower()) or "", q.count),
+          text = ("Quest: %s (%s, level %d%s), needs %d%s"):format(q.quest, q.where, q.level,
+            q.class and (", " .. q.class:sub(1, 1) .. q.class:sub(2):lower()) or "", q.count,
+            q.done and " |cff888888(done)|r" or q.grey and " |cff888888(too low)|r"
+              or q.otherClass and " |cff888888(other class)|r" or ""),
           keep = q.keep,
         }
       else
@@ -151,7 +247,7 @@ function ns:QuestLines(id, compact)
     end
   end
   if more > 0 then lines[#lines + 1] = { text = ("and %d more %s"):format(more, more == 1 and "quest" or "quests") } end
-  return lines
+  return #lines > 0 and lines or nil
 end
 
 -- For the Deals tab: leveling players need it for a quest (any faction).
