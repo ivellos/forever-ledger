@@ -383,19 +383,26 @@ function ns:BuildDashboard(parent)
   return f
 end
 
--- Character buttons: All plus one per character, rebuilt when characters change.
+-- The character list for dropdowns (Dashboard, Ledger): All, then the character you're
+-- on, then the rest by name (owner, October 3: a button each didn't fit).
+function ns:CharacterOptions()
+  local me = ns.CharKey()
+  local others = {}
+  for k in pairs(ns.db.chars) do if k ~= me then others[#others + 1] = k end end
+  local function name(k) return (ns.db.chars[k] and ns.db.chars[k].name) or k end
+  table.sort(others, function(a, b) return name(a):lower() < name(b):lower() end)
+  local opts = { { value = "all", label = "All characters" } }
+  if ns.db.chars[me] then opts[#opts + 1] = { value = me, label = name(me) .. " (this one)" } end
+  for _, k in ipairs(others) do opts[#opts + 1] = { value = k, label = name(k) } end
+  return opts
+end
+
 local function charChoice(f)
-  local keys = {}
-  for k in pairs(ns.db.chars) do keys[#keys + 1] = k end
-  table.sort(keys)
-  local sig = table.concat(keys, ",")
-  if f.charSig == sig then return end
-  if f.charChoice then f.charChoice:Hide() end
-  local opts = { { value = "all", label = "All" } }
-  for _, k in ipairs(keys) do opts[#opts + 1] = { value = k, label = ns.db.chars[k].name or k } end
-  f.charChoice = T:Choice(f, opts, function(v) settings().char = v; ns:RefreshDashboard(f) end)
-  f.charChoice:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
-  f.charSig = sig
+  if not f.charChoice then
+    f.charChoice = T:Dropdown(f, 200, function(v) settings().char = v; ns:RefreshDashboard(f) end)
+    f.charChoice:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
+  end
+  f.charChoice:SetOptions(ns:CharacterOptions())
 end
 
 function ns:RefreshDashboard(f)
@@ -409,7 +416,11 @@ function ns:RefreshDashboard(f)
   -- Layout for the current size
   local W, H = f:GetWidth(), f:GetHeight()
   local top = 32
-  local graphH = math.max(110, math.floor((H - top) * 0.34))
+  -- The graph takes whatever the boxes and sessions don't need, so a bigger window
+  -- shows a bigger graph instead of empty space (owner, October 3). Sessions get a
+  -- fifth of the height, at least four lines.
+  local sessionsH = math.max(70, math.floor(H * 0.2))
+  local graphH = math.max(110, H - top - 10 - 76 - 98 - sessionsH)
   f.graph:ClearAllPoints()
   f.graph:SetPoint("TOPLEFT", 0, -top)
   f.graph:SetSize(W, graphH)
@@ -476,7 +487,7 @@ function ns:RefreshDashboard(f)
       ns.db.session.name, st.runs, money(st.profit), dim("/fl session to open it"))
   end
   local list = ns.db.sessions
-  for i = #list, math.max(1, #list - 3), -1 do
+  for i = #list, math.max(1, #list - 20), -1 do   -- as many as fit (trimmed below)
     local x = list[i]
     lines[#lines + 1] = ("%s  %s: %d runs in %d min, profit %s"):format(dim(date("%b %d %H:%M", x.t)),
       x.name, x.runs, math.floor((x.stop - x.t) / 60), money(x.earned - x.spent))

@@ -330,5 +330,85 @@ function T:Scroll(parent)
   return sf, content
 end
 
+-- A dropdown: a button showing the choice, and a list under it (scrolls past 12).
+-- SetOptions({ { value, label }, ... }), SetValue(value); onChange(value) on a pick.
+-- The list is drawn above everything (the shopping list menu showed buttons through it).
+function T:Dropdown(parent, width, onChange)
+  local d = T:Button(parent, "", width, nil, 22)
+  d.options = {}
+  d:GetFontString():ClearAllPoints()
+  d:GetFontString():SetPoint("LEFT", 8, 0)
+  d:GetFontString():SetPoint("RIGHT", -18, 0)
+  d:GetFontString():SetJustifyH("LEFT")
+  local arrow = T:Text(d, 11, T.dim)
+  arrow:SetPoint("RIGHT", -6, 0)
+  arrow:SetText("v")
+  local menu = CreateFrame("Frame", nil, d)
+  menu:SetPoint("TOPLEFT", d, "BOTTOMLEFT", 0, -2)
+  menu:SetWidth(width)
+  menu:SetFrameStrata("FULLSCREEN_DIALOG")
+  menu:SetToplevel(true)
+  menu:EnableMouse(true)
+  T:Fill(menu, { 0.05, 0.05, 0.05, 0.98 })
+  T:Border(menu)
+  menu.sf, menu.content = T:Scroll(menu)
+  menu.sf:SetPoint("TOPLEFT", 2, -2)
+  menu.sf:SetPoint("BOTTOMRIGHT", -2, 2)
+  menu.rows = {}
+  menu:Hide()
+  d.menu = menu
+
+  function d:SetValue(v)
+    self.value = v
+    for _, o in ipairs(self.options) do
+      if o.value == v then self:SetText(o.label); return end
+    end
+    self:SetText(self.options[1] and self.options[1].label or "")
+  end
+  function d:SetOptions(opts) self.options = opts; self:SetValue(self.value) end
+
+  local function fill()
+    menu.content:SetWidth(width - 16)
+    for i, o in ipairs(d.options) do
+      local r = menu.rows[i]
+      if not r then
+        r = CreateFrame("Button", nil, menu.content)
+        r:SetHeight(20)
+        local hl = r:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
+        r.text = T:Text(r, 12)
+        r.text:SetPoint("LEFT", 6, 0)
+        r.text:SetPoint("RIGHT", -6, 0)
+        r.text:SetJustifyH("LEFT")
+        r.text:SetWordWrap(false)
+        r:SetScript("OnClick", function(self)
+          menu:Hide()
+          d:SetValue(self.value)
+          if onChange then onChange(self.value) end
+        end)
+        menu.rows[i] = r
+      end
+      r.value = o.value
+      r:SetPoint("TOPLEFT", 0, -(i - 1) * 20)
+      r:SetPoint("RIGHT", 0, 0)
+      r.text:SetText(o.value == d.value and (T:AccentCode() .. o.label .. "|r") or o.label)
+      r:Show()
+    end
+    for i = #d.options + 1, #menu.rows do menu.rows[i]:Hide() end
+    menu.content:SetHeight(math.max(#d.options * 20, 20))
+    menu:SetHeight(math.min(#d.options, 12) * 20 + 4)
+    menu.sf.UpdateScrollBar()
+  end
+  d:SetScript("OnClick", function()
+    if menu:IsShown() then menu:Hide(); return end
+    fill()
+    menu:Show()
+    menu:Raise()
+  end)
+  d:HookScript("OnHide", function() menu:Hide() end)
+  return d
+end
+
 ns:OnReady(function() T:Refresh() end)
 ns:On("PLAYER_LOGIN", function() T:Refresh() end)

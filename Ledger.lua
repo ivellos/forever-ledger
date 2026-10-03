@@ -280,19 +280,13 @@ function ns:BuildLedger(parent)
   return f
 end
 
--- Character buttons: All plus one per character, rebuilt when characters change.
+-- Which characters: a dropdown (Dashboard.lua's ns:CharacterOptions).
 local function charChoice()
-  local keys = {}
-  for k in pairs(ns.db.chars) do keys[#keys + 1] = k end
-  table.sort(keys)
-  local sig = table.concat(keys, ",")
-  if f.charSig == sig then return end
-  if f.chars then f.chars:Hide() end
-  local opts = { { value = "all", label = "All" } }
-  for _, k in ipairs(keys) do opts[#opts + 1] = { value = k, label = charName(k) } end
-  f.chars = T:Choice(f, opts, function(v) settings().char = v; ns:RefreshLedger() end)
-  f.chars:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
-  f.charSig = sig
+  if not f.chars then
+    f.chars = T:Dropdown(f, 200, function(v) settings().char = v; ns:RefreshLedger() end)
+    f.chars:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
+  end
+  f.chars:SetOptions(ns:CharacterOptions())
 end
 
 local function getHeader(i)
