@@ -27,6 +27,7 @@ ns.HELP = {
     { "Buy at or below", "The most worth paying, after your safety margin. Green when it's already cheaper." },
     { "Also", "Disenchant results, which of your recipes use it, and the cheapest crate fill." },
     { "Gear versions", "Gear with random stats (of the Eagle) also shows the price of that exact version." },
+    { "Quests", "Items quests ask for (Bronze Tube, Spider Ichor, Flask of Oil...) list the quest, its level and how many, for your faction. In yellow with keep it when this character hasn't reached that level yet, so you don't vendor it. Leveling players buy these once per character, so they sell; the Deals tab's hover says when a deal is one. From original Classic quests: Forever may have changed some." },
     { "Sells", "How fast an item sells: Fast, Steady, Slow, Rare (seldom listed, goes quickly) or No sales seen, judged against items of the same kind, so ore and swords aren't held to the same bar. It counts listings that vanished before they could have expired, so it builds up as you run full scans (fastest with Watch flips) and shows after 3 hours of scans compared (and, in the first day, at least 3 sales)." },
   } },
   { "Shuffles and vendor flips", {

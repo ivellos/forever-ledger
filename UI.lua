@@ -418,6 +418,8 @@ local SETTINGS = {
   { key = "tipPrice", label = "Auction and vendor prices", kind = "check" },
   { key = "tipSpeed", label = "How fast it sells", kind = "check",
     help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by (and, in the first day, at least 3 sales)." },
+  { key = "tipQuest", label = "Quests that need it", kind = "check",
+    help = "Quests that ask for the item (original Classic quests; Forever may have changed some), and \"keep it\" when this character will want it later." },
   { key = "tipWorth", label = "Worth to you", kind = "check" },
   { key = "tipBuy", label = "Buy at or below", kind = "check" },
   { key = "tipDisenchant", label = "Disenchants to", kind = "check" },

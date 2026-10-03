@@ -19,7 +19,17 @@ local function addLines(tt, id, forceFull)
   if tt == GameTooltip then shownID, shownFull = id, full end
 
   local price, src, t, rec = ns:GetPrice(id)
+  -- Quest turn-ins (QuestItems.lua): "keep it" in yellow when this character will want
+  -- it for a quest later.
+  local function questLines(compact)
+    if not (on("tipQuest") and ns.QuestLines) then return end
+    for _, q in ipairs(ns:QuestLines(id, compact) or {}) do
+      if q.keep then tt:AddLine(q.text .. ": keep it", 1, 0.82, 0, true)
+      else tt:AddLine(q.text, LR, LG, LB, true) end
+    end
+  end
   if not full then
+    questLines(true)
     local best, options = ns:GetValue(id)
     if best then
       local how = options and options[1] and options[1].label
@@ -148,6 +158,7 @@ local function addLines(tt, id, forceFull)
       shown = shown + 1
     end
   end
+  questLines(false)
 end
 
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then

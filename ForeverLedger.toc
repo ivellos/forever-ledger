@@ -25,6 +25,7 @@ Deals.lua
 Crates.lua
 ClassicRecipes.lua
 ClassicItems.lua
+QuestItems.lua
 RecipesTab.lua
 UI.lua
 Help.lua

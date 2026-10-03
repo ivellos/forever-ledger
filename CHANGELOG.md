@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shopping lists: the list menu is drawn above the panel, so its buttons and tick boxes no longer show through it.
 
 ### Added
+- Quest items: tooltips list the quests that ask for an item (about 75 Classic quests with items you can buy, for your faction), with the level and how many; in yellow with "keep it" when this character hasn't reached that level yet. The Deals tab's hover says when a deal is a quest item, since leveling players buy them. Settings, Tooltips can turn it off.
 - A welcome the first time you open the window: the five things to start with (learn your recipes, full scan, the Buy queue, Deals, Shopping lists), with buttons for the ones you can open from there. Show it again from the Help tab or with /fl welcome.
 - Settings, Deal alerts: Big message on screen, to turn off the large text new finds show at the top of the screen (it can land on your windows); the chime and chat lines stay.
 - Shopping lists away from the auction house: a Shopping lists button at the top of the main window, and Shift-click on the minimap button (as well as /fl lists).
