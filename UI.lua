@@ -1167,7 +1167,8 @@ function ns:UpdateFullScanButtons()
   if wait == 0 then
     label, ready = "Full scan: Ready", true
   elseif wait < math.huge then
-    label = ("Full scan: %d:%02d"):format(math.floor(wait / 60), wait % 60)
+    -- "in": it's a countdown to the next one Blizzard allows, not how long a scan takes.
+    label = ("Full scan in %d:%02d"):format(math.floor(wait / 60), wait % 60)
   end
   for _, b in ipairs({ main and main.fullBtn or false, ns.ahFullButton or false }) do
     if b then

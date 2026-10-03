@@ -312,7 +312,10 @@ function ns:RefreshDeals()
   end
   for i = n + 1, #rows do rows[i]:Hide() end
 
-  if #list == 0 then
+  if #list == 0 and filtered > 0 then
+    f.empty:SetText(("Nothing here matches the filter: %d %s hidden by it. Click All, or clear the search box."):format(
+      filtered, filtered == 1 and "deal is" or "deals are"))
+  elseif #list == 0 then
     f.empty:SetText(newest and "No deals that pass the checks right now. Tick \"Show thin data too\" to see the doubtful ones."
       or "No deals yet. Deals need prices from the last hour (a full scan or the flip watch) and at least 4 days of scans "
       .. "to know an item's usual price (or TSM installed).")
