@@ -42,7 +42,8 @@ local function evaluate(g)
     g.anyway:Hide()
     return
   end
-  g.text:SetText(("|cffff7070A vendor pays %s;|r this gets you %s after the %d%% cut.")
+  -- Two short lines, centred under Post (owner, October 3: "centred and clean").
+  g.text:SetText(("|cffff7070Vendor pays: %s|r\nAuction house: %s after the %d%% cut")
     :format(ns.Money(sell), ns.Money(net), math.floor(cut * 100 + 0.5)))
   local lock = ns.db.settings.sellGuard ~= false and not unlocked[g.key]
   g.anyway:SetShown(lock)
@@ -55,13 +56,14 @@ local function guard(frame, name)
   local g = { frame = frame }
   guards[frame] = g
   g.text = T:Text(frame, 11)
-  g.text:SetJustifyH("LEFT")
-  g.text:SetWordWrap(true)
+  g.text:SetJustifyH("CENTER")
+  g.text:SetWordWrap(false)
+  g.text:SetSpacing(3)
   -- Under the Post button, where both sell pages have room (above it, it ran into Total
   -- Price, and Post anyway went off the left edge: owner's screenshots, October 3).
   if post then
-    g.text:SetPoint("TOPLEFT", post, "BOTTOMLEFT", 0, -8)
-    g.text:SetPoint("RIGHT", post, "RIGHT", 0, 0)
+    -- Centred on Post with no set width, so long amounts grow evenly to both sides.
+    g.text:SetPoint("TOP", post, "BOTTOM", 0, -8)
   else
     g.text:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 40)
   end
