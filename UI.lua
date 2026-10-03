@@ -95,7 +95,7 @@ end
 -- Main window: title bar, tabs, a content area and a footer with buttons
 ---------------------------------------------------------------------------
 local main
-local setView, layoutShuffles, buildSettings, buildTable
+local setView, layoutShuffles, buildSettings, buildTable, refreshSettings
 
 local TABS = {
   { key = "dashboard", label = "Dashboard" },
@@ -253,6 +253,7 @@ setView = function(view)
   main.view = view
   main.lastRefresh = nil   -- a tab you clicked draws at once
   if view == "help" then ns.helpTopic = nil end   -- Help opens on Getting started
+  if view == "settings" then ns.settingsSection = nil end   -- and Settings on its first section
   for key, tab in pairs(main.tabs) do tab:SetSelected(key == view) end
   local shown = main.views[view]
   for _, v in pairs(main.views) do v:SetShown(v == shown) end
@@ -463,45 +464,68 @@ local SETTINGS = {
     help = "The Crates tab and the \"cheapest fill\" tooltip line." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
--- Layout (owner, September 30: the old one felt jumbled): each setting is one block,
--- name and description stacked in a left column, the control on the right lined up
--- with the name, a faint line between settings, and a header band per section.
-local TEXT_W, CONTROL_X = 330, 350
+-- Layout: sections listed on the left, the chosen one's settings on the right (owner,
+-- October 3: like the Help tab). Each setting is one block, name and description
+-- stacked in a left column, the control on the right lined up with the name, a faint
+-- line between settings (owner, September 30). Opens on the first section each time.
+local TEXT_W, CONTROL_X = 250, 268
+local SET_NAV_W = 170
+ns.settingsSection = nil   -- the chosen section's index (reset by setView)
 
 buildSettings = function()
-  local sf, content = T:Scroll(main.body)
-  sf:SetAllPoints()
-  sf.controls = {}
-  local y = 0
+  local f = CreateFrame("Frame", nil, main.body)
+  f:SetAllPoints()
+  f.controls, f.pages, f.navButtons = {}, {}, {}
+  local sf, content = T:Scroll(f)
+  sf:SetPoint("TOPLEFT", SET_NAV_W + 4, 0)
+  sf:SetPoint("BOTTOMRIGHT")
+  f.sf, f.content = sf, content
+
+  local page, y
   for _, def in ipairs(SETTINGS) do
     if def.section then
-      if y > 0 then y = y + 16 end
-      local band = content:CreateTexture(nil, "BACKGROUND")
+      -- A new section: its own page, and a button for it on the left.
+      if page then page.height = y + 10 end
+      page = CreateFrame("Frame", nil, content)
+      page:SetPoint("TOPLEFT")
+      page:SetPoint("RIGHT", content, "RIGHT")
+      page:Hide()
+      f.pages[#f.pages + 1] = page
+      local index = #f.pages
+      local b = T:Button(f, def.section, SET_NAV_W - 16, function()
+        ns.settingsSection = index
+        refreshSettings()
+        sf:SetVerticalScroll(0)
+      end, 21)
+      b:SetPoint("TOPLEFT", 0, -(index - 1) * 23)
+      b:GetFontString():SetFont(T.font, 11, "")
+      f.navButtons[index] = b
+      local band = page:CreateTexture(nil, "BACKGROUND")
       band:SetColorTexture(1, 1, 1, 0.05)
-      band:SetPoint("TOPLEFT", 0, -y)
-      band:SetPoint("RIGHT", content, "RIGHT", -4, 0)
+      band:SetPoint("TOPLEFT", 0, 0)
+      band:SetPoint("RIGHT", page, "RIGHT", -4, 0)
       band:SetHeight(24)
-      local h = T:Text(content, 13, T.accent)
+      local h = T:Text(page, 13, T.accent)
       h:SetPoint("LEFT", band, "LEFT", 8, 0)
       h:SetText(def.section)
-      y = y + 30
+      y = 30
       if def.rules then
-        sf.rules = T:Text(content, 11, T.dim)
-        sf.rules:SetPoint("TOPLEFT", 12, -y)
-        sf.rules:SetPoint("RIGHT", content, "RIGHT", -8, 0)
-        sf.rules:SetJustifyH("LEFT")
+        f.rules = T:Text(page, 11, T.dim)
+        f.rules:SetPoint("TOPLEFT", 12, -y)
+        f.rules:SetPoint("RIGHT", page, "RIGHT", -8, 0)
+        f.rules:SetJustifyH("LEFT")
         y = y + 38
       end
     else
       local top = y
-      local label = T:Text(content, 12)
+      local label = T:Text(page, 12)
       label:SetPoint("TOPLEFT", 12, -(top + 5))
       label:SetWidth(TEXT_W)
       label:SetJustifyH("LEFT")
       label:SetText(def.label)
       local height = 20
       if def.help then
-        local help = T:Text(content, 11, T.dim)
+        local help = T:Text(page, 11, T.dim)
         help:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -3)
         help:SetWidth(TEXT_W)
         help:SetJustifyH("LEFT")
@@ -512,43 +536,55 @@ buildSettings = function()
       local function changed(v)
         ns.db.settings[def.key] = v
         if def.after then def.after() end
-        if sf.rules then sf.rules:SetText("Deals are listings " .. ns:DealRules() .. ".") end
+        if f.rules then f.rules:SetText("Deals are listings " .. ns:DealRules() .. ".") end
       end
       local control
       if def.kind == "number" then
-        control = T:Number(content, def, changed)
+        control = T:Number(page, def, changed)
       elseif def.kind == "money" then
-        control = T:MoneyBox(content, changed)
+        control = T:MoneyBox(page, changed)
       elseif def.kind == "choice" then
         local opts = {}
         for _, o in ipairs(def.options) do opts[#opts + 1] = { value = o[1], label = o[2] } end
-        control = T:Choice(content, opts, changed)
+        -- Many options would run off the narrower page: a dropdown instead.
+        if #opts > 3 then
+          control = T:Dropdown(page, 170, changed)
+          control:SetOptions(opts)
+        else
+          control = T:Choice(page, opts, changed)
+        end
       elseif def.kind == "check" then
-        control = T:Check(content, function(self) changed(self:GetChecked()) end)
+        control = T:Check(page, function(self) changed(self:GetChecked()) end)
       end
       control:SetPoint("TOPLEFT", CONTROL_X, -(top + (def.kind == "check" and 5 or 1)))
-      sf.controls[#sf.controls + 1] = { def = def, control = control }
+      f.controls[#f.controls + 1] = { def = def, control = control }
 
       y = top + math.max(height, 26) + 8
-      local line = content:CreateTexture(nil, "BACKGROUND")
+      local line = page:CreateTexture(nil, "BACKGROUND")
       line:SetColorTexture(1, 1, 1, 0.04)
       line:SetPoint("TOPLEFT", 8, -(y - 4))
-      line:SetPoint("RIGHT", content, "RIGHT", -8, 0)
+      line:SetPoint("RIGHT", page, "RIGHT", -8, 0)
       line:SetHeight(1)
     end
   end
-  content:SetHeight(y + 10)
-  return sf
+  if page then page.height = y + 10 end
+  return f
 end
-local function refreshSettings()
-  local sf = main.views.settings
-  sf:GetScrollChild():SetWidth(math.max(sf:GetWidth() - 12, 300))
-  for _, c in ipairs(sf.controls) do
+refreshSettings = function()
+  local f = main.views.settings
+  local cur = ns.settingsSection or 1
+  f.content:SetWidth(math.max(f.sf:GetWidth() - 12, 300))
+  for i, p in ipairs(f.pages) do
+    p:SetShown(i == cur)
+    f.navButtons[i]:SetSelected(i == cur)
+    if i == cur then f.content:SetHeight(p.height or 100) end
+  end
+  for _, c in ipairs(f.controls) do
     local v = ns.db.settings[c.def.key]
     if c.def.kind == "check" then c.control:SetChecked(v) else c.control:SetValue(v) end
   end
-  if sf.rules then sf.rules:SetText("Deals are listings " .. ns:DealRules() .. ".") end
-  sf.UpdateScrollBar()
+  if f.rules then f.rules:SetText("Deals are listings " .. ns:DealRules() .. ".") end
+  f.sf.UpdateScrollBar()
 end
 
 function ns:RefreshUI()

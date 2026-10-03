@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Settings: sections listed on the left, the chosen one's settings on the right, like the Help tab; choices with many options are dropdowns. Settings and Help open on their first section each time.
+
 ## [0.10.0] - 2026-10-03
 
 ### Highlights
