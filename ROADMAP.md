@@ -25,7 +25,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Collections: pets, mounts and toys** (and appearances if transmog arrives): what you have, what you're missing and how to get each one, including Forever's new ones, plus the gold side: what tradeable ones sell for and which are worth farming.
 - **Auction house deposits**: count the deposit in shuffles that end on the auction house, so cheap items that cost more to post than they earn show as "vendor it instead".
 - **Transmog**: bind-on-equip items that sell well, what they're worth and where they drop, including "worth farming" per rare.
-- **Quest turn-in items**: items that leveling players need for quests (Spider Ichor, Bronze Tube, Frost Oil...) marked in tooltips, with when they sell best; and a "keep this, you'll need it" hint for your own leveling.
+- **Quest turn-in items**: in the addon now, from original Classic quests (tooltips list the quest and say "keep it" for your own leveling). Next: learning Forever's own quests from players' quest logs, and when these items sell best.
 - **Launch-day checklist**: early gold makers (bags, wands, vendor-worthy drops) with live prices.
 - **Hold or sell**: price history shows when something is the cheapest or dearest it has been.
 - **Auctionator**: send a shuffle's materials to an Auctionator shopping list, with the most worth paying as the maximum price.
@@ -51,6 +51,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Quality of life
 
+- **Clearer screens**: a regular pass over every window for wording, layout and "what do I click", led by player feedback. A first-run welcome is in the addon now.
 - **"What's new"** notes after each update.
 - **Bag and inventory value**: what everything in your bags, bank and alts is worth now, and what to sell first.
 - **Mail helper**: open all mail in one click (sales logged as it goes), and a warning when one mail carries many stacks.
