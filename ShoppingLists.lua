@@ -646,8 +646,9 @@ nextGear = function()
     filters = qualityFilters(), itemClassFilters = {} })
   ns.queueSending = false
   if not ok then finishGear(e, {}, 0, nil); return end
-  -- Nothing listed may mean no reply at all: move on after a few seconds.
-  C_Timer.After(4, function()
+  -- Nothing listed may mean no reply at all: move on after a few seconds (rare twink
+  -- gear is mostly not up, so this is the usual case and kept short).
+  C_Timer.After(3, function()
     if runner == r and r.tok == tok and r.waiting == e then
       local versions, total, min = readVersions(e)
       finishGear(e, versions, total, min)

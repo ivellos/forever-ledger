@@ -1931,7 +1931,8 @@ refreshLists = function()
       elseif not isGear(e.id) then
         local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
         if rec then
-          listed, min, t = rec.none and 0 or rec.q, (not rec.none) and rec.m or nil, rec.t
+          -- (Prices from other addons have no count: listed, at least one.)
+          listed, min, t = rec.none and 0 or (rec.q or (rec.m and 1)), (not rec.none) and rec.m or nil, rec.t
         end
       end
       local up = listed and listed > 0
