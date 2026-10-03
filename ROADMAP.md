@@ -32,7 +32,8 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Leveling
 
-- **Farming sessions**: start a session, gather or fight, and see gold per hour from what you actually picked up, so you know which spots are worth it.
+- **Sessions**: start one any time and a small tracker counts everything it's worth: loot (at auction or vendor value), coin, vendor sales and auction house flips, with gold per hour and a summary at the end, so you know which spots and habits pay.
+- **Dungeon runs and chase items**: how many times you've run each dungeon, what dropped and what each run was worth; and a watch list of items you're farming (appearances, valuable drops, Forever's new items) with where they drop and "0 of 14 runs".
 - **Leveling to-do list**: reminders that pop up at the right moment, for example "Level 14: time to get your Cozy Sleeping Bag".
 - **Cozy Sleeping Bag**: whether the trip is worth it for your route and pace, and the best time to get it.
 - **Training costs**: what the next levels of class and profession training will cost, so you can save for them.
