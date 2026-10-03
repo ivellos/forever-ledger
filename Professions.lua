@@ -55,16 +55,20 @@ function ns:ScanSkillLines()
     ns:Debug("Couldn't read profession list yet.")
     return
   end
+  local changed = false
   for name, v in pairs(found) do
     local p = c.profs[name] or { recipes = {} }
     p.recipes = p.recipes or {}
+    if not c.profs[name] or p.rank ~= v[1] or p.max ~= v[2] then changed = true end
     p.rank, p.max, p.updated = v[1], v[2], time()
     c.profs[name] = p
   end
   -- Drop professions this character unlearned (for example Skinning after Ironforge).
   for name in pairs(c.profs) do
-    if not found[name] then c.profs[name] = nil end
+    if not found[name] then c.profs[name] = nil; changed = true end
   end
+  -- Only redraw for a real change (this runs on every skill line update).
+  if not changed then return end
   ns:BuildUsageIndex()
   ns:RefreshUI()
 end
@@ -101,6 +105,7 @@ function ns:ReadRecipe(id, info)
   return rec
 end
 
+local lastCapture = {}   -- [profName] = what the last capture saw (skill, recipes learned)
 function ns:CaptureTradeSkill()
   local T = C_TradeSkillUI
   if not T or not ns.db then return end
@@ -121,6 +126,18 @@ function ns:CaptureTradeSkill()
   local ids = safe(T.GetAllRecipeIDs)
   if type(ids) ~= "table" or #ids == 0 then return end
 
+  local learned = {}
+  for _, id in ipairs(ids) do
+    local info = safe(T.GetRecipeInfo, id)
+    if type(info) == "table" and info.learned then learned[#learned + 1] = { id, info } end
+  end
+  -- The game sends a list update after every craft (bags changed). Nothing to save then,
+  -- and redrawing the window each time made the Deals tab stutter while crafting
+  -- (/fl perf, October 3: 261 redraws in 7 minutes making Minor Wizard Oil).
+  local sig = ("%s:%s:%s:%d"):format(profName, tostring(rank), tostring(maxRank), #learned)
+  if lastCapture[profName] == sig then return end
+  lastCapture[profName] = sig
+
   local c = ns:GetChar()
   local p = c.profs[profName] or { recipes = {} }
   c.profs[profName] = p
@@ -130,12 +147,9 @@ function ns:CaptureTradeSkill()
   p.updated = time()
 
   local count = 0
-  for _, id in ipairs(ids) do
-    local info = safe(T.GetRecipeInfo, id)
-    if type(info) == "table" and info.learned then
-      local rec = ns:ReadRecipe(id, info)
-      if rec then p.recipes[id] = rec; count = count + 1 end
-    end
+  for _, l in ipairs(learned) do
+    local rec = ns:ReadRecipe(l[1], l[2])
+    if rec then p.recipes[l[1]] = rec; count = count + 1 end
   end
   p.recipeCount = count
   if ns.CaptureRecipeBook then ns:CaptureRecipeBook(profName) end
