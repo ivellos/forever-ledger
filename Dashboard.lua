@@ -121,6 +121,15 @@ local function totals(keys, from, to)
   for _, e in ipairs(ns.db.purchases) do
     if e.t >= from and keyset[e.c] then add(bought, itemLabel(e.id), e.a) end
   end
+  -- Older than 30 days: monthly totals per item (History.lua foldLedger).
+  local months = {}
+  for _, m in ipairs(ns.db.ledgerMonths or {}) do
+    if m.t >= from and keyset[m.c] then
+      months[#months + 1] = m
+      local name = m.id and itemLabel(m.id) or m.n
+      if name then add((m.k == "sale" or m.k == "vsell") and sold or bought, name, m.a) end
+    end
+  end
   local function top(t)
     local name, best
     for n, v in pairs(t) do if not best or v > best then name, best = n, v end end
@@ -142,6 +151,16 @@ local function totals(keys, from, to)
     if e.t >= from and keyset[e.c] then
       nBuys = nBuys + 1
       if not bigBuy or e.a > bigBuy.a then bigBuy = { n = itemLabel(e.id), a = e.a } end
+    end
+  end
+  for _, m in ipairs(months) do
+    local name = m.id and itemLabel(m.id) or m.n
+    if m.k == "sale" then
+      nSales = nSales + m.cnt
+      if not bigSale or m.mx > bigSale.a then bigSale = { n = name, a = m.mx } end
+    elseif m.k == "buy" then
+      nBuys = nBuys + m.cnt
+      if not bigBuy or m.mx > bigBuy.a then bigBuy = { n = name, a = m.mx } end
     end
   end
 

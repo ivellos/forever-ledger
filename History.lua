@@ -4,9 +4,13 @@ local _, ns = ...
 -- History for the dashboard and deal alerts: gold over time, money in and out
 -- by source, auction house sales and purchases, and daily prices.
 ---------------------------------------------------------------------------
+-- How long money history is kept (owner, October 3): sales data goes stale, so the
+-- details are kept a while and then summed up by month.
 local HOURLY_DAYS = 14      -- keep hourly gold this long, then one value per day
+local DAILY_MONEY_DAYS = 365 -- gold and money in/out per day this long, then per month (kept)
 local LOG_SIZE = 10000      -- auction house sales and purchases, and vendor buys and sells, kept
-local LOG_DAYS = 365        -- and for at most this long
+local LOG_DAYS = 30         -- one by one this long, then as monthly totals per item
+local LEDGER_MONTHS_KEPT = 365 * 86400   -- monthly totals kept this long
 local PENDING_SECONDS = 5   -- how long a hint (repair, posting fee, mail) waits for the gold change
 
 -- Days follow the player's own clock (a UTC day would start in the US evening).
@@ -39,21 +43,98 @@ local function snapshotGold()
   charTable(ns.db.gold)[thisHour()] = g
 end
 
--- Older than HOURLY_DAYS: keep only the last value of each day.
+-- Older than HOURLY_DAYS: keep only the last value of each day; older than
+-- DAILY_MONEY_DAYS, only the last value of each month.
 local function pruneGold()
   local cutoff = thisHour() - HOURLY_DAYS * 24
+  local monthCutoff = thisHour() - DAILY_MONEY_DAYS * 24
   for _, hours in pairs(ns.db.gold) do
-    local lastOfDay = {}
+    local last = {}
+    local function period(h)
+      if h < monthCutoff then return date("%Y%m", h * 3600) end
+      return math.floor(h / 24)
+    end
     for h in pairs(hours) do
       if h < cutoff then
-        local d = math.floor(h / 24)
-        if not lastOfDay[d] or h > lastOfDay[d] then lastOfDay[d] = h end
+        local p = period(h)
+        if not last[p] or h > last[p] then last[p] = h end
       end
     end
     for h in pairs(hours) do
-      if h < cutoff and lastOfDay[math.floor(h / 24)] ~= h then hours[h] = nil end
+      if h < cutoff and last[period(h)] ~= h then hours[h] = nil end
     end
   end
+end
+
+-- The local day number of the 1st of the month a day falls in.
+local function monthStartDay(day)
+  local t = date("*t", day * 86400 + 43200)   -- midday, so time zones can't shift the date
+  return localDay(time({ year = t.year, month = t.month, day = 1, hour = 12 }))
+end
+
+-- Money in and out older than DAILY_MONEY_DAYS: one entry per month (on its 1st day),
+-- so the Dashboard and Ledger still add up over any range.
+local function foldMoney()
+  local cutoff = today() - DAILY_MONEY_DAYS
+  for _, days in pairs(ns.db.money) do
+    local moves = {}
+    for day in pairs(days) do
+      if day < cutoff then
+        local first = monthStartDay(day)
+        if first ~= day then moves[#moves + 1] = { day, first } end
+      end
+    end
+    for _, m in ipairs(moves) do
+      local into = days[m[2]] or {}
+      days[m[2]] = into
+      for s, amt in pairs(days[m[1]]) do into[s] = (into[s] or 0) + amt end
+      days[m[1]] = nil
+    end
+  end
+end
+
+-- Ledger entries older than LOG_DAYS become one line per item, character and month:
+-- ledgerMonths = { { t = month start, c, k = "sale" | "buy" | "vsell" | "vbuy", id or n,
+-- q = quantity, a = copper, cnt = trades, mx = biggest single trade } }, kept a year.
+local function foldLedger()
+  local months = ns.db.ledgerMonths
+  local index = {}
+  local function key(e) return table.concat({ e.t, e.c or "?", e.k, e.id or e.n or "?" }, "|") end
+  for _, m in ipairs(months) do index[key(m)] = m end
+  local cutoff = time() - LOG_DAYS * 86400
+  local function fold(list, kindOf)
+    local drop = 0
+    while list[drop + 1] and (list[drop + 1].t or 0) < cutoff do
+      drop = drop + 1
+      local e = list[drop]
+      local d = date("*t", e.t or 0)
+      local m = { t = time({ year = d.year, month = d.month, day = 1, hour = 12 }), c = e.c, k = kindOf(e),
+        id = e.id, n = (not e.id) and e.n or nil }
+      local k = key(m)
+      local x = index[k]
+      if not x then
+        x = m
+        x.q, x.a, x.cnt, x.mx = 0, 0, 0, 0
+        months[#months + 1] = x
+        index[k] = x
+      end
+      local amount = e.a or 0
+      x.q, x.a, x.cnt = x.q + (e.q or 1), x.a + amount, x.cnt + 1
+      if amount > x.mx then x.mx = amount end
+    end
+    if drop > 0 then
+      for i = 1, #list - drop do list[i] = list[i + drop] end
+      for i = #list, #list - drop + 1, -1 do list[i] = nil end
+    end
+  end
+  fold(ns.db.sales, function() return "sale" end)
+  fold(ns.db.purchases, function() return "buy" end)
+  fold(ns.db.vendorLog, function(e) return e.s == "sell" and "vsell" or "vbuy" end)
+  -- Monthly totals older than a year go.
+  local keep = time() - LEDGER_MONTHS_KEPT
+  local kept = {}
+  for _, m in ipairs(months) do if m.t >= keep then kept[#kept + 1] = m end end
+  ns.db.ledgerMonths = kept
 end
 
 ---------------------------------------------------------------------------
@@ -141,6 +222,15 @@ local function sourceFor(delta)
 end
 
 local function addLog(list, entry)
+  -- Vendor trades of the same item within a minute are one entry: selling 20 of
+  -- something one by one made 20 (owner's log, October 3).
+  local last = list[#list]
+  if list == ns.db.vendorLog and last and last.id == entry.id and last.s == entry.s and last.c == entry.c
+    and entry.t - (last.t or 0) <= 60 and last.q and entry.q and last.q > 0 and entry.q > 0
+    and math.abs(last.a / last.q - entry.a / entry.q) < 1 then
+    last.q, last.a, last.t = last.q + entry.q, last.a + entry.a, entry.t
+    return
+  end
   list[#list + 1] = entry
   while #list > LOG_SIZE do table.remove(list, 1) end
 end
@@ -300,15 +390,14 @@ ns:OnReady(function()
       for h, g in pairs(hours) do if g <= 0 then hours[h] = nil end end
     end
   end
-  -- Drop log entries older than LOG_DAYS (the logs are oldest first).
-  local cutoff = time() - LOG_DAYS * 86400
-  for _, list in ipairs({ ns.db.sales, ns.db.purchases, ns.db.vendorLog }) do
-    local drop = 0
-    while list[drop + 1] and (list[drop + 1].t or 0) < cutoff do drop = drop + 1 end
-    if drop > 0 then
-      for i = 1, #list - drop do list[i] = list[i + drop] end
-      for i = #list, #list - drop + 1, -1 do list[i] = nil end
-    end
+  -- Older ledger entries become monthly totals, and old days of money in and out are
+  -- summed by month (the logs are oldest first).
+  foldLedger()
+  foldMoney()
+  -- Market history: once a day, a little at a time, a few seconds after login.
+  if ns.db.lastTrim ~= today() then
+    ns.db.lastTrim = today()
+    C_Timer.After(10, function() if ns.TrimMarketHistory then ns:TrimMarketHistory() end end)
   end
 end)
 
@@ -319,8 +408,12 @@ end)
 --   historyAll[market][id]    = "lowest:typicalSum:days"          all time
 -- A day keeps the lowest cheapest seen that day and the latest typical price.
 ---------------------------------------------------------------------------
-local DAILY_DAYS = 30
-local WEEKLY_WEEKS = 104
+-- How long market history is kept (owner, October 3): two weeks of days is plenty to
+-- judge a deal by, older days fold into weekly averages, and a year of those is enough;
+-- older market data is stale. Counts (listed per day, sell speed) are kept 30 days.
+local DAILY_DAYS = 14
+local WEEKLY_WEEKS = 52
+local COUNT_DAYS = 30
 
 local function marketTable(name)
   local key = ns.MarketKey()
@@ -376,7 +469,7 @@ local function recordListed(id, d, listed)
     s = s .. "|"
   end
   s = s .. ("%.0f:%.0f"):format(d, listed)
-  while s:find("|", 1, true) and tonumber(s:match("^(%d+)")) <= d - DAILY_DAYS do s = s:gsub("^[^|]*|", "") end
+  while s:find("|", 1, true) and tonumber(s:match("^(%d+)")) <= d - COUNT_DAYS do s = s:gsub("^[^|]*|", "") end
   qty[id] = s
 end
 
@@ -399,6 +492,59 @@ function ns:RecordPriceHistory(id, cheapest, typical, listed)
   end
   s = s .. ("%.0f:%.0f:%.0f"):format(d, cheapest, typical)
   hist[id] = dropOld(s, d - DAILY_DAYS, function(day, m, a) addWeek(id, day, m, a) end)
+end
+
+-- Once a day, trim this market's history for every item, including ones no longer listed
+-- (those are only trimmed here, as nothing records them). A little at a time, so login
+-- doesn't hitch. Days past DAILY_DAYS fold into their week, as when a price is recorded.
+local function trimCounts(s, cutoff)
+  local out = {}
+  for e in s:gmatch("[^|]+") do
+    if (tonumber(e:match("^(%d+)")) or 0) > cutoff then out[#out + 1] = e end
+  end
+  return #out > 0 and table.concat(out, "|") or nil
+end
+
+function ns:TrimMarketHistory()
+  local d = today()
+  local hist, weekly = marketTable("history"), marketTable("historyWeekly")
+  local qty, sold = marketTable("historyQty"), marketTable("historySold2")
+  local ids = {}
+  for id in pairs(hist) do ids[#ids + 1] = id end
+  for id in pairs(weekly) do if not hist[id] then ids[#ids + 1] = id end end
+  for id in pairs(qty) do if not hist[id] and not weekly[id] then ids[#ids + 1] = id end end
+  for id in pairs(sold) do if not hist[id] and not weekly[id] and not qty[id] then ids[#ids + 1] = id end end
+  local i = 0
+  local function step()
+    for _ = 1, 200 do
+      i = i + 1
+      local id = ids[i]
+      if not id then return end
+      if hist[id] then
+        local kept, last = {}, nil
+        for e in hist[id]:gmatch("[^|]+") do
+          local day, m, a = e:match("^(%d+):(%d+):(%d+)")
+          day = tonumber(day)
+          if day and day <= d - DAILY_DAYS then
+            addWeek(id, day, tonumber(m), tonumber(a))
+            last = { tonumber(m), tonumber(a) }
+          else
+            kept[#kept + 1] = e
+            last = nil
+          end
+        end
+        -- An item no longer listed: its last day was never finished by a newer one, so
+        -- it hasn't counted toward all time yet.
+        if #kept == 0 and last then addAllTime(id, last[1], last[2]) end
+        hist[id] = #kept > 0 and table.concat(kept, "|") or nil
+      end
+      if weekly[id] then weekly[id] = trimCounts(weekly[id], math.floor(d / 7) - WEEKLY_WEEKS) end
+      if qty[id] then qty[id] = trimCounts(qty[id], d - COUNT_DAYS) end
+      if sold[id] then sold[id] = trimCounts(sold[id], d - COUNT_DAYS) end
+    end
+    C_Timer.After(0, step)
+  end
+  step()
 end
 
 -- Returns a list of { day, cheapest, typical } for the last DAILY_DAYS days, oldest first.
@@ -472,14 +618,14 @@ function ns:RecordSold(id, gone, minutes, close)
     s = s .. "|"
   end
   s = s .. ("%.0f:%.0f:%.0f:%.0f"):format(d, gone, minutes, closeMin)
-  while s:find("|", 1, true) and tonumber(s:match("^(%d+)")) <= d - DAILY_DAYS do s = s:gsub("^[^|]*|", "") end
+  while s:find("|", 1, true) and tonumber(s:match("^(%d+)")) <= d - COUNT_DAYS do s = s:gsub("^[^|]*|", "") end
   sold[id] = s
 end
 
 -- Units gone between scans, minutes of scans behind it, and the minutes from close
 -- ("watched") pairs, over a period (today included).
 function ns:SellRate(id, window)
-  local from = today() - math.min(ns.PRICE_WINDOWS[window or "all"] or math.huge, DAILY_DAYS)
+  local from = today() - math.min(ns.PRICE_WINDOWS[window or "all"] or math.huge, COUNT_DAYS)
   local gone, minutes, close = 0, 0, 0
   for e in (marketTable(SOLD_TABLE)[id] or ""):gmatch("[^|]+") do
     local day, g, m, c = soldEntry(e)

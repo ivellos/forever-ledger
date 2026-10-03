@@ -118,6 +118,16 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 - **Dashboard**: gold over time, sales, expenses and profit, and your sessions.
 - **Ledger**: every sale and purchase, resale profit, and other money like repairs and flights.
+- **How long it's kept**: market and money history goes stale, so it's summed up as it ages and the saved file doesn't grow forever:
+
+  | What | Kept |
+  |---|---|
+  | Sales and purchases | One by one for 30 days, then one line per item per month for a year |
+  | Gold and money in and out | Per day for a year, then per month |
+  | Prices | Per day for 14 days, then weekly averages for a year |
+  | Recipes, vendors, items, your characters | For good |
+
+  Nothing is lost at a reload: only data past these ages is summed up or dropped.
 
 
 

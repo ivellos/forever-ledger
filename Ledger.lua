@@ -111,7 +111,7 @@ local function groupSimilar(list)
   table.sort(list, function(a, b) return a.t < b.t end)
   local out, last = {}, nil
   for _, r in ipairs(list) do
-    if last and r.item == last.item and r.where == last.where and r.char == last.char and r.who == last.who
+    if last and not r.month and not last.month and r.item == last.item and r.where == last.where and r.char == last.char and r.who == last.who
       and r.each and last.each and math.abs(r.each - last.each) < 1 and r.t - last.t <= GROUP_SECONDS then
       last.qty = (last.qty or 1) + (r.qty or 1)
       last.total = last.total + r.total
@@ -147,6 +147,15 @@ local function records(tab, from, charOK, match)
       if keep(e) and e.id then
         local r = { t = e.t, item = nameOf(e.id), icon = iconOf(e.id), qty = e.q, total = e.a, where = "Vendor", char = e.c }
         if e.s == "sell" then sales[#sales + 1] = r else buys[#buys + 1] = r end
+      end
+    end
+    -- Older than 30 days: one line per item and month (History.lua foldLedger).
+    for _, m in ipairs(ns.db.ledgerMonths or {}) do
+      if keep(m) then
+        local auction = m.k == "sale" or m.k == "buy"
+        local r = { t = m.t, month = true, item = m.id and nameOf(m.id) or m.n or "?", icon = iconOf(m.id or m.n),
+          qty = m.q, total = m.a, where = auction and "Auction" or "Vendor", char = m.c }
+        if m.k == "sale" or m.k == "vsell" then sales[#sales + 1] = r else buys[#buys + 1] = r end
       end
     end
     for _, list in ipairs({ sales, buys }) do
@@ -326,7 +335,7 @@ end
 -- The text shown for one value.
 local function show(rec, key)
   local v = rec[key]
-  if key == "t" then return dim(date(rec.day and "%b %d" or "%b %d %H:%M", v)) end
+  if key == "t" then return dim(date((rec.month and "%B %Y") or (rec.day and "%b %d") or "%b %d %H:%M", v)) end
   if key == "char" then return charName(v) end
   if key == "qty" or key == "bought" or key == "sold" then return v and tostring(v) or dim("?") end
   if key == "each" or key == "avgBuy" or key == "avgSell" then return v and ns.Money(math.floor(v + 0.5)) or dim("?") end

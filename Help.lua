@@ -74,6 +74,7 @@ ns.HELP = {
   { "Your gold", {
     { "Dashboard", "Gold over time, sales, expenses and profit, and your sessions." },
     { "Ledger", "Every sale and purchase, resale profit, and other money like repairs and flights." },
+    { "How long it's kept", "Sales and purchases one by one for 30 days, then as one line per item per month for a year. Gold and money in and out per day for a year, then per month. Prices per day for 14 days, then weekly averages for a year. Recipes, vendors, items and your characters are kept for good. Nothing is lost at a reload: only data past these ages is summed up or dropped." },
   } },
   { "Sharing between accounts", {
     { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online." },

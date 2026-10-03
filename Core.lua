@@ -40,6 +40,7 @@ local DEFAULTS = {
   suffixNames = {},   -- [version name, "of the Whale"] = the bonus ID full scans saw for it (Prices.lua)
   -- soldSnap = { t, market, items = { [itemID] = "price:count" } }: the last full scan's counts (Prices.lua), no default
   historyQty = {},    -- [marketKey][itemID] = "day:listed|..." most listed seen each day (last 30 days)
+  ledgerMonths = {},  -- ledger entries older than 30 days, as monthly totals per item: { { t = month start, c, k = "sale" | "buy" | "vsell" | "vbuy", id or n, q, a, cnt, mx } } (History.lua, kept a year)
   historySold2 = {},  -- [marketKey][itemID] = "day:bought:minutes:minutes|..." units that vanished though they couldn't have expired (sell speed, since October 2)
   shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true,
