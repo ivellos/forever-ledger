@@ -459,6 +459,7 @@ local SOLD_TABLE = "historySold2"
 
 function ns:RecordSold(id, gone, minutes, close)
   if not ns.db or minutes <= 0 then return end
+  if ns.ForgetSellSpeeds then ns:ForgetSellSpeeds() end
   local sold = marketTable(SOLD_TABLE)
   local d = today()
   local s = sold[id] or ""
@@ -525,11 +526,32 @@ function ns:ItemKind(id)
 end
 local function speedKind(id) return ns:ItemKind(id) end
 
+-- Worked out once per item until the next full scan (or day): the Deals tab and deal
+-- check ask for hundreds of items at a time (/fl perf, October 3: up to 0.28 s).
+local speedCache, speedDay, speedMarket = {}, nil, nil
+function ns:ForgetSellSpeeds() speedCache = {} end
+
 -- Returns nil and the minutes of scans so far when there isn't enough yet; otherwise
 -- { key, label, color, perDay, listed, hours, kind }.
+local sellSpeed
 function ns:SellSpeed(id)
+  local d, m = today(), ns.MarketKey()
+  if d ~= speedDay or m ~= speedMarket then speedCache, speedDay, speedMarket = {}, d, m end
+  local c = speedCache[id]
+  if not c then
+    c = { sellSpeed(id) }
+    speedCache[id] = c
+  end
+  return c[1], c[2]
+end
+
+-- Fewer sales than this aren't enough to judge by in the first day: one piece of gear
+-- gone in 3 hours made it "Fast" (owner's Deals tab, October 3: nearly all gear Fast).
+local SPEED_MIN_SALES = 3
+sellSpeed = function(id)
   local gone, minutes = ns:SellRate(id, "month")
   if minutes < SPEED_MIN_MINUTES then return nil, minutes end
+  if gone > 0 and gone < SPEED_MIN_SALES and minutes < 24 * 60 then return nil, minutes end
   local perDay = gone / minutes * 1440
   local stats = ns:PriceStats(id, "month")
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]

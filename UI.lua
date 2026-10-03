@@ -248,6 +248,7 @@ end
 
 setView = function(view)
   main.view = view
+  main.lastRefresh = nil   -- a tab you clicked draws at once
   for key, tab in pairs(main.tabs) do tab:SetSelected(key == view) end
   local shown = main.views[view]
   for _, v in pairs(main.views) do v:SetShown(v == shown) end
@@ -533,6 +534,21 @@ end
 
 function ns:RefreshUI()
   if not main or not main:IsShown() or not ns.db then return end
+  -- Scans, crafts and skill updates each ask for a redraw, often several a second; the
+  -- Deals tab took about 0.1 s each (/fl perf, October 3: 75 redraws in 9 minutes).
+  -- At most one a second: a burst gets one redraw now and one when it's over.
+  local now = GetTime()
+  if main.lastRefresh and now - main.lastRefresh < 1 then
+    if not main.refreshQueued then
+      main.refreshQueued = true
+      C_Timer.After(1 - (now - main.lastRefresh), function()
+        main.refreshQueued = false
+        ns:RefreshUI()
+      end)
+    end
+    return
+  end
+  main.lastRefresh = now
   local build = TEXT_VIEWS[main.view]
   if main.view == "settings" then
     refreshSettings()
