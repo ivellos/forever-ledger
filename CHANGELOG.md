@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shopping lists: the list menu is drawn above the panel, so its buttons and tick boxes no longer show through it.
 
 ### Added
+- Help tab: a list of topics on the left and the chosen one on the right, with a Questions part for common questions players have asked. The guide has them too, under Common questions.
 - Flip watch: if it was on when you closed the auction house, it starts again when you come back (it can only scan with the auction house open). Settings, Auction house: Resume the flip watch.
 - Sell protection: on the auction house Sell tab, when a vendor pays more than the listing would bring after the cut, a warning says so and Post is greyed out until you click Post anyway (Settings, Auction house can make it warning only).
 - Buy queue: items you'd just bought out no longer come back when you reopen the auction house (stacks bought are taken off the saved listings, as gear already was).

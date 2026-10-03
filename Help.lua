@@ -13,7 +13,7 @@ ns.HELP = {
     { "Learn your recipes", "Open each profession window once on every character." },
     { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
     { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it one line, with Shift for more." },
-    { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button at the top of this tab, or /fl welcome." },
+    { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button under the list of topics, or /fl welcome." },
     { "What's new", "After an update, chat lists what's new in that version, once. /fl new shows it again." },
   } },
   { "Scanning the auction house", {
@@ -111,84 +111,173 @@ ns.HELP = {
 }
 
 ---------------------------------------------------------------------------
--- The Help tab, laid out like Settings: a header band per section, each topic on
--- the left with its text beside it, and a faint line between topics.
+-- Questions players asked, per Help section (owner, October 3: one page was getting
+-- long, so Help is split into topics, each with its questions). Add new ones as players
+-- ask them; keep the answers short. { question, answer }.
+---------------------------------------------------------------------------
+ns.HELP_FAQ = {
+  ["Getting started"] = {
+    { "Does it buy or sell anything by itself?", "No. Every purchase and auction is your own click (or wheel tick), as Blizzard requires. Forever Ledger finds, suggests and queues." },
+    { "Why are some things empty on the first day?", "Prices and flips work from your first full scan. Deals and how fast things sell need a few days of scans to know what's usual." },
+  },
+  ["Scanning the auction house"] = {
+    { "Why can't I run a full scan?", "The game allows one about every 15 minutes. The Full scan button counts down to the next." },
+    { "Does Watch flips work with the auction house closed?", "No: the game only lets addons search with the auction house open. The watch pauses when you close it and picks up when you come back." },
+    { "What are the 120 items the watch re-checks?", "Between full scans, the items whose price was closest to what a vendor pays: the likeliest to turn into flips when someone lists one cheap." },
+  },
+  ["Tooltips"] = {
+    { "Is Ledger price the cheapest price?", "It's the average of the 20 cheapest, at your last scan. If there's no cheapest listing line under it, those 20 were all one price, so it is the cheapest. The grey time says how old it is." },
+    { "Why does it say none listed?", "Your last scan found none of that item on the auction house." },
+  },
+  ["Buy queue and shopping lists"] = {
+    { "Do I click the big button or a row?", "Either. The big button (or the wheel over its strip, with Scroll to buy ticked) buys the next one. Clicking a row buys that one next." },
+    { "Why did items disappear from the queue?", "Someone else bought them first, or their price is too old: finds over 15 minutes old are left out until a scan finds them again. Items you can't afford stay at the bottom, marked." },
+  },
+  ["Deals"] = {
+    { "Why are there no deals?", "A deal needs an item's usual price, so at least 4 days of your scans (or TSM). Keep scanning; they fill in." },
+  },
+}
+
+---------------------------------------------------------------------------
+-- The Help tab: a list of topics on the left, the chosen topic on the right (its
+-- entries, then its questions). The choice is kept in settings.helpTopic.
 ---------------------------------------------------------------------------
 local TOPIC_W = 170
+local NAV_W = 170
 local hv
+
+local function topicIndex()
+  local want = ns.db.settings.helpTopic
+  for i, s in ipairs(ns.HELP) do if s[1] == want then return i end end
+  return 1
+end
 
 function ns:BuildHelp(parent)
   local T = ns.Theme
-  local sf, content = T:Scroll(parent)
-  sf:SetAllPoints()
-  hv = { sf = sf, content = content, parts = {} }
-  local function add(kind, obj) hv.parts[#hv.parts + 1] = { kind = kind, obj = obj } end
+  local f = CreateFrame("Frame", nil, parent)
+  f:SetAllPoints()
+  hv = { frame = f, parts = {}, navButtons = {} }
 
-  local intro = T:Text(content, 11, T.dim)
-  intro:SetJustifyH("LEFT")
-  intro:SetText("Everything Forever Ledger does, in short. The full guide with pictures is docs/GUIDE.md on the addon's GitHub page.")
-  add("intro", intro)
+  -- Topics on the left (scrolls if the window is short).
+  local navSf, nav = T:Scroll(f)
+  navSf:SetPoint("TOPLEFT", 0, 0)
+  navSf:SetPoint("BOTTOMLEFT", 0, 30)
+  navSf:SetWidth(NAV_W)
+  hv.navSf, hv.nav = navSf, nav
+  for i, section in ipairs(ns.HELP) do
+    local b = T:Button(nav, section[1], NAV_W - 16, function()
+      ns.db.settings.helpTopic = section[1]
+      ns:RefreshHelp()
+      hv.sf:SetVerticalScroll(0)
+    end, 21)
+    b:SetPoint("TOPLEFT", 0, -(i - 1) * 23)
+    b:GetFontString():SetFont(T.font, 11, "")
+    hv.navButtons[i] = b
+  end
+  nav:SetHeight(#ns.HELP * 23)
   -- The first-run welcome again (Welcome.lua).
-  hv.welcome = T:Button(content, "Show the welcome again", 170, function()
+  hv.welcome = T:Button(f, "Show the welcome again", NAV_W - 16, function()
     if ns.ShowWelcome then ns:ShowWelcome() end
   end, 22)
-  hv.welcome:SetPoint("TOPRIGHT", content, "TOPRIGHT", -6, -2)
-  for _, section in ipairs(ns.HELP) do
-    local band = content:CreateTexture(nil, "BACKGROUND")
-    band:SetColorTexture(1, 1, 1, 0.05)
-    local h = T:Text(content, 13, T.accent)
-    h:SetText(section[1])
-    add("band", { band = band, text = h })
-    for _, entry in ipairs(section[2]) do
-      local topic = T:Text(content, 12)
-      topic:SetJustifyH("LEFT")
-      topic:SetText(entry[1])
-      local text = T:Text(content, 12, T.dim)
-      text:SetJustifyH("LEFT")
-      text:SetText(entry[2])
-      local line = content:CreateTexture(nil, "BACKGROUND")
-      line:SetColorTexture(1, 1, 1, 0.04)
-      line:SetHeight(1)
-      add("entry", { topic = topic, text = text, line = line })
-    end
-  end
-  return sf
+  hv.welcome:SetPoint("BOTTOMLEFT", 0, 2)
+
+  -- The chosen topic.
+  local sf, content = T:Scroll(f)
+  sf:SetPoint("TOPLEFT", NAV_W + 4, 0)
+  sf:SetPoint("BOTTOMRIGHT")
+  hv.sf, hv.content = sf, content
+  return f
 end
 
--- Positions everything for the current width (text heights depend on it).
+-- Text pieces are reused between topics: get the i-th of a kind.
+local function piece(kind, i, make)
+  hv.pool = hv.pool or {}
+  local list = hv.pool[kind] or {}
+  hv.pool[kind] = list
+  if not list[i] then list[i] = make() end
+  return list[i]
+end
+
+-- Draws the chosen topic for the current width (text heights depend on it).
 function ns:RefreshHelp()
   if not hv then return end
-  local width = math.max(hv.sf:GetWidth() - 12, 300)
+  local T = ns.Theme
+  local cur = topicIndex()
+  for i, b in ipairs(hv.navButtons) do b:SetSelected(i == cur) end
+  hv.navSf.UpdateScrollBar()
+
+  local section = ns.HELP[cur]
+  local width = math.max(hv.sf:GetWidth() - 12, 280)
   hv.content:SetWidth(width)
-  local y = 0
-  for _, p in ipairs(hv.parts) do
-    local o = p.obj
-    if p.kind == "intro" then
-      o:ClearAllPoints()
-      o:SetPoint("TOPLEFT", 4, -2)
-      o:SetWidth(width - 190)   -- room for "Show the welcome again" on the right
-      y = math.max(o:GetStringHeight(), 22) + 12
-    elseif p.kind == "band" then
-      y = y + 8
-      o.band:ClearAllPoints()
-      o.band:SetPoint("TOPLEFT", 0, -y)
-      o.band:SetPoint("RIGHT", hv.content, "RIGHT", -4, 0)
-      o.band:SetHeight(24)
-      o.text:ClearAllPoints()
-      o.text:SetPoint("LEFT", o.band, "LEFT", 8, 0)
-      y = y + 30
-    else
-      o.topic:ClearAllPoints()
-      o.topic:SetPoint("TOPLEFT", 12, -y)
-      o.topic:SetWidth(TOPIC_W - 16)
-      o.text:ClearAllPoints()
-      o.text:SetPoint("TOPLEFT", TOPIC_W, -y)
-      o.text:SetWidth(width - TOPIC_W - 12)
-      y = y + math.max(o.topic:GetStringHeight(), o.text:GetStringHeight()) + 10
-      o.line:ClearAllPoints()
-      o.line:SetPoint("TOPLEFT", 8, -(y - 5))
-      o.line:SetPoint("RIGHT", hv.content, "RIGHT", -8, 0)
-    end
+  for _, list in pairs(hv.pool or {}) do for _, p in ipairs(list) do p:Hide() end end
+
+  local y, nBand, nTopic, nText, nLine = 0, 0, 0, 0, 0
+  local function band(title)
+    nBand = nBand + 1
+    local b = piece("band", nBand, function()
+      local fr = CreateFrame("Frame", nil, hv.content)
+      T:Fill(fr, { 1, 1, 1, 0.05 })
+      fr.text = T:Text(fr, 13, T.accent)
+      fr.text:SetPoint("LEFT", 8, 0)
+      return fr
+    end)
+    b:ClearAllPoints()
+    b:SetPoint("TOPLEFT", 0, -y)
+    b:SetPoint("RIGHT", hv.content, "RIGHT", -4, 0)
+    b:SetHeight(24)
+    b.text:SetText(title)
+    b:Show()
+    y = y + 30
+  end
+  local function entry(left, right, leftColor)
+    nTopic, nText, nLine = nTopic + 1, nText + 1, nLine + 1
+    local topic = piece("topic", nTopic, function()
+      local fs = T:Text(hv.content, 12)
+      fs:SetJustifyH("LEFT")
+      return fs
+    end)
+    local text = piece("text", nText, function()
+      local fs = T:Text(hv.content, 12, T.dim)
+      fs:SetJustifyH("LEFT")
+      return fs
+    end)
+    local line = piece("line", nLine, function()
+      local tx = hv.content:CreateTexture(nil, "BACKGROUND")
+      tx:SetColorTexture(1, 1, 1, 0.04)
+      tx:SetHeight(1)
+      return tx
+    end)
+    topic:SetText(left)
+    local c = leftColor or { 1, 1, 1, 1 }
+    topic:SetTextColor(c[1], c[2], c[3], c[4] or 1)
+    text:SetText(right)
+    topic:ClearAllPoints()
+    topic:SetPoint("TOPLEFT", 12, -y)
+    topic:SetWidth(TOPIC_W - 16)
+    text:ClearAllPoints()
+    text:SetPoint("TOPLEFT", TOPIC_W, -y)
+    text:SetWidth(width - TOPIC_W - 12)
+    topic:Show()
+    text:Show()
+    y = y + math.max(topic:GetStringHeight(), text:GetStringHeight()) + 10
+    line:ClearAllPoints()
+    line:SetPoint("TOPLEFT", 8, -(y - 5))
+    line:SetPoint("RIGHT", hv.content, "RIGHT", -8, 0)
+    line:Show()
+  end
+
+  band(section[1])
+  for _, e in ipairs(section[2]) do entry(e[1], e[2]) end
+  local faq = ns.HELP_FAQ[section[1]]
+  if faq and #faq > 0 then
+    y = y + 6
+    band("Questions")
+    for _, q in ipairs(faq) do entry(q[1], q[2], T.accent) end
+  end
+  if cur == 1 then
+    y = y + 6
+    band("More")
+    entry("Full guide", "docs/GUIDE.md on the addon's GitHub page, with pictures.")
   end
   hv.content:SetHeight(y + 10)
   hv.sf.UpdateScrollBar()

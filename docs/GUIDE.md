@@ -11,7 +11,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 3. At the auction house, click **Full scan** (allowed about every 15 minutes) to price everything.
 4. Hover any item: the tooltip shows what it's worth to you.
 
-The first time you open the window, a short welcome walks through these and the Buy queue, Deals and Shopping lists. Show it again from the top of the Help tab, or with `/fl welcome`. After an update, chat lists what's new in that version once; `/fl new` shows it again.
+The first time you open the window, a short welcome walks through these and the Buy queue, Deals and Shopping lists. Show it again with the button under the Help tab's list of topics, or with `/fl welcome`. After an update, chat lists what's new in that version once; `/fl new` shows it again.
 
 ![The Forever Ledger window, Dashboard tab](images/dashboard.png)
 
@@ -142,6 +142,30 @@ The first time you open the window, a short welcome walks through these and the 
 ## Sharing between accounts
 
 - **Live sync** (`/fl pair First Last`) sends prices and recipes between your two accounts while both are online. Export and import work too.
+
+## Common questions
+
+The in-game Help tab has these under each topic too.
+
+**Getting started**
+- *Does it buy or sell anything by itself?* No. Every purchase and auction is your own click (or wheel tick), as Blizzard requires. Forever Ledger finds, suggests and queues.
+- *Why are some things empty on the first day?* Prices and flips work from your first full scan. Deals and how fast things sell need a few days of scans to know what's usual.
+
+**Scanning the auction house**
+- *Why can't I run a full scan?* The game allows one about every 15 minutes. The Full scan button counts down to the next.
+- *Does Watch flips work with the auction house closed?* No: the game only lets addons search with the auction house open. The watch pauses when you close it and picks up when you come back.
+- *What are the 120 items the watch re-checks?* Between full scans, the items whose price was closest to what a vendor pays: the likeliest to turn into flips when someone lists one cheap.
+
+**Tooltips**
+- *Is Ledger price the cheapest price?* It's the average of the 20 cheapest, at your last scan. If there's no "cheapest listing" line under it, those 20 were all one price, so it is the cheapest. The grey time says how old it is.
+- *Why does it say none listed?* Your last scan found none of that item on the auction house.
+
+**Buy queue and shopping lists**
+- *Do I click the big button or a row?* Either. The big button (or the wheel over its strip, with Scroll to buy ticked) buys the next one. Clicking a row buys that one next.
+- *Why did items disappear from the queue?* Someone else bought them first, or their price is too old: finds over 15 minutes old are left out until a scan finds them again. Items you can't afford stay at the bottom, marked.
+
+**Deals**
+- *Why are there no deals?* A deal needs an item's usual price, so at least 4 days of your scans (or TSM). Keep scanning; they fill in.
 
 ## Help and community
 
