@@ -35,7 +35,7 @@ local function addLines(tt, id, forceFull)
       local how = options and options[1] and options[1].label
       tt:AddDoubleLine("Worth to you" .. (how and (" |cff999999(" .. how .. ")|r") or ""), ns.Money(best), LR, LG, LB, 1, 1, 1)
     elseif price then
-      tt:AddDoubleLine("Ledger price", ns.Money(price), LR, LG, LB, 1, 1, 1)
+      tt:AddDoubleLine("Auction price", ns.Money(price), LR, LG, LB, 1, 1, 1)
     else
       return
     end
@@ -43,16 +43,24 @@ local function addLines(tt, id, forceFull)
     return
   end
 
+  -- The cheapest listing first (what people expect), then the average of the cheapest
+  -- 20 (what values use, so one odd listing doesn't sway them), only when it differs.
+  -- Was "Ledger price" + "cheapest listing": Magic, October 3, asked which was which.
   if price and on("tipPrice") then
-    local right = ns.Money(price)
     local age = t and ns.Age(t) or ""
-    if age ~= "" then right = right .. " |cff999999" .. age .. "|r" end
-    tt:AddDoubleLine("Ledger price (" .. (src or "?") .. ")", right, LR, LG, LB, 1, 1, 1)
-    if rec and rec.m and rec.a and rec.m ~= rec.a and src ~= "Auctionator" and src ~= "TSM" and src ~= "Auctioneer" then
-      tt:AddDoubleLine("  cheapest listing", ns.Money(rec.m) .. (rec.q and (" |cff999999" .. rec.q .. " listed|r") or ""), 0.7, 0.7, 0.7, 1, 1, 1)
+    age = age ~= "" and (" |cff999999" .. age .. "|r") or ""
+    local own = rec and rec.m and src ~= "Auctionator" and src ~= "TSM" and src ~= "Auctioneer"
+    if own then
+      local listed = rec.q and (" |cff999999" .. rec.q .. " listed|r") or ""
+      tt:AddDoubleLine("Auction, cheapest", ns.Money(rec.m) .. listed .. age, LR, LG, LB, 1, 1, 1)
+      if rec.a and rec.a ~= rec.m then
+        tt:AddDoubleLine("  avg of cheapest 20", ns.Money(rec.a), 0.7, 0.7, 0.7, 1, 1, 1)
+      end
+    else
+      tt:AddDoubleLine("Auction price (" .. (src or "?") .. ")", ns.Money(price) .. age, LR, LG, LB, 1, 1, 1)
     end
   elseif rec and rec.none and on("tipPrice") then
-    tt:AddDoubleLine("Ledger price", "none listed " .. ns.Age(rec.t), LR, LG, LB, 0.7, 0.7, 0.7)
+    tt:AddDoubleLine("Auction, cheapest", "none listed " .. ns.Age(rec.t), LR, LG, LB, 0.7, 0.7, 0.7)
   end
 
   -- How fast it sells, once there are enough scans to say (History.lua SellSpeed).

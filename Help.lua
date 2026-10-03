@@ -25,7 +25,7 @@ ns.HELP = {
     { "Sell protection", "On the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line under Post says so and Post is greyed out until you click Post anyway. Settings, Auction house: untick Stop posts below vendor price to keep just the warning." },
   } },
   { "Tooltips", {
-    { "Ledger price", "The average of the 20 cheapest units on the auction house at your last scan: about what you'd pay buying a few, so one odd cheap listing doesn't sway it. When the very cheapest listing is lower, it's on the line below (cheapest listing). In brackets: where it came from (full scan, or scan for a single search); in grey: how old it is. With your own prices over 12 hours old, Auctionator's or TSM's price is used if you have them, and named." },
+    { "Auction price", "Auction, cheapest: the lowest price listed at your last scan, how many were listed, and (in grey) how long ago. Under it, when different: the average of the 20 cheapest, about what you'd pay buying a few. Values in Forever Ledger use that average, so one odd cheap listing doesn't sway them. With your own prices over 12 hours old, Auctionator's or TSM's price is used if you have them, and named." },
     { "Worth to you", "The best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed." },
     { "Buy at or below", "The most worth paying, after your safety margin. Green when it's already cheaper." },
     { "Also", "Disenchant results, which of your recipes use it, and the cheapest crate fill." },
@@ -126,7 +126,6 @@ ns.HELP_FAQ = {
     { "What are the 120 items the watch re-checks?", "Between full scans, the items whose price was closest to what a vendor pays: the likeliest to turn into flips when someone lists one cheap." },
   },
   ["Tooltips"] = {
-    { "Is Ledger price the cheapest price?", "It's the average of the 20 cheapest, at your last scan. If there's no cheapest listing line under it, those 20 were all one price, so it is the cheapest. The grey time says how old it is." },
     { "Why does it say none listed?", "Your last scan found none of that item on the auction house." },
   },
   ["Buy queue and shopping lists"] = {

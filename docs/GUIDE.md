@@ -28,7 +28,7 @@ The first time you open the window, a short welcome walks through these and the 
 
 ## Tooltips
 
-- **Ledger price**: the average of the 20 cheapest units on the auction house at your last scan, which is about what you'd pay buying a few (one odd cheap listing doesn't sway it). When the very cheapest listing is lower, it shows on the line below as **cheapest listing**. The word in brackets says where the price came from (**full scan**, or **scan** for a single search) and the grey time how old it is. If your own prices are more than 12 hours old and you have Auctionator or TSM, their price is used instead and named.
+- **Auction price**: **Auction, cheapest** is the lowest price listed at your last scan, with how many were listed and (in grey) how long ago. Under it, when it differs, **avg of cheapest 20**: about what you'd pay buying a few. Forever Ledger's values use that average, so one odd cheap listing doesn't sway them. If your own prices are more than 12 hours old and you have Auctionator or TSM, their price is used instead and named.
 - **Worth to you**: the best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed.
 - **Buy at or below**: the most worth paying, after your safety margin. Green when it's already cheaper.
 - Also: disenchant results, which of your recipes use it, and the cheapest crate fill.
@@ -157,7 +157,6 @@ The in-game Help tab has these under each topic too.
 - *What are the 120 items the watch re-checks?* Between full scans, the items whose price was closest to what a vendor pays: the likeliest to turn into flips when someone lists one cheap.
 
 **Tooltips**
-- *Is Ledger price the cheapest price?* It's the average of the 20 cheapest, at your last scan. If there's no "cheapest listing" line under it, those 20 were all one price, so it is the cheapest. The grey time says how old it is.
 - *Why does it say none listed?* Your last scan found none of that item on the auction house.
 
 **Buy queue and shopping lists**
