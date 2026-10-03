@@ -424,6 +424,8 @@ local SETTINGS = {
     help = "Quests that ask for the item (original Classic quests; Forever may have changed some), and \"keep it\" when this character will want it later." },
   { key = "tipQuestMine", label = "  Only quests this character still needs", kind = "check",
     help = "Leaves out quests this character has done, ones grey for its level, and other classes' quests. Off: all of them, marked (done), (too low) or (other class), handy when selling to others." },
+  { key = "tipDrops", label = "Dungeon drops you've had", kind = "check",
+    help = "\"Dropped for you: Deadmines, 2 in 14 runs\", from the dungeon runs Forever Ledger counts (/fl runs)." },
   { key = "tipWorth", label = "Worth to you", kind = "check" },
   { key = "tipBuy", label = "Buy at or below", kind = "check" },
   { key = "tipDisenchant", label = "Disenchants to", kind = "check" },

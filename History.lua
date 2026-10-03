@@ -251,6 +251,7 @@ local function onMoney()
   totals[source] = (totals[source] or 0) + math.abs(delta)
   -- A running session counts it too (Sessions.lua).
   if ns.SessionMoney then ns:SessionMoney(source, delta) end
+  if ns.DungeonMoney then ns:DungeonMoney(source, delta) end   -- and a dungeon run (Dungeons.lua)
 
   local now, who = time(), ns.CharKey()
   for _, h in ipairs(hints) do

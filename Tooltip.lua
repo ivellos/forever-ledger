@@ -167,6 +167,9 @@ local function addLines(tt, id, forceFull)
     end
   end
   questLines(false)
+  -- Dungeon drops you've had (Dungeons.lua): "Dropped for you: Deadmines, 2 in 14 runs".
+  local drops = on("tipDrops") and ns.DropLine and ns:DropLine(id)
+  if drops then tt:AddLine(drops, LR, LG, LB, true) end
 end
 
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then

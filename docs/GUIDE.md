@@ -130,6 +130,7 @@ The first time you open the window, a short welcome walks through these and the 
 - **Dashboard**: gold over time, sales, expenses and profit, and your sessions.
 - **Ledger**: every sale and purchase, resale profit, and other money like repairs and flights.
 - **Sessions**: start one with `/fl session start` (or **Start a session** on the Dashboard) and a small tracker you can drag counts what your time is worth: gold in and out by where it came from, what you loot (at the better of auction price after the cut and vendor price; Settings, Sessions can make it vendor only) and gold per hour. Stop it (the tracker's Stop, or `/fl session stop`) for a summary in chat with the best loot; it joins the Dashboard's list of sessions. A session carries on through a logout on the same character. Next: dungeon runs and the items you're chasing.
+- **Dungeon runs**: counted as you go, in a session or not. Each dungeon keeps how many runs, the time, the coin looted and what dropped for you; going back in within 5 minutes (after a wipe, say) is the same run. `/fl runs` lists them with the best drops, and item tooltips say how often something dropped for you ("Dropped for you: Deadmines, 2 in 14 runs").
 - **How long it's kept**: market and money history goes stale, so it's summed up as it ages and the saved file doesn't grow forever:
 
   | What | Kept |

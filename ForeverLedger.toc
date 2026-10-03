@@ -32,6 +32,7 @@ Help.lua
 Welcome.lua
 Work.lua
 Sessions.lua
+Dungeons.lua
 Sync.lua
 AuctionHouse.lua
 SellGuard.lua
