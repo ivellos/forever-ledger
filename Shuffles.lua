@@ -752,15 +752,24 @@ end
 -- Returns deals, biggest saving first: { kind = "usual" | "vendor", id, price, worth, listed }.
 -- Usual-price deals carry the judgement above. maxAge: how old a price may be
 -- (default 10 minutes, for alerts right after a scan).
+-- Each item's verdict is kept until its price, the day or a deal setting changes: judging
+-- all 2,500 items took up to 0.2 s per Deals tab redraw (/fl perf, October 3).
+local judged, judgedSig = {}, nil
 function ns:FindDeals(maxAge)
   local s = ns.db.settings
   local market = ns.db.prices[ns.MarketKey()] or {}
   local vendorPct, vendorMin = (s.dealVendorPct or 10) / 100, s.dealVendorMin or 0
+  local sig = table.concat({ ns.MarketKey(), ns.LocalDay and ns.LocalDay() or 0, tostring(s.dealUsualPct),
+    tostring(s.dealWindow), tostring(s.dealUsualMin), tostring(s.ahCut), tostring(s.dealHistory),
+    tostring(s.source) }, "|")
+  if sig ~= judgedSig then judged, judgedSig = {}, sig end
   local now, deals = time(), {}
   for id, rec in pairs(market) do
     local price = rec.m
     if price and not rec.none and now - (rec.t or 0) <= (maxAge or DEAL_RECENT) then
-      local sell = ns:GetSellPrice(id)
+      -- Quick look at the vendor price before the full check, which reads the tooltip.
+      local raw = select(11, ns.GetItemInfo(id)) or ns.db.vendorSell[id]
+      local sell = (raw == nil or raw > price) and ns:GetSellPrice(id)
       if sell and sell > price then
         local profit = sell - price
         if profit / sell >= vendorPct and profit >= vendorMin then
@@ -769,8 +778,12 @@ function ns:FindDeals(maxAge)
           deals[#deals + 1] = { kind = "vendor", id = id, price = price, worth = sell, listed = n or rec.q }
         end
       end
-      local d = judgeUsual(id, rec)
-      if d then deals[#deals + 1] = d end
+      local j = judged[id]
+      if not (j and j.t == rec.t and j.m == price) then
+        j = { t = rec.t, m = price, d = judgeUsual(id, rec) or false }
+        judged[id] = j
+      end
+      if j.d then deals[#deals + 1] = j.d end
     end
   end
   table.sort(deals, function(a, b) return a.worth - a.price > b.worth - b.price end)
