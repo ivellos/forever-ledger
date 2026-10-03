@@ -80,10 +80,10 @@ local function patterns()
     p = "^" .. p .. "$"
     lootPatterns[#lootPatterns + 1] = { p = p, multiple = multiple }
   end
+  -- Only "You receive loot" (mobs, chests, gathering). "You receive item" is also vendor
+  -- purchases and quest rewards: those would count twice, as gold spent and as loot.
   add(LOOT_ITEM_SELF_MULTIPLE, true)   -- first: the single form would match it too
   add(LOOT_ITEM_SELF, false)
-  add(LOOT_ITEM_PUSHED_SELF_MULTIPLE, true)
-  add(LOOT_ITEM_PUSHED_SELF, false)
   return lootPatterns
 end
 
