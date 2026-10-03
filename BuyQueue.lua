@@ -430,7 +430,21 @@ end
 -- One tick of the mouse wheel or a click on Buy: the next step of the purchase.
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
-function ns:BuyQueueAct()
+-- clicked: a click on the button (not the wheel). With nothing to buy, the button runs
+-- the flip watch instead (owner, October 3: "Look again" seemed odd), Shift-click one
+-- full scan; the wheel never starts a scan.
+function ns:BuyQueueAct(clicked)
+  if clicked and Q.state == "idle" and not Q.cur then
+    local any = false
+    for _, x in ipairs(laneList()) do
+      if not x.waiting and not cantAfford(x) then any = true; break end
+    end
+    if not any then
+      if IsShiftKeyDown() then ns.Scan:Start("full") else ns:ToggleFlipWatch() end
+      if refreshQueue then refreshQueue() end
+      return
+    end
+  end
   if not active() or GetTime() - lastAct < 0.15 then return end
   lastAct = GetTime()
   -- Scans step aside for a few seconds after each buy, and longer while you keep going.
@@ -686,10 +700,12 @@ local function statusText()
   for _, x in ipairs(laneList()) do
     if x.waiting then waiting = waiting + 1 elseif cantAfford(x) then poor = poor + 1 end
   end
+  local watching = ns:IsFlipWatching()
   local why = (poor > 0 and ("%d you can't afford yet (greyed below)."):format(poor))
     or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
-    or "New finds show up here as scans find them (Watch flips keeps scanning)."
-  return "Nothing to buy yet.", Q.note and (Q.note .. " " .. why) or why, GREY:format("Look again")
+    or (watching and ("Watching for flips; new ones show up here. " .. (ns.statusText or "")))
+    or "Click Watch flips to keep scanning while you're here (Shift-click: one full scan now)."
+  return "Nothing to buy yet.", Q.note and (Q.note .. " " .. why) or why, watching and "Stop" or "Watch flips"
 end
 
 -- A section that isn't armed: what it has, and how to start it.
@@ -790,7 +806,7 @@ local function buildLane(v, d)
   end)
   L.title = T:Text(strip, 11, T.accent)
   L.title:SetPoint("TOPLEFT", 6, -4)
-  L.title:SetPoint("RIGHT", strip, "RIGHT", -100, 0)
+  L.title:SetPoint("RIGHT", strip, "RIGHT", -116, 0)
   L.title:SetJustifyH("LEFT")
   L.title:SetWordWrap(false)
   L.icon = strip:CreateTexture(nil, "ARTWORK")
@@ -799,16 +815,16 @@ local function buildLane(v, d)
   L.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   L.line1 = T:Text(strip, 12)
   L.line1:SetPoint("TOPLEFT", L.icon, "TOPRIGHT", 6, 1)
-  L.line1:SetPoint("RIGHT", strip, "RIGHT", -100, 0)
+  L.line1:SetPoint("RIGHT", strip, "RIGHT", -116, 0)
   L.line1:SetJustifyH("LEFT")
   L.line1:SetWordWrap(false)
   L.line2 = T:Text(strip, 10, T.dim)
   L.line2:SetPoint("TOPLEFT", L.line1, "BOTTOMLEFT", 0, -2)
-  L.line2:SetPoint("RIGHT", strip, "RIGHT", -100, 0)
+  L.line2:SetPoint("RIGHT", strip, "RIGHT", -116, 0)
   L.line2:SetJustifyH("LEFT")
   L.line2:SetWordWrap(false)
   L.buy = T:Button(strip, "Buy", 72, function()
-    if Q.armed ~= d.key then arm(d.key) else ns:BuyQueueAct() end
+    if Q.armed ~= d.key then arm(d.key) else ns:BuyQueueAct(true) end
   end, 34)
   L.buy:SetPoint("RIGHT", -6, 0)
   L.buy:GetFontString():SetFont(T.font, 14, "")
@@ -880,12 +896,35 @@ local function buildQueueView(parent)
   v.empty:SetPoint("TOP", 0, -80)
   v.empty:SetText("Tick what to buy above.")
 
-  local refresh = T:Button(v, "Refresh", 80, function() Q.built = 0; rebuildNow() end, 22)
-  refresh:SetPoint("BOTTOMLEFT", 10, 8)
+  -- Scanning lives here too (owner, October 3: with the panel open, the scan buttons
+  -- belong with the queue they fill). While the panel is open beside the auction house,
+  -- the same buttons under the auction house window are hidden (UI.lua).
+  local function tip(b, title, text)
+    b:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine(title, 1, 1, 1)
+      GameTooltip:AddLine(text, nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  v.watchBtn = T:Button(v, "Watch flips", 118, function() ns:ToggleFlipWatch() end, 22)
+  v.watchBtn:SetPoint("BOTTOMLEFT", 10, 8)
+  tip(v.watchBtn, "Watch flips", "Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes) and quick checks of likely items in between. New flips chime and join the queue. Click again to stop.")
+  v.fullBtn = T:Button(v, "Full scan", 128, function() ns.Scan:Start("full") end, 22)
+  v.fullBtn:SetPoint("LEFT", v.watchBtn, "RIGHT", 6, 0)
+  tip(v.fullBtn, "Full scan", "Reads every listing in a few seconds. The game allows one about every 15 minutes; the button counts down to the next.")
+  ns.panelFullButton = v.fullBtn
+  v.matsBtn = T:Button(v, "Scan materials", 118, function()
+    if ns.Scan.active and not ns.Scan.full then ns.Scan:Stop("Scan stopped.") else ns.Scan:Start("watch") end
+  end, 22)
+  v.matsBtn:SetPoint("LEFT", v.fullBtn, "RIGHT", 6, 0)
+  tip(v.matsBtn, "Scan materials", "Checks just what your recipes use, one item at a time (a couple of minutes). Click again to stop.")
   v.totals = T:Text(v, 11, T.dim)
-  v.totals:SetPoint("LEFT", refresh, "RIGHT", 10, 0)
+  v.totals:SetPoint("BOTTOMLEFT", 12, 36)
   v.totals:SetPoint("RIGHT", v, "RIGHT", -10, 0)
   v.totals:SetJustifyH("LEFT")
+  v.totals:SetWordWrap(false)
   v:SetScript("OnSizeChanged", function() if refreshQueue then refreshQueue() end end)
   return v
 end
@@ -893,7 +932,7 @@ end
 -- Stack the ticked sections, splitting the height between them.
 local function layoutLanes(v)
   local t = ticked()
-  local top, bottom, gap = 38, 36, 6
+  local top, bottom, gap = 38, 54, 6   -- bottom: the totals line and the scan buttons
   local h = v:GetHeight() - top - bottom
   local n = #t
   v.empty:SetShown(n == 0)
@@ -905,7 +944,7 @@ local function layoutLanes(v)
     -- the mouse on and scroll while farming (owner, October 2).
     local big = n == 1
     L.strip:SetHeight(big and STRIP_BIG or STRIP_H)
-    L.buy:SetSize(big and 88 or 72, big and 60 or 34)
+    L.buy:SetSize(big and 104 or 86, big and 60 or 34)   -- wide enough for "Watch flips"
     L.buy:GetFontString():SetFont(T.font, big and 16 or 14, "")
     L.icon:SetSize(big and 36 or 24, big and 36 or 24)
     L.line1:SetFont(T.font, big and 13 or 12, "")
@@ -992,10 +1031,31 @@ refreshQueue = function()
   for _, d in ipairs(ticked()) do
     for _, x in ipairs(Q.lanes[d.key] or {}) do if not x.waiting and not cantAfford(x) then total = total + 1 end end
   end
-  v.totals:SetText(Q.bought > 0 and ("Bought %d for %s%s."):format(Q.bought, money(Q.spent),
+  -- The scan status (a scan's progress, the watch's countdown) when there is one.
+  local status = ns.statusText and ns.statusText ~= "" and ("|cffb9a2ff" .. ns.statusText .. "|r   ") or ""
+  v.totals:SetText(status .. (Q.bought > 0 and ("Bought %d for %s%s."):format(Q.bought, money(Q.spent),
     Q.worth > 0 and (", worth about %s"):format(money(Q.worth)) or "")
-    or (Q.armed and ("%d to buy. Click a section to buy from it."):format(total)
-      or "Click a section (or scroll over its strip) to buy from it."))
+    or (Q.armed and ("%d to buy."):format(total)
+      or "Click a section (or scroll over its strip) to buy from it.")))
+  if ns.UpdatePanelScanButtons then ns:UpdatePanelScanButtons() end
+end
+
+-- For UI.lua: redraw when the scan status changes; is the panel open beside the AH.
+local viewQueued = false
+function ns:RefreshQueueView()
+  -- Scans report progress often: redraw at most twice a second.
+  if viewQueued or not refreshQueue then return end
+  viewQueued = true
+  C_Timer.After(0.5, function() viewQueued = false; refreshQueue() end)
+end
+function ns:SidePanelDocked() return side and side:IsShown() and not side.floating or false end
+
+-- The panel's scan buttons follow what's running.
+function ns:UpdatePanelScanButtons()
+  local v = queueView
+  if not v or not v.watchBtn then return end
+  v.watchBtn:SetText(ns:IsFlipWatching() and "Stop watching" or "Watch flips")
+  v.matsBtn:SetText((ns.Scan.active and not ns.Scan.full) and "Stop scan" or "Scan materials")
 end
 refreshQueue = ns.Timed("Buy queue view", refreshQueue)
 
@@ -1874,11 +1934,15 @@ local function ensureSide()
   queueView = buildQueueView(side)
   listsView = buildListsView(side)
   ns:DisenchantFinderFrame(side)
-  side:SetScript("OnShow", function() showTab(S().tab or "queue") end)
+  side:SetScript("OnShow", function()
+    showTab(S().tab or "queue")
+    if ns.UpdateAHScanButtons then ns:UpdateAHScanButtons() end
+  end)
   side:SetScript("OnHide", function()
     if Q.state == "price" or Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
     Q.cur, Q.plan, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"
     updateBinding()
+    if ns.UpdateAHScanButtons then ns:UpdateAHScanButtons() end
   end)
   -- Escape closes it when it's on its own.
   tinsert(UISpecialFrames, "ForeverLedgerSidePanel")

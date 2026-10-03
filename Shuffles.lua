@@ -831,7 +831,7 @@ function ns:DealExplain(d)
     pair("Judged on", ("%d h of scans compared"):format(math.floor(d.speed.hours + 0.5)))
   end
   -- Quest items sell to leveling players, once per character (QuestItems.lua).
-  if ns.IsQuestItem and ns:IsQuestItem(d.id) then
+  if ns.db.settings.tipQuest ~= false and ns.IsQuestItem and ns:IsQuestItem(d.id) then
     local needs = ns:QuestNeeds(d.id)
     local q = needs and needs[1]
     pair("Quest item", q and ("%s, level %d"):format(q.quest, q.level) or "for the other faction's quests")

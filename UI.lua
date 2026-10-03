@@ -1172,7 +1172,7 @@ function ns:UpdateFullScanButtons()
     -- "in": it's a countdown to the next one Blizzard allows, not how long a scan takes.
     label = ("Full scan in %d:%02d"):format(math.floor(wait / 60), wait % 60)
   end
-  for _, b in ipairs({ main and main.fullBtn or false, ns.ahFullButton or false }) do
+  for _, b in ipairs({ main and main.fullBtn or false, ns.ahFullButton or false, ns.panelFullButton or false }) do
     if b then
       b:SetText(label)
       b:SetEnabled(ready and ns:IsAHOpen() and not ns.Scan.active)
@@ -1183,23 +1183,34 @@ end
 -- Tick the countdown once a second while a button showing it is on screen.
 ns:OnReady(function()
   C_Timer.NewTicker(1, function()
-    if (main and main:IsShown()) or (ns.ahFullButton and ns.ahFullButton:IsVisible()) then
+    if (main and main:IsShown()) or (ns.ahFullButton and ns.ahFullButton:IsVisible())
+      or (ns.panelFullButton and ns.panelFullButton:IsVisible()) then
       ns:UpdateFullScanButtons()
     end
   end)
 end)
 
 -- Plain text in the status corner (the flip watch's countdown between checks).
+-- The Buy queue panel shows the same line (ns.statusText).
 function ns:SetStatusText(text)
-  if main and main.status then main.status:SetText(text or "") end
+  ns.statusText = text or ""
+  if main and main.status then main.status:SetText(ns.statusText) end
+  if ns.RefreshQueueView then ns:RefreshQueueView() end
 end
 
 function ns:UpdateScanStatus(done, total)
-  if main and main.status then
-    main.status:SetText(total and total > 0 and ("Scanning: %d of %d"):format(done, total) or "")
-    if done and total and done >= total then
-      C_Timer.After(3, function() if main then main.status:SetText("") end end)
-    end
+  ns:SetStatusText(total and total > 0 and ("Scanning: %d of %d"):format(done, total) or "")
+  if done and total and done >= total then
+    C_Timer.After(3, function() ns:SetStatusText("") end)
+  end
+end
+
+-- While the Buy queue panel is open beside the auction house, its own scan buttons do
+-- the job, so the ones under the auction house window are hidden (owner, October 3).
+function ns:UpdateAHScanButtons()
+  local docked = ns.SidePanelDocked and ns:SidePanelDocked()
+  for _, b in ipairs({ ns.ahButton or false, ns.ahFullButton or false, ns.ahWatchButton or false }) do
+    if b then b:SetShown(not docked) end
   end
 end
 

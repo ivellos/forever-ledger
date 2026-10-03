@@ -9,8 +9,8 @@ local T = ns.Theme
 ---------------------------------------------------------------------------
 local STEPS = {
   { "Learn your recipes", "Open each profession window once on every character. Forever Ledger reads your recipes from it." },
-  { "Price everything", "At the auction house, click Full scan below the auction house window. It reads every listing in a few seconds; the game allows one about every 15 minutes." },
-  { "Buy vendor flips", "At the auction house, click Buy queue: a panel beside it lists things selling for less than a vendor pays. Click Buy to buy the next one, or tick Scroll to buy and scroll down over its top strip. Watch flips keeps scanning while you stand there." },
+  { "Price everything", "At the auction house, click Full scan. It reads every listing in a few seconds; the game allows one about every 15 minutes. Prices and flips work from the first scan; deals and sell speed get sharper as a few days of scans build up." },
+  { "Buy vendor flips", "At the auction house, click Buy queue: a panel beside it lists things selling for less than a vendor pays, with Watch flips to keep scanning while you're there. Click Buy to buy the next one, or tick Scroll to buy and scroll down over its top strip." },
   { "Find deals", "The Deals tab lists items selling well below their usual price, to buy and resell.", "Open Deals", "deals" },
   { "Plan your shopping", "Shopping lists hold what you want to buy and the most you'd pay. Plan anywhere; they show beside the auction house when you get there.", "Open shopping lists", "lists" },
 }
@@ -60,7 +60,7 @@ local function build()
         ns:ShowTab(key)
       end, 22)
       -- Right of the step's text (which stops 170 short of the edge), level with its heading.
-      b:SetPoint("TOPLEFT", text, "TOPRIGHT", 12, 18)
+      b:SetPoint("TOPLEFT", text, "TOPRIGHT", 12, 8)   -- a little below the heading (owner, October 3)
     end
     -- The next step goes under this one's text (left edge from the number).
     local anchor = CreateFrame("Frame", nil, card)

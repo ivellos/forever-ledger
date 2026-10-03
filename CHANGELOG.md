@@ -7,12 +7,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Buy queue: flips you can't afford were looked up and dropped as "none left", so with little gold every find seemed to vanish a second after it showed up. They now stay in the list, greyed and marked can't afford, and are skipped until you have the gold.
-- Buy queue: the strip says plainly what's happening and what to do: "Nothing to buy yet" and why (instead of a Check button), why it's waiting for the auction house, and how to buy (click Buy, or scroll over the strip with Scroll to buy). The button reads Look again, Wait, Buy, Confirm or Go now. The list's Up to and Cheap headings no longer run together.
+- Buy queue: the strip says plainly what's happening and what to do: "Nothing to buy yet" and why (instead of a Check button), why it's waiting for the auction house, and how to buy (click Buy, or scroll over the strip with Scroll to buy). The button reads Watch flips, Wait, Buy, Confirm or Go now. The list's Up to and Cheap headings no longer run together.
 - Clearer wording: the full scan countdown reads "Full scan in 1:06"; an empty Deals tab says when your filter or search is what's hiding the deals; an empty Ledger says when sales get recorded (when you take the money from the mailbox).
 - Shopping lists: the Now column shows prices short (54s, 1g 20s) so they no longer run into the Have number.
 - Shopping lists: the list menu is drawn above the panel, so its buttons and tick boxes no longer show through it.
 
 ### Added
+- Buy queue: Watch flips, Full scan and Scan materials are now at the bottom of the panel, always there (they become Stop watching and Stop scan while running), and the scan status shows above them. While the panel is open beside the auction house, the same buttons under the auction house window are hidden. With nothing to buy, the big button is Watch flips (Shift-click: one full scan now); scrolling never starts a scan.
 - Quest items: tooltips list the quests that ask for an item (about 75 Classic quests with items you can buy, for your faction), with the level and how many; in yellow with "keep it" when this character hasn't reached that level yet. The Deals tab's hover says when a deal is a quest item, since leveling players buy them. Settings, Tooltips can turn it off.
 - A welcome the first time you open the window: the five things to start with (learn your recipes, full scan, the Buy queue, Deals, Shopping lists), with buttons for the ones you can open from there. Show it again from the Help tab or with /fl welcome.
 - What's new: after an update, chat lists the new version's highlights once (/fl new shows them again).

@@ -554,6 +554,8 @@ local function watchEye(button)
 end
 
 function ns:UpdateWatchButton()
+  if ns.UpdatePanelScanButtons then ns:UpdatePanelScanButtons() end
+  if ns.RefreshQueueView then ns:RefreshQueueView() end
   local w = ns.ahWatchButton
   if not w then return end
   local on = ns:IsFlipWatching()
@@ -603,6 +605,7 @@ ns:On("AUCTION_HOUSE_SHOW", function()
       ns.ahWatchButton = w
     end
     ns:UpdateWatchButton()
+    ns:UpdateAHScanButtons()
   end)
 end)
 ns.RefreshDisenchantFinder = ns.Timed("Disenchant finder", ns.RefreshDisenchantFinder)
