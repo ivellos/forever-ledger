@@ -570,6 +570,10 @@ end)
 ns:On("COMMODITY_PURCHASE_SUCCEEDED", function()
   if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "commodity") then return end
   bought(Q.plan.qty, Q.plan.total or Q.plan.cost)
+  -- Take what was bought off the saved listings (all at or under the limit), or they
+  -- look like a flip again on the next visit (owner, October 3: Linen Bandage, Flask of
+  -- Oil and Large Venom Sac came back after being bought out).
+  if Q.cur and ns.RemoveBought then pcall(ns.RemoveBought, ns, Q.cur.id, Q.plan.qty, Q.cur.limit) end
   again(true)
 end)
 
@@ -2004,8 +2008,9 @@ end
 
 -- A new auction house visit: fresh counts, and the queue worked out again.
 ns:On("AUCTION_HOUSE_SHOW", function()
+  -- (What was just finished stays set aside for its two minutes: clearing it here
+  -- brought bought-out items straight back on reopening. Owner, October 3.)
   Q.bought, Q.spent, Q.worth, Q.note, Q.built = 0, 0, 0, nil, 0
-  wipe(done)
 end)
 ns:On("AUCTION_HOUSE_CLOSED", function()
   Q.cur, Q.plan, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"

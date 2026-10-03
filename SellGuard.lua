@@ -57,18 +57,20 @@ local function guard(frame, name)
   g.text = T:Text(frame, 11)
   g.text:SetJustifyH("LEFT")
   g.text:SetWordWrap(true)
+  -- Under the Post button, where both sell pages have room (above it, it ran into Total
+  -- Price, and Post anyway went off the left edge: owner's screenshots, October 3).
   if post then
-    g.text:SetPoint("BOTTOMLEFT", post, "TOPLEFT", -2, 6)
-    g.text:SetPoint("RIGHT", frame, "RIGHT", -10, 0)
+    g.text:SetPoint("TOPLEFT", post, "BOTTOMLEFT", 0, -8)
+    g.text:SetPoint("RIGHT", post, "RIGHT", 0, 0)
   else
     g.text:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 40)
   end
-  g.anyway = T:Button(frame, "Post anyway", 96, function()
+  g.anyway = T:Button(frame, "Post anyway", 100, function()
     if g.key then unlocked[g.key] = true end
     g.anyway:Hide()
     if not call(frame, "UpdatePostButtonState") and post then post:Enable() end
   end, 20)
-  if post then g.anyway:SetPoint("RIGHT", post, "LEFT", -6, 0) end
+  g.anyway:SetPoint("TOPLEFT", g.text, "BOTTOMLEFT", 0, -6)
   g.anyway:Hide()
   -- Blizzard turns Post back on as you type: check again after it does, and a few times
   -- a second while the page is open.
