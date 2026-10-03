@@ -1465,6 +1465,11 @@ local function listRow(i)
     if r.entry.qty ~= old and ns:HaveCount(r.entry.id) < (r.entry.qty or 1) then r.entry.done = nil end
     self:SetText(r.entry.qty and tostring(r.entry.qty) or "")
     if r.entry.qty ~= old then unpark({ r.entry.id }) end
+    -- A crate list: the crate's Want is how many crates, so its items follow (Crates.lua).
+    local list = ns:CurrentShoppingList()
+    if r.entry.qty ~= old and list and list.crateID == r.entry.id and ns.ScaleCrateList then
+      unpark(ns:ScaleCrateList(list))
+    end
   end)
   r.need = T:Text(r, 11)
   r.need:SetPoint("RIGHT", r, "LEFT", C.want + 28, 0)

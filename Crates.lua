@@ -133,43 +133,96 @@ function ns:CrateToShoppingList(r, bundle)
   else
     for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i) end end
   end
-  -- Temporary (owner, October 3): it goes when you turn the crate in, or after a week.
+  -- Temporary (owner, October 3): it goes when the last crate is turned in, or after a week.
   list.temp, list.tempT = r.name, time()
+  -- How many crates: the crate's own Want (kept if the list was made before).
+  local count = 1
+  for _, e in ipairs(list.items) do
+    if e.id == r.id and e.qty then count = e.qty end
+  end
+  -- A different bundle than last time: the old bundle's items go.
+  local newParts, keep = {}, { [r.id or 0] = true }
+  for _, p in ipairs(bundle.parts) do
+    if p.id then newParts[#newParts + 1] = { p.id, p.qty }; keep[p.id] = true end
+  end
+  for _, old in ipairs(list.crateParts or {}) do
+    if not keep[old[1]] then
+      for i = #list.items, 1, -1 do if list.items[i].id == old[1] then table.remove(list.items, i) end end
+    end
+  end
+  list.crateID, list.crateParts = r.id, newParts
+
   local added, unknown = 0, {}
-  -- The crate itself too (owner, October 3): want 1, so it's done if you have one.
+  -- The crate itself too (owner, October 3): done if you have enough of them.
   if r.id then
-    local e = ns:AddToShoppingList(list, r.id, priceToGet(r.id, 1) or ns:GetVendorBuyPrice(r.id) or 0, 1)
+    local e = ns:AddToShoppingList(list, r.id, priceToGet(r.id, count) or ns:GetVendorBuyPrice(r.id) or 0, count)
     e.done = nil
     added = added + 1
   end
   for _, p in ipairs(bundle.parts) do
     if p.id then
-      local vendor = ns:GetVendorBuyPrice(p.id)
-      local max = priceToGet(p.id, p.qty) or vendor or 0
-      local e = ns:AddToShoppingList(list, p.id, max, p.qty)
+      local e = ns:AddToShoppingList(list, p.id, priceToGet(p.id, p.qty * count) or ns:GetVendorBuyPrice(p.id) or 0)
       e.done = nil   -- sent again: back in the queue if you're short
       added = added + 1
     else
       unknown[#unknown + 1] = p.name
     end
   end
-  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Tick Use in the buy queue there to buy what you're short (/fl lists). The list goes away when you turn the crate in.%s"):format(
+  ns:ScaleCrateList(list)
+  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Set the crate's Want there to fill more than one; tick Use in the buy queue to buy what you're short (/fl lists). The list goes when you turn the last crate in.%s"):format(
     added, added == 1 and "item" or "items", r.name or "the crate", name,
     #unknown > 0 and (" Not added (not seen in a scan yet): " .. table.concat(unknown, ", ") .. ".") or ""))
   return list
 end
 
--- Removes temporary crate lists: the one for a crate just turned in (name), or any
--- older than a week (no name).
+-- A crate list's crate Want is how many crates to fill: each bundle item wants its
+-- amount times that, like a Craft item's materials (owner, October 3). Limits go up
+-- if more are needed than the old limit could buy. Returns the item IDs changed.
+function ns:ScaleCrateList(list)
+  local count = 1
+  for _, e in ipairs(list.items) do
+    if e.id == list.crateID then count = e.qty or 1 end
+  end
+  local ids = {}
+  for _, part in ipairs(list.crateParts or {}) do
+    for _, e in ipairs(list.items) do
+      if e.id == part[1] then
+        local want = part[2] * count
+        if e.qty ~= want then
+          e.qty = want
+          if ns:HaveCount(e.id) < want then e.done = nil end
+          local need = priceToGet(e.id, want)
+          if need and (e.max or 0) > 0 and need > e.max then e.max = need end
+          ids[#ids + 1] = e.id
+        end
+      end
+    end
+  end
+  return ids
+end
+
+-- Temporary crate lists: a turn-in (crateName) takes one crate off its list, and the
+-- list goes with the last one; with no name, lists older than a week go.
 local TEMP_LIST_SECONDS = 7 * 86400
 local function dropCrateLists(crateName)
   local lists = ns:ShoppingLists()
   for i = #lists, 1, -1 do
     local l = lists[i]
-    if l.temp and ((crateName and l.temp == crateName) or (not crateName and time() - (l.tempT or 0) > TEMP_LIST_SECONDS)) then
+    if l.temp and crateName and l.temp == crateName then
+      local crate
+      for _, e in ipairs(l.items) do if e.id == l.crateID then crate = e end end
+      local left = crate and (crate.qty or 1) - 1 or 0
+      if left > 0 then
+        crate.qty = left
+        ns:ScaleCrateList(l)
+        ns:Print(("Shopping list \"%s\": %d %s left to fill."):format(l.name or "?", left, left == 1 and "crate" or "crates"))
+      else
+        ns:DeleteShoppingList(i)
+        ns:Print(("Removed the shopping list \"%s\" (crate turned in)."):format(l.name or "?"))
+      end
+    elseif l.temp and not crateName and time() - (l.tempT or 0) > TEMP_LIST_SECONDS then
       ns:DeleteShoppingList(i)
-      ns:Print(("Removed the shopping list \"%s\" (%s)."):format(l.name or "?",
-        crateName and "crate turned in" or "a week old"))
+      ns:Print(("Removed the shopping list \"%s\" (a week old)."):format(l.name or "?"))
     end
   end
 end
