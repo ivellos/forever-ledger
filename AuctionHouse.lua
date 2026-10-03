@@ -357,6 +357,23 @@ local function buildFinder(side)
       end
       return worth > 0 and ns.Money(worth) or "?"
     end), white)
+    -- Optional (Settings, Auction house; owner, October 3: average by default): the
+    -- worst and best single disenchant, from what each material can be and how many.
+    if ns.db.settings.deRolls then
+      local function roll(y, best)
+        local pick
+        for _, o in ipairs(y.odds or {}) do
+          local b = ns:BestOption(o[1])
+          if b then
+            local v = b.value * (best and o[4] or o[3])
+            if not pick or (best and v > pick) or (not best and v < pick) then pick = v end
+          end
+        end
+        return pick and ns.Money(math.floor(pick)) or "?"
+      end
+      add("  Bad roll", dim, per(function(y) return roll(y, false) end), { 0.93, 0.52, 0.59 })
+      add("  Good roll", dim, per(function(y) return roll(y, true) end), { 0.5, 0.83, 0.61 })
+    end
     for i = n + 1, #tip.rows do
       tip.rows[i].label:Hide()
       for c = 1, 2 do tip.rows[i].cols[c]:Hide() end

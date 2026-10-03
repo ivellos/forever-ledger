@@ -7,8 +7,47 @@ local LR, LG, LB = 0.73, 0.64, 1.0   -- label colour
 -- "Worth to you" lists only the best few ways.
 -- The item on GameTooltip right now, and whether its full lines are already there
 -- (compact mode: pressing Shift adds them to the tooltip that's showing).
-local shownID, shownFull
+local shownID, shownFull, shownHistory
 local debugLinks = {}   -- tooltip links already shown in debug
+
+-- Price history while Ctrl is held (ForeverForge has the same; owner, October 3):
+-- the range of the cheapest price over the last 14 days, which way it's heading, the
+-- usual price this month, how many are usually listed and the lowest price ever seen.
+local function historyLines(tt, id)
+  local days = ns.PriceHistory and ns:PriceHistory(id) or {}
+  if #days == 0 then
+    tt:AddLine("No price history yet: it builds up with each scan", 0.5, 0.5, 0.5, true)
+    return
+  end
+  local lo, hi
+  for _, d in ipairs(days) do
+    lo, hi = math.min(lo or d[2], d[2]), math.max(hi or d[2], d[2])
+  end
+  tt:AddLine("Price history", LR, LG, LB)
+  tt:AddDoubleLine("  cheapest, last " .. #days .. (#days == 1 and " day" or " days"),
+    lo == hi and ns.Money(lo) or (ns.Money(lo) .. " to " .. ns.Money(hi)), 0.7, 0.7, 0.7, 1, 1, 1)
+  -- Trend: the last 3 days' typical price against the days before them.
+  if #days >= 5 then
+    local recent, older, rn, pn = 0, 0, 0, 0
+    for i, d in ipairs(days) do
+      if i > #days - 3 then recent, rn = recent + d[3], rn + 1 else older, pn = older + d[3], pn + 1 end
+    end
+    local change = older > 0 and (recent / rn) / (older / pn) - 1 or 0
+    local text, r, g, b = "steady", 0.7, 0.7, 0.7
+    if change >= 0.1 then text, r, g, b = ("rising, %d%% up"):format(change * 100 + 0.5), 0.5, 0.83, 0.61
+    elseif change <= -0.1 then text, r, g, b = ("falling, %d%% down"):format(-change * 100 + 0.5), 1, 0.5, 0.4 end
+    tt:AddDoubleLine("  heading", text, 0.7, 0.7, 0.7, r, g, b)
+  end
+  local stats = ns.PriceStats and ns:PriceStats(id, "month")
+  if stats then
+    tt:AddDoubleLine("  usual this month", ns.Money(stats.usual), 0.7, 0.7, 0.7, 1, 1, 1)
+    if stats.listed then
+      tt:AddDoubleLine("  usually listed", tostring(math.floor(stats.listed + 0.5)), 0.7, 0.7, 0.7, 1, 1, 1)
+    end
+  end
+  local allLow = ns.AllTimePrice and ns:AllTimePrice(id)
+  if allLow then tt:AddDoubleLine("  lowest ever seen", ns.Money(allLow), 0.7, 0.7, 0.7, 1, 1, 1) end
+end
 
 local function addLines(tt, id, forceFull)
   local s = ns.db and ns.db.settings
@@ -16,7 +55,10 @@ local function addLines(tt, id, forceFull)
   ns:RememberItem(id)
   local full = forceFull or s.tipMode ~= "compact" or IsShiftKeyDown()
   local function on(key) return s[key] ~= false end
-  if tt == GameTooltip then shownID, shownFull = id, full end
+  -- (Shift pressed on a compact tooltip calls this again: don't repeat the history.)
+  local had = forceFull and tt == GameTooltip and shownHistory
+  local withHistory = not had and on("tipHistory") and IsControlKeyDown()
+  if tt == GameTooltip then shownID, shownFull, shownHistory = id, full, had or withHistory end
 
   local price, src, t, rec = ns:GetPrice(id)
   -- Quest turn-ins (QuestItems.lua): "keep it" in yellow when this character will want
@@ -39,7 +81,9 @@ local function addLines(tt, id, forceFull)
     else
       return
     end
-    tt:AddLine("Hold Shift for Forever Ledger details", 0.5, 0.5, 0.5)
+    if withHistory then historyLines(tt, id) end
+    tt:AddLine(on("tipHistory") and "Hold Shift for Forever Ledger details, Ctrl for price history"
+      or "Hold Shift for Forever Ledger details", 0.5, 0.5, 0.5, true)
     return
   end
 
@@ -170,6 +214,11 @@ local function addLines(tt, id, forceFull)
   -- Dungeon drops you've had (Dungeons.lua): "Dropped for you: Deadmines, 2 in 14 runs".
   local drops = on("tipDrops") and ns.DropLine and ns:DropLine(id)
   if drops then tt:AddLine(drops, LR, LG, LB, true) end
+  if withHistory then
+    historyLines(tt, id)
+  elseif not had and on("tipHistory") and price and #(ns:PriceHistory(id)) > 1 then
+    tt:AddLine("Hold Ctrl for price history", 0.5, 0.5, 0.5)
+  end
 end
 
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
@@ -191,15 +240,25 @@ addLines = ns.Timed("Tooltip lines", addLines)   -- for /fl perf
 -- (Tests 1 and 2: asking the game to redraw the tooltip, by RefreshData or by hovering
 -- the item again, did nothing with the owner's EllesmereUI bags, so add the lines
 -- directly.) They stay until the next hover; holding Shift before hovering shows them too.
-GameTooltip:HookScript("OnHide", function() shownID, shownFull = nil, nil end)
+GameTooltip:HookScript("OnHide", function() shownID, shownFull, shownHistory = nil, nil, nil end)
 if GameTooltip.HookScript then
-  pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", function() shownID, shownFull = nil, nil end)
+  pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", function() shownID, shownFull, shownHistory = nil, nil, nil end)
 end
 ns:On("MODIFIER_STATE_CHANGED", function(key, down)
-  if not (key and key:find("SHIFT")) then return end
+  if not key then return end
   -- Pressed is 1 in most clients; some report true. Anything else is a release.
   local pressed = down == 1 or down == true
   if not pressed then return end   -- (tested September 30: works in bags with EllesmereUI)
+  -- Ctrl adds the price history the same way (the hint line stays; harmless).
+  if key:find("CTRL") then
+    if not (ns.db and ns.db.settings.tooltip and ns.db.settings.tipHistory ~= false) then return end
+    if not GameTooltip:IsShown() or not shownID or shownHistory then return end
+    shownHistory = true
+    historyLines(GameTooltip, shownID)
+    GameTooltip:Show()
+    return
+  end
+  if not key:find("SHIFT") then return end
   if not (ns.db and ns.db.settings.tipMode == "compact") then return end
   if not GameTooltip:IsShown() or not shownID or shownFull then return end
   addLines(GameTooltip, shownID, true)

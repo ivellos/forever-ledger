@@ -20,7 +20,8 @@ The first time you open the window, a short welcome walks through these and the 
 - **Full scan** reads every listing in a few seconds. **Scan materials** checks just what your recipes use.
 - **Watch flips** keeps scanning while the auction house stays open and chimes when a new vendor flip turns up. The game only lets addons search with the auction house open, so the watch pauses when you close it and picks up again when you come back (Settings, Auction house: **Resume the flip watch**).
 - If Auctionator or another addon runs a full scan, Forever Ledger reads it too.
-- **With Auctionator or TSM installed**, Forever Ledger switches off the features they already cover, so you don't see things twice: for now, the auction and vendor price lines in tooltips (Worth to you, Buy at or below and the rest stay). A one-time message says what was turned off; **Keep them on** undoes it, and Settings can change it any time.
+- **With Auctionator, TSM or ForeverForge installed**, Forever Ledger switches off the features they already cover, so you don't see things twice: the auction and vendor price lines in tooltips (Worth to you, Buy at or below and the rest stay), and with ForeverForge the sound when an auction sells. A one-time message says what was turned off; **Keep them on** undoes it, and Settings can change it any time.
+- **Sale sound**: a coin sound when one of your auctions sells (Settings, Auction house: **Sound when an auction sells**).
 - Neutral auction houses (Booty Bay, Gadgetzan, Everlook) keep their own prices.
 - **Sell protection**: on the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line under **Post** says so and Post is greyed out until you click **Post anyway**. Untick **Stop posts below vendor price** in Settings (Auction house) to keep just the warning.
 
@@ -35,6 +36,7 @@ The first time you open the window, a short welcome walks through these and the 
 - Gear with random stats ("of the Eagle"): the price of that exact version, since versions of one item can sell for very different amounts.
 - **Sells**: how fast an item sells: **Fast**, **Steady**, **Slow**, **Rare** (seldom listed, but goes quickly when it is) or **No sales seen**, with about how many are bought a day and how many are usually listed. It's judged against items of the same kind (materials are expected to move in bulk, gear slowly), so "4 a day with 5 listed" beats "100 listed and none selling". The auction house never says what sold, so it counts listings that vanished between two full scans before they could have expired (each listing's time left tells), and leaves out ones that were reposted cheaper. It builds up as you run full scans, fastest with Watch flips running, and shows after 3 hours of scans compared (and, in the first day, at least 3 sales). The Deals tab has it as a column too.
 - **Quests**: items quests ask for (Bronze Tube, Spider Ichor, Flask of Oil and about a hundred more) show the quest, its level and how many, for your faction. The line is yellow and says **keep it** when this character hasn't reached that level yet, so you don't sell what you'll need. Quests the character has already done (read from the game's list of completed quests), ones grey for its level, and other classes' quests are left out; untick **Only quests this character still needs** in Settings to see them all, marked. Leveling players buy these once per character, which makes them good to sell, especially in the first weeks after launch; a deal's hover on the Deals tab says when it's a quest item. The list comes from original Classic quests, so Forever may have changed some.
+- **Price history**: hold **Ctrl** over an item for the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen. It builds up with each scan.
 - **Settings → Tooltip size**: "One line, Shift for more" keeps tooltips short. Each part can be turned off.
 
 ![Tooltip for Strange Dust](images/tooltip.png)
@@ -92,7 +94,7 @@ The first time you open the window, a short welcome walks through these and the 
 
 ## Disenchanting
 
-- **Disenchant finder** (beside the auction house: Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material.
+- **Disenchant finder** (beside the auction house: Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material. The worth is an average; tick **Disenchant finder: low and high too** in Settings (Auction house) to also see what a bad and a good roll would bring.
 - The **Disenchant** button in Work it disenchants the shuffle's items one click at a time. `/fl de` shows your own results.
 
 ![Disenchant finder beside the auction house](images/disenchant-finder.png)

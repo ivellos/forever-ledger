@@ -20,7 +20,8 @@ ns.HELP = {
     { "Full scan", "Reads every listing in a few seconds." },
     { "Scan materials", "Checks just what your recipes use." },
     { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. It can only scan with the auction house open: it pauses when you close it and picks up again when you come back (Settings, Auction house: Resume the flip watch)." },
-    { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too. With Auctionator or TSM installed, features they already cover (like auction prices in tooltips) are switched off once, with a message; turn them back on in Settings." },
+    { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too. With Auctionator, TSM or ForeverForge installed, features they already cover (like auction prices in tooltips, or a sound when an auction sells) are switched off once, with a message; turn them back on in Settings." },
+    { "Sale sound", "A coin sound when one of your auctions sells. Settings, Auction house: Sound when an auction sells." },
     { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
     { "Sell protection", "On the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line under Post says so and Post is greyed out until you click Post anyway. Settings, Auction house: untick Stop posts below vendor price to keep just the warning." },
   } },
@@ -30,6 +31,7 @@ ns.HELP = {
     { "Buy at or below", "The most worth paying, after your safety margin. Green when it's already cheaper." },
     { "Also", "Disenchant results, which of your recipes use it, and the cheapest crate fill." },
     { "Gear versions", "Gear with random stats (of the Eagle) also shows the price of that exact version." },
+    { "Price history", "Hold Ctrl over an item: the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen. It builds up with each scan." },
     { "Quests", "Items quests ask for (Bronze Tube, Spider Ichor, Flask of Oil...) list the quest, its level and how many, for your faction. In yellow with keep it when this character hasn't reached that level yet, so you don't vendor it. Quests this character has done, ones grey for its level and other classes' quests are left out (Settings, Tooltips: Only quests this character still needs; off shows them all, marked). Leveling players buy these once per character, so they sell; the Deals tab's hover says when a deal is one. From original Classic quests: Forever may have changed some." },
     { "Sells", "How fast an item sells: Fast, Steady, Slow, Rare (seldom listed, goes quickly) or No sales seen, judged against items of the same kind, so ore and swords aren't held to the same bar. It counts listings that vanished before they could have expired, so it builds up as you run full scans (fastest with Watch flips) and shows after 3 hours of scans compared (and, in the first day, at least 3 sales)." },
   } },
@@ -62,7 +64,7 @@ ns.HELP = {
     { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },
   { "Disenchanting", {
-    { "Disenchant finder", "Beside the auction house (Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds." },
+    { "Disenchant finder", "Beside the auction house (Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds. Settings, Auction house: Disenchant finder: low and high too adds what a bad and a good roll would bring." },
     { "Work it", "The Disenchant button disenchants the shuffle's items one click at a time. /fl de shows your own results." },
   } },
   { "Recipes and trainers", {
@@ -295,17 +297,28 @@ end
 -- overlaps one of them gets an entry here (its setting, its name in the message, and
 -- which addons cover it).
 ---------------------------------------------------------------------------
+-- ForeverForge (owner, October 3): its Auction module shows prices in tooltips and its
+-- core plays a sound when an auction sells. Its folder name isn't known for sure, so a
+-- few likely ones are tried (alt).
 local AUCTION_ADDONS = {
   { name = "Auctionator", global = "Auctionator" },
   { name = "TradeSkillMaster", short = "TSM", global = "TSM_API" },
+  { name = "ForeverForge_Auction", short = "ForeverForge Auction", alt = { "ForeverForgeAuction", "ForeverForge-Auction" } },
+  { name = "ForeverForge", alt = { "ForeverForge_Core" } },
 }
 ns.OVERLAPS = {
-  { setting = "tipPrice", label = "Auction and vendor prices in tooltips", addons = { Auctionator = true, TradeSkillMaster = true } },
+  { setting = "tipPrice", label = "Auction and vendor prices in tooltips",
+    addons = { Auctionator = true, TradeSkillMaster = true, ForeverForge_Auction = true } },
+  { setting = "saleSound", label = "A sound when an auction sells", addons = { ForeverForge = true } },
 }
 
 local function loaded(a)
   local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
-  return _G[a.global] ~= nil or (isLoaded and isLoaded(a.name))
+  if a.global and _G[a.global] ~= nil then return true end
+  if not isLoaded then return false end
+  if isLoaded(a.name) then return true end
+  for _, n in ipairs(a.alt or {}) do if isLoaded(n) then return true end end
+  return false
 end
 
 StaticPopupDialogs["FOREVER_LEDGER_OVERLAP"] = {

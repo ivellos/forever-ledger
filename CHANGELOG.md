@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Flip alerts: a new flip you can't afford even one of doesn't chime or show on screen; chat says "Found a vendor flip: X, but you can't afford it yet".
 
 ### Added
+- Tooltips: hold Ctrl over an item for its price history: the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen.
+- A coin sound when one of your auctions sells (Settings, Auction house).
+- Disenchant finder: an optional bad roll and good roll next to the average when you hover a band (Settings, Auction house).
+- ForeverForge counts as an overlapping addon: with it installed, the auction price lines in tooltips and the sale sound are switched off once, with a message.
 - Sessions: /fl session start (or Start a session on the Dashboard) shows a small tracker that counts what your time is worth: gold in and out, what you loot (at the better of auction and vendor price, or vendor only) and gold per hour. Stopping it prints a summary and adds it to the Dashboard's sessions.
 - Dungeon runs: counted as you go (runs, time, coin and what dropped for you, per dungeon). /fl runs lists them, and item tooltips say how often something dropped for you.
 - Shopping lists come in two kinds. Search lists (new lists start as these; Settings can change that) are for checking whether anything on them is up right now: Search all looks for every item at once, and each shows how many are listed, the cheapest and when it was checked; click one to look at it on the auction house. Buy lists are the lists you know, with Want, prices and the buy queue, and now show about what buying the rest would cost. Your existing lists are Buy lists.

@@ -314,6 +314,20 @@ local function hook(target, name, fn)
   if target and type(target[name]) == "function" then hooksecurefunc(target, name, fn) end
 end
 
+-- An auction sold ("A buyer has been found for your auction of X."): a coin sound
+-- (owner, October 3; Settings, Auction house: saleSound). Off by itself when ForeverForge,
+-- which has its own, is found (Help.lua ns.OVERLAPS).
+local soldPattern
+ns:On("CHAT_MSG_SYSTEM", function(msg)
+  if not (msg and ns.db and ns.db.settings.saleSound ~= false and ERR_AUCTION_SOLD_S) then return end
+  if not soldPattern then
+    soldPattern = "^" .. ERR_AUCTION_SOLD_S:gsub("([%(%)%.%-%+%*%?%[%]%^%$])", "%%%1"):gsub("%%s", "(.+)") .. "$"
+  end
+  if msg:find(soldPattern) and PlaySound then
+    pcall(PlaySound, (SOUNDKIT and SOUNDKIT.LOOT_WINDOW_COIN_SOUND) or 120, "Master")
+  end
+end)
+
 -- Taking money from mail: an "Auction successful" invoice is a sale.
 local function mailHint(index)
   if not GetInboxHeaderInfo then return end
