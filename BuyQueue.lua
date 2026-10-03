@@ -1585,7 +1585,21 @@ refreshLists = function()
   local show = {}
   local mats, missing = {}, {}
   if list then
-    for _, e in ipairs(list.items) do show[#show + 1] = { kind = "item", e = e } end
+    -- A crate list: the crate first, its bundle items indented under it like parts of
+    -- one job (owner, October 3), then anything else on the list.
+    local part = {}
+    for _, p in ipairs(list.crateParts or {}) do part[p[1]] = true end
+    local crate
+    for _, e in ipairs(list.items) do if list.crateID and e.id == list.crateID then crate = e end end
+    if crate then
+      show[#show + 1] = { kind = "item", e = crate }
+      for _, e in ipairs(list.items) do
+        if part[e.id] then show[#show + 1] = { kind = "item", e = e, sub = true } end
+      end
+    end
+    for _, e in ipairs(list.items) do
+      if not (crate and (e == crate or part[e.id])) then show[#show + 1] = { kind = "item", e = e } end
+    end
     mats, missing = ns:ListMaterials(list)
     if #mats > 0 or #missing > 0 then
       show[#show + 1] = { kind = "head", text = "Materials to craft them" }
@@ -1609,6 +1623,9 @@ refreshLists = function()
     r:SetHeight(s.kind == "note" and 30 or 24)
     y = y + r:GetHeight()
     r.stripe:SetShown(i % 2 == 0 and (s.kind == "item" or s.kind == "mat"))
+    r.icon:ClearAllPoints()
+    r.icon:SetPoint("LEFT", s.sub and 18 or 2, 0)
+    r.name:SetWidth(C.get - C.name - 6 - (s.sub and 16 or 0))
     if s.kind == "item" then
       local e = s.e
       r.entry = e

@@ -10,7 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - Shopping lists away from the auction house: a Shopping lists button at the top of the main window, and Shift-click on the minimap button (as well as /fl lists).
-- Crates tab: open a crate and click Add cheapest fill to a shopping list. The crate and its items go on a list named after the crate, counting what you already have, with prices high enough to buy them all; the Buy queue can then buy what you're short. Set the crate's Want to fill several at once: every item's Want follows it. The list is temporary: each turn-in takes one crate off, and the list goes with the last one (or after a week).
+- Crates tab: open a crate and click Add cheapest fill to a shopping list. The crate and its items go on a list named after the crate, counting what you already have, with prices high enough to buy them all; the Buy queue can then buy what you're short. The crate's items show indented under it. Set the crate's Want to fill several at once: every item's Want follows it. The list is temporary: each turn-in takes one crate off, and the list goes with the last one (or after a week).
 
 ### Changed
 - Saved data no longer grows forever. Sales and purchases are kept one by one for 30 days, then as one line per item per month for a year (the Ledger tab and Dashboard show those lines for longer ranges). Gold and money in and out are kept per day for a year, then per month. Prices are kept per day for 14 days, then as weekly averages for a year (was 30 days and 2 years). Recipes, vendors, items and characters are kept for good. The Help tab and guide list it all.
