@@ -65,15 +65,15 @@ local function guard(frame, name)
   else
     g.text:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 40)
   end
-  g.anyway = T:Button(frame, "Post anyway", 88, function()
+  g.anyway = T:Button(frame, "Post anyway", 76, function()
     if g.key then unlocked[g.key] = true end
     g.anyway:Hide()
     if not call(frame, "UpdatePostButtonState") and post then post:Enable() end
   end, 20)
   -- Beside Post (under the text it sat on Buyout Mode on gear pages, October 3).
-  if post then g.anyway:SetPoint("LEFT", post, "RIGHT", 6, 0)
+  if post then g.anyway:SetPoint("LEFT", post, "RIGHT", 3, 0)
   else g.anyway:SetPoint("TOPLEFT", g.text, "BOTTOMLEFT", 0, -6) end
-  g.anyway:GetFontString():SetFont(T.font, 11, "")
+  g.anyway:GetFontString():SetFont(T.font, 10, "")
   g.anyway:Hide()
   -- Blizzard turns Post back on as you type: check again after it does, and a few times
   -- a second while the page is open.
