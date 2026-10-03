@@ -92,3 +92,39 @@ function ns:ShowWelcome()
   if not card then build() end
   if card then card:Show() end
 end
+
+---------------------------------------------------------------------------
+-- What's new: after an update, chat lists the new version's highlights once (not on a
+-- first install, which gets the welcome). At each release, copy the changelog's
+-- Highlights here and set the version (docs/RELEASING.md). /fl new shows them again.
+---------------------------------------------------------------------------
+ns.WHATS_NEW = {
+  version = "0.10.0",
+  lines = {
+    "Welcome: a short guide the first time you open the window (/fl welcome shows it again).",
+    "Quest items: tooltips list the quests that need an item, and say keep it if you'll need it.",
+    "Crates: add a crate's fill to a shopping list, for as many crates as you want to fill.",
+    "Buy queue: clearer wording, and items you can't afford yet stay listed instead of vanishing.",
+    "Shopping lists: open them anywhere (Shift-click the minimap button).",
+    "Saved data no longer grows forever: old sales and prices are summed up by month and week.",
+  },
+}
+
+function ns:ShowWhatsNew()
+  local w = ns.WHATS_NEW
+  ns:Print(("What's new in %s:"):format(w.version))
+  for _, line in ipairs(w.lines) do print("  - " .. line) end
+  print("  The Help tab explains everything; /fl new shows this again.")
+end
+
+ns:OnReady(function()
+  local v, s = ns.VERSION, ns.db.settings
+  if v == "dev" then return end
+  -- Versions before 0.10.0 didn't note the version seen: a saved full scan means it's
+  -- an update, not a first install.
+  local updated = (s.seenVersion and s.seenVersion ~= v) or (not s.seenVersion and ns.db.lastFullScan ~= nil)
+  s.seenVersion = v
+  if updated and ns.WHATS_NEW.version == v then
+    C_Timer.After(8, function() ns:ShowWhatsNew() end)   -- after the login chat spam
+  end
+end)

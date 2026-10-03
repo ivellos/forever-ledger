@@ -14,6 +14,7 @@ ns.HELP = {
     { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
     { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it one line, with Shift for more." },
     { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button at the top of this tab, or /fl welcome." },
+    { "What's new", "After an update, chat lists what's new in that version, once. /fl new shows it again." },
   } },
   { "Scanning the auction house", {
     { "Full scan", "Reads every listing in a few seconds." },

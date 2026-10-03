@@ -589,6 +589,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:ShowSidePanel("queue")
   elseif msg == "lists" or msg == "list" then
     ns:ShowSidePanel("lists")
+  elseif msg == "new" or msg == "whatsnew" then
+    if ns.ShowWhatsNew then ns:ShowWhatsNew() end
   elseif msg == "welcome" then
     ns:ToggleUI("dashboard")
     if ns.ShowWelcome then ns:ShowWelcome() end
@@ -708,6 +710,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl queue, /fl lists, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto/own/auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl session, /fl de, /fl pair <name>, /fl sync, /fl tooltip, /fl welcome, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl queue, /fl lists, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto/own/auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl session, /fl de, /fl pair <name>, /fl sync, /fl tooltip, /fl welcome, /fl new, /fl api, /fl debug")
   end
 end
