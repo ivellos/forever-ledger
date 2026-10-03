@@ -28,6 +28,7 @@ ClassicItems.lua
 RecipesTab.lua
 UI.lua
 Help.lua
+Welcome.lua
 Work.lua
 Sync.lua
 AuctionHouse.lua

@@ -13,6 +13,7 @@ ns.HELP = {
     { "Learn your recipes", "Open each profession window once on every character." },
     { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
     { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it one line, with Shift for more." },
+    { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button at the top of this tab, or /fl welcome." },
   } },
   { "Scanning the auction house", {
     { "Full scan", "Reads every listing in a few seconds." },
@@ -122,6 +123,11 @@ function ns:BuildHelp(parent)
   intro:SetJustifyH("LEFT")
   intro:SetText("Everything Forever Ledger does, in short. The full guide with pictures is docs/GUIDE.md on the addon's GitHub page.")
   add("intro", intro)
+  -- The first-run welcome again (Welcome.lua).
+  hv.welcome = T:Button(content, "Show the welcome again", 170, function()
+    if ns.ShowWelcome then ns:ShowWelcome() end
+  end, 22)
+  hv.welcome:SetPoint("TOPRIGHT", content, "TOPRIGHT", -6, -2)
   for _, section in ipairs(ns.HELP) do
     local band = content:CreateTexture(nil, "BACKGROUND")
     band:SetColorTexture(1, 1, 1, 0.05)
@@ -155,8 +161,8 @@ function ns:RefreshHelp()
     if p.kind == "intro" then
       o:ClearAllPoints()
       o:SetPoint("TOPLEFT", 4, -2)
-      o:SetWidth(width - 8)
-      y = o:GetStringHeight() + 12
+      o:SetWidth(width - 190)   -- room for "Show the welcome again" on the right
+      y = math.max(o:GetStringHeight(), 22) + 12
     elseif p.kind == "band" then
       y = y + 8
       o.band:ClearAllPoints()

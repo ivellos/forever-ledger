@@ -304,7 +304,13 @@ function ns:ToggleUI(view)
   T:Refresh()
   f:Show()
   setView(view or f.view or "dashboard")
+  -- The first time: a short welcome over the window (Welcome.lua).
+  if ns.ShowWelcome and not ns.db.settings.welcomeSeen then ns:ShowWelcome() end
 end
+
+-- For Welcome.lua: the main window's content area, and switching tabs.
+function ns:MainBody() return main and main.body end
+function ns:ShowTab(view) ns:ToggleUI(view) end
 
 ---------------------------------------------------------------------------
 -- Characters tab (text). The Dashboard is in Dashboard.lua.

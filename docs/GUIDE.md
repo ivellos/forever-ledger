@@ -11,6 +11,8 @@ Everything the addon does, at a high level. The same text is in the game under *
 3. At the auction house, click **Full scan** (allowed about every 15 minutes) to price everything.
 4. Hover any item: the tooltip shows what it's worth to you.
 
+The first time you open the window, a short welcome walks through these and the Buy queue, Deals and Shopping lists. Show it again from the top of the Help tab, or with `/fl welcome`.
+
 ![The Forever Ledger window, Dashboard tab](images/dashboard.png)
 
 ## Scanning the auction house

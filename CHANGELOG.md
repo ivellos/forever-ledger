@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shopping lists: the list menu is drawn above the panel, so its buttons and tick boxes no longer show through it.
 
 ### Added
+- A welcome the first time you open the window: the five things to start with (learn your recipes, full scan, the Buy queue, Deals, Shopping lists), with buttons for the ones you can open from there. Show it again from the Help tab or with /fl welcome.
 - Settings, Deal alerts: Big message on screen, to turn off the large text new finds show at the top of the screen (it can land on your windows); the chime and chat lines stay.
 - Shopping lists away from the auction house: a Shopping lists button at the top of the main window, and Shift-click on the minimap button (as well as /fl lists).
 - Crates tab: open a crate and click Add cheapest fill to a shopping list. The crate and its items go on a list named after the crate, counting what you already have, with prices high enough to buy them all; the Buy queue can then buy what you're short. The crate's items show indented under it. Set the crate's Want to fill several at once: every item's Want follows it. The list is temporary: each crate you fill takes one off, and the list goes with the last one (or after a week).
