@@ -383,6 +383,32 @@ function ns:RecipeFor(id)
   return { r = mats, oq = c[1], prof = c[2], skill = c[3], classic = true }
 end
 
+-- Craft or buy (Magic, October 3: "the lowest cost route"): for an item a recipe makes,
+-- what buying the ones you're short of would cost against buying the materials you're
+-- short of to craft them, at today's prices across the cheapest listings (a vendor's
+-- price where that's cheaper). Materials you have count; each item is judged on its
+-- own, so two crafts sharing a material both count what you have. Returns
+-- { short, crafts, buy = copper or nil, craft = copper or nil } or nil.
+function ns:CraftOrBuy(list, e)
+  local recipe = ns:RecipeFor(e.id)
+  if not (recipe and ns.CostToBuy) then return end
+  local got = (ns:BuyMode(list) and e.mode ~= "craft") and (e.bought or 0) or ns:HaveCount(e.id)
+  local short = math.max(0, (e.qty or 1) - got)
+  if short == 0 then return end
+  local crafts = math.ceil(short / math.max(recipe.oq or 1, 1))
+  local craft = 0
+  for _, r in ipairs(recipe.r) do
+    local need = crafts * (r[2] or 1)
+    local toBuy = math.max(0, need - ns:HaveCount(r[1]))
+    if toBuy > 0 then
+      local c = ns:CostToBuy(r[1], toBuy)
+      if not c then craft = nil; break end
+      craft = craft + c
+    end
+  end
+  return { short = short, crafts = crafts, buy = ns:CostToBuy(e.id, short), craft = craft }
+end
+
 -- "Any price" (owner, October 2: "times where you just have to eat the costs", raids):
 -- buy the cheapest ones there are, but never more than 3 times the usual price when we
 -- know it, so a joke listing at 999g can't be bought by a wheel tick.

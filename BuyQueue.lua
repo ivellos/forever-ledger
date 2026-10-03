@@ -1624,6 +1624,24 @@ local function listRow(i)
     if r.kind == "item" and r.entry.suffix then
       GameTooltip:AddLine("This list wants the " .. r.entry.suffix .. " version.", 0.7, 0.7, 0.7, true)
     end
+    -- Buy lists: buying the ones you're short of against crafting them.
+    local list = currentList()
+    local cob = r.kind == "item" and list and not ns:IsSearchList(list) and ns.CraftOrBuy and ns:CraftOrBuy(list, r.entry)
+    if cob then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(("Craft or buy, for the %d you're short of:"):format(cob.short), T.accent[1], T.accent[2], T.accent[3])
+      GameTooltip:AddDoubleLine("Buy them", cob.buy and ("about " .. ns.Money(cob.buy)) or "none listed", 0.9, 0.9, 0.9, 1, 1, 1)
+      GameTooltip:AddDoubleLine(("Craft them (%d %s)"):format(cob.crafts, cob.crafts == 1 and "craft" or "crafts"),
+        cob.craft and (cob.craft == 0 and "you have the materials" or ("about " .. ns.Money(cob.craft) .. " in materials"))
+        or "materials not priced", 0.9, 0.9, 0.9, 1, 1, 1)
+      if cob.buy and cob.craft and cob.buy ~= cob.craft then
+        local craftWins = cob.craft < cob.buy
+        GameTooltip:AddLine(("%s is cheaper by %s.%s"):format(craftWins and "Crafting" or "Buying",
+          ns.Money(math.abs(cob.buy - cob.craft)),
+          (craftWins ~= (r.entry.mode == "craft")) and (" Switch it to " .. (craftWins and "Craft" or "Buy") .. " with the button.") or ""),
+          0.5, 0.83, 0.61, true)
+      end
+    end
     GameTooltip:AddLine("Click to search for it on the auction house.", 0.6, 0.6, 0.6)
     if r.kind == "item" and r.entry.mode == "craft" then
       local recipe = ns:RecipeFor(id)
