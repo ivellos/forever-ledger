@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Buy queue: Vendor flips and Shopping lists are two views you switch between at the top, one at a time, instead of sections stacked on each other; the view you're on is the one that buys. Each has its own buttons at the bottom (Watch flips, Full scan and Scan materials; or Search lists and Full scan). With Scroll to buy ticked, the area to scroll glows teal and a mouse-wheel sign lights up; the big button only shows when there's something to buy (Buy, Confirm), since the bottom row already has Watch flips. From Magic's suggestions.
+
 ### Added
 - Sessions: /fl session start (or Start a session on the Dashboard) shows a small tracker that counts what your time is worth: gold in and out, what you loot (at the better of auction and vendor price, or vendor only) and gold per hour. Stopping it prints a summary and adds it to the Dashboard's sessions.
 - Dungeon runs: counted as you go (runs, time, coin and what dropped for you, per dungeon). /fl runs lists them, and item tooltips say how often something dropped for you.

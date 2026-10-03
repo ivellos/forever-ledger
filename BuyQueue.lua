@@ -25,6 +25,11 @@ local REBUILD_EVERY = 20    -- seconds before the queue is worked out again
 local USER_QUIET = 3        -- seconds after your own search before the queue looks things up again
 
 local function S() return ns.db.settings.buyQueue end
+-- Which view the queue shows: "flips" or "lists", one at a time (Magic, October 3: tabs
+-- instead of stacked sections, so it's clear what the strip and buttons work on). The
+-- view you're on is the one that buys: a shopping list never buys a flip by accident.
+local function view() return S().view == "lists" and "lists" or "flips" end
+local TEAL = { 0.2, 0.85, 0.75 }   -- Scroll to buy is on: the area to scroll glows this colour
 local function money(c) return ns.Money(math.floor((c or 0) + 0.5)) end
 -- An entry's limit as words: "any price" ones say so (and how high they'd go).
 local function limitText(e)
@@ -90,8 +95,8 @@ local function buildQueue()
   end
 
   -- Shopping lists, in list order. Ones not cheap enough right now still show, greyed at
-  -- the end, so you can see they're watched.
-  if s.lists then
+  -- the end, so you can see they're watched. Only the view on screen is worked out.
+  if view() == "lists" then
     local waiting = {}
     for _, t in ipairs(ns:ShoppingTargets()) do
       local n, avg = ns:CheapListings(t.id, t.limit)
@@ -102,7 +107,7 @@ local function buildQueue()
   end
   lap("lists")
 
-  if s.flips then
+  if view() == "flips" then
     local list = {}
     for id in pairs(market) do
       local f = ns:VendorFlip(id)
@@ -668,21 +673,14 @@ local LANES = {
 local LANE_BY_KEY = {}
 for _, d in ipairs(LANES) do LANE_BY_KEY[d.key] = d end
 
-local function ticked()
-  local out = {}
-  for _, d in ipairs(LANES) do if S()[d.setting] then out[#out + 1] = d end end
-  return out
-end
+-- The one section on screen: the chosen view.
+local function ticked() return { LANE_BY_KEY[view()] } end
 
--- One section on its own does its thing without a click, unless it's shopping lists,
--- which only buy once you've said so (owner, October 2).
+-- The view on screen is the one that buys (choosing the view is the choice).
 local function autoArm()
-  local t = ticked()
-  if not Q.armed and #t == 1 and t[1].key ~= "lists" then Q.armed = t[1].key end
-  -- A section you've unticked can't stay armed.
-  if Q.armed and not S()[LANE_BY_KEY[Q.armed].setting] then
+  if Q.armed ~= view() then
     dropCurrent()
-    Q.armed = nil
+    Q.armed = view()
   end
 end
 
@@ -733,10 +731,20 @@ local function statusText()
     if x.waiting then waiting = waiting + 1 elseif cantAfford(x) then poor = poor + 1 end
   end
   local watching = ns:IsFlipWatching()
-  local why = (poor > 0 and ("%d you can't afford yet (greyed below)."):format(poor))
-    or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
-    or (watching and "Watching for flips; new ones show up here.")
-    or "Click Watch flips to keep scanning while you're here."
+  local why
+  if view() == "lists" then
+    local any = false
+    for _, l in ipairs(ns:ShoppingLists()) do if l.on and not ns:IsSearchList(l) then any = true end end
+    why = (poor > 0 and ("%d you can't afford yet (greyed below)."):format(poor))
+      or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
+      or (any and "Click Search lists below to check the auction house for your lists.")
+      or "No lists here yet: on the Shopping lists tab, tick Use in the buy queue on a Buy list."
+  else
+    why = (poor > 0 and ("%d you can't afford yet (greyed below)."):format(poor))
+      or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
+      or (watching and "Watching for flips; new ones show up here.")
+      or "Click Watch flips below to keep scanning while you're here."
+  end
   return "Nothing to buy yet.", Q.note and (Q.note .. " " .. why) or why, watching and "Stop" or "Watch flips"
 end
 
@@ -864,6 +872,40 @@ local function buildLane(v, d)
   end, 34)
   L.buy:SetPoint("RIGHT", -6, 0)
   L.buy:GetFontString():SetFont(T.font, 14, "")
+  -- A mouse with its wheel and arrows: "scroll here" (Magic, October 3). It stands in
+  -- for the button when there's nothing to click, and lights up teal with Scroll to buy.
+  local m = CreateFrame("Frame", nil, strip)
+  m:SetSize(22, 34)
+  m:SetPoint("RIGHT", -22, 0)
+  T:Border(m)
+  m.wheel = m:CreateTexture(nil, "ARTWORK")
+  m.wheel:SetSize(4, 9)
+  m.wheel:SetPoint("TOP", 0, -5)
+  m.wheel:SetColorTexture(1, 1, 1, 1)
+  m.split = m:CreateTexture(nil, "ARTWORK")
+  m.split:SetSize(1, 6)
+  m.split:SetPoint("TOP", 0, -14)
+  m.split:SetColorTexture(1, 1, 1, 1)
+  m.up = strip:CreateTexture(nil, "ARTWORK")
+  m.up:SetSize(10, 10)
+  m.up:SetPoint("BOTTOMLEFT", m, "RIGHT", 3, 2)
+  m.up:SetTexture("Interface\\Buttons\\Arrow-Up-Up")
+  m.down = strip:CreateTexture(nil, "ARTWORK")
+  m.down:SetSize(10, 10)
+  m.down:SetPoint("TOPLEFT", m, "RIGHT", 3, -2)
+  m.down:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
+  function m:SetLit(on)
+    local c = on and TEAL or { 0.5, 0.5, 0.5 }
+    for _, e in ipairs(self.borders) do e:SetColorTexture(c[1], c[2], c[3], on and 1 or 0.6) end
+    self.wheel:SetColorTexture(c[1], c[2], c[3], 1)
+    self.split:SetColorTexture(c[1], c[2], c[3], 0.8)
+    self.up:SetVertexColor(c[1], c[2], c[3])
+    self.down:SetVertexColor(c[1], c[2], c[3])
+  end
+  function m:SetShownAll(on)
+    self:SetShown(on); self.up:SetShown(on); self.down:SetShown(on)
+  end
+  L.mouse = m
 
   local header = CreateFrame("Frame", nil, L)
   header:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", 4, -2)
@@ -901,14 +943,30 @@ local function buildQueueView(parent)
   line:SetHeight(1)
   line:SetColorTexture(T.border[1], T.border[2], T.border[3], 0.25)
 
-  -- Which sections to show, and Scroll to buy, on one row.
-  local x = 12
-  for _, d in ipairs(LANES) do
-    local cb = T:Check(bar, function(self) S()[d.setting] = self:GetChecked(); rebuildNow() end)
-    cb:SetPoint("LEFT", x, 0)
-    cb.label:SetText(d.title)
-    cb:SetChecked(S()[d.setting])
-    x = x + 20 + cb.label:GetStringWidth() + 18
+  -- Which view: Vendor flips or Shopping lists, one at a time; and Scroll to buy.
+  v.viewChoice = T:Choice(bar, { { value = "flips", label = "Vendor flips" }, { value = "lists", label = "Shopping lists" } },
+    function(value)
+      if S().view == value then return end
+      S().view = value
+      dropCurrent()
+      Q.armed, Q.note, Q.built = value, nil, 0
+      rebuildNow()
+      refreshQueue()
+    end)
+  v.viewChoice:SetPoint("LEFT", 8, 0)
+  for _, b in ipairs(v.viewChoice.buttons) do
+    b:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+      if self.value == "flips" then
+        GameTooltip:AddLine("Vendor flips", 1, 1, 1)
+        GameTooltip:AddLine("Things listed for less than a vendor pays, found by scans. Buy them, sell them to a vendor.", nil, nil, nil, true)
+      else
+        GameTooltip:AddLine("Shopping lists", 1, 1, 1)
+        GameTooltip:AddLine("Items from your Buy lists ticked \"Use in the buy queue\", at or under your price.", nil, nil, nil, true)
+      end
+      GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
   end
   local wheel = T:Check(bar, function(self) S().wheel = self:GetChecked(); refreshQueue() end)
   wheel.label:SetText("Scroll to buy")
@@ -920,7 +978,7 @@ local function buildQueueView(parent)
   wheel:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine("Scroll to buy", 1, 1, 1)
-    GameTooltip:AddLine("With the mouse over the top strip of the section you're buying from (the one with the bright border), each tick of the wheel down buys the next item; stacks of materials take a second tick to confirm. It keeps working while the section is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
+    GameTooltip:AddLine("With the mouse over the top strip (it glows teal while this is ticked), each tick of the wheel down buys the next item; stacks of materials take a second tick to confirm. It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -944,9 +1002,23 @@ local function buildQueueView(parent)
     end)
     b:HookScript("OnLeave", function() GameTooltip:Hide() end)
   end
-  v.watchBtn = T:Button(v, "Watch flips", 118, function() ns:ToggleFlipWatch() end, 22)
+  -- Flips view: Watch flips. Shopping lists view: Search lists (every Buy list in the queue).
+  v.watchBtn = T:Button(v, "Watch flips", 118, function()
+    if view() == "lists" then ns:SearchQueueLists() else ns:ToggleFlipWatch() end
+  end, 22)
   v.watchBtn:SetPoint("BOTTOMLEFT", 10, 8)
-  tip(v.watchBtn, "Watch flips", "Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes) and quick checks of likely items in between. New flips chime and join the queue. Click again to stop.")
+  v.watchBtn:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    if view() == "lists" then
+      GameTooltip:AddLine("Search lists", 1, 1, 1)
+      GameTooltip:AddLine("Checks the auction house for everything on your Buy lists ticked \"Use in the buy queue\" (and the materials you're short of), one item at a time. What's at or under your price shows up here.", nil, nil, nil, true)
+    else
+      GameTooltip:AddLine("Watch flips", 1, 1, 1)
+      GameTooltip:AddLine("Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes) and quick checks of likely items in between. New flips chime and join the queue. Click again to stop.", nil, nil, nil, true)
+    end
+    GameTooltip:Show()
+  end)
+  v.watchBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
   v.fullBtn = T:Button(v, "Full scan", 128, function() ns.Scan:Start("full") end, 22)
   v.fullBtn:SetPoint("LEFT", v.watchBtn, "RIGHT", 6, 0)
   tip(v.fullBtn, "Full scan", "Reads every listing in a few seconds. The game allows one about every 15 minutes; the button counts down to the next.")
@@ -1006,18 +1078,19 @@ local function fillLane(L)
   local list = {}
   for _, e in ipairs(Q.lanes[d.key] or {}) do if not cantAfford(e) then list[#list + 1] = e end end
   for _, e in ipairs(Q.lanes[d.key] or {}) do if cantAfford(e) then list[#list + 1] = e end end
-  -- The section you buy from has a bright border; the others are dimmed.
+  -- Scroll to buy on: the section glows teal, the strip most of all, so where to scroll
+  -- shows without reading (Magic, October 3).
+  local wheel = S().wheel and true or false
   for _, e in ipairs(L.borders or {}) do
-    if armed then e:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.9)
+    if wheel then e:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], 0.9)
     else e:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4]) end
   end
-  L.stripBg:SetColorTexture(1, 1, 1, armed and 0.07 or 0.03)
+  if wheel then L.stripBg:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], 0.12)
+  else L.stripBg:SetColorTexture(1, 1, 1, 0.05) end
   local ready = 0
   for _, x in ipairs(list) do if not x.waiting and not cantAfford(x) then ready = ready + 1 end end
-  -- Where to scroll, said in the section itself rather than on the checkbox.
-  L.title:SetText(("%s  |cff888888%d|r%s"):format(d.title, ready,
-    armed and (S().wheel and "   |cff7fd39cbuying here, scroll this strip|r"
-      or "   |cff7fd39cbuying from this one|r") or ""))
+  L.title:SetText(("%s  |cff888888%d to buy|r%s"):format(d.title, ready,
+    wheel and "   |cff33d9bfscroll down here to buy|r" or "   |cff888888click Buy, or tick Scroll to buy|r"))
   local a, b, label
   if armed then
     a, b, label = statusText()
@@ -1030,6 +1103,12 @@ local function fillLane(L)
   L.icon:SetDesaturated(not armed)
   L.line1:SetText(a)
   L.line2:SetText(b or "")
+  -- The button only when there's something to click (Buy, Confirm, Go now); otherwise
+  -- the mouse: the bottom row already has Watch flips (Magic: "just a duplicate").
+  local action = label == "Buy" or label == "Confirm" or label == "Go now"
+  L.buy:SetShown(action)
+  L.mouse:SetShownAll(not action)
+  L.mouse:SetLit(wheel)
   L.buy:SetText(label)
   L.buy:SetSelected(armed and Q.state == "confirm")
 
@@ -1080,7 +1159,7 @@ refreshQueue = function()
   v.status:SetText(ns.statusText or "")
   v.totals:SetText(Q.bought > 0 and ("Bought %d for %s%s"):format(Q.bought, money(Q.spent),
       Q.worth > 0 and (", worth %s"):format(money(Q.worth)) or "")
-    or (Q.armed and ("%d to buy"):format(total) or "Click a section to buy from it"))
+    or ("%d to buy"):format(total))
   if ns.UpdatePanelScanButtons then ns:UpdatePanelScanButtons() end
 end
 
@@ -1098,8 +1177,30 @@ function ns:SidePanelDocked() return side and side:IsShown() and not side.floati
 function ns:UpdatePanelScanButtons()
   local v = queueView
   if not v or not v.watchBtn then return end
-  v.watchBtn:SetText(ns:IsFlipWatching() and "Stop watching" or "Watch flips")
+  local lists = view() == "lists"
+  v.watchBtn:SetText(lists and "Search lists" or (ns:IsFlipWatching() and "Stop watching" or "Watch flips"))
+  v.watchBtn:SetEnabled(not (lists and ns.Scan.active))
+  v.matsBtn:SetShown(not lists)
   v.matsBtn:SetText((ns.Scan.active and not ns.Scan.full) and "Stop scan" or "Scan materials")
+  if v.viewChoice then v.viewChoice:SetValue(view()) end
+end
+
+-- Search every Buy list used in the queue (its items and missing materials) at once.
+function ns:SearchQueueLists()
+  local ids, seen, names = {}, {}, {}
+  local function add(id) if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
+  for _, l in ipairs(ns:ShoppingLists()) do
+    if l.on and not ns:IsSearchList(l) then
+      names[#names + 1] = l.name
+      for _, e in ipairs(l.items) do if e.mode ~= "craft" then add(e.id) end end
+      for _, m in ipairs((ns:ListMaterials(l))) do if not m.vendor then add(m.id) end end
+    end
+  end
+  if #ids == 0 then
+    ns:Print("No shopping lists are used in the buy queue: on the Shopping lists tab, tick Use in the buy queue on a Buy list.")
+    return
+  end
+  ns.Scan:StartList(ids, table.concat(names, ", "))
 end
 refreshQueue = ns.Timed("Buy queue view", refreshQueue)
 
@@ -2204,6 +2305,7 @@ function ns:OpenBuyQueueGently()
   if side:IsShown() then return end
   place()
   S().shown = true
+  S().view = "flips"   -- it opens for new flips: show them
   side:Show()
   showTab("queue")
 end
@@ -2274,7 +2376,7 @@ end
 -- October 2: flips showed on the Vendor flips tab before the queue).
 local flipRebuild = false
 local function soonForFlip(_, id)
-  if flipRebuild or not shown() or not S().flips or not ns:VendorFlip(id) then return end
+  if flipRebuild or not shown() or view() ~= "flips" or not ns:VendorFlip(id) then return end
   flipRebuild = true
   C_Timer.After(1, function() flipRebuild = false; rebuildNow() end)
 end
