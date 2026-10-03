@@ -107,6 +107,50 @@ local function ahCostToBuy(id, qty)
   return qty * (rec.a or rec.m)
 end
 
+-- The most you'd pay for one, buying qty from the cheapest listings up (the last price
+-- level needed), so a shopping list's limit can get them all. nil if not listed.
+local function priceToGet(id, qty)
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if not rec or rec.none or not rec.m then return end
+  local top
+  for p, c in (rec.l or ""):gmatch("(%d+):(%d+)") do
+    top = tonumber(p)
+    if tonumber(c) >= qty then return top end
+  end
+  return math.max(top or 0, rec.a or rec.m)
+end
+
+-- Puts a crate's cheapest fill (or the bundle given) on a shopping list named after the
+-- crate (owner, October 3). "Keep this many", so what's in your bags and bank counts.
+function ns:CrateToShoppingList(r, bundle)
+  bundle = bundle or (r and (r.cheapest or r.bundles[1]))
+  if not bundle then return end
+  local name = "Crate: " .. (r.name or "?"):gsub("^Waylaid Crate: ", "")
+  local list
+  for _, l in ipairs(ns:ShoppingLists()) do if l.name == name then list = l end end
+  if not list then
+    list = ns:NewShoppingList(name)
+  else
+    for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i) end end
+  end
+  local added, unknown = 0, {}
+  for _, p in ipairs(bundle.parts) do
+    if p.id then
+      local vendor = ns:GetVendorBuyPrice(p.id)
+      local max = priceToGet(p.id, p.qty) or vendor or 0
+      local e = ns:AddToShoppingList(list, p.id, max, p.qty)
+      e.done = nil   -- sent again: back in the queue if you're short
+      added = added + 1
+    else
+      unknown[#unknown + 1] = p.name
+    end
+  end
+  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Tick Use in the buy queue there to buy what you're short (/fl lists).%s"):format(
+    added, added == 1 and "item" or "items", r.name or "the crate", name,
+    #unknown > 0 and (" Not added (not seen in a scan yet): " .. table.concat(unknown, ", ") .. ".") or ""))
+  return list
+end
+
 function ns:CostToBuy(id, qty)
   local vendor = ns:GetVendorBuyPrice(id)
   local ah = ahCostToBuy(id, qty)
@@ -388,6 +432,11 @@ local function getDetail(i)
   local d = CreateFrame("Frame", nil, f.content)
   T:Fill(d, { 1, 1, 1, 0.035 })
   d.lines = {}
+  -- The cheapest fill onto a shopping list, to buy with the Buy queue.
+  d.toList = T:Button(d, "Add cheapest fill to a shopping list", 240, function()
+    if d.report then ns:CrateToShoppingList(d.report) end
+  end, 20)
+  d.toList:SetPoint("BOTTOMLEFT", 14, 6)
   details[i] = d
   return d
 end
@@ -522,9 +571,12 @@ function ns:RefreshCrates()
         end
       end
       for k = j + 1, #d.lines do d.lines[k]:Hide() end
-      d:SetHeight(j * 20 + 8)
+      d.report = r
+      d.toList:SetShown(r.cheapest ~= nil)
+      local extra = r.cheapest and 30 or 0
+      d:SetHeight(j * 20 + 8 + extra)
       d:Show()
-      y = y + j * 20 + 12
+      y = y + j * 20 + 12 + extra
     end
   end
   for i = n + 1, #rows do rows[i]:Hide() end

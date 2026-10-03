@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Crates tab: open a crate and click Add cheapest fill to a shopping list. Its items go on a list named after the crate, counting what you already have, with prices high enough to buy them all; the Buy queue can then buy what you're short.
+
 ### Changed
 - Saved data no longer grows forever. Sales and purchases are kept one by one for 30 days, then as one line per item per month for a year (the Ledger tab and Dashboard show those lines for longer ranges). Gold and money in and out are kept per day for a year, then per month. Prices are kept per day for 14 days, then as weekly averages for a year (was 30 days and 2 years). Recipes, vendors, items and characters are kept for good. The Help tab and guide list it all.
 - Selling many of the same item to a vendor within a minute is saved as one entry.
