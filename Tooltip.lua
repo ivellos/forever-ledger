@@ -19,12 +19,15 @@ local function historyLines(tt, id)
     tt:AddLine("No price history yet: it builds up with each scan", 0.5, 0.5, 0.5, true)
     return
   end
+  -- The range of each day's typical price (the average of the cheapest 20): the very
+  -- cheapest swings with one odd listing (owner's test, October 3: Strange Dust showed
+  -- "20c to 2s 31c" from a single 20c listing). The lowest ever seen is still below.
   local lo, hi
   for _, d in ipairs(days) do
-    lo, hi = math.min(lo or d[2], d[2]), math.max(hi or d[2], d[2])
+    lo, hi = math.min(lo or d[3], d[3]), math.max(hi or d[3], d[3])
   end
   tt:AddLine("Price history", LR, LG, LB)
-  tt:AddDoubleLine("  cheapest, last " .. #days .. (#days == 1 and " day" or " days"),
+  tt:AddDoubleLine("  typical, last " .. #days .. (#days == 1 and " day" or " days"),
     lo == hi and ns.Money(lo) or (ns.Money(lo) .. " to " .. ns.Money(hi)), 0.7, 0.7, 0.7, 1, 1, 1)
   -- Trend: the last 3 days' typical price against the days before them.
   if #days >= 5 then

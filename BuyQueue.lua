@@ -151,6 +151,7 @@ local function unpark(ids)
 end
 local side, queueView, listsView   -- frames, built when the auction house first opens
 local refreshQueue                  -- redraws the queue view
+local updateBadges                  -- the "new flips" counts on the tab and view button
 
 -- The queue tab is on screen at the auction house.
 local function shown()
@@ -929,38 +930,45 @@ local function buildLane(v, d)
   L.buy:GetFontString():SetFont(T.font, 14, "")
   -- A mouse with its wheel and arrows: "scroll here" (Magic, October 3). It stands in
   -- for the button when there's nothing to click, and lights up teal with Scroll to buy.
+  -- Drawn as pictures (media/mouse.tga, media/updown.tga), white, tinted here: built
+  -- from boxes it read as a block (owner's test, October 3; Magic's mock-up).
   local m = CreateFrame("Frame", nil, strip)
-  m:SetSize(22, 34)
-  m:SetPoint("RIGHT", -22, 0)
-  T:Border(m)
-  m.wheel = m:CreateTexture(nil, "ARTWORK")
-  m.wheel:SetSize(4, 9)
-  m.wheel:SetPoint("TOP", 0, -5)
-  m.wheel:SetColorTexture(1, 1, 1, 1)
-  m.split = m:CreateTexture(nil, "ARTWORK")
-  m.split:SetSize(1, 6)
-  m.split:SetPoint("TOP", 0, -14)
-  m.split:SetColorTexture(1, 1, 1, 1)
-  m.up = strip:CreateTexture(nil, "ARTWORK")
-  m.up:SetSize(10, 10)
-  m.up:SetPoint("BOTTOMLEFT", m, "RIGHT", 3, 2)
-  m.up:SetTexture("Interface\\Buttons\\Arrow-Up-Up")
-  m.down = strip:CreateTexture(nil, "ARTWORK")
-  m.down:SetSize(10, 10)
-  m.down:SetPoint("TOPLEFT", m, "RIGHT", 3, -2)
-  m.down:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
+  m:SetSize(20, 40)
+  m:SetPoint("RIGHT", -26, 0)
+  m.icon = m:CreateTexture(nil, "ARTWORK")
+  m.icon:SetAllPoints()
+  m.icon:SetTexture("Interface\\AddOns\\" .. ADDON .. "\\media\\mouse")
+  m.arrows = m:CreateTexture(nil, "ARTWORK")
+  m.arrows:SetSize(10, 40)
+  m.arrows:SetPoint("LEFT", m, "RIGHT", 4, 0)
+  m.arrows:SetTexture("Interface\\AddOns\\" .. ADDON .. "\\media\\updown")
   function m:SetLit(on)
     local c = on and TEAL or { 0.5, 0.5, 0.5 }
-    for _, e in ipairs(self.borders) do e:SetColorTexture(c[1], c[2], c[3], on and 1 or 0.6) end
-    self.wheel:SetColorTexture(c[1], c[2], c[3], 1)
-    self.split:SetColorTexture(c[1], c[2], c[3], 0.8)
-    self.up:SetVertexColor(c[1], c[2], c[3])
-    self.down:SetVertexColor(c[1], c[2], c[3])
+    self.icon:SetVertexColor(c[1], c[2], c[3], on and 1 or 0.7)
+    self.arrows:SetVertexColor(c[1], c[2], c[3], on and 1 or 0.7)
   end
-  function m:SetShownAll(on)
-    self:SetShown(on); self.up:SetShown(on); self.down:SetShown(on)
-  end
+  function m:SetShownAll(on) self:SetShown(on) end
   L.mouse = m
+
+  -- Scroll to buy on: a soft teal glow just outside the strip, fading outwards.
+  L.glow = {}
+  for k = 1, 4 do
+    local a = ({ 0.45, 0.25, 0.12, 0.05 })[k]
+    for _, edge in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+      local t = strip:CreateTexture(nil, "BACKGROUND")
+      t:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], a)
+      if edge == "TOP" or edge == "BOTTOM" then
+        t:SetHeight(1)
+        t:SetPoint(edge .. "LEFT", strip, edge .. "LEFT", -k, edge == "TOP" and k or -k)
+        t:SetPoint(edge .. "RIGHT", strip, edge .. "RIGHT", k, edge == "TOP" and k or -k)
+      else
+        t:SetWidth(1)
+        t:SetPoint("TOP" .. edge, strip, "TOP" .. edge, edge == "LEFT" and -k or k, k - 1)
+        t:SetPoint("BOTTOM" .. edge, strip, "BOTTOM" .. edge, edge == "LEFT" and -k or k, -(k - 1))
+      end
+      L.glow[#L.glow + 1] = t
+    end
+  end
 
   local header = CreateFrame("Frame", nil, L)
   header:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", 4, -2)
@@ -1199,6 +1207,7 @@ local function fillLane(L)
   end
   if wheel then L.stripBg:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], 0.12)
   else L.stripBg:SetColorTexture(1, 1, 1, 0.05) end
+  for _, t in ipairs(L.glow) do t:SetShown(wheel) end
   local ready = 0
   for _, x in ipairs(list) do if not x.waiting and not cantAfford(x) then ready = ready + 1 end end
   L.title:SetText(("%s  |cff888888%d to buy|r%s"):format(d.title, ready,
@@ -1269,6 +1278,8 @@ end
 refreshQueue = function()
   local v = queueView
   if not v or not v:IsVisible() then return end
+  if view() == "flips" then Q.unseenFlips = 0 end   -- seen them
+  updateBadges()
   autoArm()
   layoutLanes(v)
   for _, d in ipairs(ticked()) do fillLane(v.lanes[d.key]) end
@@ -1378,8 +1389,11 @@ local function addFromBox(v)
   local list = currentList() or ns:NewShoppingList("Shopping list")
   -- A link or a typed name can name one version of gear ("of the Monkey").
   local text = v.add:GetText()
-  local id, suffix = ns:ResolveItemVersion(text)
-  if v.pendingID and not text:find("|H", 1, true) then id, suffix = v.pendingID, nil end
+  local id, suffix, known = ns:ResolveItemVersion(text)
+  if v.pendingID and not text:find("|H", 1, true) then id, suffix, known = v.pendingID, nil, nil end
+  if id and suffix and known == false then
+    ns:Print(("No version called \"%s\" has turned up in your full scans yet: check the spelling. Added anyway; Search all looks for names containing it."):format(suffix))
+  end
   if not id then
     ns:Print("Couldn't find that item. Shift-click it from your bags or a chat link, drag it here, or type its exact name.")
     return
@@ -1420,6 +1434,9 @@ end
 
 -- Columns (x from the left of a row).
 local C = { name = 22, get = 160, max = 206, want = 274, have = 336, now = 376, x = 380 }
+-- Search lists have no Get, Most each or Want: their three columns spread out (the
+-- headings ran together at the Buy list spots, owner's test October 3).
+local SC = { checked = 214, listed = 300 }
 
 local function buildListsView(parent)
   local v = CreateFrame("Frame", nil, parent)
@@ -1847,20 +1864,37 @@ local function listRow(i)
     GameTooltip:SetItemByID(id)
     -- Gear on a search list: every version the last Search all found.
     local found = r.kind == "item" and r.entry.found
+    local want = r.kind == "item" and r.entry.suffix
     if found and found.versions and #found.versions > 0 then
       GameTooltip:AddLine(" ")
       GameTooltip:AddLine(("On the auction house at the last Search all (%s):"):format(ns.Age(found.t)), T.accent[1], T.accent[2], T.accent[3])
-      for k, ver in ipairs(found.versions) do
-        if k > 12 then GameTooltip:AddLine(("and %d more versions"):format(#found.versions - 12), 0.7, 0.7, 0.7); break end
+      -- A list that wants one version: that one first, in green (or "none listed"),
+      -- then the others greyed and fewer of them (owner's test, October 3).
+      local mine, others = {}, {}
+      for _, ver in ipairs(found.versions) do
+        if want and ver.name and ver.name:lower():find(want:lower(), 1, true) then mine[#mine + 1] = ver
+        else others[#others + 1] = ver end
+      end
+      local function line(ver, r1, g1, b1)
         GameTooltip:AddDoubleLine(ver.name or "a version still loading", ("%d listed, from %s"):format(ver.qty or 0,
-          ver.min and ns.Money(ver.min) or "?"), 0.9, 0.9, 0.9, 1, 1, 1)
+          ver.min and ns.Money(ver.min) or "?"), r1, g1, b1, r1, g1, b1)
+      end
+      if want then
+        if #mine == 0 then GameTooltip:AddLine(("%s: none listed"):format(ns:ListEntryName(r.entry)), 0.93, 0.52, 0.59) end
+        for _, ver in ipairs(mine) do line(ver, 0.5, 0.83, 0.61) end
+        if #others > 0 then GameTooltip:AddLine("Other versions:", 0.6, 0.6, 0.6) end
+      end
+      local limit = want and 6 or 12
+      for k, ver in ipairs(others) do
+        if k > limit then GameTooltip:AddLine(("and %d more"):format(#others - limit), 0.6, 0.6, 0.6); break end
+        if want then line(ver, 0.6, 0.6, 0.6) else line(ver, 0.9, 0.9, 0.9) end
       end
     elseif found then
       GameTooltip:AddLine(" ")
       GameTooltip:AddLine(("None listed at the last Search all (%s)."):format(ns.Age(found.t)), 0.7, 0.7, 0.7)
     end
-    if r.kind == "item" and r.entry.suffix then
-      GameTooltip:AddLine("This list wants the " .. r.entry.suffix .. " version.", 0.7, 0.7, 0.7, true)
+    if want then
+      GameTooltip:AddLine(("This list wants only the \"%s\" version; Listed and Cheapest count just that one."):format(want), 0.7, 0.7, 0.7, true)
     end
     -- Buy lists: buying the ones you're short of against crafting them.
     local list = currentList()
@@ -2125,6 +2159,10 @@ refreshLists = function()
   v.headers.Now:SetText(search and "Cheapest" or "Now")
   -- Buy this many counts what's been bought, so the column says so.
   v.headers.Have:SetText(search and "Listed" or (buyMode and "Bought" or "Have"))
+  v.headers.Want:ClearAllPoints()
+  v.headers.Want:SetPoint("LEFT", search and SC.checked or C.want, 0)
+  v.headers.Have:ClearAllPoints()
+  v.headers.Have:SetPoint("RIGHT", v.header, "LEFT", search and SC.listed or (C.have + 8), 0)
 
   -- What to show: the list's items, then the materials for its Craft items.
   local show = {}
@@ -2171,7 +2209,11 @@ refreshLists = function()
     r.icon:ClearAllPoints()
     r.icon:SetPoint("LEFT", s.sub and 18 or 2, 0)
     -- Search lists have no Get or Most each columns: names get that room.
-    local nameRight = search and (C.want - 8) or C.get
+    local nameRight = search and (SC.checked - 8) or C.get
+    r.age:ClearAllPoints()
+    r.age:SetPoint("LEFT", search and SC.checked or C.want, 0)
+    r.have:ClearAllPoints()
+    r.have:SetPoint("RIGHT", r, "LEFT", search and s.kind == "item" and SC.listed or C.have, 0)
     r.name:SetWidth(nameRight - C.name - 6 - (s.sub and 16 or 0))
     r.hit:SetWidth(nameRight - 4)
     r.icon:SetDesaturated(false)
@@ -2345,6 +2387,7 @@ local function showTab(tab)
     Q.state = "idle"
   end
   if tab == "lists" then refreshLists() end
+  updateBadges()
 end
 
 -- Beside the auction house, or on its own in the middle of the screen.
@@ -2521,6 +2564,44 @@ end
 ns:OnReady(function()
   hooksecurefunc(ns, "CheckFlip", soonForFlip)
 end)
+
+-- New flips just announced (Shuffles.lua): into the queue at once, even an item set
+-- aside for its two minutes after "none left" (owner's test, October 3: a flip was
+-- announced but only showed up about 20 seconds later). Looking at another tab or the
+-- Shopping lists view, a teal count on the Buy queue tab and the Vendor flips button
+-- says they're there.
+local function badge(parent)
+  local b = CreateFrame("Frame", nil, parent)
+  b:SetSize(18, 13)
+  b:SetPoint("TOPRIGHT", -1, -1)
+  b:SetFrameLevel(parent:GetFrameLevel() + 5)
+  T:Fill(b, { TEAL[1], TEAL[2], TEAL[3], 0.95 })
+  b.text = T:Text(b, 10, { 0.03, 0.12, 0.1, 1 })
+  b.text:SetPoint("CENTER", 0, 0)
+  b:Hide()
+  return b
+end
+updateBadges = function()
+  local n = Q.unseenFlips or 0
+  local function set(b, show)
+    b.badge = b.badge or badge(b)
+    b.badge.text:SetText(n > 9 and "9+" or tostring(n))
+    b.badge:SetShown(show and n > 0)
+  end
+  for _, b in ipairs(side and side.tabs or {}) do
+    if b.key == "queue" then set(b, S().tab ~= "queue") end
+  end
+  for _, b in ipairs(queueView and queueView.viewChoice and queueView.viewChoice.buttons or {}) do
+    if b.value == "flips" then set(b, view() ~= "flips") end
+  end
+end
+function ns:FlipsAnnounced(list)
+  for _, f in ipairs(list) do done[f.id] = nil end
+  if not (shown() and view() == "flips") then Q.unseenFlips = (Q.unseenFlips or 0) + #list end
+  Q.built = 0
+  if shown() and view() == "flips" then rebuildNow() end
+  updateBadges()
+end
 
 -- After any scan, new finds join the queue.
 ns:OnReady(function()

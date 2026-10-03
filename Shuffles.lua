@@ -888,6 +888,8 @@ local pendingFlips, flipTimer = {}, false
 -- Chime, screen message and chat for new vendor flips and below-usual-price deals.
 local function announce(all, usual)
   if #all == 0 and usual == 0 then return end
+  -- The Buy queue takes them in at once, even ones it set aside a minute ago (BuyQueue.lua).
+  if #all > 0 and ns.FlipsAnnounced then ns:FlipsAnnounced(all) end
   -- Flips you can't afford even one of don't chime or show on screen; chat still says
   -- so (Magic, October 3: "found X, but can't currently afford it").
   local cash, flips, poor = GetMoney(), {}, {}

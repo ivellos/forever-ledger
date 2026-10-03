@@ -349,7 +349,9 @@ local function buildFinder(side)
       add(range .. " " .. ns:DisenchantMaterialName(o[1]), white,
         per(function(y) return (y.odds[i] and y.odds[i][2] or 0) .. "%" end), white)
     end
-    add("Worth per item", dim, per(function(y)
+    -- The average over many disenchants: each material's chance x its average count x
+    -- its worth, added up (owner asked, October 3).
+    add("Worth per item, on average", dim, per(function(y)
       local worth = 0
       for _, m in ipairs(y) do
         local best = ns:BestOption(m[1])
@@ -357,7 +359,7 @@ local function buildFinder(side)
       end
       return worth > 0 and ns.Money(worth) or "?"
     end), white)
-    -- Optional (Settings, Auction house; owner, October 3: average by default): the
+    -- On by default, can be turned off (Settings, Auction house; owner, October 3): the
     -- worst and best single disenchant, from what each material can be and how many.
     if ns.db.settings.deRolls then
       local function roll(y, best)

@@ -57,6 +57,7 @@ jobs:
           VERSION="${{ steps.ver.outputs.version }}"
           mkdir -p build/ForeverLedger
           cp ForeverLedger.toc *.lua README.md CHANGELOG.md LICENSE build/ForeverLedger/
+          cp -r media build/ForeverLedger/
           sed -i "s/@project-version@/${VERSION}/" build/ForeverLedger/ForeverLedger.toc
           cd build && zip -r "../ForeverLedger-${VERSION}.zip" ForeverLedger
 

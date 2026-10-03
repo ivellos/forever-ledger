@@ -22,21 +22,30 @@ local function inDungeon()
   return name
 end
 
--- The run is over: add it to its dungeon's totals.
+-- "under a minute" or "12 min".
+local function mins(secs)
+  if secs < 60 then return "under a minute" end
+  return ("%d min"):format(math.floor(secs / 60))
+end
+
+-- The run is over: add it to its dungeon's totals. A quick walk in and out (under 2
+-- minutes, nothing looted) isn't a run (owner's test, October 3: "Stockade, 0 min").
 local function finishRun(run)
   if not run then return end
+  local secs = math.max(0, (run.left or time()) - run.t)
+  local looted = 0
+  for _ in pairs(run.loot or {}) do looted = looted + 1 end
+  if secs < 120 and looted == 0 and (run.coin or 0) == 0 then
+    ns:Debug(("Dungeon run not counted: %s, %s and nothing looted."):format(run.name, mins(secs)))
+    return
+  end
   local d = ns.db.dungeons[run.name] or { runs = 0, secs = 0, coin = 0, drops = {} }
   ns.db.dungeons[run.name] = d
   d.runs = d.runs + 1
-  d.secs = d.secs + math.max(0, (run.left or time()) - run.t)
+  d.secs = d.secs + secs
   d.coin = d.coin + (run.coin or 0)
   for id in pairs(run.loot or {}) do d.drops[id] = (d.drops[id] or 0) + 1 end
-  ns:Debug(("Dungeon run counted: %s, %d min, %d items looted."):format(run.name,
-    math.floor(math.max(0, (run.left or time()) - run.t) / 60), (function()
-      local n = 0
-      for _ in pairs(run.loot or {}) do n = n + 1 end
-      return n
-    end)()))
+  ns:Debug(("Dungeon run counted: %s, %s, %d items looted."):format(run.name, mins(secs), looted))
 end
 
 local function check()
@@ -133,7 +142,7 @@ function ns:PrintRuns()
   table.sort(list, function(a, b) return a.d.runs > b.d.runs end)
   ns:Print("Your dungeon runs (this account):")
   if run and not run.left then
-    print(("  Now: %s, %d min so far."):format(run.name, math.floor((time() - run.t) / 60)))
+    print(("  Now: %s, %s so far."):format(run.name, mins(time() - run.t)))
   end
   for _, e in ipairs(list) do
     local d = e.d
@@ -147,8 +156,8 @@ function ns:PrintRuns()
     for i = 1, math.min(3, #drops) do
       best[i] = ("%s (%d)"):format(ns.ItemName(drops[i].id) or "?", drops[i].n)
     end
-    print(("  %s: %d %s, about %d min each, %s coin a run.%s"):format(e.name, d.runs, d.runs == 1 and "run" or "runs",
-      math.floor(d.secs / math.max(d.runs, 1) / 60), ns.Money(math.floor(d.coin / math.max(d.runs, 1))),
+    print(("  %s: %d %s, about %s each, %s coin a run.%s"):format(e.name, d.runs, d.runs == 1 and "run" or "runs",
+      mins(d.secs / math.max(d.runs, 1)), ns.Money(math.floor(d.coin / math.max(d.runs, 1))),
       #best > 0 and (" Best drops: " .. table.concat(best, ", ") .. ".") or ""))
   end
 end

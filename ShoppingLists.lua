@@ -103,6 +103,34 @@ local function isGear(id)
   local _, _, _, _, _, classID = instantInfo(id)
   return classID == 2 or classID == 4
 end
+-- A typed version as the game writes it: "of the boar" or "of the boa" becomes "of the
+-- Boar" when full scans have seen a version by that name (or one starting with it, if
+-- only one does). Returns the name and whether it's a known version (owner's test,
+-- October 3: the list kept "of the boa" as typed).
+function ns:NormalizeVersion(text)
+  local lower = text:lower()
+  local starts
+  for name in pairs(ns.db.suffixNames or {}) do
+    local l = name:lower()
+    if l == lower then return name, true end
+    if l:sub(1, #lower) == lower then
+      if starts and starts ~= name then starts = false elseif starts == nil then starts = name end
+    end
+  end
+  if starts then return starts, true end
+  -- Unknown: at least capitalise it like the game does ("of the Boar").
+  return (text:gsub("(%s)(%l)", function(sp, c) return sp .. c:upper() end):gsub("^(%a+) The ", "%1 the ")), false
+end
+
+-- Versions typed before that: tidied once at login.
+ns:OnReady(function()
+  for _, l in ipairs((ns.db.shopping or {}).lists or {}) do
+    for _, e in ipairs(l.items or {}) do
+      if e.suffix then e.suffix = (ns:NormalizeVersion(e.suffix)) end
+    end
+  end
+end)
+
 function ns:ResolveItemVersion(text)
   text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
   local linkID = ns.ItemIDFromLink(text)
@@ -127,7 +155,10 @@ function ns:ResolveItemVersion(text)
     end
     if not at then return end
     local baseID = ns:ResolveItem(name:sub(1, at - 1))
-    if baseID and isGear(baseID) then return baseID, name:sub(at + 1) end
+    if baseID and isGear(baseID) then
+      local suffix, known = ns:NormalizeVersion(name:sub(at + 1))
+      return baseID, suffix, known
+    end
     pos = at - 1
   end
 end

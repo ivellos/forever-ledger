@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: Vendor flips and Shopping lists are two views you switch between at the top, one at a time, instead of sections stacked on each other; the view you're on is the one that buys. Each has its own buttons at the bottom (Watch flips, Full scan and Scan materials; or Search lists and Full scan). With Scroll to buy ticked, the area to scroll glows teal and a mouse-wheel sign lights up; the big button only shows when there's something to buy (Buy, Confirm), since the bottom row already has Watch flips. From Magic's suggestions.
 - Buy queue: a flip's profit is for what you can afford right now ("21c of 48c" when your gold only covers some of them), following your gold as you buy.
 - Flip alerts: a new flip you can't afford even one of doesn't chime or show on screen; chat says "Found a vendor flip: X, but you can't afford it yet".
+- Buy queue: the mouse sign is a proper mouse with a wheel and an up-and-down arrow, and the strip has a soft teal glow while Scroll to buy is on. New flips found while you're on another tab or the Shopping lists view show a teal count on the Buy queue tab and the Vendor flips button.
+- Disenchant finder: the bad and good roll are shown by default (Settings can hide them); "Worth per item, on average" says what the number is.
+- Price history (Ctrl): the range is of the typical price, so one odd cheap listing doesn't stretch it.
+- The import and export window: the text sits in a framed box under the instructions, with the addon's own scroll bar and a "Paste here" hint.
+- Dungeon runs: walking in and straight back out (under 2 minutes, nothing looted) isn't counted as a run; short times read "under a minute".
+
+### Fixed
+- Search lists: the Checked, Listed and Cheapest headings ran into each other.
+- Shopping lists: a typed version ("of the boar") is saved as the game writes it ("of the Boar"), with a note if no full scan has seen that version; hovering it shows that version first and the others greyed.
+- Buy queue: a new flip of an item the queue had just finished with could take up to two minutes to show up.
 
 ### Added
 - Buy queue: Spend at most, a box at the bottom of the panel that caps what the queue spends each auction house visit (no limit until you type one), with what's left beside it. Settings, Auction house: Buy queue: always keep, to never spend below a set amount of gold.
