@@ -22,7 +22,7 @@ The first time you open the window, a short welcome walks through these and the 
 - If Auctionator or another addon runs a full scan, Forever Ledger reads it too.
 - **With Auctionator or TSM installed**, Forever Ledger switches off the features they already cover, so you don't see things twice: for now, the auction and vendor price lines in tooltips (Worth to you, Buy at or below and the rest stay). A one-time message says what was turned off; **Keep them on** undoes it, and Settings can change it any time.
 - Neutral auction houses (Booty Bay, Gadgetzan, Everlook) keep their own prices.
-- **Sell protection**: on the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line above **Post** says so and Post is greyed out until you click **Post anyway**. Untick **Stop posts below vendor price** in Settings (Auction house) to keep just the warning.
+- **Sell protection**: on the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line under **Post** says so and Post is greyed out until you click **Post anyway**. Untick **Stop posts below vendor price** in Settings (Auction house) to keep just the warning.
 
 ![Watch flips, Disenchant finder, Full scan and Scan materials under the auction house](images/auction-house.png)
 
