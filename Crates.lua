@@ -136,6 +136,12 @@ function ns:CrateToShoppingList(r, bundle)
   -- Temporary (owner, October 3): it goes when you turn the crate in, or after a week.
   list.temp, list.tempT = r.name, time()
   local added, unknown = 0, {}
+  -- The crate itself too (owner, October 3): want 1, so it's done if you have one.
+  if r.id then
+    local e = ns:AddToShoppingList(list, r.id, priceToGet(r.id, 1) or ns:GetVendorBuyPrice(r.id) or 0, 1)
+    e.done = nil
+    added = added + 1
+  end
   for _, p in ipairs(bundle.parts) do
     if p.id then
       local vendor = ns:GetVendorBuyPrice(p.id)

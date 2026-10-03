@@ -101,7 +101,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 - **Crates tab**: the cheapest way to fill each crate at today's prices, with the crate's own price and gold per Merchant's Favor. Click a crate for every bundle and what you already have in bags, bank and alts.
 - **Pays back**: turning in a filled crate pays money as well as Favor (Apprentice crates about 2s 50c, green ones 5s). The tab takes that off the cost; when it pays back more than the crate and its fill cost, the net cost shows as a green profit and the crate is worth doing for gold alone. Payouts marked * are estimates until you turn one in, then learned like the Favor.
-- **Shopping list for a crate**: open a crate and click **Add cheapest fill to a shopping list**. Its items go on a list named after the crate, set to keep that many (what's in your bags and bank counts), with prices high enough to buy them all at your last scan. Tick **Use in the buy queue** on that list and the Buy queue buys what you're short. The list is temporary: it goes when you turn that crate in, or after a week.
+- **Shopping list for a crate**: open a crate and click **Add cheapest fill to a shopping list**. The crate and its items go on a list named after the crate, set to keep that many (what's in your bags and bank counts), with prices high enough to buy them all at your last scan. Tick **Use in the buy queue** on that list and the Buy queue buys what you're short. The list is temporary: it goes when you turn that crate in, or after a week.
 - Crates are sold at the turn-in posts too (Three Corners in Redridge for Alliance, near the Crossroads for Horde), and Merchant's Favor buys recipes, pets, tabards, titles and even a mount.
 
 ![Crates tab](images/crates.png)
