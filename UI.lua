@@ -437,6 +437,9 @@ local SETTINGS = {
     help = "When a full scan finds vendor flips and the Buy queue beside the auction house is closed, open it. The flip watch's quick checks only chime." },
   { key = "watchResume", label = "Resume the flip watch", kind = "check",
     help = "If the flip watch was on when you closed the auction house, start it again when you come back. It can only scan while the auction house is open." },
+  { key = "listKind", label = "New shopping lists are", kind = "choice", options = {
+      { "search", "Search lists" }, { "buy", "Buy lists" } },
+    help = "Search lists check what's on the auction house in one click (Search all), for buying by hand. Buy lists add how many you want and the most you'd pay, and feed the buy queue. Each list can be switched at its top." },
   { key = "sellGuard", label = "Stop posts below vendor price", kind = "check",
     help = "On the Sell tab, when a vendor would pay more than the auction house after its cut, Post is greyed out until you click Post anyway. Off: just the warning." },
 

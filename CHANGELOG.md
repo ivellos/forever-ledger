@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Shopping lists come in two kinds. Search lists (new lists start as these; Settings can change that) are for checking whether anything on them is up right now: Search all looks for every item at once, and each shows how many are listed, the cheapest and when it was checked; click one to look at it on the auction house. Buy lists are the lists you know, with Want, prices and the buy queue, and now show about what buying the rest would cost. Your existing lists are Buy lists.
+- Shopping lists: one version of a piece of gear ("Soldier's Armor of the Monkey", typed or shift-clicked) can go on a list; Search all looks up every version, and hovering an item lists each version's price.
+- Shopping lists: clicking an item searches for it on the auction house.
+
 ### Changed
 - Settings: sections listed on the left, the chosen one's settings on the right, like the Help tab; choices with many options are dropdowns. Settings and Help open on their first section each time.
 

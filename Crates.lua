@@ -129,7 +129,7 @@ function ns:CrateToShoppingList(r, bundle)
   local list
   for _, l in ipairs(ns:ShoppingLists()) do if l.name == name then list = l end end
   if not list then
-    list = ns:NewShoppingList(name)
+    list = ns:NewShoppingList(name, "buy")   -- the queue buys what you're short of
   else
     for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i) end end
   end

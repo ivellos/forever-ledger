@@ -1138,19 +1138,24 @@ local function currentList() return (ns:CurrentShoppingList()) end
 
 local function addFromBox(v)
   local list = currentList() or ns:NewShoppingList("Shopping list")
-  local id = v.pendingID or ns:ResolveItem(v.add:GetText())
+  -- A link or a typed name can name one version of gear ("of the Monkey").
+  local text = v.add:GetText()
+  local id, suffix = ns:ResolveItemVersion(text)
+  if v.pendingID and not text:find("|H", 1, true) then id, suffix = v.pendingID, nil end
   if not id then
     ns:Print("Couldn't find that item. Shift-click it from your bags or a chat link, drag it here, or type its exact name.")
     return
   end
-  local max = ns.ParseMoneyLoose(v.max:GetText(), "g")
+  -- Search lists have no price or Want boxes.
+  local search = ns:IsSearchList(list)
+  local max = search and 0 or ns.ParseMoneyLoose(v.max:GetText(), "g")
   if not max then
     ns:Print("Couldn't read that price. Try 2g 50s, 1.5g, 25s, 75c, a plain number for gold, or any.")
     v.max:SetFocus()
     return
   end
-  local qty = tonumber(v.qty:GetText())
-  ns:AddToShoppingList(list, id, max, qty and qty > 0 and math.floor(qty) or nil)
+  local qty = not search and tonumber(v.qty:GetText()) or nil
+  ns:AddToShoppingList(list, id, max, qty and qty > 0 and math.floor(qty) or nil, suffix)
   unpark({ id })
   v.add:SetText("")
   v.max:SetText("")
@@ -1243,9 +1248,14 @@ local function buildListsView(parent)
       b:SetPoint("TOPLEFT", 0, -(i - 1) * 20)
       b:SetPoint("RIGHT", 0, 0)
       local doneN = 0
-      for _, e in ipairs(l.items) do if ns:ItemDone(e, l) then doneN = doneN + 1 end end
-      b.text:SetText(("%s%s|r  |cff888888%d/%d%s|r"):format(i == cur and T:AccentCode() or "|cffffffff", l.name,
-        doneN, #l.items, l.on and "" or ", not in queue"))
+      local tag
+      if ns:IsSearchList(l) then
+        tag = ("%d %s, search"):format(#l.items, #l.items == 1 and "item" or "items")
+      else
+        for _, e in ipairs(l.items) do if ns:ItemDone(e, l) then doneN = doneN + 1 end end
+        tag = ("%d/%d%s"):format(doneN, #l.items, l.on and "" or ", not in queue")
+      end
+      b.text:SetText(("%s%s|r  |cff888888%s|r"):format(i == cur and T:AccentCode() or "|cffffffff", l.name, tag))
       b:Show()
     end
     for i = #lists + 1, #menu.buttons do menu.buttons[i]:Hide() end
@@ -1282,11 +1292,40 @@ local function buildListsView(parent)
   delete:SetPoint("LEFT", rename, "RIGHT", 4, 0)
   v.listButtons = { rename, delete }
 
+  -- What kind of list: Search (is any of it up right now? Search all, no buying
+  -- settings) or Buy (Want, prices, the buy queue). Magic, October 3.
+  local kindLabel = T:Text(v, 12, T.dim)
+  kindLabel:SetPoint("TOPLEFT", 12, -42)
+  kindLabel:SetText("This list:")
+  v.kind = T:Choice(v, { { value = "search", label = "Search" }, { value = "buy", label = "Buy" } }, function(value)
+    local list = currentList()
+    if not list then return end
+    list.kind = value
+    Q.built = 0
+    refreshLists()
+  end)
+  v.kind:SetPoint("LEFT", kindLabel, "RIGHT", 8, 0)
+  v.kindLabel = kindLabel
+  for _, b in ipairs(v.kind.buttons) do
+    b:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      if self.value == "search" then
+        GameTooltip:AddLine("Search list", 1, 1, 1)
+        GameTooltip:AddLine("For checking whether any of it is up right now, like rare twink gear: Search all looks for everything at once and shows what's listed and the cheapest of each. You buy by hand; nothing goes in the buy queue.", nil, nil, nil, true)
+      else
+        GameTooltip:AddLine("Buy list", 1, 1, 1)
+        GameTooltip:AddLine("For buying amounts, like raid consumables: how many you want, the most you'd pay, and the buy queue buys what you're short of.", nil, nil, nil, true)
+      end
+      GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+
   v.on = T:Check(v, function(self)
     local list = currentList()
     if list then list.on = self:GetChecked(); Q.built = 0 end
   end)
-  v.on:SetPoint("TOPLEFT", 12, -40)
+  v.on:SetPoint("TOPLEFT", 12, -66)
   v.on:SetHitRectInsets(0, -170, 0, 0)
   v.on.label:SetText("Use in the buy queue")
 
@@ -1295,7 +1334,7 @@ local function buildListsView(parent)
     local list = currentList()
     if list then list.anyPrice = self:GetChecked() or nil; Q.built = 0; refreshLists() end
   end)
-  v.any:SetPoint("TOPLEFT", 200, -40)
+  v.any:SetPoint("TOPLEFT", 200, -66)
   v.any:SetHitRectInsets(0, -170, 0, 0)
   v.any.label:SetText("Any price (just what I need)")
   v.any:SetScript("OnEnter", function(self)
@@ -1308,8 +1347,9 @@ local function buildListsView(parent)
 
   -- What Want means for this list (owner, October 2: both, made clear).
   local wantLabel = T:Text(v, 12, T.dim)
-  wantLabel:SetPoint("TOPLEFT", 12, -64)
+  wantLabel:SetPoint("TOPLEFT", 12, -90)
   wantLabel:SetText("Want means:")
+  v.wantLabel = wantLabel
   v.wantMode = T:Choice(v, { { value = "keep", label = "Keep this many" }, { value = "buy", label = "Buy this many" } }, function(value)
     local list = currentList()
     if not list then return end
@@ -1339,7 +1379,7 @@ local function buildListsView(parent)
 
   -- Add an item: shift-click, drag, or type its name; the most you'd pay; how many.
   v.add = hinted(v, 196, "Shift-click, drag or type an item", "LEFT")
-  v.add:SetPoint("TOPLEFT", 10, -88)
+  v.add:SetPoint("TOPLEFT", 10, -114)   -- moved up for search lists (layoutTop)
   v.add:HookScript("OnTextChanged", function(self) v.pendingID = ns.ItemIDFromLink(self:GetText()) end)
 
   -- Suggestions while you type a name (owner, October 2): up to 8 items whose name
@@ -1424,11 +1464,13 @@ local function buildListsView(parent)
   v.qty:SetScript("OnEnterPressed", function() addFromBox(v) end)
   local addB = T:Button(v, "Add", 60, function() addFromBox(v) end, 22)
   addB:SetPoint("LEFT", v.qty, "RIGHT", 4, 0)
+  v.addB = addB
 
   local header = CreateFrame("Frame", nil, v)
-  header:SetPoint("TOPLEFT", 6, -116)
-  header:SetPoint("TOPRIGHT", -6, -116)
+  header:SetPoint("TOPLEFT", 6, -142)
+  header:SetPoint("TOPRIGHT", -6, -142)
   header:SetHeight(20)
+  v.header = header
   T:Fill(header, { 1, 1, 1, 0.05 })
   v.headers = {}
   for _, c in ipairs({ { "Item", 8, "LEFT" }, { "Get", C.get, "LEFT" }, { "Most each", C.max, "LEFT" }, { "Want", C.want, "LEFT" },
@@ -1442,13 +1484,14 @@ local function buildListsView(parent)
   v.headers.Have:ClearAllPoints()
   v.headers.Have:SetPoint("RIGHT", header, "LEFT", C.have + 8, 0)
   v.sf, v.content = T:Scroll(v)
-  v.sf:SetPoint("TOPLEFT", 6, -138)
+  v.sf:SetPoint("TOPLEFT", 6, -164)
   v.sf:SetPoint("BOTTOMRIGHT", -6, 58)
   v.rows = {}
 
-  local searchB = T:Button(v, "Search list", 96, function()
+  local searchB = T:Button(v, "Search all", 96, function()
     local list = currentList()
     if not list then return end
+    if ns:IsSearchList(list) then ns:SearchAllList(list); return end
     local ids, seen = {}, {}
     local function add(id) if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
     for _, e in ipairs(list.items) do if e.mode ~= "craft" then add(e.id) end end
@@ -1530,10 +1573,12 @@ local function onModifiedClick(link)
     return
   end
   local list = currentList() or ns:NewShoppingList("Shopping list")
-  ns:AddToShoppingList(list, id)
+  local _, suffix = ns:ResolveItemVersion(link)
+  ns:AddToShoppingList(list, id, nil, nil, suffix)
   unpark({ id })
   Q.built = 0
-  ns:Print(("Added %s to %s. Set the most you'd pay and how many you want on the list."):format(link, list.name))
+  ns:Print(ns:IsSearchList(list) and ("Added %s to %s."):format(link, list.name)
+    or ("Added %s to %s. Set the most you'd pay and how many you want on the list."):format(link, list.name))
   refreshLists()
 end
 if HandleModifiedItemClick then hooksecurefunc("HandleModifiedItemClick", onModifiedClick) end
@@ -1562,6 +1607,24 @@ local function listRow(i)
     if not id then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetItemByID(id)
+    -- Gear on a search list: every version the last Search all found.
+    local found = r.kind == "item" and r.entry.found
+    if found and found.versions and #found.versions > 0 then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(("On the auction house at the last Search all (%s):"):format(ns.Age(found.t)), T.accent[1], T.accent[2], T.accent[3])
+      for k, ver in ipairs(found.versions) do
+        if k > 12 then GameTooltip:AddLine(("and %d more versions"):format(#found.versions - 12), 0.7, 0.7, 0.7); break end
+        GameTooltip:AddDoubleLine(ver.name or "a version still loading", ("%d listed, from %s"):format(ver.qty or 0,
+          ver.min and ns.Money(ver.min) or "?"), 0.9, 0.9, 0.9, 1, 1, 1)
+      end
+    elseif found then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(("None listed at the last Search all (%s)."):format(ns.Age(found.t)), 0.7, 0.7, 0.7)
+    end
+    if r.kind == "item" and r.entry.suffix then
+      GameTooltip:AddLine("This list wants the " .. r.entry.suffix .. " version.", 0.7, 0.7, 0.7, true)
+    end
+    GameTooltip:AddLine("Click to search for it on the auction house.", 0.6, 0.6, 0.6)
     if r.kind == "item" and r.entry.mode == "craft" then
       local recipe = ns:RecipeFor(id)
       GameTooltip:AddLine(" ")
@@ -1575,6 +1638,16 @@ local function listRow(i)
     GameTooltip:Show()
   end)
   r.hit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  -- Click an item: search for it on the auction house (to look and buy by hand).
+  r.hit:SetScript("OnClick", function()
+    local id = (r.kind == "item" and r.entry.id) or (r.kind == "mat" and r.mat.id)
+    if id and not ns:SearchAuctionHouse(id) then
+      ns:Print("Open the auction house, then click an item to search for it.")
+    end
+  end)
+  -- Search lists: when it was last checked.
+  r.age = T:Text(r, 11, T.dim)
+  r.age:SetPoint("LEFT", C.want, 0)
 
   r.mode = T:Button(r, "Buy", 42, function()
     r.entry.mode = r.entry.mode ~= "craft" and "craft" or nil
@@ -1708,6 +1781,32 @@ local function nowText(id, limit, vendor)
   return "|cff888888?|r", false
 end
 
+-- Buy lists: about what buying everything still missing would cost at today's prices,
+-- across the cheapest listings (Magic, October 3: "so you know what you're about to
+-- spend"). "" when there's nothing to buy or no prices.
+local function estimateText(list)
+  if not (list and ns.CostToBuy) then return "" end
+  local total, unknown = 0, 0
+  local buyMode = ns:BuyMode(list)
+  local function add(id, n)
+    local c = ns:CostToBuy(id, n)
+    if c then total = total + c else unknown = unknown + 1 end
+  end
+  for _, e in ipairs(list.items) do
+    if e.mode ~= "craft" and not ns:ItemDone(e, list) then
+      local got = buyMode and (e.bought or 0) or ns:HaveCount(e.id)
+      local need = math.max(0, (e.qty or 1) - got)
+      if need > 0 then add(e.id, need) end
+    end
+  end
+  for _, m in ipairs((ns:ListMaterials(list))) do
+    if m.buy > 0 and not m.vendor then add(m.id, m.buy) end
+  end
+  if total <= 0 then return "" end
+  return ("About %s to buy the rest%s. "):format(ns.Money(total),
+    unknown > 0 and (" (%d not priced)"):format(unknown) or "")
+end
+
 local function showRow(r, kind)
   r.kind = kind
   local item, mat, text = kind == "item", kind == "mat", kind == "head" or kind == "note"
@@ -1721,6 +1820,7 @@ local function showRow(r, kind)
   r.have:SetShown(item or mat)
   r.haveHit:SetShown(item or mat)
   r.now:SetShown(item or mat)
+  r.age:SetShown(false)
   r.remove:SetShown(item)
   r.head:SetShown(text)
   for _, fs in ipairs(r.headCols) do fs:SetShown(kind == "head") end
@@ -1739,15 +1839,36 @@ refreshLists = function()
   local lists = ns:ShoppingLists()
   v.title:SetText(list and list.name or "No lists yet: click New")
   for _, b in ipairs(v.listButtons) do b:SetEnabled(list ~= nil) end
+  -- Search lists hide everything about buying; the list starts higher up.
+  local search = ns:IsSearchList(list)
+  v.kind:SetShown(list ~= nil)
+  v.kindLabel:SetShown(list ~= nil)
+  v.kind:SetValue(search and "search" or "buy")
+  local buying = list ~= nil and not search
   v.on:SetChecked(list and list.on)
-  v.on:SetShown(list ~= nil)
+  v.on:SetShown(buying)
   v.any:SetChecked(list and list.anyPrice)
-  v.any:SetShown(list ~= nil)
+  v.any:SetShown(buying)
   local buyMode = ns:BuyMode(list)
   v.wantMode:SetValue(buyMode and "buy" or "keep")
-  v.wantMode:SetShown(list ~= nil)
+  v.wantMode:SetShown(buying)
+  v.wantLabel:SetShown(buying)
+  local top = search and 66 or 114
+  v.add:SetPoint("TOPLEFT", 10, -top)
+  v.header:SetPoint("TOPLEFT", 6, -(top + 28))
+  v.header:SetPoint("TOPRIGHT", -6, -(top + 28))
+  v.sf:SetPoint("TOPLEFT", 6, -(top + 50))
+  v.max:SetShown(not search)
+  v.qty:SetShown(not search)
+  v.addB:ClearAllPoints()
+  v.addB:SetPoint("LEFT", search and v.add or v.qty, "RIGHT", 4, 0)
+  -- Column headings: Search lists show what's on the auction house.
+  v.headers.Get:SetShown(not search)
+  v.headers["Most each"]:SetShown(not search)
+  v.headers.Want:SetText(search and "Checked" or "Want")
+  v.headers.Now:SetText(search and "Cheapest" or "Now")
   -- Buy this many counts what's been bought, so the column says so.
-  v.headers.Have:SetText(buyMode and "Bought" or "Have")
+  v.headers.Have:SetText(search and "Listed" or (buyMode and "Bought" or "Have"))
 
   -- What to show: the list's items, then the materials for its Craft items.
   local show = {}
@@ -1768,7 +1889,7 @@ refreshLists = function()
     for _, e in ipairs(list.items) do
       if not (crate and (e == crate or part[e.id])) then show[#show + 1] = { kind = "item", e = e } end
     end
-    mats, missing = ns:ListMaterials(list)
+    if not search then mats, missing = ns:ListMaterials(list) end
     if #mats > 0 or #missing > 0 then
       show[#show + 1] = { kind = "head", text = "Materials to craft them" }
       for _, m in ipairs(mats) do show[#show + 1] = { kind = "mat", m = m } end
@@ -1793,12 +1914,40 @@ refreshLists = function()
     r.stripe:SetShown(i % 2 == 0 and (s.kind == "item" or s.kind == "mat"))
     r.icon:ClearAllPoints()
     r.icon:SetPoint("LEFT", s.sub and 18 or 2, 0)
-    r.name:SetWidth(C.get - C.name - 6 - (s.sub and 16 or 0))
-    if s.kind == "item" then
+    -- Search lists have no Get or Most each columns: names get that room.
+    local nameRight = search and (C.want - 8) or C.get
+    r.name:SetWidth(nameRight - C.name - 6 - (s.sub and 16 or 0))
+    r.hit:SetWidth(nameRight - 4)
+    r.icon:SetDesaturated(false)
+    if s.kind == "item" and search then
+      -- A search list: how many are listed and the cheapest, at the last check.
       local e = s.e
       r.entry = e
       r.icon:SetTexture(ns:ItemIcon(e.id))
-      r.name:SetText(ns.ItemName(e.id))
+      r.mode:Hide(); r.qty:Hide(); r.max:Hide(); r.maxText:Hide(); r.haveHit:Hide()
+      local listed, min, t
+      if e.found then
+        listed, min, t = e.found.total, e.found.min, e.found.t
+      elseif not isGear(e.id) then
+        local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
+        if rec then
+          listed, min, t = rec.none and 0 or rec.q, (not rec.none) and rec.m or nil, rec.t
+        end
+      end
+      local up = listed and listed > 0
+      if up then done = done + 1 end
+      r.icon:SetDesaturated(not up)
+      r.name:SetText(up and ns:ListEntryName(e) or ("|cff888888" .. ns:ListEntryName(e) .. "|r"))
+      r.have:SetText(listed == nil and "|cff888888?|r" or up and ("|cffffffff" .. listed .. "|r") or "|cff8888880|r")
+      r.now:SetText(up and min and ("|cff7fd39c" .. shortMoney(min) .. "|r") or "|cff888888-|r")
+      r.age:SetText(t and ns.Age(t) or "not yet")
+      r.age:Show()
+    elseif s.kind == "item" then
+      local e = s.e
+      r.entry = e
+      r.icon:SetTexture(ns:ItemIcon(e.id))
+      r.icon:SetDesaturated(false)
+      r.name:SetText(ns:ListEntryName(e))
       local craft = e.mode == "craft"
       r.max:SetTextColor(1, 1, 1, 1)
       r.mode:SetText(craft and "Craft" or "Buy")
@@ -1853,12 +2002,30 @@ refreshLists = function()
   for i = #show + 1, #v.rows do v.rows[i]:Hide() end
   v.content:SetHeight(math.max(y, 24))
   v.sf.UpdateScrollBar()
-  -- The list's progress beside its name.
+  -- The list's progress beside its name (search lists: how many are up).
   if list and #list.items > 0 then
-    v.title:SetText(("%s  %s%d/%d|r"):format(list.name,
-      done == #list.items and "|cff7fd39c" or "|cffffd100", done, #list.items))
+    if search then
+      v.title:SetText(("%s  %s%d up|r"):format(list.name, done > 0 and "|cff7fd39c" or "|cff888888", done))
+    else
+      v.title:SetText(("%s  %s%d/%d|r"):format(list.name,
+        done == #list.items and "|cff7fd39c" or "|cffffd100", done, #list.items))
+    end
   end
-  v.searchB:SetEnabled(list ~= nil and #show > 0 and ns:IsAHOpen() and not ns.Scan.active)
+  -- Search all can start while the flip watch's quick checks run (they pause for it).
+  local busy = (ns.Scan.active and not ns.Scan.quiet) or ns:SearchAllRunning()
+  v.searchB:SetEnabled(list ~= nil and #show > 0 and ns:IsAHOpen() and not busy)
+  if search then
+    if ns:SearchAllRunning() or (ns.Scan.active and not ns.Scan.quiet) then
+      v.info:SetText("Searching...")
+    elseif not ns:IsAHOpen() then
+      v.info:SetText(#list.items > 0 and "Open the auction house, then Search all." or "Add items above, or Import a shared list.")
+    elseif #list.items == 0 then
+      v.info:SetText("Add items above: shift-click, drag, or type a name (\"Soldier's Armor of the Monkey\" for one version).")
+    else
+      v.info:SetText(("%d of %d up at the last check. Click an item to look at it on the auction house."):format(done, #list.items))
+    end
+    return
+  end
   -- How far along the list is (lists are kept, so the same one works again next raid:
   -- what you have is counted afresh every time).
   local craftsReady = 0
@@ -1878,9 +2045,8 @@ refreshLists = function()
   elseif craftsReady > 0 and matsShort == 0 and done + craftsReady == #list.items then
     v.info:SetText(("|cff7fd39cYou have all the materials:|r %d to craft, then it's complete."):format(craftsReady))
   elseif not ns:IsAHOpen() then
-    v.info:SetText(("%d of %d items done%s. Open the auction house to search and buy."):format(done, #list.items,
+    v.info:SetText(estimateText(list) .. ("%d of %d items done%s. Open the auction house to search and buy."):format(done, #list.items,
       matsShort > 0 and (", %d %s short"):format(matsShort, matsShort == 1 and "material" or "materials") or ""))
-    v.info:SetText("Open the auction house to search and buy.")
   else
     local noPrice = 0
     for _, e in ipairs(list.items) do
@@ -1890,7 +2056,7 @@ refreshLists = function()
       v.info:SetText(("%d %s no price: set Most each (or any) to buy %s."):format(noPrice,
         noPrice == 1 and "item has" or "items have", noPrice == 1 and "it" or "them"))
     else
-      v.info:SetText(("%d of %d done. %d at your price%s: in the buy queue."):format(done, #list.items, cheap,
+      v.info:SetText(estimateText(list) .. ("%d of %d done. %d at your price%s: in the buy queue."):format(done, #list.items, cheap,
         toBuy > 0 and (", %d %s short"):format(toBuy, toBuy == 1 and "material" or "materials") or ""))
     end
   end
