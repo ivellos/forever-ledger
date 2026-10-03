@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-03
+
+### Highlights
+- **Welcome and Help**: a short guide the first time you open the window, and Help by topic with common questions
+- **Sell protection**: a warning, and Post held back, when a vendor would pay more than the auction house
+- **Quest items**: tooltips list the quests that need an item, and say "keep it" when you'll need it
+- **Buy queue**: scan buttons in the panel, the flip watch picks up when you come back, and what you can't afford stays listed
+- **Crates to shopping lists**: send a crate's cheapest fill to a list, for one crate or several
+- **Clearer screens**: "Auction, cheapest" in tooltips, characters from a dropdown, a Dashboard graph that fills the window
+- **Saved data stays small**: old sales and prices are summed up by month and week
+
 ### Fixed
 - Buy queue: flips you can't afford were looked up and dropped as "none left", so with little gold every find seemed to vanish a second after it showed up. They now stay at the bottom of the list, greyed and marked can't afford (hover for the details), and are skipped until you have the gold. Scrolling past the last thing you can afford plays the error sound once with a red "That's everything you can buy" message.
 - Buy queue: the strip says plainly what's happening and what to do: "Nothing to buy yet" and why (instead of a Check button), why it's waiting for the auction house, and how to buy (click Buy, or scroll over the strip with Scroll to buy). The button reads Watch flips, Wait, Buy, Confirm or Go now. The list's Up to and Cheap headings no longer run together.
