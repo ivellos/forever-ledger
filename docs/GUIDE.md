@@ -28,6 +28,7 @@ The first time you open the window, a short welcome walks through these and the 
 
 ## Tooltips
 
+- **Ledger price**: the average of the 20 cheapest units on the auction house at your last scan, which is about what you'd pay buying a few (one odd cheap listing doesn't sway it). When the very cheapest listing is lower, it shows on the line below as **cheapest listing**. The word in brackets says where the price came from (**full scan**, or **scan** for a single search) and the grey time how old it is. If your own prices are more than 12 hours old and you have Auctionator or TSM, their price is used instead and named.
 - **Worth to you**: the best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed.
 - **Buy at or below**: the most worth paying, after your safety margin. Green when it's already cheaper.
 - Also: disenchant results, which of your recipes use it, and the cheapest crate fill.

@@ -25,6 +25,7 @@ ns.HELP = {
     { "Sell protection", "On the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line under Post says so and Post is greyed out until you click Post anyway. Settings, Auction house: untick Stop posts below vendor price to keep just the warning." },
   } },
   { "Tooltips", {
+    { "Ledger price", "The average of the 20 cheapest units on the auction house at your last scan: about what you'd pay buying a few, so one odd cheap listing doesn't sway it. When the very cheapest listing is lower, it's on the line below (cheapest listing). In brackets: where it came from (full scan, or scan for a single search); in grey: how old it is. With your own prices over 12 hours old, Auctionator's or TSM's price is used if you have them, and named." },
     { "Worth to you", "The best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed." },
     { "Buy at or below", "The most worth paying, after your safety margin. Green when it's already cheaper." },
     { "Also", "Disenchant results, which of your recipes use it, and the cheapest crate fill." },
