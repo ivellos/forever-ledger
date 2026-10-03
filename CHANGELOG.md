@@ -5,10 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-### Added
-- Deals tab: filter by kind (All, Materials, Gear, Other) and search by name. (Gear was being filed under Other at first; fixed, which also fixes how sell speed judges gear.)
+## [0.9.0] - 2026-10-03
 
-- Sell speed: tooltips and the Deals tab say how fast an item sells (Fast, Steady, Slow, Rare, or No sales seen), judged against items of the same kind. It counts listings that vanished between full scans before they could have expired, using each listing's time left, and leaves out ones reposted cheaper. It  $script:n++; $args[0].Value + ' (and, in the first day, at least 3 sales)' ; Watch flips gets there fastest. Deals that don't sell are rated less sure. Settings, Tooltips can turn the line off.
+### Highlights
+- **Sell speed**: tooltips and the Deals tab say how fast an item sells, judged against similar items
+- **Deals filter**: show only materials, gear or other items, and search by name
+- **Smarter deals**: a price that has dropped across the board is no longer called a bargain
+- **Faster Buy queue**: one scroll per item, with no wait for a new search after each buy
+- **Smoother window**: no more stutter on the Deals tab while scanning or crafting
+- **Full character names**: two characters with the same first name no longer share saved data
+
+### Added
+- Deals tab: filter by kind (All, Materials, Gear, Other) and search by name.
+- Sell speed: tooltips and the Deals tab say how fast an item sells (Fast, Steady, Slow, Rare, or No sales seen), judged against items of the same kind. It counts listings that vanished between full scans before they could have expired, using each listing's time left, and leaves out ones reposted cheaper. It shows once there are 3 hours of scans compared (and, in the first day, at least 3 sales); Watch flips gets there fastest. Deals that don't sell are rated less sure. Settings, Tooltips can turn the line off.
 
 ### Changed
 - Buy queue buys faster: after buying one piece of gear it goes straight to the next cheap listing on the page it already has, instead of searching again each time. After buying every stack under the limit it moves on without a second look. Finding vendor flips no longer reads the tooltip of every listed item, which caused a short hitch after each scan. The window redraws at most once a second while scans and crafting send updates, and sell speeds are worked out once per scan, so the Deals tab no longer stutters. Crafting with the profession window open no longer re-reads every recipe and redraws the window after each craft. Deals are judged once per price change instead of on every redraw.
@@ -16,6 +25,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 - Deals: when half or more of what's listed is that cheap, the price has dropped rather than being a bargain (Greater Magic Essence at 1s 30c "usually" 20s 90c, with 2,381 that cheap, from when essences were scarce early in the beta). Those are now rated Thin, hidden unless you tick Show thin data too, and say why.
 - Characters are filed under their full name ("Iveilos Veren"), not just the first name, so two characters with the same first name no longer share one record (gold, recipes, bags and the rest). Each character's saved data moves over by itself the first time it logs in.
+
+### Removed
+- The first try at sell speed (counts of listings that went down between scans, mostly noise) is removed from saved data. Nothing used it any more, and it took about 170 KB.
 
 ## [0.8.0] - 2026-10-02
 
