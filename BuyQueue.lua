@@ -440,7 +440,9 @@ function ns:BuyQueueAct(clicked)
       if not x.waiting and not cantAfford(x) then any = true; break end
     end
     if not any then
-      if IsShiftKeyDown() then ns.Scan:Start("full") else ns:ToggleFlipWatch() end
+      -- (Shift-click for one full scan is gone: Full scan has its own button below, and
+      -- this asked for one even when the game wouldn't allow it. Owner, October 3.)
+      ns:ToggleFlipWatch()
       if refreshQueue then refreshQueue() end
       return
     end
@@ -703,8 +705,8 @@ local function statusText()
   local watching = ns:IsFlipWatching()
   local why = (poor > 0 and ("%d you can't afford yet (greyed below)."):format(poor))
     or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
-    or (watching and ("Watching for flips; new ones show up here. " .. (ns.statusText or "")))
-    or "Click Watch flips to keep scanning while you're here (Shift-click: one full scan now)."
+    or (watching and "Watching for flips; new ones show up here.")
+    or "Click Watch flips to keep scanning while you're here."
   return "Nothing to buy yet.", Q.note and (Q.note .. " " .. why) or why, watching and "Stop" or "Watch flips"
 end
 
@@ -920,11 +922,16 @@ local function buildQueueView(parent)
   end, 22)
   v.matsBtn:SetPoint("LEFT", v.fullBtn, "RIGHT", 6, 0)
   tip(v.matsBtn, "Scan materials", "Checks just what your recipes use, one item at a time (a couple of minutes). Click again to stop.")
+  -- Above the buttons: the scan's progress on the left, what you've bought on the right.
   v.totals = T:Text(v, 11, T.dim)
-  v.totals:SetPoint("BOTTOMLEFT", 12, 36)
-  v.totals:SetPoint("RIGHT", v, "RIGHT", -10, 0)
-  v.totals:SetJustifyH("LEFT")
+  v.totals:SetPoint("BOTTOMRIGHT", -10, 36)
+  v.totals:SetJustifyH("RIGHT")
   v.totals:SetWordWrap(false)
+  v.status = T:Text(v, 11, { 0.73, 0.64, 1, 1 })
+  v.status:SetPoint("BOTTOMLEFT", 12, 36)
+  v.status:SetPoint("RIGHT", v.totals, "LEFT", -10, 0)
+  v.status:SetJustifyH("LEFT")
+  v.status:SetWordWrap(false)
   v:SetScript("OnSizeChanged", function() if refreshQueue then refreshQueue() end end)
   return v
 end
@@ -1032,11 +1039,10 @@ refreshQueue = function()
     for _, x in ipairs(Q.lanes[d.key] or {}) do if not x.waiting and not cantAfford(x) then total = total + 1 end end
   end
   -- The scan status (a scan's progress, the watch's countdown) when there is one.
-  local status = ns.statusText and ns.statusText ~= "" and ("|cffb9a2ff" .. ns.statusText .. "|r   ") or ""
-  v.totals:SetText(status .. (Q.bought > 0 and ("Bought %d for %s%s."):format(Q.bought, money(Q.spent),
-    Q.worth > 0 and (", worth about %s"):format(money(Q.worth)) or "")
-    or (Q.armed and ("%d to buy."):format(total)
-      or "Click a section (or scroll over its strip) to buy from it.")))
+  v.status:SetText(ns.statusText or "")
+  v.totals:SetText(Q.bought > 0 and ("Bought %d for %s%s"):format(Q.bought, money(Q.spent),
+      Q.worth > 0 and (", worth %s"):format(money(Q.worth)) or "")
+    or (Q.armed and ("%d to buy"):format(total) or "Click a section to buy from it"))
   if ns.UpdatePanelScanButtons then ns:UpdatePanelScanButtons() end
 end
 

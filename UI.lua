@@ -1212,6 +1212,12 @@ function ns:UpdateAHScanButtons()
   for _, b in ipairs({ ns.ahButton or false, ns.ahFullButton or false, ns.ahWatchButton or false }) do
     if b then b:SetShown(not docked) end
   end
+  -- The Buy queue button says it closes the panel while it's open, and stays lit.
+  local b = ns.ahFinderButton
+  if b then
+    b:SetText(docked and "Close buy queue" or "Buy queue")
+    if docked then b:LockHighlight() else b:UnlockHighlight() end
+  end
 end
 
 -- Scan buttons on the auction house window itself, in Blizzard's style to match it.
