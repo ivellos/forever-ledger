@@ -75,8 +75,15 @@ local function guard(frame, name)
   g.anyway = T:Button(frame, "Post anyway", 76, function()
     if g.key then unlocked[g.key] = true end
     g.anyway:Hide()
-    if not call(frame, "UpdatePostButtonState") and post then post:Enable() end
+    -- Let the game decide if Post can be used (an item and a price are set), then make
+    -- sure our hold is off (October 3: clicking did nothing).
+    call(frame, "UpdatePostButtonState")
+    if post and not post:IsEnabled() then post:Enable() end
+    ns:Debug("Sell protection: Post anyway for", g.key or "?", "- Post is", post and (post:IsEnabled() and "on" or "still off") or "missing")
   end, 20)
+  -- Above everything on the sell page, so nothing invisible covers it.
+  g.anyway:SetFrameStrata("DIALOG")
+  g.anyway:SetFrameLevel((post and post:GetFrameLevel() or frame:GetFrameLevel()) + 10)
   -- Beside Post (under the text it sat on Buyout Mode on gear pages, October 3).
   if post then g.anyway:SetPoint("LEFT", post, "RIGHT", 3, 0)
   else g.anyway:SetPoint("TOPLEFT", g.text, "BOTTOMLEFT", 0, -6) end
