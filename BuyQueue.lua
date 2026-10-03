@@ -1048,7 +1048,11 @@ local function buildListsView(parent)
   local menu = CreateFrame("Frame", nil, v)
   menu:SetPoint("TOPLEFT", pick, "BOTTOMLEFT", 0, -2)
   menu:SetWidth(260)
-  menu:SetFrameStrata("DIALOG")
+  -- Above the panel, which is itself drawn in the dialog layer when it floats away from
+  -- the auction house: in the same layer, the panel's buttons and ticks showed through
+  -- the menu (owner's screenshot, October 3).
+  menu:SetFrameStrata("FULLSCREEN_DIALOG")
+  menu:SetToplevel(true)
   menu:EnableMouse(true)
   T:Fill(menu, { 0.05, 0.05, 0.05, 0.98 })
   T:Border(menu)
@@ -1099,6 +1103,7 @@ local function buildListsView(parent)
     if menu:IsShown() or #ns:ShoppingLists() == 0 then menu:Hide(); return end
     fillMenu()
     menu:Show()
+    menu:Raise()
   end)
   v:HookScript("OnHide", function() menu:Hide() end)
 

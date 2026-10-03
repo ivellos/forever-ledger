@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- Shopping lists: the list menu is drawn above the panel, so its buttons and tick boxes no longer show through it.
+
 ### Added
 - Shopping lists away from the auction house: a Shopping lists button at the top of the main window, and Shift-click on the minimap button (as well as /fl lists).
 - Crates tab: open a crate and click Add cheapest fill to a shopping list. Its items go on a list named after the crate, counting what you already have, with prices high enough to buy them all; the Buy queue can then buy what you're short. The list is temporary: it's removed when you turn that crate in, or after a week.
