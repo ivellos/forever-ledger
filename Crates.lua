@@ -382,11 +382,10 @@ local openID
 local COLS = {
   { key = "name", label = "Crate" },
   { key = "level", label = "Level", w = 44 },
-  { key = "fill", label = "Cheapest fill", w = 160 },
+  { key = "fill", label = "Cheapest fill", w = 150 },
   { key = "fillCost", label = "Fill cost", w = 74 },
   { key = "cratePrice", label = "Crate", w = 70 },
  { key = "total", label = "Net cost", w = 80 },
-  { key = "favor", label = "Favor", w = 50 },
   { key = "perFavor", label = "Per Favor", w = 80 },
 }
 
@@ -558,7 +557,6 @@ function ns:RefreshCrates()
       fillCost = r.cheapest and money(r.cheapest.cost) or dim("?"),
       cratePrice = r.owned and dim("owned") or money(r.cratePrice),
      total = r.net and (r.net < 0 and ("|cff7fd39c+" .. money(-r.net) .. "|r") or money(r.net)) or dim("?"),
-      favor = r.favor and tostring(r.favor) or "?",
       perFavor = r.net and r.net <= 0 and "|cff7fd39cfree|r" or r.perFavor and ("|cff7fd39c" .. money(r.perFavor) .. "|r") or dim("?"),
     }
     for key, fs in pairs(row.cells) do
