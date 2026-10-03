@@ -26,7 +26,7 @@ ns.HELP = {
     { "Buy at or below", "The most worth paying, after your safety margin. Green when it's already cheaper." },
     { "Also", "Disenchant results, which of your recipes use it, and the cheapest crate fill." },
     { "Gear versions", "Gear with random stats (of the Eagle) also shows the price of that exact version." },
-    { "Sells", "How fast an item sells: Fast, Steady, Slow, Rare (seldom listed, goes quickly) or No sales seen, judged against items of the same kind, so ore and swords aren't held to the same bar. It counts listings that vanished before they could have expired, so it builds up as you run full scans (fastest with Watch flips) and  $script:n++; $args[0].Value + ' (and, in the first day, at least 3 sales)' ." },
+    { "Sells", "How fast an item sells: Fast, Steady, Slow, Rare (seldom listed, goes quickly) or No sales seen, judged against items of the same kind, so ore and swords aren't held to the same bar. It counts listings that vanished before they could have expired, so it builds up as you run full scans (fastest with Watch flips) and shows after 3 hours of scans compared (and, in the first day, at least 3 sales)." },
   } },
   { "Shuffles and vendor flips", {
     { "Shuffles", "Buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; Work it walks you through them with one-click buttons." },

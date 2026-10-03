@@ -407,7 +407,7 @@ local SETTINGS = {
     help = "How many ways to use an item to list, best first." },
   { key = "tipPrice", label = "Auction and vendor prices", kind = "check" },
   { key = "tipSpeed", label = "How fast it sells", kind = "check",
-    help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by." },
+    help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by (and, in the first day, at least 3 sales)." },
   { key = "tipWorth", label = "Worth to you", kind = "check" },
   { key = "tipBuy", label = "Buy at or below", kind = "check" },
   { key = "tipDisenchant", label = "Disenchants to", kind = "check" },

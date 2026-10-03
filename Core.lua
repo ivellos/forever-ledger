@@ -10,7 +10,7 @@ end
 ns.PREFIX = "|cffb9a2ffForever Ledger:|r"
 
 local DEFAULTS = {
-  schema = 1,
+  schema = 2,
   chars = {},       -- [charKey] = { name, realm, class, level, faction, updated, profs = { [profName] = { rank, max, updated, recipes = {...} } } }
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
@@ -38,7 +38,6 @@ local DEFAULTS = {
   historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (2 years)
   historyAll = {},    -- [marketKey][itemID] = "lowest:typicalSum:days"
   suffixNames = {},   -- [version name, "of the Whale"] = the bonus ID full scans saw for it (Prices.lua)
-  historySold = {},   -- [marketKey][itemID] = "day:gone:minutes:closeMinutes|..." listings gone between full scans (sell speed)
   -- soldSnap = { t, market, items = { [itemID] = "price:count" } }: the last full scan's counts (Prices.lua), no default
   historyQty = {},    -- [marketKey][itemID] = "day:listed|..." most listed seen each day (last 30 days)
   historySold2 = {},  -- [marketKey][itemID] = "day:bought:minutes:minutes|..." units that vanished though they couldn't have expired (sell speed, since October 2)
@@ -336,6 +335,13 @@ ns:On("ADDON_LOADED", function(name)
   local t = clock()
   if ns.loadStart then ns.loadMs = t - ns.loadStart end
   ForeverLedgerDB = ForeverLedgerDB or {}
+  -- Schema 2 (0.9.0): the first sell speed data (historySold, counts of listings that
+  -- went down: mostly noise, replaced by historySold2) is dropped, with the owner's
+  -- go-ahead (October 3). Nothing read it any more; it was about 170 KB.
+  if (ForeverLedgerDB.schema or 1) < 2 then
+    ForeverLedgerDB.historySold = nil
+    ForeverLedgerDB.schema = 2
+  end
   copyDefaults(DEFAULTS, ForeverLedgerDB)
   ns.db = ForeverLedgerDB
   for _, fn in ipairs(ns.readyCallbacks) do

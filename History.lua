@@ -453,8 +453,8 @@ local function soldEntry(e)
 end
 
 -- historySold2 since October 2: counted from listings that can't have expired (time
--- left). The old historySold (counts of listings that went down, mostly noise) is kept
--- but no longer used.
+-- left). The old historySold (counts of listings that went down, mostly noise) was
+-- dropped in 0.9.0 (Core.lua, schema 2).
 local SOLD_TABLE = "historySold2"
 
 function ns:RecordSold(id, gone, minutes, close)
