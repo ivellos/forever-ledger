@@ -50,6 +50,8 @@ local DEFAULTS = {
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = false, tab = "queue" },
     tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true },
 }
+-- For Settings: "Default: Auto." under each choice (UI.lua).
+ns.DEFAULT_SETTINGS = DEFAULTS.settings
 
 local function copyDefaults(src, dst)
   for k, v in pairs(src) do

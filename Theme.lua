@@ -148,6 +148,8 @@ function T:Number(parent, opts, onChange)
   local suffix = T:Text(f, 12, T.dim)
   suffix:SetPoint("LEFT", plus, "RIGHT", 6, 0)
   suffix:SetText(opts.suffix or "")
+  -- As wide as it really is, suffix included (Settings lines controls up on the right).
+  f:SetWidth(110 + ((opts.suffix or "") ~= "" and (suffix:GetStringWidth() + 6) or 0))
 
   function f:SetValue(v) self.value = v; eb:SetText(("%g"):format(v or 0)) end
   local function set(v)

@@ -13,6 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Disenchant finder: the bad and good roll are shown by default (Settings can hide them); "Worth per item, on average" says what the number is.
 - Price history (Ctrl): the range is of the typical price, so one odd cheap listing doesn't stretch it.
 - The import and export window: the text sits in a framed box under the instructions, with the addon's own scroll bar and a "Paste here" hint.
+- Settings: tick boxes sit left of their name so the text uses the width; other controls line up on the right. Long sections have small headings (Buying, Selling, What tooltips show...), every tooltip part says what it shows, and choices and numbers say their default. It follows the window's size.
+- Sessions: Start a session is at the top of the Dashboard, and Ctrl-click on the minimap button starts or stops one. The tracker is smaller and cleaner: gold an hour in larger text, gold and loot under it; right-click folds it to one line.
 - Dungeon runs: walking in and straight back out (under 2 minutes, nothing looted) isn't counted as a run; short times read "under a minute".
 
 ### Fixed
@@ -21,6 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: a new flip of an item the queue had just finished with could take up to two minutes to show up.
 
 ### Added
+- Search boxes for Settings and Help: type two letters or more to see every setting or help entry that mentions it.
 - Buy queue: Spend at most, a box at the bottom of the panel that caps what the queue spends each auction house visit (no limit until you type one), with what's left beside it. Settings, Auction house: Buy queue: always keep, to never spend below a set amount of gold.
 - Tooltips: hold Ctrl over an item for its price history: the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen.
 - A coin sound when one of your auctions sells (Settings, Auction house).

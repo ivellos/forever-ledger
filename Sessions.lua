@@ -107,14 +107,37 @@ end)
 -- The tracker: a small window you can move, while a session runs.
 ---------------------------------------------------------------------------
 local tracker, ticker
+local drawTracker
+
+-- Small and quiet, so it doesn't get in the way of playing (owner's test, October 3:
+-- "make it look a little nicer while keeping it small"): a thin accent line on top, the
+-- time, gold an hour in larger text (the number people watch), gold and loot under it.
+-- Right-click folds it to one slim line (settings.sessionSmall).
+local function layoutTracker(f)
+  local small = ns.db.settings.sessionSmall
+  f:SetSize(210, small and 22 or 64)
+  f.title:ClearAllPoints()
+  f.title:SetPoint(small and "LEFT" or "TOPLEFT", 8, small and 0 or -8)
+  f.time:ClearAllPoints()
+  f.time:SetPoint("LEFT", f.title, "RIGHT", 6, 0)
+  f.rate:SetShown(not small)
+  f.gold:SetShown(not small)
+  f.loot:SetShown(not small)
+  f.stop:SetShown(not small)
+  f.smallRate:SetShown(small)
+end
 
 local function buildTracker()
   local f = CreateFrame("Frame", "ForeverLedgerSessionTracker", UIParent)
-  f:SetSize(220, 92)
   f:SetFrameStrata("MEDIUM")
   f:SetClampedToScreen(true)
-  T:Fill(f, { 0.05, 0.05, 0.06, 0.88 })
-  T:Border(f)
+  T:Fill(f, { 0.04, 0.04, 0.05, 0.8 })
+  T:Border(f, { 1, 1, 1, 0.12 })
+  local bar = f:CreateTexture(nil, "ARTWORK")
+  bar:SetPoint("TOPLEFT", 1, -1)
+  bar:SetPoint("TOPRIGHT", -1, -1)
+  bar:SetHeight(2)
+  bar:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.9)
   f:EnableMouse(true)
   f:SetMovable(true)
   f:RegisterForDrag("LeftButton")
@@ -124,25 +147,32 @@ local function buildTracker()
     local point, _, rel, x, y = self:GetPoint()
     ns.db.settings.sessionPos = { point, rel, x, y }
   end)
+  f:SetScript("OnMouseUp", function(self, button)
+    if button ~= "RightButton" then return end
+    ns.db.settings.sessionSmall = not ns.db.settings.sessionSmall or nil
+    layoutTracker(self)
+    drawTracker()
+  end)
   local pos = ns.db.settings.sessionPos
   if pos then f:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4]) else f:SetPoint("TOP", UIParent, "TOP", 0, -140) end
 
-  f.title = T:Text(f, 12, T.accent)
-  f.title:SetPoint("TOPLEFT", 8, -6)
+  f.title = T:Text(f, 11, T.accent)
   f.title:SetText("Session")
   f.time = T:Text(f, 11, T.dim)
-  f.time:SetPoint("TOPRIGHT", -8, -7)
-  f.lines = {}
-  for i = 1, 3 do
-    local l = T:Text(f, 11)
-    l:SetPoint("TOPLEFT", 8, -8 - i * 15)
-    l:SetPoint("RIGHT", f, "RIGHT", -8, 0)
-    l:SetJustifyH("LEFT")
-    f.lines[i] = l
-  end
-  f.stop = T:Button(f, "Stop", 50, function() ns:StopGeneralSession() end, 18)
-  f.stop:SetPoint("BOTTOMRIGHT", -6, 6)
-  f.stop:GetFontString():SetFont(T.font, 11, "")
+  f.rate = T:Text(f, 15, { 1, 0.82, 0, 1 })
+  f.rate:SetPoint("TOPLEFT", 8, -24)
+  f.gold = T:Text(f, 11)
+  f.gold:SetPoint("BOTTOMLEFT", 8, 7)
+  f.loot = T:Text(f, 11)
+  f.loot:SetPoint("BOTTOMRIGHT", -8, 7)
+  f.loot:SetJustifyH("RIGHT")
+  f.smallRate = T:Text(f, 11, { 1, 0.82, 0, 1 })
+  f.smallRate:SetPoint("RIGHT", -8, 0)
+  f.smallRate:SetJustifyH("RIGHT")
+  f.stop = T:Button(f, "Stop", 40, function() ns:StopGeneralSession() end, 16)
+  f.stop:SetPoint("TOPRIGHT", -5, -6)
+  f.stop:GetFontString():SetFont(T.font, 10, "")
+  layoutTracker(f)
   f:SetScript("OnEnter", function(self)
     local st = ns:SessionTotals()
     if not st then return end
@@ -155,20 +185,24 @@ local function buildTracker()
       local it = st.items[k]
       GameTooltip:AddDoubleLine(("  %d x %s"):format(it.n, ns.ItemName(it.id) or "?"), ns.Money(it.value), 0.7, 0.7, 0.7, 1, 1, 1)
     end
-    GameTooltip:AddLine("Loot counts at the better of the auction house (after the cut) and a vendor; Settings can make it vendor only. Drag to move.", 0.6, 0.6, 0.6, true)
+    GameTooltip:AddLine("Loot counts at the better of the auction house (after the cut) and a vendor; Settings can make it vendor only.", 0.6, 0.6, 0.6, true)
+    GameTooltip:AddLine(ns.db.settings.sessionSmall and "Drag to move. Right-click for the full view; Stop is there."
+      or "Drag to move. Right-click to fold it to one line.", 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
   end)
   f:SetScript("OnLeave", function() GameTooltip:Hide() end)
   return f
 end
 
-local function drawTracker()
+drawTracker = function()
   local st = ns:SessionTotals()
   if not (tracker and st) then return end
+  local rate = ns.Money(math.max(0, math.floor(st.perHour)))
   tracker.time:SetText(duration(st.secs))
-  tracker.lines[1]:SetText(("Gold: |cff%s%s|r"):format(st.gained >= 0 and "7fd39c" or "ee8597", signed(st.gained)))
-  tracker.lines[2]:SetText(("Looted: about %s"):format(ns.Money(st.loot)))
-  tracker.lines[3]:SetText(("|cffffd100%s an hour|r"):format(ns.Money(math.max(0, math.floor(st.perHour)))))
+  tracker.rate:SetText(rate .. " |cffbbbbbban hour|r")
+  tracker.smallRate:SetText(rate .. " |cffbbbbbb/h|r")
+  tracker.gold:SetText(("|cff999999Gold|r |cff%s%s|r"):format(st.gained >= 0 and "7fd39c" or "ee8597", signed(st.gained)))
+  tracker.loot:SetText(("|cff999999Loot|r %s"):format(ns.Money(st.loot)))
 end
 
 local function showTracker()

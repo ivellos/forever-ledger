@@ -13,6 +13,7 @@ ns.HELP = {
     { "Learn your recipes", "Open each profession window once on every character." },
     { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
     { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it one line, with Shift for more." },
+    { "Search", "Settings and Help each have a search box above their list: type two letters or more to see everything that mentions it, from every section at once." },
     { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button under the list of topics, or /fl welcome." },
     { "What's new", "After an update, chat lists what's new in that version, once. /fl new shows it again." },
   } },
@@ -43,7 +44,7 @@ ns.HELP = {
   { "Buy queue and shopping lists", {
     { "Buy queue", "Click Buy queue on the auction house: a panel beside it lines up vendor flips and your shopping lists. Click a section to buy from it; it finds the next one by itself, and a click on Buy (or, with Scroll to buy ticked, a tick of the mouse wheel down over its top strip) buys it. Stacks of materials take a second tick to confirm the final price. /fl queue." },
     { "Scanning from the panel", "The panel's bottom row has Watch flips, Full scan and Scan materials (Stop watching and Stop scan while they run), with the scan's progress just above. While the panel is open beside the auction house, the same buttons under the auction house window are hidden. With nothing to buy, the big button starts the flip watch." },
-    { "Two views", "Vendor flips or Shopping lists, switched at the top of the panel, one at a time; the one you're on is the one that buys, so a list never buys a flip by accident. Each has its own buttons at the bottom. With Scroll to buy ticked, the strip to scroll over glows teal and shows a mouse wheel. Scans and the flip watch add to the lists but never switch the view." },
+    { "Two views", "Vendor flips or Shopping lists, switched at the top of the panel, one at a time; the one you're on is the one that buys, so a list never buys a flip by accident. Each has its own buttons at the bottom. With Scroll to buy ticked, the strip to scroll over glows teal and shows a mouse wheel. Scans and the flip watch add to the lists but never switch the view; new flips found while you're on Shopping lists show a teal count on the Vendor flips button (and on the Buy queue tab)." },
     { "Safe by design", "It never pays more than the limit shown (checked again on the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. Scroll to buy starts off. Right-click an item to skip it. Items you can't afford yet stay at the bottom of the list, greyed and marked can't afford, and are skipped until you have the gold; scroll past the last one you can buy and you get the error sound and a red message, once." },
     { "Spend at most", "The box near the bottom of the Buy queue caps what it spends this auction house visit (type 50 for 50g; it starts again each time you open the auction house). No limit until you type one; what's left shows beside it. Items over it are marked over limit and skipped. To always keep some gold back for repairs or a mount: Settings, Auction house, Buy queue: always keep." },
     { "Shopping lists", "Named lists of items with the most you'd pay and how many you want to have, for example raid consumables or twink gear. Pick a list from the dropdown at the top. With the list open, shift-click an item to add it (or drag it, or type its name). Every list ticked Use in the buy queue feeds it at once. Open them anywhere, to plan before you go to the auction house: the Shopping lists button at the top of this window, Shift-click on the minimap button, or /fl lists." },
@@ -65,7 +66,7 @@ ns.HELP = {
     { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },
   { "Disenchanting", {
-    { "Disenchant finder", "Beside the auction house (Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds. Settings, Auction house: Disenchant finder: low and high too adds what a bad and a good roll would bring." },
+    { "Disenchant finder", "Beside the auction house (Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant, on average. Hover a band for the odds and what a bad and a good roll would bring (Settings, Auction house can hide the rolls)." },
     { "Work it", "The Disenchant button disenchants the shuffle's items one click at a time. /fl de shows your own results." },
   } },
   { "Recipes and trainers", {
@@ -87,7 +88,7 @@ ns.HELP = {
   { "Your gold", {
     { "Dashboard", "Gold over time, sales, expenses and profit, and your sessions." },
     { "Ledger", "Every sale and purchase, resale profit, and other money like repairs and flights." },
-    { "Sessions", "Start one (/fl session start, or Start a session on the Dashboard) and a small tracker you can drag counts what your time is worth: gold in and out, what you loot (at the better of auction and vendor price; Settings can make it vendor only) and gold per hour. Stop it to get a summary in chat; it joins the Dashboard's sessions. A session carries on through a logout on the same character." },
+    { "Sessions", "Start one (Start a session at the top of the Dashboard, Ctrl-click on the minimap button, or /fl session start) and a small tracker you can drag counts what your time is worth: gold an hour, gold in and out, and what you loot (at the better of auction and vendor price; Settings can make it vendor only). Right-click the tracker to fold it to one line. Stop it to get a summary in chat; it joins the Dashboard's sessions. A session carries on through a logout on the same character." },
     { "Dungeon runs", "Counted as you go, session or not: each dungeon's runs, time, coin and what dropped for you (going back in within 5 minutes is the same run). /fl runs lists them; item tooltips say \"Dropped for you: Deadmines, 2 in 14 runs\"." },
     { "How long it's kept", "Sales and purchases one by one for 30 days, then as one line per item per month for a year. Gold and money in and out per day for a year, then per month. Prices per day for 14 days, then weekly averages for a year. Recipes, vendors, items and your characters are kept for good. Nothing is lost at a reload: only data past these ages is summed up or dropped." },
   } },
@@ -166,15 +167,40 @@ function ns:BuildHelp(parent)
   f:SetAllPoints()
   hv = { frame = f, parts = {}, navButtons = {} }
 
+  -- Search, from 2 letters: every entry and question with it, from all topics at once
+  -- (owner's test, October 3). Clicking a topic clears it.
+  local search = T:EditBox(f, NAV_W - 16, "LEFT")
+  search:SetPoint("TOPLEFT", 0, 0)
+  local hint = T:Text(search, 11, T.section)
+  hint:SetPoint("LEFT", 6, 0)
+  hint:SetText("Search help")
+  search:SetScript("OnTextChanged", function(self)
+    hint:SetShown(self:GetText() == "" and not self:HasFocus())
+    local q = self:GetText():lower():gsub("^%s+", ""):gsub("%s+$", "")
+    local new = #q >= 2 and q or nil
+    if new ~= ns.helpQuery then
+      ns.helpQuery = new
+      ns:RefreshHelp()
+      hv.sf:SetVerticalScroll(0)
+    end
+  end)
+  search:SetScript("OnEditFocusGained", function() hint:Hide() end)
+  search:SetScript("OnEditFocusLost", function(self) hint:SetShown(self:GetText() == "") end)
+  search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+  hv.search = search
+  f.search = search   -- (UI.lua clears it when the tab is opened)
+
   -- Topics on the left (scrolls if the window is short).
   local navSf, nav = T:Scroll(f)
-  navSf:SetPoint("TOPLEFT", 0, 0)
+  navSf:SetPoint("TOPLEFT", 0, -30)
   navSf:SetPoint("BOTTOMLEFT", 0, 30)
   navSf:SetWidth(NAV_W)
   hv.navSf, hv.nav = navSf, nav
   for i, section in ipairs(ns.HELP) do
     local b = T:Button(nav, section[1], NAV_W - 16, function()
       ns.helpTopic = section[1]
+      hv.search:SetText("")
+      hv.search:ClearFocus()
       ns:RefreshHelp()
       hv.sf:SetVerticalScroll(0)
     end, 21)
@@ -211,7 +237,8 @@ function ns:RefreshHelp()
   if not hv then return end
   local T = ns.Theme
   local cur = topicIndex()
-  for i, b in ipairs(hv.navButtons) do b:SetSelected(i == cur) end
+  local q = ns.helpQuery
+  for i, b in ipairs(hv.navButtons) do b:SetSelected(not q and i == cur) end
   hv.navSf.UpdateScrollBar()
 
   local section = ns.HELP[cur]
@@ -274,18 +301,41 @@ function ns:RefreshHelp()
     line:Show()
   end
 
-  band(section[1])
-  for _, e in ipairs(section[2]) do entry(e[1], e[2]) end
-  local faq = ns.HELP_FAQ[section[1]]
-  if faq and #faq > 0 then
-    y = y + 6
-    band("Questions")
-    for _, q in ipairs(faq) do entry(q[1], q[2], T.accent) end
-  end
-  if cur == 1 then
-    y = y + 6
-    band("More")
-    entry("Full guide", "docs/GUIDE.md on the addon's GitHub page, with pictures.")
+  if q then
+    -- Searching: the matching entries and questions of every topic, under its name.
+    local function hit(a, b) return (a or ""):lower():find(q, 1, true) or (b or ""):lower():find(q, 1, true) end
+    local any = false
+    for _, s in ipairs(ns.HELP) do
+      local list = {}
+      for _, e in ipairs(s[2]) do if hit(e[1], e[2]) then list[#list + 1] = { e[1], e[2] } end end
+      for _, fq in ipairs(ns.HELP_FAQ[s[1]] or {}) do
+        if hit(fq[1], fq[2]) then list[#list + 1] = { fq[1], fq[2], true } end
+      end
+      if #list > 0 then
+        if any then y = y + 6 end
+        any = true
+        band(s[1])
+        for _, e in ipairs(list) do entry(e[1], e[2], e[3] and T.accent or nil) end
+      end
+    end
+    if not any then
+      band("Nothing found")
+      entry("Try another word", "Like price, flip, list, scan or sound. Or pick a topic on the left.")
+    end
+  else
+    band(section[1])
+    for _, e in ipairs(section[2]) do entry(e[1], e[2]) end
+    local faq = ns.HELP_FAQ[section[1]]
+    if faq and #faq > 0 then
+      y = y + 6
+      band("Questions")
+      for _, fq in ipairs(faq) do entry(fq[1], fq[2], T.accent) end
+    end
+    if cur == 1 then
+      y = y + 6
+      band("More")
+      entry("Full guide", "docs/GUIDE.md on the addon's GitHub page, with pictures.")
+    end
   end
   hv.content:SetHeight(y + 10)
   hv.sf.UpdateScrollBar()

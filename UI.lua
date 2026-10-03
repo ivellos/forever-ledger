@@ -252,8 +252,17 @@ end
 setView = function(view)
   main.view = view
   main.lastRefresh = nil   -- a tab you clicked draws at once
-  if view == "help" then ns.helpTopic = nil end   -- Help opens on Getting started
-  if view == "settings" then ns.settingsSection = nil end   -- and Settings on its first section
+  -- Help opens on Getting started, Settings on its first section, searches cleared.
+  if view == "help" then
+    ns.helpTopic, ns.helpQuery = nil, nil
+    local h = main.views.help
+    if h and h.search then h.search:SetText("") end
+  end
+  if view == "settings" then
+    ns.settingsSection, ns.settingsQuery = nil, nil
+    local s = main.views.settings
+    if s and s.search then s.search:SetText("") end
+  end
   for key, tab in pairs(main.tabs) do tab:SetSelected(key == view) end
   local shown = main.views[view]
   for _, v in pairs(main.views) do v:SetShown(v == shown) end
@@ -407,6 +416,7 @@ local SETTINGS = {
     help = "Auto uses TSM's history where it has a price, otherwise your own scans." },
   { key = "dealUsualMin", label = "Least resale profit each", kind = "money",
     help = "Deals tab: profit after the auction house cut, reselling at the usual price or under the next listing. \"off\" for no minimum." },
+  { sub = "How you're told" },
   { key = "dealSound", label = "Chime", kind = "check", help = "Plays the raid warning sound when a scan finds new deals." },
   { key = "dealScreen", label = "Big message on screen", kind = "check", help = "Shows new flips and deals (and a session goal reached) in large text at the top of the screen, where raid warnings go. Turn it off if it covers your windows; chat still lists them." },
 
@@ -417,7 +427,9 @@ local SETTINGS = {
     help = "One line shows just what an item is worth to you; press Shift for the rest." },
   { key = "tipOptions", label = "Ways under Worth to you", kind = "number", suffix = "ways", min = 1, max = 10,
     help = "How many ways to use an item to list, best first." },
-  { key = "tipPrice", label = "Auction and vendor prices", kind = "check" },
+  { sub = "What tooltips show" },
+  { key = "tipPrice", label = "Auction and vendor prices", kind = "check",
+    help = "The cheapest on the auction house (how many listed, how long ago), the average of the cheapest 20, and what a vendor sells it for." },
   { key = "tipHistory", label = "Price history while Ctrl is held", kind = "check",
     help = "Hold Ctrl over an item for the cheapest price over the last 14 days, which way it's heading, the usual price this month, how many are usually listed and the lowest price ever seen." },
   { key = "tipSpeed", label = "How fast it sells", kind = "check",
@@ -428,13 +440,19 @@ local SETTINGS = {
     help = "Leaves out quests this character has done, ones grey for its level, and other classes' quests. Off: all of them, marked (done), (too low) or (other class), handy when selling to others." },
   { key = "tipDrops", label = "Dungeon drops you've had", kind = "check",
     help = "\"Dropped for you: Deadmines, 2 in 14 runs\", from the dungeon runs Forever Ledger counts (/fl runs)." },
-  { key = "tipWorth", label = "Worth to you", kind = "check" },
-  { key = "tipBuy", label = "Buy at or below", kind = "check" },
-  { key = "tipDisenchant", label = "Disenchants to", kind = "check" },
-  { key = "tipUsedBy", label = "Used by (your recipes)", kind = "check" },
-  { key = "tipCrate", label = "Crate cheapest fill", kind = "check" },
+  { key = "tipWorth", label = "Worth to you", kind = "check",
+    help = "The best way to use the item (auction house, vendor, disenchanting or crafting it into something) and the next best few." },
+  { key = "tipBuy", label = "Buy at or below", kind = "check",
+    help = "The most worth paying for it, after your safety margin. Green when it's already cheaper." },
+  { key = "tipDisenchant", label = "Disenchants to", kind = "check",
+    help = "What a green disenchants into, on average." },
+  { key = "tipUsedBy", label = "Used by (your recipes)", kind = "check",
+    help = "Which of your characters' recipes use it, and how many." },
+  { key = "tipCrate", label = "Crate cheapest fill", kind = "check",
+    help = "On a Waylaid Crate: the cheapest way to fill it at today's prices." },
 
   { section = "Auction house" },
+  { sub = "Buying" },
   { key = "ahHighlight", label = "Mark good buys", kind = "check",
     help = "Listings at or below an item's buy limit get a green tint, bar and BUY badge." },
   { key = "openFlips", label = "Open the Buy queue after a full scan", kind = "check",
@@ -443,15 +461,17 @@ local SETTINGS = {
     help = "If the flip watch was on when you closed the auction house, start it again when you come back. It can only scan while the auction house is open." },
   { key = "keepGold", label = "Buy queue: always keep", kind = "money", plainUnit = "g",
     help = "The Buy queue never takes your gold below this, so there's always enough for repairs, training or a mount. Type 100 for 100g. \"off\": it may spend all of it. (The most to spend each visit is on the Buy queue itself.)" },
-  { key = "saleSound", label = "Sound when an auction sells", kind = "check",
-    help = "A coin sound when the game says a buyer was found for one of your auctions." },
-  { key = "deRolls", label = "Disenchant finder: low and high too", kind = "check",
-    help = "Besides the average, what a band's greens are worth on a bad roll and a good one (what the least and most each disenchant can give)." },
   { key = "listKind", label = "New shopping lists are", kind = "choice", options = {
       { "search", "Search lists" }, { "buy", "Buy lists" } },
     help = "Search lists check what's on the auction house in one click (Search all), for buying by hand. Buy lists add how many you want and the most you'd pay, and feed the buy queue. Each list can be switched at its top." },
+  { sub = "Selling" },
   { key = "sellGuard", label = "Stop posts below vendor price", kind = "check",
     help = "On the Sell tab, when a vendor would pay more than the auction house after its cut, Post is greyed out until you click Post anyway. Off: just the warning." },
+  { key = "saleSound", label = "Sound when an auction sells", kind = "check",
+    help = "A coin sound when the game says a buyer was found for one of your auctions." },
+  { sub = "Disenchant finder" },
+  { key = "deRolls", label = "Show a bad and a good roll", kind = "check",
+    help = "Besides the average, what a band's greens are worth on a bad roll and a good one (the least and the most a disenchant can give)." },
 
   { section = "Customers" },
   { key = "customers", label = "Customer finder", kind = "check",
@@ -460,6 +480,7 @@ local SETTINGS = {
     help = "Opens on a new request. /fl customers opens it any time." },
   { key = "customerSound", label = "Sound", kind = "check", help = "The whisper sound with each new request." },
   { key = "customerChat", label = "Requests in chat too", kind = "check", help = "Also print each request in chat." },
+  { sub = "What to look for" },
   { key = "svcCrafting", label = "Crafting", kind = "check", after = function() ns:UpdateCustomerAds() end,
     help = "Requests for your professions and for items you craft, and the Advertise crafting button." },
   { key = "svcFood", label = "Mage food and water", kind = "check", after = function() ns:UpdateCustomerAds() end,
@@ -477,18 +498,84 @@ local SETTINGS = {
     help = "What a session counts each looted item as worth. Auction house prices are after the cut; items that bind when picked up always count at vendor price. Start a session with /fl session start or on the Dashboard." },
 
   { section = "Other" },
-  { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end },
+  { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end,
+    help = "The Forever Ledger button on the minimap. /fl opens the window either way." },
   { key = "crates", label = "Waylaid Crates", kind = "check", after = function() ns:LayoutTabs() end,
     help = "The Crates tab and the \"cheapest fill\" tooltip line." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
 -- Layout: sections listed on the left, the chosen one's settings on the right (owner,
--- October 3: like the Help tab). Each setting is one block, name and description
--- stacked in a left column, the control on the right lined up with the name, a faint
--- line between settings (owner, September 30). Opens on the first section each time.
-local TEXT_W, CONTROL_X = 250, 268
+-- October 3: like the Help tab), with a search box above the sections. Each setting is
+-- one block with a faint line under it (owner, September 30). Tick boxes sit left of
+-- their name so the text has the width; other controls line up on the right and the
+-- text wraps beside them (owner's test, October 3: a lot of dead space). Laid out when
+-- shown, so it follows the window's size. Opens on the first section each time.
 local SET_NAV_W = 170
 ns.settingsSection = nil   -- the chosen section's index (reset by setView)
+ns.settingsQuery = nil     -- what's typed in the search box (reset by setView)
+
+-- What a setting starts as, in words: "Default: Auto." (owner's test, October 3).
+local function defaultText(def)
+  local d = ns.DEFAULT_SETTINGS and ns.DEFAULT_SETTINGS[def.key]
+  if d == nil then return end
+  if def.kind == "choice" then
+    for _, o in ipairs(def.options) do if o[1] == d then return "Default: " .. o[2] .. "." end end
+  elseif def.kind == "number" then
+    local s = def.suffix or ""
+    return ("Default: %g%s."):format(d, s == "" and "" or ((s:sub(1, 1) == "%" and "" or " ") .. s))
+  elseif def.kind == "money" then
+    return "Default: " .. ((d > 0) and ns.MoneyPlain(d) or "off") .. "."
+  end
+end
+
+-- Lay out a page's rows at this width; returns the height used.
+local function layoutRows(page, rows, width)
+  local y = page.top
+  for _, r in ipairs(rows) do
+    if r.head then
+      r.text:ClearAllPoints()
+      r.text:SetPoint("TOPLEFT", 12, -(y + 8))
+      y = y + 28
+    else
+      local check = r.def.kind == "check"
+      local cw = check and 0 or r.control:GetWidth()
+      local textX = (check and 34 or 12) + (r.indent or 0)
+      local textW = math.max(120, check and (width - textX - 12) or (width - cw - 36 - (r.indent or 0)))
+      r.label:ClearAllPoints()
+      r.label:SetPoint("TOPLEFT", textX, -(y + 5))
+      r.label:SetWidth(textW)
+      local h = 20
+      if r.help then
+        r.help:SetWidth(textW)
+        h = h + r.help:GetStringHeight() + 4
+      end
+      r.control:ClearAllPoints()
+      if check then
+        r.control:SetPoint("TOPLEFT", 12 + (r.indent or 0), -(y + 6))
+        -- Clicking the name ticks the box too.
+        r.control:SetHitRectInsets(0, -(math.min(r.label:GetStringWidth(), textW) + 22), -4, -4)
+      else
+        r.control:SetPoint("TOPLEFT", math.max(textX + textW + 24, width - 12 - cw), -(y + 1))
+      end
+      y = y + math.max(h, 26) + 8
+      r.line:ClearAllPoints()
+      r.line:SetPoint("TOPLEFT", 8, -(y - 4))
+      r.line:SetWidth(width - 16)
+    end
+  end
+  return y + 10
+end
+
+local function rowMatches(r, q)
+  local d = r.def
+  return d and ((d.label or ""):lower():find(q, 1, true) or (d.help or ""):lower():find(q, 1, true)) and true or false
+end
+
+local function showRow(r, on)
+  if r.head then r.text:SetShown(on); return end
+  r.label:SetShown(on); r.control:SetShown(on); r.line:SetShown(on)
+  if r.help then r.help:SetShown(on) end
+end
 
 buildSettings = function()
   local f = CreateFrame("Frame", nil, main.body)
@@ -498,24 +585,50 @@ buildSettings = function()
   sf:SetPoint("TOPLEFT", SET_NAV_W + 4, 0)
   sf:SetPoint("BOTTOMRIGHT")
   f.sf, f.content = sf, content
+  sf:HookScript("OnSizeChanged", function() if f:IsVisible() and main.views.settings then refreshSettings() end end)
 
-  local page, y
+  -- Search: from 2 letters, every setting whose name or description has it, from all
+  -- sections at once under their section names (owner's test, October 3).
+  local search = T:EditBox(f, SET_NAV_W - 16, "LEFT")
+  search:SetPoint("TOPLEFT", 0, 0)
+  local hint = T:Text(search, 11, T.section)
+  hint:SetPoint("LEFT", 6, 0)
+  hint:SetText("Search settings")
+  search:SetScript("OnTextChanged", function(self)
+    hint:SetShown(self:GetText() == "" and not self:HasFocus())
+    local q = self:GetText():lower():gsub("^%s+", ""):gsub("%s+$", "")
+    local new = #q >= 2 and q or nil
+    if new ~= ns.settingsQuery then
+      ns.settingsQuery = new
+      sf:SetVerticalScroll(0)
+      refreshSettings()
+    end
+  end)
+  search:SetScript("OnEditFocusGained", function() hint:Hide() end)
+  search:SetScript("OnEditFocusLost", function(self) hint:SetShown(self:GetText() == "") end)
+  search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+  f.search = search
+  f.noMatch = T:Text(content, 12, T.dim)
+  f.noMatch:SetPoint("TOPLEFT", 12, -12)
+  f.noMatch:SetText("No setting matches that. Try another word, like price, sound or tooltip.")
+
+  local page
   for _, def in ipairs(SETTINGS) do
     if def.section then
       -- A new section: its own page, and a button for it on the left.
-      if page then page.height = y + 10 end
       page = CreateFrame("Frame", nil, content)
-      page:SetPoint("TOPLEFT")
-      page:SetPoint("RIGHT", content, "RIGHT")
       page:Hide()
+      page.rows, page.top = {}, 30
       f.pages[#f.pages + 1] = page
       local index = #f.pages
       local b = T:Button(f, def.section, SET_NAV_W - 16, function()
         ns.settingsSection = index
+        f.search:SetText("")   -- (clears the search, which redraws)
+        f.search:ClearFocus()
         refreshSettings()
         sf:SetVerticalScroll(0)
       end, 21)
-      b:SetPoint("TOPLEFT", 0, -(index - 1) * 23)
+      b:SetPoint("TOPLEFT", 0, -(30 + (index - 1) * 23))
       b:GetFontString():SetFont(T.font, 11, "")
       f.navButtons[index] = b
       local band = page:CreateTexture(nil, "BACKGROUND")
@@ -526,77 +639,96 @@ buildSettings = function()
       local h = T:Text(page, 13, T.accent)
       h:SetPoint("LEFT", band, "LEFT", 8, 0)
       h:SetText(def.section)
-      y = 30
       if def.rules then
         f.rules = T:Text(page, 11, T.dim)
-        f.rules:SetPoint("TOPLEFT", 12, -y)
+        f.rules:SetPoint("TOPLEFT", 12, -30)
         f.rules:SetPoint("RIGHT", page, "RIGHT", -8, 0)
         f.rules:SetJustifyH("LEFT")
-        y = y + 38
+        page.top = 68
       end
+    elseif def.sub then
+      -- A group inside a section: a small heading.
+      local text = T:Text(page, 11, T.accent)
+      text:SetText(def.sub:upper())
+      text:SetAlpha(0.8)
+      page.rows[#page.rows + 1] = { head = true, text = text }
     else
-      local top = y
-      local label = T:Text(page, 12)
-      label:SetPoint("TOPLEFT", 12, -(top + 5))
-      label:SetWidth(TEXT_W)
-      label:SetJustifyH("LEFT")
-      label:SetText(def.label)
-      local height = 20
-      if def.help then
-        local help = T:Text(page, 11, T.dim)
-        help:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -3)
-        help:SetWidth(TEXT_W)
-        help:SetJustifyH("LEFT")
-        help:SetText(def.help)
-        height = height + help:GetStringHeight() + 4
+      local r = { def = def, page = page }
+      r.label = T:Text(page, 12)
+      r.label:SetJustifyH("LEFT")
+      r.label:SetText((def.label:gsub("^%s+", "")))
+      r.indent = def.label:find("^%s") and 18 or 0   -- a sub-option of the one above
+      local dflt = defaultText(def)
+      local helpText = def.help and dflt and (def.help .. " " .. dflt) or def.help or dflt
+      if helpText then
+        r.help = T:Text(page, 11, T.dim)
+        r.help:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -3)
+        r.help:SetJustifyH("LEFT")
+        r.help:SetText(helpText)
       end
-
       local function changed(v)
         ns.db.settings[def.key] = v
         if def.after then def.after() end
         if f.rules then f.rules:SetText("Deals are listings " .. ns:DealRules() .. ".") end
       end
-      local control
       if def.kind == "number" then
-        control = T:Number(page, def, changed)
+        r.control = T:Number(page, def, changed)
       elseif def.kind == "money" then
-        control = T:MoneyBox(page, changed, def.plainUnit)
+        r.control = T:MoneyBox(page, changed, def.plainUnit)
       elseif def.kind == "choice" then
         local opts = {}
         for _, o in ipairs(def.options) do opts[#opts + 1] = { value = o[1], label = o[2] } end
-        -- Many options would run off the narrower page: a dropdown instead.
+        -- Many options would run off the page: a dropdown instead.
         if #opts > 3 then
-          control = T:Dropdown(page, 170, changed)
-          control:SetOptions(opts)
+          r.control = T:Dropdown(page, 170, changed)
+          r.control:SetOptions(opts)
         else
-          control = T:Choice(page, opts, changed)
+          r.control = T:Choice(page, opts, changed)
         end
       elseif def.kind == "check" then
-        control = T:Check(page, function(self) changed(self:GetChecked()) end)
+        r.control = T:Check(page, function(self) changed(self:GetChecked()) end)
       end
-      control:SetPoint("TOPLEFT", CONTROL_X, -(top + (def.kind == "check" and 5 or 1)))
-      f.controls[#f.controls + 1] = { def = def, control = control }
-
-      y = top + math.max(height, 26) + 8
-      local line = page:CreateTexture(nil, "BACKGROUND")
-      line:SetColorTexture(1, 1, 1, 0.04)
-      line:SetPoint("TOPLEFT", 8, -(y - 4))
-      line:SetPoint("RIGHT", page, "RIGHT", -8, 0)
-      line:SetHeight(1)
+      r.line = page:CreateTexture(nil, "BACKGROUND")
+      r.line:SetColorTexture(1, 1, 1, 0.04)
+      r.line:SetHeight(1)
+      page.rows[#page.rows + 1] = r
+      f.controls[#f.controls + 1] = { def = def, control = r.control }
     end
   end
-  if page then page.height = y + 10 end
   return f
 end
+
 refreshSettings = function()
   local f = main.views.settings
   local cur = ns.settingsSection or 1
+  local q = ns.settingsQuery
   f.content:SetWidth(math.max(f.sf:GetWidth() - 12, 300))
+  local width = f.content:GetWidth()
+  local y = 0
   for i, p in ipairs(f.pages) do
-    p:SetShown(i == cur)
-    f.navButtons[i]:SetSelected(i == cur)
-    if i == cur then f.content:SetHeight(p.height or 100) end
+    -- Searching: every section with a match, one under another, only the matches.
+    local rows = {}
+    for _, r in ipairs(p.rows) do
+      local on = not q or (not r.head and rowMatches(r, q))
+      showRow(r, on)
+      if on then rows[#rows + 1] = r end
+    end
+    local show = (q and #rows > 0) or (not q and i == cur)
+    p:SetShown(show)
+    if f.rules and f.rules:GetParent() == p then f.rules:SetShown(not q) end
+    p.top = (f.rules and f.rules:GetParent() == p and not q) and 68 or 30
+    if show then
+      p:ClearAllPoints()
+      p:SetPoint("TOPLEFT", 0, -y)
+      p:SetWidth(width)
+      local h = layoutRows(p, rows, width)
+      p:SetHeight(h)
+      y = y + h
+    end
+    f.navButtons[i]:SetSelected(not q and i == cur)
   end
+  f.noMatch:SetShown(q ~= nil and y == 0)
+  f.content:SetHeight(math.max(y, 100))
   for _, c in ipairs(f.controls) do
     local v = ns.db.settings[c.def.key]
     if c.def.kind == "check" then c.control:SetChecked(v) else c.control:SetValue(v) end
@@ -687,6 +819,8 @@ local function buildMinimapButton()
 
   mm:SetScript("OnClick", function(_, which)
     if IsShiftKeyDown() then ns:ShowSidePanel("lists")
+    elseif IsControlKeyDown() then
+      if ns:GeneralSessionRunning() then ns:StopGeneralSession() else ns:StartGeneralSession() end
     elseif which == "RightButton" then ns:ToggleUI("shuffles") else ns:ToggleUI() end
   end)
   mm:SetScript("OnDragStart", function(self)
@@ -705,6 +839,7 @@ local function buildMinimapButton()
     GameTooltip:AddLine("Click to open or close.", 1, 1, 1)
     GameTooltip:AddLine("Right-click for shuffles.", 1, 1, 1)
     GameTooltip:AddLine("Shift-click for shopping lists.", 1, 1, 1)
+    GameTooltip:AddLine(ns:GeneralSessionRunning() and "Ctrl-click to stop the session." or "Ctrl-click to start a session.", 1, 1, 1)
     GameTooltip:AddLine("Drag to move. /fl minimap hides it.", 0.7, 0.7, 0.7)
     GameTooltip:Show()
   end)

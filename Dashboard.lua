@@ -444,10 +444,14 @@ function ns:RefreshDashboard(f)
   row({ f.sales, f.expenses, f.profit }, boxY, 88)
   f.sessions:ClearAllPoints()
   f.sessions:SetPoint("TOPLEFT", 2, -(boxY + 98))
-  f.sessions:SetPoint("RIGHT", f, "RIGHT", -130, 0)
+  f.sessions:SetPoint("RIGHT", f, "RIGHT", -2, 0)
+  -- In the top row beside the date range, lit while one runs (owner's test, October 3:
+  -- "took me a second to find Start a session" down by the sessions list).
+  local running = ns.GeneralSessionRunning and ns:GeneralSessionRunning()
   f.sessionBtn:ClearAllPoints()
-  f.sessionBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -2, -(boxY + 96))
-  f.sessionBtn:SetText(ns.GeneralSessionRunning and ns:GeneralSessionRunning() and "Stop the session" or "Start a session")
+  f.sessionBtn:SetPoint("RIGHT", f.rangeChoice, "LEFT", -12, 0)
+  f.sessionBtn:SetText(running and "Stop the session" or "Start a session")
+  f.sessionBtn:SetSelected(running)
 
   -- Numbers
   local keys = chosenKeys()

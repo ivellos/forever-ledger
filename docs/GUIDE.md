@@ -13,6 +13,8 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 The first time you open the window, a short welcome walks through these and the Buy queue, Deals and Shopping lists. Show it again with the button under the Help tab's list of topics, or with `/fl welcome`. After an update, chat lists what's new in that version once; `/fl new` shows it again.
 
+Settings and Help each have a **search box** above their list: type two letters or more to see everything that mentions it, from every section at once.
+
 ![The Forever Ledger window, Dashboard tab](images/dashboard.png)
 
 ## Scanning the auction house
@@ -49,7 +51,7 @@ The first time you open the window, a short welcome walks through these and the 
 ## Buy queue and shopping lists
 
 - **Buy queue**: click **Buy queue** under the auction house. A panel beside it lines up vendor flips and items from your shopping lists. (Greens worth disenchanting are in the Disenchant finder, with their item levels; deals are on the Deals tab.) The addon looks up the next one by itself; **a click on Buy buys it**, or with **Scroll to buy** ticked, a tick of the mouse wheel down over the section's top strip. Stacks of materials take a second tick: the first asks the auction house for the final price, the second confirms it. `/fl queue` opens it.
-- **Two views**: Vendor flips or Shopping lists, switched at the top of the panel, one at a time. The view you're on is the one that buys, so a shopping list never buys a flip by accident; each has its own strip at the top ("Buy Edged Bastard Sword for 9s", with a Buy button when there's something to buy) and its own buttons at the bottom (Watch flips, Full scan and Scan materials; or Search lists and Full scan). With **Scroll to buy** ticked, the strip glows teal and shows a mouse wheel: that's where to scroll. Scans and the flip watch add to the lists but never switch the view.
+- **Two views**: Vendor flips or Shopping lists, switched at the top of the panel, one at a time. The view you're on is the one that buys, so a shopping list never buys a flip by accident; each has its own strip at the top ("Buy Edged Bastard Sword for 9s", with a Buy button when there's something to buy) and its own buttons at the bottom (Watch flips, Full scan and Scan materials; or Search lists and Full scan). With **Scroll to buy** ticked, the strip glows teal and shows a mouse wheel: that's where to scroll. Scans and the flip watch add to the lists but never switch the view; new flips found while you're on Shopping lists show a teal count on the Vendor flips button (and on the Buy queue tab).
 - **Farming flips**: tick only Vendor flips, tick **Scroll to buy**, and leave the mouse over the flips strip. When the flip watch chimes, scroll down to buy; an empty section just waits for the next one.
 - **Safe by design**: it never pays more than the limit shown (checked again against the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. **Scroll to buy** starts off; it only works over the top strip of the section you're buying from. Click a row to buy that one next; right-click to skip it. Gear sold in stacks is left for you to buy on the page. Items you can't afford yet stay at the bottom of the list, greyed and marked **can't afford**, and are skipped until you have the gold. Scroll past the last one you can buy and you get the error sound and a red "That's everything you can buy", once.
 - **Spend at most**: the box near the bottom of the Buy queue caps what it spends this auction house visit (type 50 for 50g; it starts again each time you open the auction house). It says **no limit** until you type something. Beside it, what's left: teal, yellow when nearly gone, red **limit reached**. Items over what's left are marked **over limit** and skipped. To always keep some gold back (repairs, a mount), set **Buy queue: always keep** in Settings, Auction house. Purchases you make yourself on the auction house page don't count towards either.
@@ -95,7 +97,7 @@ The first time you open the window, a short welcome walks through these and the 
 
 ## Disenchanting
 
-- **Disenchant finder** (beside the auction house: Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material. The worth is an average; tick **Disenchant finder: low and high too** in Settings (Auction house) to also see what a bad and a good roll would bring.
+- **Disenchant finder** (beside the auction house: Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material and what a bad and a good roll would bring. The worth is an average over many disenchants (Settings, Auction house can hide the rolls).
 - The **Disenchant** button in Work it disenchants the shuffle's items one click at a time. `/fl de` shows your own results.
 
 ![Disenchant finder beside the auction house](images/disenchant-finder.png)
@@ -132,7 +134,7 @@ The first time you open the window, a short welcome walks through these and the 
 
 - **Dashboard**: gold over time, sales, expenses and profit, and your sessions.
 - **Ledger**: every sale and purchase, resale profit, and other money like repairs and flights.
-- **Sessions**: start one with `/fl session start` (or **Start a session** on the Dashboard) and a small tracker you can drag counts what your time is worth: gold in and out by where it came from, what you loot (at the better of auction price after the cut and vendor price; Settings, Sessions can make it vendor only) and gold per hour. Stop it (the tracker's Stop, or `/fl session stop`) for a summary in chat with the best loot; it joins the Dashboard's list of sessions. A session carries on through a logout on the same character. Next: dungeon runs and the items you're chasing.
+- **Sessions**: start one with **Start a session** at the top of the Dashboard, Ctrl-click on the minimap button, or `/fl session start`, and a small tracker you can drag counts what your time is worth: gold in and out by where it came from, what you loot (at the better of auction price after the cut and vendor price; Settings, Sessions can make it vendor only) and gold per hour (in larger text). Right-click the tracker to fold it to one slim line. Stop it (the tracker's Stop, or `/fl session stop`) for a summary in chat with the best loot; it joins the Dashboard's list of sessions. A session carries on through a logout on the same character.
 - **Dungeon runs**: counted as you go, in a session or not. Each dungeon keeps how many runs, the time, the coin looted and what dropped for you; going back in within 5 minutes (after a wipe, say) is the same run. `/fl runs` lists them with the best drops, and item tooltips say how often something dropped for you ("Dropped for you: Deadmines, 2 in 14 runs").
 - **How long it's kept**: market and money history goes stale, so it's summed up as it ages and the saved file doesn't grow forever:
 
