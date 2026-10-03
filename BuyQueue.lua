@@ -811,6 +811,11 @@ local function laneRow(L, i)
       GameTooltip:AddLine(("Last seen %d minutes ago, so it may be gone. Buying it (or the flip watch) checks it again."):format(
         math.floor(self.entry.age / 60)), 0.8, 0.8, 0.8, true)
     end
+    local e = self.entry
+    if e.reason == "flip" and e.affordN and e.n and e.affordN < e.n and e.affordN > 0 then
+      GameTooltip:AddLine(("You can afford %d of the %d cheap ones with %s, so the profit shown is for those."):format(
+        e.affordN, e.n, money(GetMoney())), 1, 0.82, 0, true)
+    end
     local poor = cantAfford(self.entry)
     if poor then
       GameTooltip:AddLine(("You can't afford it yet: the cheapest is %s and you have %s. It's skipped until you do."):format(
@@ -1134,7 +1139,16 @@ local function fillLane(L)
       local now = rec and rec.m and not rec.none and ns.MoneyPlain(rec.m) or "none"
       r.profit:SetText(e.waiting and ("|cff888888" .. now .. "|r") or now)
     else
-      r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
+      -- Profit on what you can afford right now, not the whole lot (Magic, October 3:
+      -- "said 48c profit, I only made 21c" with 1s 27c to spend). It follows your gold.
+      local each = (e.worth or 0) - (e.cost or e.limit or 0)
+      local afford = math.min(e.n or 1, math.floor(GetMoney() / math.max(e.cost or e.limit or 1, 1)))
+      e.affordN = afford
+      if e.profit and e.profit > 0 and afford < (e.n or 1) and afford > 0 then
+        r.profit:SetText(("|cff7fd39c%s|r |cff888888of %s|r"):format(money(each * afford), money(e.profit)))
+      else
+        r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
+      end
     end
     if poor then r.profit:SetText("|cffee8597can't afford|r")
     elseif e.stale then r.profit:SetText(("|cff888888seen %dm ago|r"):format(math.floor(e.age / 60))) end

@@ -886,7 +886,20 @@ local flipAlerted = {}          -- [itemID] = cost alerted, while it stays a fli
 local pendingFlips, flipTimer = {}, false
 
 -- Chime, screen message and chat for new vendor flips and below-usual-price deals.
-local function announce(flips, usual)
+local function announce(all, usual)
+  if #all == 0 and usual == 0 then return end
+  -- Flips you can't afford even one of don't chime or show on screen; chat still says
+  -- so (Magic, October 3: "found X, but can't currently afford it").
+  local cash, flips, poor = GetMoney(), {}, {}
+  local market = ns.db.prices[ns.MarketKey()] or {}
+  for _, f in ipairs(all) do
+    local one = (market[f.id] and market[f.id].m) or f.cost
+    if one and one > cash then poor[#poor + 1] = { f = f, one = one } else flips[#flips + 1] = f end
+  end
+  for _, p in ipairs(poor) do
+    ns:Print(("Found a vendor flip: %s (vendor pays %s), but you can't afford it yet: %s each, you have %s."):format(
+      itemName(p.f.id), ns.Money(p.f.opt.value), ns.Money(p.one), ns.Money(cash)))
+  end
   if #flips == 0 and usual == 0 then return end
   local text
   if #flips > 0 then

@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Changed
 - Buy queue: Vendor flips and Shopping lists are two views you switch between at the top, one at a time, instead of sections stacked on each other; the view you're on is the one that buys. Each has its own buttons at the bottom (Watch flips, Full scan and Scan materials; or Search lists and Full scan). With Scroll to buy ticked, the area to scroll glows teal and a mouse-wheel sign lights up; the big button only shows when there's something to buy (Buy, Confirm), since the bottom row already has Watch flips. From Magic's suggestions.
+- Buy queue: a flip's profit is for what you can afford right now ("21c of 48c" when your gold only covers some of them), following your gold as you buy.
+- Flip alerts: a new flip you can't afford even one of doesn't chime or show on screen; chat says "Found a vendor flip: X, but you can't afford it yet".
 
 ### Added
 - Sessions: /fl session start (or Start a session on the Dashboard) shows a small tracker that counts what your time is worth: gold in and out, what you loot (at the better of auction and vendor price, or vendor only) and gold per hour. Stopping it prints a summary and adds it to the Dashboard's sessions.
