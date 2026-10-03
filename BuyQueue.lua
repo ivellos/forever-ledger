@@ -54,6 +54,7 @@ end
 -- What's in the queue
 ---------------------------------------------------------------------------
 local done, skipped = {}, {}   -- [itemID] = GetTime() nothing left; [itemID] = true skipped this session
+local STALE_SECONDS = 600      -- a flip's price older than this is shown as "seen N min ago"
 
 -- Each kind of thing to buy is its own section ("lane") in the queue: vendor flips and
 -- shopping lists (owner, October 2: so someone working on a shopping list can't buy a
@@ -105,8 +106,11 @@ local function buildQueue()
     for id in pairs(market) do
       local f = ns:VendorFlip(id)
       if f then
+        -- Seen a while ago (you were away from the auction house): may well be gone. Shown
+        -- as such until re-checked (owner, October 3: finds vanished right after coming back).
+        local age = f.t and (time() - f.t) or 0
         list[#list + 1] = { id = id, limit = math.floor(f.maxBuy), reason = "flip", worth = f.opt.value,
-          n = f.buys[1].listed, cost = f.cost }
+          n = f.buys[1].listed, cost = f.cost, age = age, stale = age > STALE_SECONDS }
       end
     end
     for _, e in ipairs(byProfit(list)) do add("flips", e) end
@@ -769,6 +773,10 @@ local function laneRow(L, i)
     if self.entry.waiting then
       GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or Search list again later.", 1, 0.82, 0, true)
     end
+    if self.entry.stale then
+      GameTooltip:AddLine(("Last seen %d minutes ago, so it may be gone. Buying it (or the flip watch) checks it again."):format(
+        math.floor(self.entry.age / 60)), 0.8, 0.8, 0.8, true)
+    end
     local poor = cantAfford(self.entry)
     if poor then
       GameTooltip:AddLine(("You can't afford it yet: the cheapest is %s and you have %s. It's skipped until you do."):format(
@@ -1020,7 +1028,8 @@ local function fillLane(L)
     else
       r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
     end
-    if poor then r.profit:SetText("|cffee8597can't afford|r") end
+    if poor then r.profit:SetText("|cffee8597can't afford|r")
+    elseif e.stale then r.profit:SetText(("|cff888888seen %dm ago|r"):format(math.floor(e.age / 60))) end
     r:Show()
   end
   for i = #list + 1, #L.rows do L.rows[i]:Hide() end
@@ -2009,7 +2018,21 @@ end)
 -- which section is armed: scans and the flip watch only add to the lists.
 function rebuildNow()
   if not shown() then return end
+  local before = Q.lanes
   Q.lanes, Q.built = buildQueue(), GetTime()
+  -- For checking (/fl debug): flips that left the list, and why (their saved price now).
+  if ns.db.settings.debug and before and before.flips then
+    local still = {}
+    for _, e in ipairs(Q.lanes.flips or {}) do still[e.id] = true end
+    for _, e in ipairs(before.flips) do
+      if not still[e.id] then
+        local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
+        ns:Debug(("Buy queue: %s left the flips: %s (vendor pays %s, limit was %s)."):format(ns.ItemName(e.id),
+          not rec and "no price" or rec.none and "none listed now" or ("cheapest now " .. ns.MoneyPlain(rec.m)),
+          ns.MoneyPlain(e.worth or 0), ns.MoneyPlain(e.limit or 0)))
+      end
+    end
+  end
   autoArm()
   if Q.cur then
     local list, found = laneList(), false
