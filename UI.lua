@@ -145,6 +145,9 @@ local function buildMain()
   if main then return main end
   main = themedWindow("ForeverLedgerFrame", 760, 520,
     T:AccentCode() .. "Forever Ledger|r  " .. dim(ns.VERSION))
+  -- Shopping lists away from the auction house, to plan ahead (owner, October 3).
+  local lists = T:Button(main.bar, "Shopping lists", 110, function() ns:ShowSidePanel("lists") end, 22)
+  lists:SetPoint("RIGHT", main.bar, "RIGHT", -36, 0)
 
   -- Tabs
   main.tabs = {}
@@ -613,7 +616,8 @@ local function buildMinimapButton()
   border:SetPoint("TOPLEFT")
 
   mm:SetScript("OnClick", function(_, which)
-    if which == "RightButton" then ns:ToggleUI("shuffles") else ns:ToggleUI() end
+    if IsShiftKeyDown() then ns:ShowSidePanel("lists")
+    elseif which == "RightButton" then ns:ToggleUI("shuffles") else ns:ToggleUI() end
   end)
   mm:SetScript("OnDragStart", function(self)
     self:SetScript("OnUpdate", function()
@@ -630,6 +634,7 @@ local function buildMinimapButton()
     GameTooltip:AddLine("Forever Ledger")
     GameTooltip:AddLine("Click to open or close.", 1, 1, 1)
     GameTooltip:AddLine("Right-click for shuffles.", 1, 1, 1)
+    GameTooltip:AddLine("Shift-click for shopping lists.", 1, 1, 1)
     GameTooltip:AddLine("Drag to move. /fl minimap hides it.", 0.7, 0.7, 0.7)
     GameTooltip:Show()
   end)

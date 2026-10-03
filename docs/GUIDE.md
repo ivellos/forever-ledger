@@ -48,7 +48,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 
 ![Buy queue with Vendor flips and Scroll to buy ticked](images/buy-queue.png)
 
-- **Shopping lists**: named lists of items with the most you'd pay each and how many you want to have, for example raid consumables or twink gear to watch for. Pick a list from the dropdown at the top; every list ticked **Use in the buy queue** feeds the queue at the same time. With the list open, shift-click an item from your bags or a chat link to add it, drag it in, or start typing its name and pick from the suggestions (Enter takes the top one). Suggestions include items the game hasn't loaded yet, from original Classic. Hover **Have** to see how many are in your bags, bank and on your other characters. `/fl lists` opens your lists anywhere (a window you can move), so you can plan before you go to the auction house.
+- **Shopping lists**: named lists of items with the most you'd pay each and how many you want to have, for example raid consumables or twink gear to watch for. Pick a list from the dropdown at the top; every list ticked **Use in the buy queue** feeds the queue at the same time. With the list open, shift-click an item from your bags or a chat link to add it, drag it in, or start typing its name and pick from the suggestions (Enter takes the top one). Suggestions include items the game hasn't loaded yet, from original Classic. Hover **Have** to see how many are in your bags, bank and on your other characters. Open your lists anywhere (a window you can move) to plan before you go to the auction house: the **Shopping lists** button at the top of the main window, Shift-click on the minimap button, or `/fl lists`.
 - **Want means**: each list picks one.
   - **Keep this many** (the default): Want is how many you want to *have*. Bags, bank and auction house purchases still in the mail count, and the queue only buys what you're short of. After a raid, **Buy again** tops you back up to the number. Best for consumables you keep in stock.
   - **Buy this many**: Want is how many to *buy*, whatever you already have. The **Bought** column counts what's been bought on the auction house since Buy again (from the queue or by hand), and **Buy again** buys the whole amount again. Best for "I need 20 of these for a craft".
@@ -156,7 +156,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 | `/fl` | Open or close the window |
 | `/fl scan` | Full scan if allowed, otherwise your materials |
 | `/fl watch` | Start or stop the flip watch |
-| `/fl queue`, `/fl lists` | The buy queue or shopping lists beside the auction house |
+| `/fl queue`, `/fl lists` | The buy queue or shopping lists (beside the auction house, or a window of their own elsewhere) |
 | `/fl customers`, `/fl work` | The Customers window, or its Work done view |
 | `/fl de` | Your disenchant results |
 | `/fl deals` | Open the Deals tab (`/fl deals list` lists them in chat) |
