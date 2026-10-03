@@ -890,7 +890,8 @@ local function announce(flips, usual)
   else
     text = ("%d new %s below the usual price"):format(usual, usual == 1 and "deal" or "deals")
   end
-  if RaidNotice_AddMessage and RaidWarningFrame then
+  -- Off in Settings if it covers your windows (Magic, October 3: it landed on the Buy queue).
+  if ns.db.settings.dealScreen ~= false and RaidNotice_AddMessage and RaidWarningFrame then
     RaidNotice_AddMessage(RaidWarningFrame, text, { r = 0.05, g = 0.82, b = 0.62 })
   end
   if ns.db.settings.dealSound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then

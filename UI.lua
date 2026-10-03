@@ -400,6 +400,7 @@ local SETTINGS = {
   { key = "dealUsualMin", label = "Least resale profit each", kind = "money",
     help = "Deals tab: profit after the auction house cut, reselling at the usual price or under the next listing. \"off\" for no minimum." },
   { key = "dealSound", label = "Chime", kind = "check", help = "Plays the raid warning sound when a scan finds new deals." },
+  { key = "dealScreen", label = "Big message on screen", kind = "check", help = "Shows new flips and deals (and a session goal reached) in large text at the top of the screen, where raid warnings go. Turn it off if it covers your windows; chat still lists them." },
 
   { section = "Tooltips" },
   { key = "tooltip", label = "Tooltip lines", kind = "check", help = "Forever Ledger's lines on item tooltips." },

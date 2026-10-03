@@ -255,6 +255,31 @@ function search()
   timeout(5, search)
 end
 
+-- The cheapest one costs more than you have (the last scan's price, or what a lookup
+-- found). Those stay in the list, greyed, and are skipped until you have the gold: they
+-- used to be looked up and dropped as "none left", so with 41c every flip seemed to
+-- vanish a second after it showed up (Magic, October 3).
+local function cantAfford(e)
+  local cash = GetMoney()
+  if e.poorAt and e.poorAt > cash then return e.poorAt end
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
+  local cheapest = rec and not rec.none and rec.m
+  if cheapest and cheapest > cash then return cheapest end
+end
+
+-- A lookup found listings under the limit but none you can pay for: keep it, move on.
+local function tooPoor(price)
+  local e = Q.cur
+  if e then
+    e.poorAt = price
+    Q.note = ("%s: you can't afford it yet (%s each, you have %s)."):format(ns.ItemName(e.id), money(price), money(GetMoney()))
+    ns:Debug("Buy queue:", ns.ItemName(e.id), "- can't afford", money(price))
+  end
+  Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
+  setState("idle")
+  C_Timer.After(0.3, prepare)
+end
+
 -- Start on the first item in the queue, if nothing's under way.
 function prepare()
   if not active() or Q.cur then return end
@@ -266,7 +291,7 @@ function prepare()
   -- up (owner, October 2: "scroll there endlessly" while flips come and go).
   local e
   for _, x in ipairs(laneList()) do
-    if not x.waiting then e = x; break end
+    if not x.waiting and not cantAfford(x) then e = x; break end
   end
   if not e then
     setState("idle")
@@ -326,6 +351,9 @@ local function planCommodity()
   end
   if qty == 0 then
     if n == 0 and not full then return end   -- more results on the way
+    -- Cheap enough, but more than you have.
+    local r1 = n > 0 and AH.GetCommoditySearchResultInfo(e.id, 1)
+    if r1 and r1.unitPrice and r1.unitPrice <= e.limit and r1.unitPrice > cash then tooPoor(r1.unitPrice); return end
     finishTarget(("none left at %s or less."):format(limitText(e)))
     return
   end
@@ -337,6 +365,7 @@ local function planItem(key)
   local e = Q.cur
   local n = AH.GetNumItemSearchResults(key) or 0
   local cash, best, count, stacks = GetMoney(), nil, 0, 0
+  local poorest   -- the cheapest one under the limit that costs more than you have
   for i = 1, n do
     local r = AH.GetItemSearchResultInfo(key, i)
     if r and r.auctionID and r.buyoutAmount and r.buyoutAmount > 0 and r.buyoutAmount <= e.limit and not r.containsOwnerItem
@@ -346,6 +375,8 @@ local function planItem(key)
       elseif r.buyoutAmount <= cash then
         count = count + 1
         if not best or r.buyoutAmount < best.buyoutAmount then best = r end
+      elseif not poorest or r.buyoutAmount < poorest then
+        poorest = r.buyoutAmount
       end
     end
   end
@@ -362,6 +393,7 @@ local function planItem(key)
       search()
       return
     end
+    if poorest then tooPoor(poorest); return end
     finishTarget(stacks > 0 and ("%d listed as stacks: buy those on the page."):format(stacks)
       or ("none left at %s or less."):format(limitText(e)))
     return
@@ -623,31 +655,41 @@ local function statusText()
   local e, p = Q.cur, Q.plan
   local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. "|r") or ""
   local st = Q.state
+  -- How to buy, said where you'd look (Magic, October 3: "which area do I scroll in?").
+  local how = S().wheel and "Scroll down over this strip, or click Buy." or "Click Buy (or tick Scroll to buy and scroll here)."
+  local GREY = "|cff888888%s|r"
   if st == "wait" then
-    if Q.waitText then return Q.waitText, "Carries on a few seconds after you stop, or click Buy.", "Buy" end
-    return ("Waiting for %s..."):format(Q.waitFor or "the auction house"), "", "..."
+    if Q.waitText then return Q.waitText, "Carries on a few seconds after you stop, or click Go now.", "Go now" end
+    if Q.waitFor == "the full scan to finish" then
+      return "Waiting for the full scan to finish...", "A few seconds; then it carries on by itself.", GREY:format("Wait")
+    end
+    return "Waiting for the auction house...", "It only answers addons every second or so; this carries on by itself.", GREY:format("Wait")
   end
-  if st == "browse" or st == "search" then return "Looking for " .. name .. "...", reasonLine(e), "..." end
+  if st == "browse" or st == "search" then
+    return "Looking up " .. name .. " on the auction house...", reasonLine(e), GREY:format("Wait")
+  end
   if st == "ready" and p and p.kind == "commodity" then
     return ("Buy %d %s for %s"):format(p.qty, name, money(p.cost)),
-      ("%s each, up to %s."):format(money(p.cost / p.qty), limitText(e)), "Buy"
+      ("%s each, up to %s. %s"):format(money(p.cost / p.qty), limitText(e), how), "Buy"
   end
-  if st == "price" then return "Getting the final price for " .. name .. "...", "", "..." end
+  if st == "price" then return "Getting the final price for " .. name .. "...", "Stacks are bought in two steps: price, then confirm.", GREY:format("Wait") end
   if st == "confirm" and p then
     return ("|cffffd100Confirm:|r %d %s for %s"):format(p.qty, name, money(p.total)),
-      ("%s each. Scroll or click again to buy them."):format(money(p.total / p.qty)), "Confirm"
+      ("%s each. %s"):format(money(p.total / p.qty), S().wheel and "Scroll or click once more to buy them." or "Click Confirm to buy them."), "Confirm"
   end
   if st == "ready" and p and p.kind == "item" then
     return ("Buy %s for %s"):format(name, money(p.price)),
-      ("%d at or under %s."):format(p.count, limitText(e)), "Buy"
+      ("%d at or under %s. %s"):format(p.count, limitText(e), how), "Buy"
   end
-  if st == "buying" then return "Buying " .. name .. "...", "", "..." end
-  local waiting = 0
-  for _, x in ipairs(laneList()) do if x.waiting then waiting = waiting + 1 end end
-  return "Nothing to buy right now.", Q.note or (waiting > 0
-    and ("%d waiting for a lower price (greyed below)."):format(waiting)
-    or (S().wheel and "New finds show up here; scroll down over this strip to buy them."
-      or "Keep this open: new finds show up here.")), "Check"
+  if st == "buying" then return "Buying " .. name .. "...", "", GREY:format("Wait") end
+  local waiting, poor = 0, 0
+  for _, x in ipairs(laneList()) do
+    if x.waiting then waiting = waiting + 1 elseif cantAfford(x) then poor = poor + 1 end
+  end
+  local why = (poor > 0 and ("%d you can't afford yet (greyed below)."):format(poor))
+    or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
+    or "New finds show up here as scans find them (Watch flips keeps scanning)."
+  return "Nothing to buy yet.", Q.note and (Q.note .. " " .. why) or why, GREY:format("Look again")
 end
 
 -- A section that isn't armed: what it has, and how to start it.
@@ -655,14 +697,14 @@ local function idleText(d)
   local list = Q.lanes[d.key] or {}
   local ready, best = 0, nil
   for _, x in ipairs(list) do
-    if not x.waiting then
+    if not x.waiting and not cantAfford(x) then
       ready = ready + 1
       best = best or x
     end
   end
-  if ready == 0 then return "|cff888888Nothing to buy right now.|r", "|cff888888Click here to make this the section you buy from.|r" end
+  if ready == 0 then return "|cff888888Nothing to buy yet.|r", "|cff888888Click Start to buy from this section when something turns up.|r" end
   return ("|cff888888%d to buy, best: %s|r"):format(ready, ns.ItemName(best.id)),
-    "|cff888888Click here (or scroll over this strip) to buy from this section.|r"
+    "|cff888888Click Start to buy from this section, or click an item below to buy it first.|r"
 end
 
 local function laneRow(L, i)
@@ -688,7 +730,7 @@ local function laneRow(L, i)
   r.limit, r.n, r.profit = T:Text(r, 11), T:Text(r, 11), T:Text(r, 11)
   -- Profit gets the widest column: "10g 45s 64c" ran into Cheap (owner, October 2).
   r.limit:SetPoint("RIGHT", r, "LEFT", 254, 0)
-  r.n:SetPoint("RIGHT", r, "LEFT", 292, 0)
+  r.n:SetPoint("RIGHT", r, "LEFT", 300, 0)
   r.profit:SetPoint("RIGHT", r, "LEFT", 392, 0)
   r:SetScript("OnClick", function(self, button)
     if button == "RightButton" then
@@ -708,6 +750,11 @@ local function laneRow(L, i)
     GameTooltip:AddLine(reasonLine(self.entry), T.accent[1], T.accent[2], T.accent[3], true)
     if self.entry.waiting then
       GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or Search list again later.", 1, 0.82, 0, true)
+    end
+    local poor = cantAfford(self.entry)
+    if poor then
+      GameTooltip:AddLine(("You can't afford it yet: the cheapest is %s and you have %s. It's skipped until you do."):format(
+        money(poor), money(GetMoney())), 0.93, 0.52, 0.59, true)
     end
     GameTooltip:AddLine("Click to buy this one next (its section becomes the one you buy from). Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
@@ -770,7 +817,8 @@ local function buildLane(v, d)
   header:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", 4, -2)
   header:SetPoint("TOPRIGHT", strip, "BOTTOMRIGHT", -4, -2)
   header:SetHeight(14)
-  for _, c in ipairs({ { "Item", 4, "LEFT" }, { "Up to", 250, "RIGHT" }, { "Cheap", 288, "RIGHT" },
+  -- "Up to" and "Cheap" ran together (Magic's screenshot, October 3): more room between.
+  for _, c in ipairs({ { "Item", 4, "LEFT" }, { "Up to", 254, "RIGHT" }, { "Cheap", 300, "RIGHT" },
                        { d.key == "lists" and "Now" or "Profit", 388, "RIGHT" } }) do
     local fs = T:Text(header, 10, T.dim)
     if c[3] == "LEFT" then fs:SetPoint("LEFT", c[2], 0) else fs:SetPoint("RIGHT", header, "LEFT", c[2], 0) end
@@ -882,7 +930,7 @@ local function fillLane(L)
   end
   L.stripBg:SetColorTexture(1, 1, 1, armed and 0.07 or 0.03)
   local ready = 0
-  for _, x in ipairs(list) do if not x.waiting then ready = ready + 1 end end
+  for _, x in ipairs(list) do if not x.waiting and not cantAfford(x) then ready = ready + 1 end end
   -- Where to scroll, said in the section itself rather than on the checkbox.
   L.title:SetText(("%s  |cff888888%d|r%s"):format(d.title, ready,
     armed and (S().wheel and "   |cff7fd39cbuying here, scroll this strip|r"
@@ -890,7 +938,6 @@ local function fillLane(L)
   local a, b, label
   if armed then
     a, b, label = statusText()
-    if Q.note and Q.state == "idle" then b = Q.note end
     L.icon:SetTexture(Q.cur and ns:ItemIcon(Q.cur.id) or "Interface\\Icons\\INV_Misc_Coin_01")
   else
     a, b = idleText(d)
@@ -913,9 +960,11 @@ local function fillLane(L)
     r:SetWidth(width)
     r.stripe:SetShown(i % 2 == 0)
     r.current:SetShown(armed and e == Q.cur)
+    local poor = cantAfford(e)
+    local grey = e.waiting or poor
     r.icon:SetTexture(ns:ItemIcon(e.id))
-    r.icon:SetDesaturated(e.waiting and true or false)
-    r.name:SetText(e.waiting and ("|cff888888" .. ns.ItemName(e.id) .. "|r") or ns.ItemName(e.id))
+    r.icon:SetDesaturated(grey and true or false)
+    r.name:SetText(grey and ("|cff888888" .. ns.ItemName(e.id) .. "|r") or ns.ItemName(e.id))
     r.limit:SetText(e.any and "any" or money(e.limit))
     r.n:SetText(e.waiting and "0" or (e.n and tostring(e.n) or "?"))
     if d.key == "lists" then
@@ -925,6 +974,7 @@ local function fillLane(L)
     else
       r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
     end
+    if poor then r.profit:SetText("|cffee8597can't afford|r") end
     r:Show()
   end
   for i = #list + 1, #L.rows do L.rows[i]:Hide() end
@@ -940,7 +990,7 @@ refreshQueue = function()
   for _, d in ipairs(ticked()) do fillLane(v.lanes[d.key]) end
   local total = 0
   for _, d in ipairs(ticked()) do
-    for _, x in ipairs(Q.lanes[d.key] or {}) do if not x.waiting then total = total + 1 end end
+    for _, x in ipairs(Q.lanes[d.key] or {}) do if not x.waiting and not cantAfford(x) then total = total + 1 end end
   end
   v.totals:SetText(Q.bought > 0 and ("Bought %d for %s%s."):format(Q.bought, money(Q.spent),
     Q.worth > 0 and (", worth about %s"):format(money(Q.worth)) or "")

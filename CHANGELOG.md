@@ -6,10 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- Buy queue: flips you can't afford were looked up and dropped as "none left", so with little gold every find seemed to vanish a second after it showed up. They now stay in the list, greyed and marked can't afford, and are skipped until you have the gold.
+- Buy queue: the strip says plainly what's happening and what to do: "Nothing to buy yet" and why (instead of a Check button), why it's waiting for the auction house, and how to buy (click Buy, or scroll over the strip with Scroll to buy). The button reads Look again, Wait, Buy, Confirm or Go now. The list's Up to and Cheap headings no longer run together.
 - Shopping lists: the Now column shows prices short (54s, 1g 20s) so they no longer run into the Have number.
 - Shopping lists: the list menu is drawn above the panel, so its buttons and tick boxes no longer show through it.
 
 ### Added
+- Settings, Deal alerts: Big message on screen, to turn off the large text new finds show at the top of the screen (it can land on your windows); the chime and chat lines stay.
 - Shopping lists away from the auction house: a Shopping lists button at the top of the main window, and Shift-click on the minimap button (as well as /fl lists).
 - Crates tab: open a crate and click Add cheapest fill to a shopping list. The crate and its items go on a list named after the crate, counting what you already have, with prices high enough to buy them all; the Buy queue can then buy what you're short. The crate's items show indented under it. Set the crate's Want to fill several at once: every item's Want follows it. The list is temporary: each crate you fill takes one off, and the list goes with the last one (or after a week).
 

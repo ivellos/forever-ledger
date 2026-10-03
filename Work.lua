@@ -209,7 +209,7 @@ local function addRuns(n)
   if sess.goal and not sess.goalDone and sess.runs >= sess.goal then
     sess.goalDone = true
     local text = ("Goal reached: %d %s"):format(sess.runs, sess.name)
-    if RaidNotice_AddMessage and RaidWarningFrame then
+    if ns.db.settings.dealScreen ~= false and RaidNotice_AddMessage and RaidWarningFrame then
       RaidNotice_AddMessage(RaidWarningFrame, text, { r = T.accent[1], g = T.accent[2], b = T.accent[3] })
     end
     if ns.db.settings.dealSound and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
