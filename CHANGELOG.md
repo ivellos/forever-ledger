@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- Shopping lists: the Now column shows prices short (54s, 1g 20s) so they no longer run into the Have number.
 - Shopping lists: the list menu is drawn above the panel, so its buttons and tick boxes no longer show through it.
 
 ### Added

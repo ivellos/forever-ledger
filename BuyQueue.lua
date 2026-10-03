@@ -1528,14 +1528,28 @@ local function listRow(i)
 end
 
 -- Price now, green at or under the limit; for vendor items, the vendor's price.
+-- Short money for the narrow Now column: "54s", "1g 20s", "12g", "8c". "53s 99c" ran
+-- into the Have number (owner's screenshot, October 3).
+local function shortMoney(c)
+  c = math.floor(c + 0.5)
+  if c >= 100000 then return math.floor(c / 10000 + 0.5) .. "g" end
+  if c >= 10000 then
+    local g, s = math.floor(c / 10000), math.floor(c % 10000 / 100 + 0.5)
+    if s >= 100 then g, s = g + 1, 0 end
+    return s > 0 and (g .. "g " .. s .. "s") or (g .. "g")
+  end
+  if c >= 100 then return math.floor(c / 100 + 0.5) .. "s" end
+  return c .. "c"
+end
+
 local function nowText(id, limit, vendor)
   -- "vendor" is already in the Up to column; here just the price, grey.
-  if vendor then return "|cff888888" .. ns.MoneyPlain(vendor) .. "|r" end
+  if vendor then return "|cff888888" .. shortMoney(vendor) .. "|r" end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   if rec and rec.none then return "|cff888888none|r", false end
   if rec and rec.m then
     local ok = limit and limit > 0 and rec.m <= limit
-    return (ok and "|cff7fd39c" or "|cffffffff") .. money(rec.m) .. "|r", ok
+    return (ok and "|cff7fd39c" or "|cffffffff") .. shortMoney(rec.m) .. "|r", ok
   end
   return "|cff888888?|r", false
 end
