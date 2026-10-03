@@ -63,8 +63,8 @@ ns.HELP = {
     { "Trainers view", "Trainers you've visited, Classic ones, and spots city guards mark when you ask them for a profession trainer (marked guard)." },
   } },
   { "Waylaid Crates", {
-    { "Crates tab", "The cheapest way to fill each crate at today's prices, with the crate's own price, the money the turn-in pays back, and gold per Merchant's Favor. A crate that pays back more than it costs shows its profit in green. Click a crate for every bundle and what you already have." },
-    { "Shopping list for a crate", "Open a crate and click Add cheapest fill to a shopping list: the crate and its items go on a list named after the crate, set to keep that many (what's in your bags and bank counts), with prices high enough to buy them all at your last scan. Tick Use in the buy queue on that list to buy what you're short. Set the crate's Want to fill several at once: every item's Want follows it. The list is temporary: each turn-in takes one crate off, and the list goes with the last one (or after a week)." },
+    { "Crates tab", "The cheapest way to fill each crate at today's prices, with the crate's own price and gold per Merchant's Favor. After your first turn-in (a one-time quest), every crate pays 5s and 10 Favor; Net cost takes the 5s off, and shows green if a crate somehow pays for itself. Click a crate for every bundle and what you already have." },
+    { "Shopping list for a crate", "Open a crate and click Add cheapest fill to a shopping list: the crate and its items go on a list named after the crate, set to keep that many (what's in your bags and bank counts), with prices high enough to buy them all at your last scan. Tick Use in the buy queue on that list to buy what you're short. Set the crate's Want to fill several at once: every item's Want follows it. The list is temporary: each crate you fill takes one off, and the list goes with the last one (or after a week)." },
   } },
   { "Customers and work", {
     { "Customers window", "Opens when someone in chat asks for what your character can do, with Whisper and Invite buttons. /fl customers opens it any time." },

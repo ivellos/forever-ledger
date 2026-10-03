@@ -10,7 +10,7 @@ end
 ns.PREFIX = "|cffb9a2ffForever Ledger:|r"
 
 local DEFAULTS = {
-  schema = 2,
+  schema = 3,
   chars = {},       -- [charKey] = { name, realm, class, level, faction, updated, profs = { [profName] = { rank, max, updated, recipes = {...} } } }
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
@@ -25,9 +25,7 @@ local DEFAULTS = {
   vendors = {},     -- [npcID] = { name, mapID, x, y, zone, t, trainer }
   recipeTypes = {}, -- [recipeID] = "shuffle" | "sells" | "notsale" | "loss", the player's own choice (RecipesTab.lua)
   crates = {},      -- [crate itemID] = { name, level, bundles = { { { qty, name }, ... } } } read from tooltips
-  crateFavor = {},  -- [crate name] = { sum, n } Favor paid, learned from turn-ins
   vendorSellChanged = {}, -- [itemID] = local day its vendor sell price was seen to change (older price history is ignored)
-  crateMoney = {},  -- [crate name] = { sum, n } copper a turn-in paid besides the Favor, learned too
   favor = {},       -- [charKey] = Merchant's Favor held
   inventory = {},   -- [charKey] = { bags = { [itemID] = count }, bank = { ... }, t, bankT } (Inventory.lua, not synced)
   itemNames = {},   -- [itemID] = name, remembered so lists don't flicker (Prices.lua ns.ItemName)
@@ -342,6 +340,12 @@ ns:On("ADDON_LOADED", function(name)
   if (ForeverLedgerDB.schema or 1) < 2 then
     ForeverLedgerDB.historySold = nil
     ForeverLedgerDB.schema = 2
+  end
+  -- Schema 3: crate turn-ins pay the same for every crate (owner, October 3), so the
+  -- Favor and money learned per crate (crateFavor, crateMoney) aren't used any more.
+  if ForeverLedgerDB.schema < 3 then
+    ForeverLedgerDB.crateFavor, ForeverLedgerDB.crateMoney = nil, nil
+    ForeverLedgerDB.schema = 3
   end
   copyDefaults(DEFAULTS, ForeverLedgerDB)
   ns.db = ForeverLedgerDB

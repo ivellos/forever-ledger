@@ -5,22 +5,22 @@ local T = ns.Theme
 -- Waylaid Crates: fill one with any bundle from its list (read from the crate's
 -- tooltip), turn it in for Merchant's Favor. This works out the cheapest bundle at
 -- today's prices, the total with the crate's own price, and gold per Favor.
--- Favor per crate starts from an estimate per tier and is learned from turn-ins.
+-- Every turn-in pays the same (TURN_IN_FAVOR, TURN_IN_PAY).
 ---------------------------------------------------------------------------
 local FAVOR = 3402
 local PREFIX = "Waylaid Crate"
-local TIER_FAVOR = { Apprentice = 5, Journeyman = 10, Expert = 15, Artisan = 20 }   -- estimates
--- Money a turn-in pays besides the Favor (Studen Albatroz, beta, October 1: Apprentice
--- white 2s 50c, green 5s); other tiers unknown until learned from your own turn-ins.
-local TIER_PAY = { Apprentice = 250 }
+-- What a turn-in pays: every filled crate becomes a Sealed Apprentice Crate, which pays
+-- 5s and 10 Merchant's Favor whatever the crate's tier or quality (owner's turn-ins,
+-- beta, October 3). The first turn-in is a one-time quest with more; not counted.
+local TURN_IN_FAVOR = 10
+local TURN_IN_PAY = 500
 
 local function dim(t) return "|cff888888" .. t .. "|r" end
 local function money(v) return v and ns.Money(math.floor(v + 0.5)) or dim("?") end
 
 local function isCrate(name) return name and name:sub(1, #PREFIX) == PREFIX end
-local function tierOf(name)
-  for tier in pairs(TIER_FAVOR) do if name:find(tier, 1, true) then return tier end end
-end
+-- A filled crate: "Sealed Apprentice Crate".
+local function isSealed(name) return name and name:find("^Sealed") and name:find("Crate", 1, true) and true or false end
 
 ---------------------------------------------------------------------------
 -- Reading a crate's bundles from its tooltip
@@ -133,7 +133,7 @@ function ns:CrateToShoppingList(r, bundle)
   else
     for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i) end end
   end
-  -- Temporary (owner, October 3): it goes when the last crate is turned in, or after a week.
+  -- Temporary (owner, October 3): it goes when the last crate is filled, or after a week.
   list.temp, list.tempT = r.name, time()
   -- How many crates: the crate's own Want (kept if the list was made before).
   local count = 1
@@ -169,7 +169,7 @@ function ns:CrateToShoppingList(r, bundle)
     end
   end
   ns:ScaleCrateList(list)
-  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Set the crate's Want there to fill more than one; tick Use in the buy queue to buy what you're short (/fl lists). The list goes when you turn the last crate in.%s"):format(
+  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Set the crate's Want there to fill more than one; tick Use in the buy queue to buy what you're short (/fl lists). The list goes when you fill the last crate.%s"):format(
     added, added == 1 and "item" or "items", r.name or "the crate", name,
     #unknown > 0 and (" Not added (not seen in a scan yet): " .. table.concat(unknown, ", ") .. ".") or ""))
   return list
@@ -201,7 +201,7 @@ function ns:ScaleCrateList(list)
   return ids
 end
 
--- Temporary crate lists: a turn-in (crateName) takes one crate off its list, and the
+-- Temporary crate lists: filling a crate (crateName) takes one off its list, and the
 -- list goes with the last one; with no name, lists older than a week go.
 local TEMP_LIST_SECONDS = 7 * 86400
 local function dropCrateLists(crateName)
@@ -218,7 +218,7 @@ local function dropCrateLists(crateName)
         ns:Print(("Shopping list \"%s\": %d %s left to fill."):format(l.name or "?", left, left == 1 and "crate" or "crates"))
       else
         ns:DeleteShoppingList(i)
-        ns:Print(("Removed the shopping list \"%s\" (crate turned in)."):format(l.name or "?"))
+        ns:Print(("Removed the shopping list \"%s\" (last crate filled)."):format(l.name or "?"))
       end
     elseif l.temp and not crateName and time() - (l.tempT or 0) > TEMP_LIST_SECONDS then
       ns:DeleteShoppingList(i)
@@ -238,29 +238,6 @@ end
 local function bagCount(id)
   local count = (C_Item and C_Item.GetItemCount) or GetItemCount
   return id and count and count(id, false, false, true) or 0
-end
-
--- Favor a crate pays: learned from turn-ins, otherwise the tier estimate. Green crates
--- pay double (foreverchanges.pro, from beta data: Apprentice white 5, green 10;
--- Journeyman white 10, green 20).
-local function favorFor(name, id)
-  local learned = ns.db.crateFavor[name]
-  if learned and learned.n > 0 then return learned.sum / learned.n, true end
-  local base = TIER_FAVOR[tierOf(name) or ""]
-  local quality = id and select(3, ns.GetItemInfo(id))
-  if base and quality and quality >= 2 then base = base * 2 end
-  return base, false
-end
-
--- Money a crate's turn-in pays: learned from turn-ins, otherwise the tier estimate
--- (green crates pay double, like Favor). nil if unknown.
-local function payFor(name, id)
-  local learned = ns.db.crateMoney[name]
-  if learned and learned.n > 0 then return learned.sum / learned.n, true end
-  local base = TIER_PAY[tierOf(name) or ""]
-  local quality = id and select(3, ns.GetItemInfo(id))
-  if base and quality and quality >= 2 then base = base * 2 end
-  return base, false
 end
 
 -- Everything about one crate: bundles with costs, the cheapest, totals.
@@ -286,8 +263,7 @@ function ns:CrateReport(id)
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   r.owned = bagCount(id) > 0
   r.cratePrice = (not r.owned) and rec and not rec.none and rec.m or nil
-  r.favor, r.learned = favorFor(info.name, id)
-  r.pay, r.payLearned = payFor(info.name, id)
+  r.favor, r.pay = TURN_IN_FAVOR, TURN_IN_PAY
   if r.cheapest then
     r.total = r.cheapest.cost + (r.cratePrice or 0)
     -- What it really costs once the turn-in's money is back. Below zero, the crate is
@@ -320,35 +296,24 @@ function ns:KnownCrates()
 end
 
 ---------------------------------------------------------------------------
--- Learning Favor from turn-ins: when Favor goes up, credit the crate that most
--- recently left the bags.
+-- Filling a crate: the Waylaid Crate leaves the bags and a Sealed Apprentice Crate
+-- turns up in the same update. That's when its materials are used, so its shopping
+-- list counts down then (a crate sold or mailed away doesn't count).
 ---------------------------------------------------------------------------
-local lastFavor, cratesInBags, lastCrateGone = nil, {}, nil
--- Recent money gains, to learn what a turn-in paid: { t, amount }.
-local lastMoney, gains = nil, {}
-ns:On("PLAYER_MONEY", function()
-  local m = GetMoney and GetMoney()
-  if m and lastMoney and m > lastMoney then gains[#gains + 1] = { t = GetTime(), amount = m - lastMoney } end
-  lastMoney = m
-  while #gains > 10 do table.remove(gains, 1) end
-end)
-local function recentGain()
-  local sum, now = 0, GetTime()
-  for _, g in ipairs(gains) do if now - g.t < 10 then sum = sum + g.amount end end
-  return sum
-end
+local lastFavor, cratesInBags, sealedInBags = nil, {}, 0
 
 local function crateCounts()
-  local counts = {}
-  if not C_Container then return counts end
+  local counts, sealed = {}, 0
+  if not C_Container then return counts, sealed end
   for bag = 0, (NUM_BAG_SLOTS or 4) + 1 do
     for slot = 1, (C_Container.GetContainerNumSlots(bag) or 0) do
       local info = C_Container.GetContainerItemInfo(bag, slot)
       local name = info and info.itemID and ns.ItemName(info.itemID)
-      if isCrate(name) then counts[name] = (counts[name] or 0) + (info.stackCount or 1) end
+      if isCrate(name) then counts[name] = (counts[name] or 0) + (info.stackCount or 1)
+      elseif isSealed(name) then sealed = sealed + (info.stackCount or 1) end
     end
   end
-  return counts
+  return counts, sealed
 end
 
 local function favorNow()
@@ -358,39 +323,23 @@ end
 
 ns:On("BAG_UPDATE_DELAYED", function()
   if not ns.db then return end
-  local now = crateCounts()
-  for name, n in pairs(cratesInBags) do
-    if (now[name] or 0) < n then lastCrateGone = { name = name, t = GetTime() } end
+  local now, sealed = crateCounts()
+  if sealed > sealedInBags then
+    for name, n in pairs(cratesInBags) do
+      if (now[name] or 0) < n then
+        ns:Debug("Crate filled:", name)
+        dropCrateLists(name)
+      end
+    end
   end
-  cratesInBags = now
+  cratesInBags, sealedInBags = now, sealed
 end)
 
 ns:On("CURRENCY_DISPLAY_UPDATE", function(currencyID)
   if currencyID and currencyID ~= FAVOR then return end
   local q = favorNow()
   if not q then return end
-  if lastFavor and q > lastFavor and lastCrateGone and GetTime() - lastCrateGone.t < 600 then
-    local gain = q - lastFavor
-    -- Its temporary shopping list is done with.
-    dropCrateLists(lastCrateGone.name)
-    -- The first crate ever pays a one-time 50 through a quest; don't learn from that.
-    if gain < 40 then
-      local l = ns.db.crateFavor[lastCrateGone.name] or { sum = 0, n = 0 }
-      l.sum, l.n = l.sum + gain, l.n + 1
-      ns.db.crateFavor[lastCrateGone.name] = l
-      ns:Debug("Crate", lastCrateGone.name, "paid", gain, "Favor")
-      -- The money it paid arrives with the Favor.
-      local paid = recentGain()
-      if paid > 0 and paid < 1000000 then
-        local m = ns.db.crateMoney[lastCrateGone.name] or { sum = 0, n = 0 }
-        m.sum, m.n = m.sum + paid, m.n + 1
-        ns.db.crateMoney[lastCrateGone.name] = m
-        ns:Debug("Crate", lastCrateGone.name, "paid", ns.Money(paid))
-      end
-      gains = {}
-    end
-    lastCrateGone = nil
-  end
+  if lastFavor and q > lastFavor then ns:Debug("Merchant's Favor:", "+" .. (q - lastFavor)) end
   lastFavor = q
   if ns.db then ns.db.favor[ns.CharKey()] = q end
 end)
@@ -436,8 +385,7 @@ local COLS = {
   { key = "fill", label = "Cheapest fill", w = 160 },
   { key = "fillCost", label = "Fill cost", w = 74 },
   { key = "cratePrice", label = "Crate", w = 70 },
-  { key = "pay", label = "Pays back", w = 70 },
-  { key = "total", label = "Net cost", w = 80 },
+ { key = "total", label = "Net cost", w = 80 },
   { key = "favor", label = "Favor", w = 50 },
   { key = "perFavor", label = "Per Favor", w = 80 },
 }
@@ -585,7 +533,7 @@ function ns:RefreshCrates()
   end)
 
   local favor = ns.db.favor[ns.CharKey()]
-  f.info:SetText(("Cheapest way to fill each Waylaid Crate at your last scan's prices, best Favor per gold first, counting the money the turn-in pays back. You have %s Merchant's Favor on this character.%s Favor and payouts marked * are estimates until you turn one in. Click a crate for every bundle."):format(
+  f.info:SetText(("Cheapest way to fill each Waylaid Crate at your last scan's prices, best Favor per gold first. After your first turn-in (a one-time quest), every crate pays 5s and 10 Merchant's Favor; Net cost takes the 5s off, and shows green if a crate somehow pays for itself. You have %s Merchant's Favor on this character.%s Click a crate for every bundle."):format(
     favor and tostring(favor) or "?", unread > 0 and (" %d crates still loading."):format(unread) or ""))
 
   f.content:SetWidth(width)
@@ -609,9 +557,8 @@ function ns:RefreshCrates()
       fill = #parts > 0 and table.concat(parts, " + ") .. (r.cheapest.have and dim(" (have)") or "") or dim("no prices yet"),
       fillCost = r.cheapest and money(r.cheapest.cost) or dim("?"),
       cratePrice = r.owned and dim("owned") or money(r.cratePrice),
-      pay = r.pay and (money(r.pay) .. (r.payLearned and "" or "*")) or dim("?"),
-      total = r.net and (r.net < 0 and ("|cff7fd39c+" .. money(-r.net) .. "|r") or money(r.net)) or dim("?"),
-      favor = r.favor and (("%g"):format(math.floor(r.favor * 10 + 0.5) / 10) .. (r.learned and "" or "*")) or "?",
+     total = r.net and (r.net < 0 and ("|cff7fd39c+" .. money(-r.net) .. "|r") or money(r.net)) or dim("?"),
+      favor = r.favor and tostring(r.favor) or "?",
       perFavor = r.net and r.net <= 0 and "|cff7fd39cfree|r" or r.perFavor and ("|cff7fd39c" .. money(r.perFavor) .. "|r") or dim("?"),
     }
     for key, fs in pairs(row.cells) do
