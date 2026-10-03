@@ -39,12 +39,13 @@ local function evaluate(g)
   g.key = bad and (id .. ":" .. price) or nil
   if not bad then
     g.text:SetText("")
+    g.text2:SetText("")
     g.anyway:Hide()
     return
   end
   -- Two short lines, centred under Post (owner, October 3: "centred and clean").
-  g.text:SetText(("|cffff7070Vendor pays: %s|r\nAuction house: %s after the %d%% cut")
-    :format(ns.Money(sell), ns.Money(net), math.floor(cut * 100 + 0.5)))
+  g.text:SetText(("|cffff7070Vendor pays: %s|r"):format(ns.Money(sell)))
+  g.text2:SetText(("Auction house: %s after the %d%% cut"):format(ns.Money(net), math.floor(cut * 100 + 0.5)))
   local lock = ns.db.settings.sellGuard ~= false and not unlocked[g.key]
   g.anyway:SetShown(lock)
   if lock and post and post:IsEnabled() then post:Disable() end
@@ -55,10 +56,14 @@ local function guard(frame, name)
   local post = frame.PostButton
   local g = { frame = frame }
   guards[frame] = g
+  -- Two single lines (one text with a line break was cut to "Vendor pays: 26s 92c...").
   g.text = T:Text(frame, 11)
   g.text:SetJustifyH("CENTER")
   g.text:SetWordWrap(false)
-  g.text:SetSpacing(3)
+  g.text2 = T:Text(frame, 11)
+  g.text2:SetJustifyH("CENTER")
+  g.text2:SetWordWrap(false)
+  g.text2:SetPoint("TOP", g.text, "BOTTOM", 0, -3)
   -- Under the Post button, where both sell pages have room (above it, it ran into Total
   -- Price, and Post anyway went off the left edge: owner's screenshots, October 3).
   if post then
