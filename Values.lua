@@ -380,15 +380,18 @@ ns.CountSteps = countSteps
 
 -- How a chain carries on after its first step.
 local function rest(o)
-  if o.kind == "ah" then return "auction house" end
+  if o.kind == "ah" then return "sell on the auction house" end
   if o.kind == "vendor" then return "sell to vendor" end
   local n = countSteps(o)
   if o.kind == "disenchant" and n == 1 then return "disenchant" end
   return n == 1 and "1 more step" or (n .. " more steps")
 end
 
+-- Every way starts with what you'd do ("Sell on the auction house"), so none of them
+-- reads like a price to buy at (Magic, October 3: "Auction house, after 5% cut" in green
+-- looked like the buying price, next to "Auction, cheapest").
 function ns:OptionLabel(o)
-  if o.kind == "ah" then return ("Auction house, after %g%% cut"):format(ns.db.settings.ahCut or 5) end
+  if o.kind == "ah" then return ("Sell on the auction house, after %g%% cut"):format(ns.db.settings.ahCut or 5) end
   if o.kind == "vendor" then return "Sell to vendor" end
   if o.kind == "disenchant" then return "Disenchant" end
   local label = o.step .. ", " .. rest(o.next)

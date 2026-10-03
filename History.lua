@@ -249,6 +249,8 @@ local function onMoney()
   day[today()] = day[today()] or {}
   local totals = day[today()]
   totals[source] = (totals[source] or 0) + math.abs(delta)
+  -- A running session counts it too (Sessions.lua).
+  if ns.SessionMoney then ns:SessionMoney(source, delta) end
 
   local now, who = time(), ns.CharKey()
   for _, h in ipairs(hints) do

@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shopping lists: craft or buy. On a Buy list, hovering an item one of your recipes makes compares buying the ones you're short of with buying the materials to craft them, and says which is cheaper.
 
 ### Changed
+- Tooltips: the ways under Worth to you start with what you'd do: "Sell on the auction house, after 5% cut" (was "Auction house, after 5% cut", which read like a price to buy at).
 - Settings: sections listed on the left, the chosen one's settings on the right, like the Help tab; choices with many options are dropdowns. Settings and Help open on their first section each time.
 
 ## [0.10.0] - 2026-10-03
