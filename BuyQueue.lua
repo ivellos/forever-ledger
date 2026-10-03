@@ -54,7 +54,8 @@ end
 -- What's in the queue
 ---------------------------------------------------------------------------
 local done, skipped = {}, {}   -- [itemID] = GetTime() nothing left; [itemID] = true skipped this session
-local STALE_SECONDS = 600      -- a flip's price older than this is shown as "seen N min ago"
+local STALE_SECONDS = 300      -- a flip's price older than this is shown as "seen N min ago"
+local DROP_SECONDS = 900       -- and older than this (a full scan's wait) isn't listed at all
 
 -- Each kind of thing to buy is its own section ("lane") in the queue: vendor flips and
 -- shopping lists (owner, October 2: so someone working on a shopping list can't buy a
@@ -109,8 +110,12 @@ local function buildQueue()
         -- Seen a while ago (you were away from the auction house): may well be gone. Shown
         -- as such until re-checked (owner, October 3: finds vanished right after coming back).
         local age = f.t and (time() - f.t) or 0
-        list[#list + 1] = { id = id, limit = math.floor(f.maxBuy), reason = "flip", worth = f.opt.value,
-          n = f.buys[1].listed, cost = f.cost, age = age, stale = age > STALE_SECONDS }
+        -- Older than a full scan's wait: left out, since the next full scan finds it again
+        -- if it's still there (owner, October 3).
+        if age <= DROP_SECONDS then
+          list[#list + 1] = { id = id, limit = math.floor(f.maxBuy), reason = "flip", worth = f.opt.value,
+            n = f.buys[1].listed, cost = f.cost, age = age, stale = age > STALE_SECONDS }
+        end
       end
     end
     for _, e in ipairs(byProfit(list)) do add("flips", e) end
