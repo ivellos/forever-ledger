@@ -101,12 +101,13 @@ end
 ns.WHATS_NEW = {
   version = "0.10.0",
   lines = {
-    "Welcome: a short guide the first time you open the window (/fl welcome shows it again).",
+    "Welcome and Help: a short guide the first time, and Help by topic with common questions.",
+    "Sell protection: a warning before you post something for less than a vendor pays.",
     "Quest items: tooltips list the quests that need an item, and say keep it if you'll need it.",
-    "Crates: add a crate's fill to a shopping list, for as many crates as you want to fill.",
-    "Buy queue: clearer wording, and items you can't afford yet stay listed instead of vanishing.",
-    "Shopping lists: open them anywhere (Shift-click the minimap button).",
-    "Saved data no longer grows forever: old sales and prices are summed up by month and week.",
+    "Buy queue: scan buttons in the panel, the flip watch resumes, and what you can't afford stays listed.",
+    "Crates: send a crate's fill to a shopping list, for one crate or several.",
+    "Clearer screens: Auction, cheapest in tooltips, and characters picked from a dropdown.",
+    "Saved data stays small: old sales and prices are summed up by month and week.",
   },
 }
 

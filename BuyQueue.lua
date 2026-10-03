@@ -441,8 +441,8 @@ end
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
 -- clicked: a click on the button (not the wheel). With nothing to buy, the button runs
--- the flip watch instead (owner, October 3: "Look again" seemed odd), Shift-click one
--- full scan; the wheel never starts a scan.
+-- the flip watch instead (owner, October 3: "Look again" seemed odd); the wheel never
+-- starts a scan.
 function ns:BuyQueueAct(clicked)
   if clicked and Q.state == "idle" and not Q.cur then
     local any = false

@@ -134,7 +134,7 @@ local function addLines(tt, id, forceFull)
     end
   end
 
-  -- Green when the ledger price is already at or below it.
+  -- Green when the auction price is already at or below it.
   local maxBuy = on("tipBuy") and ns:BuyAtOrBelow(id)
   if maxBuy then
     if price and price <= maxBuy then
