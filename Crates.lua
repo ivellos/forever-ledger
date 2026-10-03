@@ -133,6 +133,8 @@ function ns:CrateToShoppingList(r, bundle)
   else
     for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i) end end
   end
+  -- Temporary (owner, October 3): it goes when you turn the crate in, or after a week.
+  list.temp, list.tempT = r.name, time()
   local added, unknown = 0, {}
   for _, p in ipairs(bundle.parts) do
     if p.id then
@@ -145,11 +147,27 @@ function ns:CrateToShoppingList(r, bundle)
       unknown[#unknown + 1] = p.name
     end
   end
-  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Tick Use in the buy queue there to buy what you're short (/fl lists).%s"):format(
+  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Tick Use in the buy queue there to buy what you're short (/fl lists). The list goes away when you turn the crate in.%s"):format(
     added, added == 1 and "item" or "items", r.name or "the crate", name,
     #unknown > 0 and (" Not added (not seen in a scan yet): " .. table.concat(unknown, ", ") .. ".") or ""))
   return list
 end
+
+-- Removes temporary crate lists: the one for a crate just turned in (name), or any
+-- older than a week (no name).
+local TEMP_LIST_SECONDS = 7 * 86400
+local function dropCrateLists(crateName)
+  local lists = ns:ShoppingLists()
+  for i = #lists, 1, -1 do
+    local l = lists[i]
+    if l.temp and ((crateName and l.temp == crateName) or (not crateName and time() - (l.tempT or 0) > TEMP_LIST_SECONDS)) then
+      ns:DeleteShoppingList(i)
+      ns:Print(("Removed the shopping list \"%s\" (%s)."):format(l.name or "?",
+        crateName and "crate turned in" or "a week old"))
+    end
+  end
+end
+ns:OnReady(function() dropCrateLists() end)
 
 function ns:CostToBuy(id, qty)
   local vendor = ns:GetVendorBuyPrice(id)
@@ -294,6 +312,8 @@ ns:On("CURRENCY_DISPLAY_UPDATE", function(currencyID)
   if not q then return end
   if lastFavor and q > lastFavor and lastCrateGone and GetTime() - lastCrateGone.t < 600 then
     local gain = q - lastFavor
+    -- Its temporary shopping list is done with.
+    dropCrateLists(lastCrateGone.name)
     -- The first crate ever pays a one-time 50 through a quest; don't learn from that.
     if gain < 40 then
       local l = ns.db.crateFavor[lastCrateGone.name] or { sum = 0, n = 0 }
