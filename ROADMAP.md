@@ -15,6 +15,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
 - **Shopping list rules**: besides single items, rules like "green armor up to 4s" or "level 29 BoE gear for rogues", and importing Auctionator shopping lists.
+- **Shopping lists, simpler**: every list gets a one-click "Search all" that shows what's on the auction house right now in one view, including specific versions ("of the Monkey") for twink and BoE hunting. Buying logic (amounts, price limits, the Buy queue) becomes an optional section for lists that need it, with the total cost shown before you buy. Later: craft or buy, whichever is cheaper.
 - **Item groups, built in**: ready-made groups (cloth, herbs, ores, enchanting materials, recipes, transmog gear and more) with sensible buy and sell rules, filled from the game's own item data and kept up to date with patches. No setup and no import strings; change any rule if you want to.
 - **Watch list and rare finds**: a list of items you're after (a rare appearance, a BoE epic) with the most you'd pay, checked on every scan; plus alerts for items that are almost never listed and for valuable items listed well under their usual price.
 - **Your auctions**: undercut and sold alerts for what you've listed, with the price to repost at.
