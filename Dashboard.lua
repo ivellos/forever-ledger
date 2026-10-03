@@ -380,6 +380,12 @@ function ns:BuildDashboard(parent)
   f.sessions:SetJustifyH("LEFT")
   f.sessions:SetJustifyV("TOP")
   f.sessions:SetSpacing(3)
+  -- Start or stop a session (Sessions.lua) from here too.
+  f.sessionBtn = T:Button(f, "Start a session", 120, function()
+    if ns:GeneralSessionRunning() then ns:StopGeneralSession() else ns:StartGeneralSession() end
+    ns:RefreshDashboard(f)
+  end, 20)
+  f.sessionBtn:GetFontString():SetFont(T.font, 11, "")
   return f
 end
 
@@ -438,7 +444,10 @@ function ns:RefreshDashboard(f)
   row({ f.sales, f.expenses, f.profit }, boxY, 88)
   f.sessions:ClearAllPoints()
   f.sessions:SetPoint("TOPLEFT", 2, -(boxY + 98))
-  f.sessions:SetPoint("RIGHT", f, "RIGHT", -2, 0)
+  f.sessions:SetPoint("RIGHT", f, "RIGHT", -130, 0)
+  f.sessionBtn:ClearAllPoints()
+  f.sessionBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -2, -(boxY + 96))
+  f.sessionBtn:SetText(ns.GeneralSessionRunning and ns:GeneralSessionRunning() and "Stop the session" or "Start a session")
 
   -- Numbers
   local keys = chosenKeys()
@@ -481,6 +490,11 @@ function ns:RefreshDashboard(f)
 
   -- Sessions
   local lines = { T:AccentCode() .. "Sessions|r" }
+  local gs = ns.SessionTotals and ns:SessionTotals()
+  if gs then
+    lines[#lines + 1] = ("Running: %d min so far, gold %s, looted about %s."):format(math.floor(gs.secs / 60),
+      money(gs.gained), ns.Money(gs.loot))
+  end
   local st = ns.SessionStats and ns:SessionStats()
   if st then
     lines[#lines + 1] = ("Running: %s, %d runs, profit %s so far. %s"):format(
@@ -489,10 +503,18 @@ function ns:RefreshDashboard(f)
   local list = ns.db.sessions
   for i = #list, math.max(1, #list - 20), -1 do   -- as many as fit (trimmed below)
     local x = list[i]
-    lines[#lines + 1] = ("%s  %s: %d runs in %d min, profit %s"):format(dim(date("%b %d %H:%M", x.t)),
-      x.name, x.runs, math.floor((x.stop - x.t) / 60), money(x.earned - x.spent))
+    local mins = math.floor((x.stop - x.t) / 60)
+    if x.kind == "general" then
+      lines[#lines + 1] = ("%s  Session: %d min, gold %s, looted about %s"):format(dim(date("%b %d %H:%M", x.t)),
+        mins, money(x.earned - x.spent), ns.Money(x.loot or 0))
+    else
+      lines[#lines + 1] = ("%s  %s: %d runs in %d min, profit %s"):format(dim(date("%b %d %H:%M", x.t)),
+        x.name, x.runs, mins, money(x.earned - x.spent))
+    end
   end
-  if #list == 0 and not st then lines[#lines + 1] = dim("None yet. Open a shuffle and click Work it to start one.") end
+  if #list == 0 and not st and not gs then
+    lines[#lines + 1] = dim("None yet. Start a session to count what your time is worth, or click Work it on a shuffle.")
+  end
   -- Only as many lines as fit below the boxes.
   local fit = math.max(1, math.floor((H - (boxY + 98)) / 14))
   while #lines > fit do table.remove(lines) end

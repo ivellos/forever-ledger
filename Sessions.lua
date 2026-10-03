@@ -1,0 +1,224 @@
+local _, ns = ...
+local T = ns.Theme
+
+---------------------------------------------------------------------------
+-- Sessions (owner, October 3): start one any time and a small tracker counts what the
+-- time was worth: gold in and out by where it came from (History.lua tells us each
+-- change and its source), and what you looted, valued at the better of the auction
+-- house (after the cut) and a vendor, or vendor only (setting). At the end, a summary
+-- in chat and a line in the Dashboard's sessions. The "Work it" shuffle sessions
+-- (Work.lua) are separate and carry on as before. Dungeon runs and chase items build on
+-- this later (docs/ROADMAP.md).
+--
+-- ns.db.liveSession = { t, char, money = { [source] = signed copper }, loot = { [itemID] = count } }
+-- Finished ones go to ns.db.sessions as { kind = "general", name, t, stop, earned, spent, loot, top }.
+-- Nothing here runs without a session: the events return at once.
+---------------------------------------------------------------------------
+local TRACKER_SECONDS = 1   -- the tracker redraws this often, and only while a session runs
+
+local function live() return ns.db and ns.db.liveSession end
+
+-- What one looted item is worth: the better of the auction house after the cut and a
+-- vendor; items that bind when picked up only to a vendor (they can't be listed).
+function ns:LootValue(id)
+  local vendor = ns:GetSellPrice(id) or 0
+  if ns.db.settings.sessionValue == "vendor" or (ns.IsClassicBound and ns:IsClassicBound(id)) then return vendor end
+  local price = ns:GetPrice(id)
+  local ah = price and math.floor(price * (1 - (ns.db.settings.ahCut or 5) / 100)) or 0
+  return math.max(ah, vendor)
+end
+
+-- Totals so far: { secs, gained = net gold change, earned, spent, loot = value of what
+-- was looted, items = { { id, n, value } } best first, perHour }.
+function ns:SessionTotals(s)
+  s = s or live()
+  if not s then return end
+  local earned, spent = 0, 0
+  for _, v in pairs(s.money or {}) do
+    if v > 0 then earned = earned + v else spent = spent - v end
+  end
+  local loot, items = 0, {}
+  for id, n in pairs(s.loot or {}) do
+    local value = ns:LootValue(id) * n
+    loot = loot + value
+    items[#items + 1] = { id = id, n = n, value = value }
+  end
+  table.sort(items, function(a, b) return a.value > b.value end)
+  local secs = math.max(1, time() - s.t)
+  local gained = earned - spent
+  return { secs = secs, earned = earned, spent = spent, gained = gained, loot = loot, items = items,
+    perHour = (gained + loot) / secs * 3600 }
+end
+
+local function duration(secs)
+  local h, m = math.floor(secs / 3600), math.floor(secs % 3600 / 60)
+  if h > 0 then return ("%dh %02dm"):format(h, m) end
+  return ("%dm %02ds"):format(m, secs % 60)
+end
+local function signed(c) return (c < 0 and "-" or "+") .. ns.Money(math.abs(c)) end
+
+---------------------------------------------------------------------------
+-- Counting
+---------------------------------------------------------------------------
+-- Every gold change, with where it came from (History.lua onMoney).
+function ns:SessionMoney(source, delta)
+  local s = live()
+  if not s or s.char ~= ns.CharKey() then return end
+  s.money[source] = (s.money[source] or 0) + delta
+end
+
+-- "You receive loot: [Linen Cloth]x2." in the client's own language, as patterns.
+local lootPatterns
+local function patterns()
+  if lootPatterns then return lootPatterns end
+  lootPatterns = {}
+  local function add(fmt, multiple)
+    if not fmt then return end
+    -- Escape the pattern characters, then turn %s into the item and %d into the count.
+    local p = fmt:gsub("([%(%)%.%-%+%*%?%[%]%^%$])", "%%%1")
+    p = p:gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
+    p = "^" .. p .. "$"
+    lootPatterns[#lootPatterns + 1] = { p = p, multiple = multiple }
+  end
+  add(LOOT_ITEM_SELF_MULTIPLE, true)   -- first: the single form would match it too
+  add(LOOT_ITEM_SELF, false)
+  add(LOOT_ITEM_PUSHED_SELF_MULTIPLE, true)
+  add(LOOT_ITEM_PUSHED_SELF, false)
+  return lootPatterns
+end
+
+ns:On("CHAT_MSG_LOOT", function(msg)
+  local s = live()
+  if not (s and msg) or s.char ~= ns.CharKey() then return end
+  for _, pat in ipairs(patterns()) do
+    local link, n = msg:match(pat.p)
+    if link then
+      local id = ns.ItemIDFromLink(link)
+      if id then
+        s.loot[id] = (s.loot[id] or 0) + (tonumber(n) or 1)
+        ns:RememberItem(id)
+      end
+      return
+    end
+  end
+end)
+
+---------------------------------------------------------------------------
+-- The tracker: a small window you can move, while a session runs.
+---------------------------------------------------------------------------
+local tracker, ticker
+
+local function buildTracker()
+  local f = CreateFrame("Frame", "ForeverLedgerSessionTracker", UIParent)
+  f:SetSize(220, 92)
+  f:SetFrameStrata("MEDIUM")
+  f:SetClampedToScreen(true)
+  T:Fill(f, { 0.05, 0.05, 0.06, 0.88 })
+  T:Border(f)
+  f:EnableMouse(true)
+  f:SetMovable(true)
+  f:RegisterForDrag("LeftButton")
+  f:SetScript("OnDragStart", f.StartMoving)
+  f:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local point, _, rel, x, y = self:GetPoint()
+    ns.db.settings.sessionPos = { point, rel, x, y }
+  end)
+  local pos = ns.db.settings.sessionPos
+  if pos then f:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4]) else f:SetPoint("TOP", UIParent, "TOP", 0, -140) end
+
+  f.title = T:Text(f, 12, T.accent)
+  f.title:SetPoint("TOPLEFT", 8, -6)
+  f.title:SetText("Session")
+  f.time = T:Text(f, 11, T.dim)
+  f.time:SetPoint("TOPRIGHT", -8, -7)
+  f.lines = {}
+  for i = 1, 3 do
+    local l = T:Text(f, 11)
+    l:SetPoint("TOPLEFT", 8, -8 - i * 15)
+    l:SetPoint("RIGHT", f, "RIGHT", -8, 0)
+    l:SetJustifyH("LEFT")
+    f.lines[i] = l
+  end
+  f.stop = T:Button(f, "Stop", 50, function() ns:StopGeneralSession() end, 18)
+  f.stop:SetPoint("BOTTOMRIGHT", -6, 6)
+  f.stop:GetFontString():SetFont(T.font, 11, "")
+  f:SetScript("OnEnter", function(self)
+    local st = ns:SessionTotals()
+    if not st then return end
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine("Session", 1, 1, 1)
+    GameTooltip:AddDoubleLine("Gold in", ns.Money(st.earned), 0.8, 0.8, 0.8, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Gold out", ns.Money(st.spent), 0.8, 0.8, 0.8, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Looted, worth about", ns.Money(st.loot), 0.8, 0.8, 0.8, 1, 1, 1)
+    for k = 1, math.min(5, #st.items) do
+      local it = st.items[k]
+      GameTooltip:AddDoubleLine(("  %d x %s"):format(it.n, ns.ItemName(it.id) or "?"), ns.Money(it.value), 0.7, 0.7, 0.7, 1, 1, 1)
+    end
+    GameTooltip:AddLine("Loot counts at the better of the auction house (after the cut) and a vendor; Settings can make it vendor only. Drag to move.", 0.6, 0.6, 0.6, true)
+    GameTooltip:Show()
+  end)
+  f:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  return f
+end
+
+local function drawTracker()
+  local st = ns:SessionTotals()
+  if not (tracker and st) then return end
+  tracker.time:SetText(duration(st.secs))
+  tracker.lines[1]:SetText(("Gold: |cff%s%s|r"):format(st.gained >= 0 and "7fd39c" or "ee8597", signed(st.gained)))
+  tracker.lines[2]:SetText(("Looted: about %s"):format(ns.Money(st.loot)))
+  tracker.lines[3]:SetText(("|cffffd100%s an hour|r"):format(ns.Money(math.max(0, math.floor(st.perHour)))))
+end
+
+local function showTracker()
+  if not tracker then tracker = buildTracker() end
+  tracker:Show()
+  drawTracker()
+  if ticker then ticker:Cancel() end
+  ticker = C_Timer.NewTicker(TRACKER_SECONDS, drawTracker)
+end
+
+local function hideTracker()
+  if ticker then ticker:Cancel(); ticker = nil end
+  if tracker then tracker:Hide() end
+end
+
+---------------------------------------------------------------------------
+-- Start and stop
+---------------------------------------------------------------------------
+function ns:StartGeneralSession()
+  if live() then ns:Print("A session is already running: /fl session stop ends it."); return end
+  ns.db.liveSession = { t = time(), char = ns.CharKey(), money = {}, loot = {} }
+  ns:Print("Session started: gold in and out and what you loot are counted. /fl session stop (or Stop on the tracker) ends it.")
+  showTracker()
+  if ns.RefreshUI then ns:RefreshUI() end
+end
+
+function ns:StopGeneralSession()
+  local s = live()
+  if not s then ns:Print("No session is running. /fl session start begins one."); return end
+  local st = ns:SessionTotals(s)
+  local top = {}
+  for k = 1, math.min(5, #st.items) do top[k] = { st.items[k].id, st.items[k].n, st.items[k].value } end
+  table.insert(ns.db.sessions, { kind = "general", name = "Session", t = s.t, stop = time(), earned = st.earned,
+    spent = st.spent, loot = st.loot, top = top, runs = 0 })
+  while #ns.db.sessions > 100 do table.remove(ns.db.sessions, 1) end
+  ns.db.liveSession = nil
+  hideTracker()
+  ns:Print(("Session over after %s: gold %s, looted about %s, so about %s an hour."):format(duration(st.secs),
+    signed(st.gained), ns.Money(st.loot), ns.Money(math.max(0, math.floor(st.perHour)))))
+  for k = 1, math.min(3, #st.items) do
+    local it = st.items[k]
+    print(("  %d x %s, about %s"):format(it.n, ns.ItemName(it.id) or "?", ns.Money(it.value)))
+  end
+  if ns.RefreshUI then ns:RefreshUI() end
+end
+
+function ns:GeneralSessionRunning() return live() ~= nil end
+
+-- A session left running at logout carries on at login, on the same character.
+ns:On("PLAYER_ENTERING_WORLD", function()
+  local s = live()
+  if s and s.char == ns.CharKey() then showTracker() else hideTracker() end
+end)

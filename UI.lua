@@ -461,6 +461,11 @@ local SETTINGS = {
   { key = "svcLockpick", label = "Rogue lockpicking", kind = "check", after = function() ns:UpdateCustomerAds() end,
     help = "On a Rogue from level 16: lockbox requests, and the Offer lockpicking button." },
 
+  { section = "Sessions" },
+  { key = "sessionValue", label = "Count loot at", kind = "choice", options = {
+      { "best", "Best of auction and vendor" }, { "vendor", "Vendor only" } },
+    help = "What a session counts each looted item as worth. Auction house prices are after the cut; items that bind when picked up always count at vendor price. Start a session with /fl session start or on the Dashboard." },
+
   { section = "Other" },
   { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end },
   { key = "crates", label = "Waylaid Crates", kind = "check", after = function() ns:LayoutTabs() end,

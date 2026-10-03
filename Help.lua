@@ -84,6 +84,7 @@ ns.HELP = {
   { "Your gold", {
     { "Dashboard", "Gold over time, sales, expenses and profit, and your sessions." },
     { "Ledger", "Every sale and purchase, resale profit, and other money like repairs and flights." },
+    { "Sessions", "Start one (/fl session start, or Start a session on the Dashboard) and a small tracker you can drag counts what your time is worth: gold in and out, what you loot (at the better of auction and vendor price; Settings can make it vendor only) and gold per hour. Stop it to get a summary in chat; it joins the Dashboard's sessions. A session carries on through a logout on the same character." },
     { "How long it's kept", "Sales and purchases one by one for 30 days, then as one line per item per month for a year. Gold and money in and out per day for a year, then per month. Prices per day for 14 days, then weekly averages for a year. Recipes, vendors, items and your characters are kept for good. Nothing is lost at a reload: only data past these ages is summed up or dropped." },
   } },
   { "Sharing between accounts", {
