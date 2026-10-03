@@ -19,7 +19,7 @@ ns.HELP = {
   { "Scanning the auction house", {
     { "Full scan", "Reads every listing in a few seconds." },
     { "Scan materials", "Checks just what your recipes use." },
-    { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. An eye on the button shows it's running." },
+    { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. It can only scan with the auction house open: it pauses when you close it and picks up again when you come back (Settings, Auction house: Resume the flip watch)." },
     { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too. With Auctionator or TSM installed, features they already cover (like auction prices in tooltips) are switched off once, with a message; turn them back on in Settings." },
     { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
     { "Sell protection", "On the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line above Post says so and Post is greyed out until you click Post anyway. Settings, Auction house: untick Stop posts below vendor price to keep just the warning." },

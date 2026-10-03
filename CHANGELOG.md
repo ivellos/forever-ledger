@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shopping lists: the list menu is drawn above the panel, so its buttons and tick boxes no longer show through it.
 
 ### Added
+- Flip watch: if it was on when you closed the auction house, it starts again when you come back (it can only scan with the auction house open). Settings, Auction house: Resume the flip watch.
 - Sell protection: on the auction house Sell tab, when a vendor pays more than the listing would bring after the cut, a warning says so and Post is greyed out until you click Post anyway (Settings, Auction house can make it warning only).
 - Buy queue: flips found a while ago (say, before you left the auction house) show "seen 12m ago" until they're checked again, since they may be gone.
 - Buy queue: Watch flips, Full scan and Scan materials are now at the bottom of the panel, always there (they become Stop watching and Stop scan while running), and the scan status shows above them. While the panel is open beside the auction house, the same buttons under the auction house window are hidden. With nothing to buy, the big button is Watch flips; scrolling never starts a scan. The Buy queue button under the auction house reads Close buy queue, lit, while the panel is open.

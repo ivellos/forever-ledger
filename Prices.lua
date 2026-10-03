@@ -1230,18 +1230,37 @@ function ns:StopFlipWatch(silent)
   if ns.UpdateWatchButton then ns:UpdateWatchButton() end
 end
 
-function ns:ToggleFlipWatch()
-  if watching then ns:StopFlipWatch(); return end
+-- quiet: no explanation in chat (resumed by itself).
+function ns:ToggleFlipWatch(quiet)
+  if watching then ns:StopFlipWatch(); ns.db.watchWasOn = nil; return end
   if not ahOpen then ns:Print("Open the auction house first, then start the flip watch."); return end
   watching = true
-  ns:Print("Flip watch on: a full scan every 15 minutes, and items near vendor price re-checked in between. " ..
-    "A chime means a new flip. It stops when the auction house closes. /fl watch again to stop.")
+  if not quiet then
+    ns:Print("Flip watch on: a full scan every 15 minutes, and items near vendor price re-checked in between. " ..
+      "A chime means a new flip. It pauses when you close the auction house and picks up when you come back.")
+  end
   if ns.UpdateWatchButton then ns:UpdateWatchButton() end
   if not Scan.active then watchPass() end
 end
 function ns:IsFlipWatching() return watching end
 
-ns:On("AUCTION_HOUSE_CLOSED", function() ns:StopFlipWatch() end)
+-- The watch can only run with the auction house open. If it was on when you closed it,
+-- it starts again when you come back, so the first checks happen straight away
+-- (owner, October 3: flips sold while away, and the watch had to be restarted by hand).
+ns:On("AUCTION_HOUSE_CLOSED", function()
+  ns.db.watchWasOn = watching or nil
+  ns:StopFlipWatch(true)
+end)
+ns:On("AUCTION_HOUSE_SHOW", function()
+  if ns.db.watchWasOn and ns.db.settings.watchResume ~= false then
+    C_Timer.After(1, function()
+      if ahOpen and not watching then
+        ns:Print("Flip watch back on (it was on when you left). Stop it in the Buy queue panel.")
+        ns:ToggleFlipWatch(true)
+      end
+    end)
+  end
+end)
 
 ---------------------------------------------------------------------------
 -- Prices from other auction addons

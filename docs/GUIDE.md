@@ -18,7 +18,7 @@ The first time you open the window, a short welcome walks through these and the 
 ## Scanning the auction house
 
 - **Full scan** reads every listing in a few seconds. **Scan materials** checks just what your recipes use.
-- **Watch flips** keeps scanning while the auction house stays open and chimes when a new vendor flip turns up. An eye on the button shows it's running.
+- **Watch flips** keeps scanning while the auction house stays open and chimes when a new vendor flip turns up. The game only lets addons search with the auction house open, so the watch pauses when you close it and picks up again when you come back (Settings, Auction house: **Resume the flip watch**).
 - If Auctionator or another addon runs a full scan, Forever Ledger reads it too.
 - **With Auctionator or TSM installed**, Forever Ledger switches off the features they already cover, so you don't see things twice: for now, the auction and vendor price lines in tooltips (Worth to you, Buy at or below and the rest stay). A one-time message says what was turned off; **Keep them on** undoes it, and Settings can change it any time.
 - Neutral auction houses (Booty Bay, Gadgetzan, Everlook) keep their own prices.
