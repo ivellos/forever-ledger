@@ -301,6 +301,7 @@ function prepare()
     setState("idle")
     return
   end
+  Q.endSaid = nil   -- something to buy again: the end-of-list warning can come back later
   Q.cur, Q.plan, Q.key, Q.keys, Q.tries = e, nil, nil, nil, 0
   search()
 end
@@ -483,6 +484,22 @@ function ns:BuyQueueAct(clicked)
     if GetTime() - (Q.built or 0) > 3 then Q.built = 0 end
     Q.userPicked = true
     prepare()
+    -- Scrolled to the end: only items you can't afford (or waiting for a lower price)
+    -- are left. Say so once, with the error sound, so you stop scrolling (owner,
+    -- October 3). Said again only after something buyable has turned up.
+    if not Q.cur and not Q.endSaid then
+      local left = 0
+      for _, x in ipairs(laneList()) do if x.waiting or cantAfford(x) then left = left + 1 end end
+      if left > 0 then
+        Q.endSaid = true
+        local text = ("That's everything you can buy: the %d left %s more than you have or wait for a lower price.")
+          :format(left, left == 1 and "costs" or "cost")
+        if UIErrorsFrame then UIErrorsFrame:AddMessage(text, 1, 0.3, 0.3) end
+        if ns.db.settings.dealSound ~= false then pcall(PlaySound, (SOUNDKIT and SOUNDKIT.IG_QUEST_FAILED) or 847, "Master") end
+        Q.note = text
+        if refreshQueue then refreshQueue() end
+      end
+    end
   end
 end
 
