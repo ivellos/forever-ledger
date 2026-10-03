@@ -1137,6 +1137,10 @@ end)
 local WATCH_PAUSE = 30      -- seconds between passes
 local WATCH_ITEMS = 120     -- items re-checked per pass
 local watching, watchTimer = false, nil
+-- Was the watch on when the auction house closed? For this character and this session
+-- only (not saved): saved, it was account-wide and an alt started watching on opening
+-- the auction house (owner, October 3).
+local watchWasOn = false
 
 -- Items whose cheapest listing was within 50% of what a vendor pays, closest first.
 -- Gear is left out: its stat versions ("of the Eagle") share one item ID, and each
@@ -1232,7 +1236,7 @@ end
 
 -- quiet: no explanation in chat (resumed by itself).
 function ns:ToggleFlipWatch(quiet)
-  if watching then ns:StopFlipWatch(); ns.db.watchWasOn = nil; return end
+  if watching then ns:StopFlipWatch(); watchWasOn = false; return end
   if not ahOpen then ns:Print("Open the auction house first, then start the flip watch."); return end
   watching = true
   if not quiet then
@@ -1248,11 +1252,11 @@ function ns:IsFlipWatching() return watching end
 -- it starts again when you come back, so the first checks happen straight away
 -- (owner, October 3: flips sold while away, and the watch had to be restarted by hand).
 ns:On("AUCTION_HOUSE_CLOSED", function()
-  ns.db.watchWasOn = watching or nil
+  watchWasOn = watching
   ns:StopFlipWatch(true)
 end)
 ns:On("AUCTION_HOUSE_SHOW", function()
-  if ns.db.watchWasOn and ns.db.settings.watchResume ~= false then
+  if watchWasOn and ns.db.settings.watchResume ~= false then
     C_Timer.After(1, function()
       if ahOpen and not watching then
         ns:Print("Flip watch back on (it was on when you left). Stop it in the Buy queue panel.")
