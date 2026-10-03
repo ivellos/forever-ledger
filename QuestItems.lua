@@ -40,7 +40,7 @@ local QUESTS = {
   { "Look to the Stars", "Duskwood", 25, "A", { "Bronze Tube", 1 } },
   { "A Donation of Silk", "a capital city", 26, "B", { "Silk Cloth", 60 } },
   { "Warsong Supplies", "Ashenvale", 27, "H", { "Deadly Blunderbuss", 1 } },
-  { "Elixir of Agony", "Hillsbrad Foothills", 30, "H", { "Strong Troll's Blood Potion", 1 } },
+  { "Elixir of Agony", "Hillsbrad Foothills", 30, "H", { "Strong Troll's Blood Elixir", 1 } },
   { "Items of Some Consequence", "Stormwind", 31, "A", { "Silk Cloth", 3 } },
   { "Soothing Turtle Bisque", "Hillsbrad Foothills", 31, "B", { "Turtle Meat", 10, "Soothing Spices", 1 } },
   { "Barbaric Battlements", "Orgrimmar", 32, "H", { "Patterned Bronze Bracers", 2, "Bronze Greatsword", 2, "Sharp Claw", 2 } },
@@ -81,7 +81,7 @@ local QUESTS = {
   { "Fragments of the Past", "Eastern Plaguelands", 57, "A", { "Enchanted Thorium Bar", 1 } },
   { "Fire Plume Forged", "Un'Goro Crater", 57, "A", { "Thorium Bar", 2 } },
   { "Kitchen Assistance", "Silithus", 57, "B", { "Smoked Desert Dumplings", 10 } },
-  { "That's Asking a Lot", "Eastern Plaguelands", 58, "B", { "Unstable Trigger", 8, "Hi-Explosive Bomb", 8, "Thorium Bar", 2, "Gold Rod", 1 } },
+  { "That's Asking a Lot", "Eastern Plaguelands", 58, "B", { "Unstable Trigger", 8, "Hi-Explosive Bomb", 8, "Thorium Bar", 2, "Golden Rod", 1 } },
 }
 
 -- itemID -> { { quest, where, level, faction, count, class }, ... }, built once.
