@@ -22,6 +22,7 @@ ns.HELP = {
     { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. An eye on the button shows it's running." },
     { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too. With Auctionator or TSM installed, features they already cover (like auction prices in tooltips) are switched off once, with a message; turn them back on in Settings." },
     { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
+    { "Sell protection", "On the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line above Post says so and Post is greyed out until you click Post anyway. Settings, Auction house: untick Stop posts below vendor price to keep just the warning." },
   } },
   { "Tooltips", {
     { "Worth to you", "The best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed." },

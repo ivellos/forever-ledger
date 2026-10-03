@@ -33,6 +33,7 @@ Welcome.lua
 Work.lua
 Sync.lua
 AuctionHouse.lua
+SellGuard.lua
 ShoppingLists.lua
 BuyQueue.lua
 Probe.lua

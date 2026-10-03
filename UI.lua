@@ -431,6 +431,8 @@ local SETTINGS = {
     help = "Listings at or below an item's buy limit get a green tint, bar and BUY badge." },
   { key = "openFlips", label = "Open the Buy queue after a full scan", kind = "check",
     help = "When a full scan finds vendor flips and the Buy queue beside the auction house is closed, open it. The flip watch's quick checks only chime." },
+  { key = "sellGuard", label = "Stop posts below vendor price", kind = "check",
+    help = "On the Sell tab, when a vendor would pay more than the auction house after its cut, Post is greyed out until you click Post anyway. Off: just the warning." },
 
   { section = "Customers" },
   { key = "customers", label = "Customer finder", kind = "check",
