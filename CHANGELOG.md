@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
-- Buy queue: flips you can't afford were looked up and dropped as "none left", so with little gold every find seemed to vanish a second after it showed up. They now stay in the list, greyed and marked can't afford, and are skipped until you have the gold.
+- Buy queue: flips you can't afford were looked up and dropped as "none left", so with little gold every find seemed to vanish a second after it showed up. They now stay at the bottom of the list, greyed and marked can't afford (hover for the details), and are skipped until you have the gold.
 - Buy queue: the strip says plainly what's happening and what to do: "Nothing to buy yet" and why (instead of a Check button), why it's waiting for the auction house, and how to buy (click Buy, or scroll over the strip with Scroll to buy). The button reads Watch flips, Wait, Buy, Confirm or Go now. The list's Up to and Cheap headings no longer run together.
 - Clearer wording: the full scan countdown reads "Full scan in 1:06"; an empty Deals tab says when your filter or search is what's hiding the deals; an empty Ledger says when sales get recorded (when you take the money from the mailbox).
 - Shopping lists: the Now column shows prices short (54s, 1g 20s) so they no longer run into the Have number.

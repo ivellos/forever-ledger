@@ -980,7 +980,10 @@ end
 
 local function fillLane(L)
   local d, armed = L.def, Q.armed == L.def.key
-  local list = Q.lanes[d.key] or {}
+  -- Shown in order, but what you can't afford yet goes to the bottom (Magic, October 3).
+  local list = {}
+  for _, e in ipairs(Q.lanes[d.key] or {}) do if not cantAfford(e) then list[#list + 1] = e end end
+  for _, e in ipairs(Q.lanes[d.key] or {}) do if cantAfford(e) then list[#list + 1] = e end end
   -- The section you buy from has a bright border; the others are dimmed.
   for _, e in ipairs(L.borders or {}) do
     if armed then e:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.9)
