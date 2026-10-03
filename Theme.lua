@@ -188,12 +188,13 @@ end
 -- An amount of money. Type it any way ("2g 50s", "1.5g", "25s", a plain number in
 -- plainUnit); it's tidied up when you press Enter or click away. 0 shows as "off".
 -- allowAny: "any" is accepted (-1), for shopping lists.
-function T:MoneyBox(parent, onChange, plainUnit, allowAny)
+-- offText: what 0 shows as ("off" unless given, e.g. "no limit").
+function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
   local eb = editBox(parent, 100)
   eb.allowAny = allowAny
   local function show(v)
     v = v or 0
-    eb:SetText((v < 0 and "any") or (v > 0 and ns.MoneyPlain(v)) or "off")
+    eb:SetText((v < 0 and "any") or (v > 0 and ns.MoneyPlain(v)) or offText or "off")
   end
   function eb:SetValue(v) self.value = v; show(v) end
   eb:SetScript("OnEscapePressed", function(self) show(self.value); self:ClearFocus() end)

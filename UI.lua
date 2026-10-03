@@ -441,6 +441,8 @@ local SETTINGS = {
     help = "When a full scan finds vendor flips and the Buy queue beside the auction house is closed, open it. The flip watch's quick checks only chime." },
   { key = "watchResume", label = "Resume the flip watch", kind = "check",
     help = "If the flip watch was on when you closed the auction house, start it again when you come back. It can only scan while the auction house is open." },
+  { key = "keepGold", label = "Buy queue: always keep", kind = "money", plainUnit = "g",
+    help = "The Buy queue never takes your gold below this, so there's always enough for repairs, training or a mount. Type 100 for 100g. \"off\": it may spend all of it. (The most to spend each visit is on the Buy queue itself.)" },
   { key = "saleSound", label = "Sound when an auction sells", kind = "check",
     help = "A coin sound when the game says a buyer was found for one of your auctions." },
   { key = "deRolls", label = "Disenchant finder: low and high too", kind = "check",
@@ -558,7 +560,7 @@ buildSettings = function()
       if def.kind == "number" then
         control = T:Number(page, def, changed)
       elseif def.kind == "money" then
-        control = T:MoneyBox(page, changed)
+        control = T:MoneyBox(page, changed, def.plainUnit)
       elseif def.kind == "choice" then
         local opts = {}
         for _, o in ipairs(def.options) do opts[#opts + 1] = { value = o[1], label = o[2] } end

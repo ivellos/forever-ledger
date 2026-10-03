@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Flip alerts: a new flip you can't afford even one of doesn't chime or show on screen; chat says "Found a vendor flip: X, but you can't afford it yet".
 
 ### Added
+- Buy queue: Spend at most, a box at the bottom of the panel that caps what the queue spends each auction house visit (no limit until you type one), with what's left beside it. Settings, Auction house: Buy queue: always keep, to never spend below a set amount of gold.
 - Tooltips: hold Ctrl over an item for its price history: the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen.
 - A coin sound when one of your auctions sells (Settings, Auction house).
 - Disenchant finder: an optional bad roll and good roll next to the average when you hover a band (Settings, Auction house).

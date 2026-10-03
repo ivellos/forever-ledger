@@ -273,8 +273,35 @@ end
 -- found). Those stay in the list, greyed, and are skipped until you have the gold: they
 -- used to be looked up and dropped as "none left", so with 41c every flip seemed to
 -- vanish a second after it showed up (Magic, October 3).
+-- What the queue may spend right now (owner, October 3): your gold less what you always
+-- keep (Settings, keepGold), and no more than what's left of this visit's limit (the
+-- panel's "Spend at most" box, buyQueue.limit; nil = no limit). Q.spent starts again
+-- each time the auction house opens.
+local function visitLeft()
+  local lim = S().limit
+  if lim and lim > 0 then return math.max(lim - Q.spent, 0) end
+end
+local function spendable()
+  local cash = GetMoney() - (ns.db.settings.keepGold or 0)
+  local left = visitLeft()
+  if left then cash = math.min(cash, left) end
+  return math.max(cash, 0)
+end
+-- Why something under its price is skipped: "gold" (you don't have it), "limit" (this
+-- visit's limit) or "keep" (the gold you keep).
+local function heldBy(price)
+  if price > GetMoney() then return "gold" end
+  local left = visitLeft()
+  if left and price > left then return "limit" end
+  return "keep"
+end
+local function heldWord(price)
+  local by = heldBy(price)
+  return by == "gold" and "can't afford" or "over limit"   -- short: the Profit column
+end
+
 local function cantAfford(e)
-  local cash = GetMoney()
+  local cash = spendable()
   if e.poorAt and e.poorAt > cash then return e.poorAt end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
   local cheapest = rec and not rec.none and rec.m
@@ -286,7 +313,9 @@ local function tooPoor(price)
   local e = Q.cur
   if e then
     e.poorAt = price
-    Q.note = ("%s: you can't afford it yet (%s each, you have %s)."):format(ns.ItemName(e.id), money(price), money(GetMoney()))
+    local by = heldBy(price)
+    Q.note = by == "gold" and ("%s: you can't afford it yet (%s each, you have %s)."):format(ns.ItemName(e.id), money(price), money(GetMoney()))
+      or ("%s: over your limit (%s each, %s left to spend)."):format(ns.ItemName(e.id), money(price), money(spendable()))
     ns:Debug("Buy queue:", ns.ItemName(e.id), "- can't afford", money(price))
   end
   Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
@@ -350,7 +379,7 @@ local function planCommodity()
   local e = Q.cur
   local n = AH.GetNumCommoditySearchResults(e.id) or 0
   local full = not AH.HasFullCommoditySearchResults or AH.HasFullCommoditySearchResults(e.id)
-  local cash, qty, cost = GetMoney(), 0, 0
+  local cash, qty, cost = spendable(), 0, 0
   -- all: every listing at or under the limit is in this purchase (none stopped by
   -- "want" or your gold), so there's no need to look again after buying it.
   local all = full
@@ -379,7 +408,7 @@ end
 local function planItem(key)
   local e = Q.cur
   local n = AH.GetNumItemSearchResults(key) or 0
-  local cash, best, count, stacks = GetMoney(), nil, 0, 0
+  local cash, best, count, stacks = spendable(), nil, 0, 0
   local poorest   -- the cheapest one under the limit that costs more than you have
   for i = 1, n do
     local r = AH.GetItemSearchResultInfo(key, i)
@@ -467,6 +496,14 @@ function ns:BuyQueueAct(clicked)
   -- Scans step aside for a few seconds after each buy, and longer while you keep going.
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 4)
   local e, p = Q.cur, Q.plan
+  -- The limit (or your gold) may have changed since this was planned: never over it.
+  local need = p and ((Q.state == "confirm" and p.total) or (Q.state == "ready" and (p.cost or p.price)))
+  if need and need > spendable() then
+    if Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
+    Q.note = "That costs more than you can spend now: checking again."
+    again()
+    return
+  end
   if Q.state == "ready" and p and p.kind == "commodity" then
     local ok, err = pcall(AH.StartCommoditiesPurchase, e.id, p.qty)
     if not ok then ns:Print("Couldn't start that purchase: " .. tostring(err)); again(); return end
@@ -502,8 +539,9 @@ function ns:BuyQueueAct(clicked)
       for _, x in ipairs(laneList()) do if x.waiting or cantAfford(x) then left = left + 1 end end
       if left > 0 then
         Q.endSaid = true
-        local text = ("That's everything you can buy: the %d left %s more than you have or wait for a lower price.")
-          :format(left, left == 1 and "costs" or "cost")
+        local limited = spendable() < GetMoney()
+        local text = ("That's everything you can buy: the %d left %s more than %s or wait for a lower price.")
+          :format(left, left == 1 and "costs" or "cost", limited and "your limit allows" or "you have")
         if UIErrorsFrame then UIErrorsFrame:AddMessage(text, 1, 0.3, 0.3) end
         if ns.db.settings.dealSound ~= false then pcall(PlaySound, (SOUNDKIT and SOUNDKIT.IG_QUEST_FAILED) or 847, "Master") end
         Q.note = text
@@ -578,12 +616,13 @@ end)
 ns:On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
   if Q.state ~= "price" or not (Q.cur and Q.plan) then return end
   local total = totalPrice or (unitPrice and unitPrice * Q.plan.qty)
-  if total and total <= Q.cur.limit * Q.plan.qty and total <= GetMoney() then
+  if total and total <= Q.cur.limit * Q.plan.qty and total <= spendable() then
     Q.plan.total = total
     setState("confirm")
   else
     pcall(AH.CancelCommoditiesPurchase)
-    Q.note = "The price went up before buying: checking again."
+    Q.note = (total and total <= Q.cur.limit * Q.plan.qty) and "The final price would go over your limit: checking again."
+      or "The price went up before buying: checking again."
     again()
   end
 end)
@@ -731,16 +770,24 @@ local function statusText()
     if x.waiting then waiting = waiting + 1 elseif cantAfford(x) then poor = poor + 1 end
   end
   local watching = ns:IsFlipWatching()
+  -- This visit's limit is used up: say that first, and how to go on.
+  local left = visitLeft()
+  if left and left < 1 then
+    return "You've spent your limit for this visit.",
+      ("Spent %s of %s. Raise Spend at most below to buy more, or it starts again next visit."):format(money(Q.spent), money(S().limit)),
+      watching and "Stop" or "Watch flips"
+  end
+  local poorText = spendable() < GetMoney() and "%d over your limit (greyed below)." or "%d you can't afford yet (greyed below)."
   local why
   if view() == "lists" then
     local any = false
     for _, l in ipairs(ns:ShoppingLists()) do if l.on and not ns:IsSearchList(l) then any = true end end
-    why = (poor > 0 and ("%d you can't afford yet (greyed below)."):format(poor))
+    why = (poor > 0 and poorText:format(poor))
       or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
       or (any and "Click Search lists below to check the auction house for your lists.")
       or "No lists here yet: on the Shopping lists tab, tick Use in the buy queue on a Buy list."
   else
-    why = (poor > 0 and ("%d you can't afford yet (greyed below)."):format(poor))
+    why = (poor > 0 and poorText:format(poor))
       or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
       or (watching and "Watching for flips; new ones show up here.")
       or "Click Watch flips below to keep scanning while you're here."
@@ -813,13 +860,16 @@ local function laneRow(L, i)
     end
     local e = self.entry
     if e.reason == "flip" and e.affordN and e.n and e.affordN < e.n and e.affordN > 0 then
-      GameTooltip:AddLine(("You can afford %d of the %d cheap ones with %s, so the profit shown is for those."):format(
-        e.affordN, e.n, money(GetMoney())), 1, 0.82, 0, true)
+      GameTooltip:AddLine(("You can afford %d of the %d cheap ones with %s%s, so the profit shown is for those."):format(
+        e.affordN, e.n, money(spendable()), spendable() < GetMoney() and " left to spend" or ""), 1, 0.82, 0, true)
     end
     local poor = cantAfford(self.entry)
     if poor then
-      GameTooltip:AddLine(("You can't afford it yet: the cheapest is %s and you have %s. It's skipped until you do."):format(
-        money(poor), money(GetMoney())), 0.93, 0.52, 0.59, true)
+      local by = heldBy(poor)
+      local text = (by == "gold" and ("You can't afford it yet: the cheapest is %s and you have %s. It's skipped until you do."):format(money(poor), money(GetMoney())))
+        or (by == "limit" and ("Over your limit: the cheapest is %s and %s is left of your Spend at most for this visit."):format(money(poor), money(visitLeft())))
+        or ("Over your limit: the cheapest is %s and buying it would take you below the %s you keep (Settings, Auction house)."):format(money(poor), money(ns.db.settings.keepGold or 0))
+      GameTooltip:AddLine(text, 0.93, 0.52, 0.59, true)
     end
     GameTooltip:AddLine("Click to buy this one next (its section becomes the one you buy from). Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
@@ -1043,6 +1093,63 @@ local function buildQueueView(parent)
   v.status:SetPoint("RIGHT", v.totals, "LEFT", -10, 0)
   v.status:SetJustifyH("LEFT")
   v.status:SetWordWrap(false)
+
+  -- Spend at most, this visit (owner, October 3): one box, "no limit" until you type
+  -- something; what's left shows beside it, teal, yellow when nearly gone, red when
+  -- spent. The gold you always keep is in Settings, as it's set once (keepGold).
+  local row = CreateFrame("Frame", nil, v)
+  row:SetPoint("BOTTOMLEFT", 10, 56)
+  row:SetPoint("BOTTOMRIGHT", -10, 56)
+  row:SetHeight(22)
+  local lab = T:Text(row, 11, T.dim)
+  lab:SetPoint("LEFT", 2, 0)
+  lab:SetText("Spend at most")
+  v.limitBox = T:MoneyBox(row, function(value)
+    S().limit = value > 0 and value or nil
+    Q.note = nil
+    -- Lowered under what's about to be bought: plan it again. Raised: carry on buying.
+    local p = Q.plan
+    local need = p and (p.total or p.cost or p.price)
+    if need and need > spendable() then
+      if Q.state == "confirm" or Q.state == "price" then pcall(AH.CancelCommoditiesPurchase) end
+      again()
+    elseif Q.state == "idle" and not Q.cur then
+      prepare()
+    end
+    refreshQueue()
+  end, "g", false, "no limit")
+  v.limitBox:SetWidth(84)
+  v.limitBox:SetPoint("LEFT", lab, "RIGHT", 8, 0)
+  v.limitBox:SetValue(S().limit or 0)
+  local after = T:Text(row, 11, T.dim)
+  after:SetPoint("LEFT", v.limitBox, "RIGHT", 8, 0)
+  after:SetText("this visit")
+  v.limitLeft = T:Text(row, 11)
+  v.limitLeft:SetPoint("RIGHT", -2, 0)
+  v.limitLeft:SetJustifyH("RIGHT")
+  local function limitTip(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Spend at most, this visit", 1, 1, 1)
+    GameTooltip:AddLine("The most the Buy queue spends while the auction house is open. It starts again each time you open it. Leave it at no limit to spend freely. Type 50 for 50g, or 2g 50s.", nil, nil, nil, true)
+    if S().limit then
+      GameTooltip:AddLine(("Spent %s of %s so far."):format(money(Q.spent), money(S().limit)), 0.2, 0.85, 0.75, true)
+    end
+    local keep = ns.db.settings.keepGold or 0
+    GameTooltip:AddLine(keep > 0 and ("It also always leaves you %s (Settings, Auction house)."):format(money(keep))
+      or "To always keep some gold back, for repairs or a mount: Settings, Auction house.", 0.7, 0.7, 0.7, true)
+    GameTooltip:Show()
+  end
+  v.limitBox:HookScript("OnEditFocusGained", function(self) self:SetTextColor(1, 1, 1, 1) end)
+  v.limitBox:HookScript("OnEditFocusLost", function(self)
+    local c = S().limit and 1 or 0.55
+    self:SetTextColor(c, c, c, 1)
+  end)
+  v.limitBox:HookScript("OnEnter", limitTip)
+  v.limitBox:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  row:EnableMouse(true)
+  row:SetScript("OnEnter", limitTip)
+  row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
   v:SetScript("OnSizeChanged", function() if refreshQueue then refreshQueue() end end)
   return v
 end
@@ -1050,7 +1157,7 @@ end
 -- Stack the ticked sections, splitting the height between them.
 local function layoutLanes(v)
   local t = ticked()
-  local top, bottom, gap = 38, 54, 6   -- bottom: the totals line and the scan buttons
+  local top, bottom, gap = 38, 82, 6   -- bottom: Spend at most, the totals line and the scan buttons
   local h = v:GetHeight() - top - bottom
   local n = #t
   v.empty:SetShown(n == 0)
@@ -1142,7 +1249,7 @@ local function fillLane(L)
       -- Profit on what you can afford right now, not the whole lot (Magic, October 3:
       -- "said 48c profit, I only made 21c" with 1s 27c to spend). It follows your gold.
       local each = (e.worth or 0) - (e.cost or e.limit or 0)
-      local afford = math.min(e.n or 1, math.floor(GetMoney() / math.max(e.cost or e.limit or 1, 1)))
+      local afford = math.min(e.n or 1, math.floor(spendable() / math.max(e.cost or e.limit or 1, 1)))
       e.affordN = afford
       if e.profit and e.profit > 0 and afford < (e.n or 1) and afford > 0 then
         r.profit:SetText(("|cff7fd39c%s|r |cff888888of %s|r"):format(money(each * afford), money(e.profit)))
@@ -1150,7 +1257,7 @@ local function fillLane(L)
         r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
       end
     end
-    if poor then r.profit:SetText("|cffee8597can't afford|r")
+    if poor then r.profit:SetText("|cffee8597" .. heldWord(poor) .. "|r")
     elseif e.stale then r.profit:SetText(("|cff888888seen %dm ago|r"):format(math.floor(e.age / 60))) end
     r:Show()
   end
@@ -1174,6 +1281,22 @@ refreshQueue = function()
   v.totals:SetText(Q.bought > 0 and ("Bought %d for %s%s"):format(Q.bought, money(Q.spent),
       Q.worth > 0 and (", worth %s"):format(money(Q.worth)) or "")
     or ("%d to buy"):format(total))
+  -- What's left of this visit's limit, or the gold you keep when there's no limit.
+  local left, keep = visitLeft(), ns.db.settings.keepGold or 0
+  if left then
+    local share = left / S().limit
+    v.limitLeft:SetText(left < 1 and "|cffee8597limit reached|r"
+      or ("|cff%s%s left|r"):format(share < 0.2 and "ffd100" or "33d9bf", ns.MoneyPlain(left)))
+  elseif keep > 0 then
+    v.limitLeft:SetText(("|cff888888keeping %s|r"):format(ns.MoneyPlain(keep)))
+  else
+    v.limitLeft:SetText("")
+  end
+  if not v.limitBox:HasFocus() then
+    v.limitBox:SetValue(S().limit or 0)
+    local c = S().limit and 1 or 0.55   -- "no limit" in grey, like a hint
+    v.limitBox:SetTextColor(c, c, c, 1)
+  end
   if ns.UpdatePanelScanButtons then ns:UpdatePanelScanButtons() end
 end
 
