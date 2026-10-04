@@ -806,6 +806,7 @@ local LABELS = {
   loot = "Loot", quest = "Quests", training = "Training", flight = "Flights",
   otherIn = "Other income", otherOut = "Other spending",
 }
+ns.MONEY_LABELS = LABELS   -- (Sessions.lua: the tracker's hover lists money by source)
 local INCOME = { ahSale = true, vendorSell = true, mailIn = true, tradeIn = true, loot = true, quest = true, otherIn = true }
 
 -- Today's money for this character as lines ("Sold to vendors: +5s"), plus the net.

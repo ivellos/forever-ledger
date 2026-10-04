@@ -116,13 +116,21 @@ function ns.ParseMoney(s)
 end
 
 -- Forgiving price input for boxes you type in (owner, October 2: forcing "2s 40c" felt
--- buggy). Takes "2g 50s", "2g50s", "1.5g", "2.5s", "75c", "2,5g", a plain number in
--- plainUnit ("g", "s" or "c", default copper), "off" or empty (0), and "any" (-1).
+-- buggy). Takes "2g 50s", "2g50s", "1.5g", "2.5s", "75c", "2,5g", "2 50 25" and
+-- "2.50.25" (gold silver copper), "2 50" (gold silver), a plain number in plainUnit
+-- ("g", "s" or "c", default copper), "off" or empty (0), and "any" (-1).
 -- nil if it can't be read.
 function ns.ParseMoneyLoose(s, plainUnit)
   s = (s or ""):lower():gsub(",", "."):gsub("^%s+", ""):gsub("%s+$", "")
   if s == "" or s == "off" or s == "none" or s == "0" then return 0 end
   if s == "any" or s == "*" then return -1 end
+  -- Numbers in a row, by spaces or dots: gold silver ("12 50", "12.50") or gold silver
+  -- copper ("12 50 25", "12.50.25") (owner, October 3). A lone number is plainUnit.
+  if s:find("^%d+[%s%.]+%d+$") or s:find("^%d+[%s%.]+%d+[%s%.]+%d+$") then
+    local p = {}
+    for d in s:gmatch("%d+") do p[#p + 1] = tonumber(d) end
+    return p[1] * 10000 + p[2] * 100 + (p[3] or 0)
+  end
   local n = tonumber(s)
   if n then
     if n < 0 then return nil end

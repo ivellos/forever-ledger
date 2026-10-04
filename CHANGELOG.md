@@ -18,12 +18,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: the Shopping lists view glows purple and Vendor flips teal, so you can tell them apart at a glance. A flip's profit shows just what you can make with your gold and limit; the hover has the full amount. The new-flips count sits on the button's corner.
 - Buy queue: vendor flips are re-sorted each time it picks the next one, best first by the profit you can make with what you can spend now.
 - Welcome: it shades the whole window until you pick a button, every button closes it (Open shopping lists no longer opens behind it), and Got it stands out.
+- Prices can be typed as 2 50 25 or 2.50.25 (gold silver copper) and 2 50 or 2.50 (gold silver), as well as 2g 50s 25c; a lone number is gold in every price box.
+- Sessions: gold an hour shows from 2 minutes in (one purchase swung it wildly before that); the tracker's hover and the end-of-session summary list gold by where it came from (auction sales, vendors, mail...); a session stopped with nothing in it isn't kept; short ones read "under a minute".
+- Buy queue: the new-flips count has a dark ring so it sits on top of the button.
 - Tooltips: "avg of all 7" instead of "avg of cheapest 20" when 20 or fewer are listed.
 - Settings: small headings have a faint band; dropdown lists mark the default option. Help topics with long names are shorter (Auction house scans, Buy queue and lists, Two accounts).
 - Sessions: a session that loses gold shows a negative rate in red, not 0c an hour.
 - Dungeon runs: walking in and straight back out (under 2 minutes, nothing looted) isn't counted as a run; short times read "under a minute".
 
 ### Fixed
+- Shopping lists: the list menu drew under the Search/Buy buttons and the add box; dropdown menus and name suggestions stay on top now. Opened away from the auction house (from the welcome or the main window), the lists panel opens in front of the main window, not behind it.
 - Shopping lists: Have could count items bought on the auction house as still in the mail long after you'd taken and used them (Have 20 with none). The count is per character now, follows your bags as they change, and opening the mailbox sets it to what's really there.
 - Search lists: the Checked, Listed and Cheapest headings ran into each other.
 - Shopping lists: a typed version ("of the boar") is saved as the game writes it ("of the Boar"), with a note if no full scan has seen that version; hovering it shows that version first and the others greyed.

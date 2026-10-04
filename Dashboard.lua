@@ -514,8 +514,8 @@ function ns:RefreshDashboard(f)
     local x = list[i]
     local mins = math.floor((x.stop - x.t) / 60)
     if x.kind == "general" then
-      lines[#lines + 1] = ("%s  Session: %d min, gold %s, looted about %s"):format(dim(date("%b %d %H:%M", x.t)),
-        mins, money(x.earned - x.spent), ns.Money(x.loot or 0))
+      lines[#lines + 1] = ("%s  Session: %s, gold %s, looted about %s"):format(dim(date("%b %d %H:%M", x.t)),
+        mins < 1 and "under a minute" or (mins .. " min"), money(x.earned - x.spent), ns.Money(x.loot or 0))
     else
       lines[#lines + 1] = ("%s  %s: %d runs in %d min, profit %s"):format(dim(date("%b %d %H:%M", x.t)),
         x.name, x.runs, mins, money(x.earned - x.spent))

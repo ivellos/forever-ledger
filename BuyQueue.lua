@@ -1552,6 +1552,10 @@ local function buildListsView(parent)
   pick:SetScript("OnClick", function()
     if menu:IsShown() or #ns:ShoppingLists() == 0 then menu:Hide(); return end
     fillMenu()
+    -- Again each time: placing the panel (beside the auction house or floating) sets
+    -- every frame in it to the panel's layer, menu included, and the buttons under the
+    -- menu drew over it (owner's test, October 3).
+    menu:SetFrameStrata("FULLSCREEN_DIALOG")
     menu:Show()
     menu:Raise()
   end)
@@ -1718,6 +1722,7 @@ local function buildListsView(parent)
     end
     for i = #found + 1, #sug.buttons do sug.buttons[i]:Hide() end
     sug:SetHeight(#found * 20 + 4)
+    sug:SetFrameStrata("FULLSCREEN_DIALOG")   -- (placing the panel resets it)
     sug:Show()
   end
   v.add:HookScript("OnTextChanged", function(self, userInput) if userInput then suggest(self:GetText()) end end)
@@ -2437,9 +2442,13 @@ local function place()
     side.floating = false
   else
     side:SetParent(UIParent)
-    side:SetFrameStrata("HIGH")
+    -- The main window's layer, and in front of it: in a lower one it opened behind the
+    -- main window (owner's test, October 3: "Open shopping lists" from the welcome).
+    side:SetFrameStrata("DIALOG")
+    side:SetToplevel(true)
     side:SetSize(WIDTH, 560)
     side:SetPoint("CENTER")
+    side:Raise()
     side.floating = true
   end
   side.close:SetShown(side.floating)
@@ -2529,6 +2538,7 @@ function ns:ShowSidePanel(tab)
   place()
   if not side.floating then S().shown = true end
   side:Show()
+  side:Raise()
   showTab(tab or S().tab or "queue")
 end
 
@@ -2609,10 +2619,15 @@ local function badge(parent)
   -- On the corner, half outside, like a notification count: inside the button it
   -- covered "flips" (owner's test, October 3).
   local b = CreateFrame("Frame", nil, parent)
-  b:SetSize(16, 12)
+  b:SetSize(18, 14)
   b:SetPoint("CENTER", parent, "TOPRIGHT", 0, 1)
   b:SetFrameLevel(parent:GetFrameLevel() + 5)
-  T:Fill(b, { TEAL[1], TEAL[2], TEAL[3], 0.95 })
+  -- A dark ring around it, so it sits on top like a sticker (owner's test, October 3).
+  T:Fill(b, { 0.05, 0.05, 0.06, 1 })
+  local inner = b:CreateTexture(nil, "ARTWORK")
+  inner:SetPoint("TOPLEFT", 2, -2)
+  inner:SetPoint("BOTTOMRIGHT", -2, 2)
+  inner:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], 1)
   b.text = T:Text(b, 10, { 0.03, 0.12, 0.1, 1 })
   b.text:SetPoint("CENTER", 0, 0)
   b:Hide()

@@ -188,6 +188,16 @@ local function buildTracker()
     GameTooltip:AddLine("Session", 1, 1, 1)
     GameTooltip:AddDoubleLine("Gold in", ns.Money(st.earned), 0.8, 0.8, 0.8, 1, 1, 1)
     GameTooltip:AddDoubleLine("Gold out", ns.Money(st.spent), 0.8, 0.8, 0.8, 1, 1, 1)
+    -- Where it came from and went (owner's test, October 3: "+1g 84s, I don't think
+    -- that's right"): auction sales, vendor, mail, loot..., biggest first.
+    local by = {}
+    for src, v in pairs((live() or {}).money or {}) do if v ~= 0 then by[#by + 1] = { src, v } end end
+    table.sort(by, function(a, b) return math.abs(a[2]) > math.abs(b[2]) end)
+    for _, x in ipairs(by) do
+      local label = (ns.MONEY_LABELS and ns.MONEY_LABELS[x[1]]) or x[1]
+      GameTooltip:AddDoubleLine("  " .. label, (x[2] < 0 and "|cffee8597-|r" or "|cff7fd39c+|r") .. ns.Money(math.abs(x[2])),
+        0.7, 0.7, 0.7, 1, 1, 1)
+    end
     GameTooltip:AddDoubleLine("Looted, worth about", ns.Money(st.loot), 0.8, 0.8, 0.8, 1, 1, 1)
     for k = 1, math.min(5, #st.items) do
       local it = st.items[k]
@@ -205,9 +215,11 @@ end
 drawTracker = function()
   local st = ns:SessionTotals()
   if not (tracker and st) then return end
-  local rate = rateText(st.perHour)
+  -- Gold an hour from 2 minutes in: before that one purchase swings it wildly (owner's
+  -- test, October 3: "-21g 60s an hour" 20 seconds in).
+  local rate = st.secs >= 120 and rateText(st.perHour) or "|cff888888...|r"
   tracker.time:SetText(duration(st.secs))
-  tracker.rate:SetText(rate .. " |cffbbbbbban hour|r")
+  tracker.rate:SetText(st.secs >= 120 and (rate .. " |cffbbbbbban hour|r") or "|cff888888an hour, from 2 min in|r")
   tracker.smallRate:SetText(rate .. " |cffbbbbbb/h|r")
   tracker.gold:SetText(("|cff999999Gold|r |cff%s%s|r"):format(st.gained >= 0 and "7fd39c" or "ee8597", signed(st.gained)))
   tracker.loot:SetText(("|cff999999Loot|r %s"):format(ns.Money(st.loot)))
@@ -241,15 +253,31 @@ function ns:StopGeneralSession()
   local s = live()
   if not s then ns:Print("No session is running. /fl session start begins one."); return end
   local st = ns:SessionTotals(s)
+  ns.db.liveSession = nil
+  hideTracker()
+  -- Started and stopped with nothing happening (a misclick, a test): not kept (owner's
+  -- test, October 3: the Dashboard listed several "0 min, gold 0c" sessions).
+  if st.secs < 60 and st.earned == 0 and st.spent == 0 and st.loot == 0 then
+    ns:Print("Session stopped. Nothing happened in it, so it isn't kept.")
+    if ns.RefreshUI then ns:RefreshUI() end
+    return
+  end
   local top = {}
   for k = 1, math.min(5, #st.items) do top[k] = { st.items[k].id, st.items[k].n, st.items[k].value } end
   table.insert(ns.db.sessions, { kind = "general", name = "Session", t = s.t, stop = time(), earned = st.earned,
-    spent = st.spent, loot = st.loot, top = top, runs = 0 })
+    spent = st.spent, loot = st.loot, top = top, runs = 0, money = s.money })
   while #ns.db.sessions > 100 do table.remove(ns.db.sessions, 1) end
-  ns.db.liveSession = nil
-  hideTracker()
   ns:Print(("Session over after %s: gold %s, looted about %s, so about %s an hour."):format(duration(st.secs),
     signed(st.gained), ns.Money(st.loot), rateText(st.perHour)))
+  -- Gold by where it came from, biggest first.
+  local by = {}
+  for src, v in pairs(s.money or {}) do if v ~= 0 then by[#by + 1] = { src, v } end end
+  table.sort(by, function(a, b) return math.abs(a[2]) > math.abs(b[2]) end)
+  local parts = {}
+  for k = 1, math.min(4, #by) do
+    parts[k] = ("%s %s"):format((ns.MONEY_LABELS and ns.MONEY_LABELS[by[k][1]]) or by[k][1], signed(by[k][2]))
+  end
+  if #parts > 0 then print("  Gold: " .. table.concat(parts, ", ") .. ".") end
   for k = 1, math.min(3, #st.items) do
     local it = st.items[k]
     print(("  %d x %s, about %s"):format(it.n, ns.ItemName(it.id) or "?", ns.Money(it.value)))

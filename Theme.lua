@@ -180,7 +180,7 @@ function T:MoneyPreview(eb, plainUnit)
     else
       GameTooltip:AddLine("Not a price yet", 1, 0.5, 0.5)
     end
-    GameTooltip:AddLine(("Enter saves. Examples: 2g 50s, 1.5g, 25s, 75c%s%s."):format(
+    GameTooltip:AddLine(("Enter saves. Examples: 2g 50s 25c, 2 50 25 or 2.50.25 (gold silver copper), 2 50 (gold silver), 25s, 75c%s%s."):format(
       plainUnit == "g" and ", or 3 for 3g" or "", self.allowAny and ", any" or ""), 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end)
@@ -206,7 +206,7 @@ function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
     local v = ns.ParseMoneyLoose(self:GetText(), plainUnit)
     if v == -1 and not allowAny then v = nil end
     if not v then
-      ns:Print(("Couldn't read that price. Try 2g 50s, 1.5g, 25s or 75c%s."):format(allowAny and ", or any" or ""))
+      ns:Print(("Couldn't read that price. Try 2g 50s 25c, 2 50 25, 2.50.25, 25s or 75c%s."):format(allowAny and ", or any" or ""))
     elseif v ~= self.value then
       self.value = v
       onChange(v)
@@ -410,6 +410,7 @@ function T:Dropdown(parent, width, onChange)
   d:SetScript("OnClick", function()
     if menu:IsShown() then menu:Hide(); return end
     fill()
+    menu:SetFrameStrata("FULLSCREEN_DIALOG")   -- (a parent's layer change resets it)
     menu:Show()
     menu:Raise()
   end)

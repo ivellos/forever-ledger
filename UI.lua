@@ -683,7 +683,8 @@ buildSettings = function()
       if def.kind == "number" then
         r.control = T:Number(page, def, changed)
       elseif def.kind == "money" then
-        r.control = T:MoneyBox(page, changed, def.plainUnit)
+        -- A lone number is gold everywhere (owner, October 3).
+        r.control = T:MoneyBox(page, changed, def.plainUnit or "g")
       elseif def.kind == "choice" then
         local opts = {}
         for _, o in ipairs(def.options) do opts[#opts + 1] = { value = o[1], label = o[2] } end
