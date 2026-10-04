@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Your auctions: an Auctions tab beside the auction house lists what you have up, your price each, the cheapest now, and undercut, cheapest or sold. Check prices looks them all up; scans and the flip watch check them too. Undercut alerts in chat with a sound (Settings, Auction house; off by themselves with Auctionator or TSM). Cancel an undercut auction with two clicks.
+- Your auctions: an Auctions tab beside the auction house lists what you have up, your price each, the cheapest now, and undercut, cheapest or sold. Check prices looks them all up; scans and the flip watch check them too. Undercut alerts in chat with a sound (Settings, Auction house; off by themselves with Auctionator or TSM). All, Up, Undercut and Sold views; sold ones show what you get and when the gold reaches the mailbox, and the bottom line the gold on the way and in your mailbox. Cancel next undercut asks once, then cancels one undercut auction per click.
 
 ## [0.11.0] - 2026-10-04
 

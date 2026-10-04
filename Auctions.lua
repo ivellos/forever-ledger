@@ -9,10 +9,18 @@ local T = ns.Theme
 -- a sound and a chat line once per price. Cancel is one auction per click, two clicks
 -- each (cancelling loses the deposit). Blizzard needs a click for every cancel and post.
 --
+-- Views like the Ledger's (owner, October 4): All, Up, Undercut, Sold. Sold ones say
+-- what you get after the cut and when the gold reaches the mailbox; the bottom line
+-- says what's on the way and what's waiting in the mailbox. Cancel next undercut: one
+-- button that cancels the next undercut auction per click, after asking once.
+--
 -- ns.db.myAuctions[charKey] = { t = time read, list = { { a = auctionID, id, link, q,
---   each, left = seconds left when read, sold } } }: the last list seen per character,
--- for when the auction house is closed (and the mail panel later).
+--   each, left = seconds left when read, sold, soldAt = first seen sold, mailed = gone
+--   from the list after selling } } }: the last list seen per character.
+-- ns.db.mailbox[charKey] = { t, money }: gold waiting in the mailbox at the last visit.
 ---------------------------------------------------------------------------
+local SALE_MAIL_SECONDS = 3600   -- Classic: a sale's gold arrives an hour later (to check in Forever)
+local KEEP_SOLD_SECONDS = 86400  -- sold ones stay listed a day after their gold is sent
 local AH = C_AuctionHouse
 local frame, rows = nil, {}
 local alerted = {}        -- [auctionID] = the cheapest price we alerted at
@@ -77,18 +85,48 @@ end
 local function readOwned()
   if not (AH and AH.GetNumOwnedAuctions and AH.GetOwnedAuctionInfo) then return end
   local n = AH.GetNumOwnedAuctions() or 0
-  local list = {}
+  local list, now = {}, time()
   local sold = Enum and Enum.AuctionStatus and Enum.AuctionStatus.Sold or 1
+  -- What we knew before: when each sold, and sold ones whose gold has gone to the mail.
+  local before, seen = {}, {}
+  for _, e in ipairs((mine() or {}).list or {}) do if e.a then before[e.a] = e end end
   for i = 1, n do
     local ok, info = pcall(AH.GetOwnedAuctionInfo, i)
     if ok and info and info.itemKey then
       local id = info.itemKey.itemID
-      list[#list + 1] = { a = info.auctionID, id = id, link = info.itemLink, q = info.quantity or 1,
+      local e = { a = info.auctionID, id = id, link = info.itemLink, q = info.quantity or 1,
         each = eachPrice(info, id), left = info.timeLeftSeconds, sold = info.status == sold or nil }
+      if e.sold then e.soldAt = (before[e.a] and before[e.a].soldAt) or now end
+      list[#list + 1] = e
+      if e.a then seen[e.a] = true end
     end
   end
-  store()[ns.CharKey()] = { t = time(), list = list }
+  -- Sold before and gone from the list now: its gold was sent to the mailbox.
+  for a, e in pairs(before) do
+    if not seen[a] and e.sold and now - (e.soldAt or now) < KEEP_SOLD_SECONDS then
+      e.mailed = true
+      list[#list + 1] = e
+    end
+  end
+  store()[ns.CharKey()] = { t = now, list = list }
 end
+
+-- What a sold auction brings after the auction house cut.
+local function proceeds(e)
+  return e.each and math.floor(e.each * (e.q or 1) * (1 - (ns.db.settings.ahCut or 5) / 100)) or 0
+end
+
+-- Gold waiting in the mailbox, read when you open it.
+ns:On("MAIL_INBOX_UPDATE", function()
+  if not (GetInboxNumItems and GetInboxHeaderInfo) then return end
+  local money = 0
+  for i = 1, GetInboxNumItems() or 0 do
+    local ok, _, _, _, _, m = pcall(GetInboxHeaderInfo, i)
+    if ok and m and m > 0 then money = money + m end
+  end
+  ns.db.mailbox = ns.db.mailbox or {}
+  ns.db.mailbox[ns.CharKey()] = { t = time(), money = money }
+end)
 
 -- Undercut: someone (or a cheaper one of yours) is listed below your price.
 local function undercutBy(e)
@@ -166,11 +204,40 @@ end
 ---------------------------------------------------------------------------
 local ROW = 22
 local X = { name = 24, q = 200, each = 262, now = 324 }
+local VIEWS = { { "all", "All" }, { "up", "Up" }, { "undercut", "Undercut" }, { "sold", "Sold" } }
+local view = "all"
+local cancelState     -- nil, "asking" (first click, until asked = time), or "on" (each click cancels one)
+local askedAt = 0
+local pending = {}    -- [auctionID] = true: cancel sent, waiting for the list to update
 
 local function shortLeft(secs)
   if not secs then return "" end
   if secs >= 3600 then return math.floor(secs / 3600) .. "h" end
   return math.max(1, math.floor(secs / 60)) .. "m"
+end
+
+-- When a sale's gold reaches the mailbox: "in 34m", or "in your mailbox".
+local function mailText(e)
+  if e.mailed then return "in your mailbox" end
+  local left = (e.soldAt or time()) + SALE_MAIL_SECONDS - time()
+  if left <= 0 then return "in your mailbox soon" end
+  return "mail in " .. shortLeft(left)
+end
+
+-- The undercut ones, in the order shown, not already being cancelled.
+local function undercutList(list)
+  local out = {}
+  for _, e in ipairs(list) do
+    if e.a and not pending[e.a] and undercutBy(e) then out[#out + 1] = e end
+  end
+  return out
+end
+
+local function cancelOne(e)
+  if not (e and e.a and AH and AH.CancelAuction) then return end
+  pending[e.a] = true
+  local ok, err = pcall(AH.CancelAuction, e.a)
+  if not ok then pending[e.a] = nil; ns:Print("Couldn't cancel that auction: " .. tostring(err)) end
 end
 
 local function getRow(i)
@@ -194,18 +261,19 @@ local function getRow(i)
   r.now:SetPoint("RIGHT", r, "LEFT", X.now, 0)
   r.status = T:Text(r, 11)
   r.status:SetPoint("LEFT", X.now + 8, 0)
-  -- Cancel: two clicks (the deposit is lost), only on undercut ones.
+  r.status:SetPoint("RIGHT", r, "RIGHT", -60, 0)
+  r.status:SetJustifyH("LEFT")
+  r.status:SetWordWrap(false)
+  -- One auction: two clicks (the deposit is lost).
   r.cancel = T:Button(r, "Cancel", 52, function(self)
     local e = self:GetParent().entry
     if not (e and e.a) then return end
     if armed[e.a] and GetTime() - armed[e.a] < 4 then
       armed[e.a] = nil
-      local ok, err = pcall(AH.CancelAuction, e.a)
-      if not ok then ns:Print("Couldn't cancel that auction: " .. tostring(err)) end
+      cancelOne(e)
     else
       armed[e.a] = GetTime()
       self:SetText("Sure?")
-      C_Timer.After(4, function() if refresh then refresh() end end)
     end
   end, 18)
   r.cancel:SetPoint("RIGHT", -4, 0)
@@ -213,7 +281,7 @@ local function getRow(i)
   r.cancel:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:AddLine("Cancel this auction", 1, 1, 1)
-    GameTooltip:AddLine("Click twice: the items come back by mail and the deposit is lost. Then repost them just under the cheapest.", nil, nil, nil, true)
+    GameTooltip:AddLine("Click twice: the items come back by mail and the deposit is lost. Cancel next undercut at the bottom does them one after another.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   r.cancel:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -223,10 +291,15 @@ local function getRow(i)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     if e.link then GameTooltip:SetHyperlink(e.link) else GameTooltip:SetItemByID(e.id) end
     GameTooltip:AddLine(" ")
-    local _, rec = cheapestNow(e)
     GameTooltip:AddDoubleLine("Yours", e.each and (ns.Money(e.each) .. " each") or "?", 0.7, 0.7, 0.7, 1, 1, 1)
-    if rec and rec.t then GameTooltip:AddDoubleLine("Prices checked", ns.Age(rec.t), 0.7, 0.7, 0.7, 1, 1, 1) end
-    if e.left and not e.sold then GameTooltip:AddDoubleLine("Time left (when read)", shortLeft(e.left), 0.7, 0.7, 0.7, 1, 1, 1) end
+    if e.sold then
+      GameTooltip:AddDoubleLine("You get, after the cut", ns.Money(proceeds(e)), 0.7, 0.7, 0.7, 0.5, 0.83, 0.61)
+      GameTooltip:AddDoubleLine("Gold", mailText(e), 0.7, 0.7, 0.7, 1, 1, 1)
+    else
+      local _, rec = cheapestNow(e)
+      if rec and rec.t then GameTooltip:AddDoubleLine("Prices checked", ns.Age(rec.t), 0.7, 0.7, 0.7, 1, 1, 1) end
+      if e.left then GameTooltip:AddDoubleLine("Time left (when read)", shortLeft(e.left), 0.7, 0.7, 0.7, 1, 1, 1) end
+    end
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -239,17 +312,44 @@ refresh = function()
   local m = mine()
   local list = m and m.list or {}
   -- Undercut first, then the rest; sold at the end.
+  local function rank(e) return e.sold and 3 or (undercutBy(e) and 1 or 2) end
   local order = {}
   for _, e in ipairs(list) do order[#order + 1] = e end
-  local function rank(e) return e.sold and 3 or (undercutBy(e) and 1 or 2) end
   table.sort(order, function(a, b)
     if rank(a) ~= rank(b) then return rank(a) < rank(b) end
     return ns.ItemName(a.id) < ns.ItemName(b.id)
   end)
+  -- Counts for the view tabs, and the gold on its way.
+  local counts = { all = #order, up = 0, undercut = 0, sold = 0 }
+  local onWay, nextIn = 0, nil
+  for _, e in ipairs(order) do
+    if e.sold then
+      counts.sold = counts.sold + 1
+      if not e.mailed then
+        onWay = onWay + proceeds(e)
+        local left = (e.soldAt or time()) + SALE_MAIL_SECONDS - time()
+        if left > 0 then nextIn = math.min(nextIn or left, left) end
+      end
+    else
+      counts.up = counts.up + 1
+      if undercutBy(e) then counts.undercut = counts.undercut + 1 end
+    end
+  end
+  for _, v in ipairs(VIEWS) do
+    local b = frame.views[v[1]]
+    b:SetText(v[2] .. (counts[v[1]] > 0 and (" |cff888888" .. counts[v[1]] .. "|r") or ""))
+    b:SetWidth(b:GetFontString():GetStringWidth() + 20)
+    b:SetSelected(view == v[1])
+  end
+  local shown = {}
+  for _, e in ipairs(order) do
+    if view == "all" or (view == "sold" and e.sold) or (view == "up" and not e.sold)
+      or (view == "undercut" and undercutBy(e)) then shown[#shown + 1] = e end
+  end
+
   local width = frame.sf:GetWidth() - 12
   frame.content:SetWidth(width)
-  local under, cheapest = 0, 0
-  for i, e in ipairs(order) do
+  for i, e in ipairs(shown) do
     local r = getRow(i)
     r.entry = e
     r:ClearAllPoints()
@@ -262,49 +362,84 @@ refresh = function()
     r.name:SetText(e.sold and ("|cff888888" .. name .. "|r") or name)
     r.q:SetText(tostring(e.q or 1))
     r.each:SetText(e.each and ns.MoneyPlain(e.each) or "|cff888888?|r")
-    local now = cheapestNow(e)
-    local by = undercutBy(e)
-    r.now:SetText(now and ((by and "|cffee8597" or "|cff7fd39c") .. ns.MoneyPlain(now) .. "|r") or "|cff888888?|r")
+    local now, by = cheapestNow(e), undercutBy(e)
     if e.sold then
-      r.status:SetText("|cff888888sold|r")
-    elseif by then
-      under = under + 1
-      r.status:SetText("|cffee8597undercut|r")
-    elseif now then
-      cheapest = cheapest + 1
-      r.status:SetText("|cff7fd39ccheapest|r")
+      r.now:SetText("|cff7fd39c+" .. ns.MoneyPlain(proceeds(e)) .. "|r")
+      r.status:SetText("|cff888888sold, " .. mailText(e) .. "|r")
     else
-      r.status:SetText("|cff888888not priced|r")
+      r.now:SetText(now and ((by and "|cffee8597" or "|cff7fd39c") .. ns.MoneyPlain(now) .. "|r") or "|cff888888?|r")
+      if e.a and pending[e.a] then r.status:SetText("|cff888888cancelling...|r")
+      elseif by then r.status:SetText("|cffee8597undercut|r")
+      elseif now then r.status:SetText("|cff7fd39ccheapest|r")
+      else r.status:SetText("|cff888888not priced|r") end
     end
-    r.cancel:SetShown(by ~= nil and e.a ~= nil)
+    r.cancel:SetShown(by ~= nil and e.a ~= nil and not pending[e.a])
     r.cancel:SetText((e.a and armed[e.a] and GetTime() - armed[e.a] < 4) and "Sure?" or "Cancel")
     r:Show()
   end
-  for i = #order + 1, #rows do rows[i]:Hide() end
-  frame.content:SetHeight(math.max(#order * ROW, 20))
+  for i = #shown + 1, #rows do rows[i]:Hide() end
+  frame.content:SetHeight(math.max(#shown * ROW, 20))
   frame.sf.UpdateScrollBar()
-  frame.empty:SetShown(#order == 0)
-  frame.empty:SetText(ns:IsAHOpen() and "Nothing listed on this character. What you put up on the auction house shows here."
-    or "Open the auction house to see your auctions.")
-  frame.check:SetEnabled(ns:IsAHOpen() and #order > 0 and not (ns.Scan.active and not ns.Scan.quiet))
-  if #order == 0 then
-    frame.info:SetText("")
-  elseif under > 0 then
-    frame.info:SetText(("|cffee8597%d undercut.|r Cancel (twice) and repost just under the cheapest. %d still cheapest."):format(under, cheapest))
+  frame.empty:SetShown(#shown == 0)
+  frame.empty:SetText((#order == 0 and (ns:IsAHOpen() and "Nothing listed on this character. What you put up on the auction house shows here."
+    or "Open the auction house to see your auctions."))
+    or (view == "undercut" and "None undercut at the last check.") or (view == "sold" and "Nothing sold lately.")
+    or "Nothing here.")
+  frame.check:SetEnabled(ns:IsAHOpen() and counts.up > 0 and not (ns.Scan.active and not ns.Scan.quiet))
+
+  -- Cancel next undercut: asks once, then each click cancels the next one.
+  local todo = undercutList(order)
+  if cancelState == "asking" and GetTime() - askedAt > 8 then cancelState = nil end
+  if #todo == 0 then cancelState = nil end
+  frame.cancelNext:SetEnabled(#todo > 0 and ns:IsAHOpen())
+  frame.cancelNext:SetText(cancelState == "asking" and ("Yes, cancel %d"):format(#todo)
+    or (#todo > 0 and ("Cancel next undercut (%d)"):format(#todo)) or "Cancel next undercut")
+  frame.cancelNext:SetSelected(cancelState == "asking")
+
+  -- The bottom lines: what's next to cancel, or the gold on its way and in the mailbox.
+  local box = (ns.db.mailbox or {})[ns.CharKey()]
+  local gold = {}
+  if onWay > 0 then gold[#gold + 1] = ("On the way: |cff7fd39c%s|r%s"):format(ns.MoneyPlain(onWay), nextIn and (" (next in " .. shortLeft(nextIn) .. ")") or "") end
+  if box and box.money and box.money > 0 then gold[#gold + 1] = ("In your mailbox: |cff7fd39c%s|r (%s)"):format(ns.MoneyPlain(box.money), ns.Age(box.t)) end
+  frame.gold:SetText(table.concat(gold, "   "))
+  if cancelState == "asking" then
+    frame.info:SetText(("|cffffd100Cancel your %d undercut %s? Each loses its deposit.|r Click again to start; then each click cancels the next."):format(
+      #todo, #todo == 1 and "auction" or "auctions"))
+  elseif #todo > 0 then
+    local e = todo[1]
+    frame.info:SetText(("Next: %s x%d, yours %s, cheapest %s."):format(ns.ItemName(e.id), e.q or 1, ns.MoneyPlain(e.each), ns.MoneyPlain(undercutBy(e))))
+  elseif counts.up > 0 then
+    frame.info:SetText(("%d up, none undercut at the last check%s."):format(counts.up, m and m.t and (" (" .. ns.Age(m.t) .. ")") or ""))
   else
-    frame.info:SetText(("%d up, none undercut at the last check%s."):format(#order,
-      m and m.t and (" (" .. ns.Age(m.t) .. ")") or ""))
+    frame.info:SetText("")
   end
 end
+
+-- Pending cancels clear when the list comes back.
+ns:On("OWNED_AUCTIONS_UPDATED", function()
+  local still = {}
+  for _, e in ipairs((mine() or {}).list or {}) do if e.a then still[e.a] = true end end
+  for a in pairs(pending) do if not still[a] then pending[a] = nil end end
+end)
+ns:On("AUCTION_HOUSE_CLOSED", function() cancelState = nil; wipe(pending) end)
 
 function ns:YourAuctionsFrame(side)
   if frame or not side then return frame end
   frame = CreateFrame("Frame", "ForeverLedgerYourAuctions", side)
   frame:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -30)
   frame:SetPoint("BOTTOMRIGHT", side, "BOTTOMRIGHT", 0, 0)
+  -- All | Up | Undercut | Sold, like the Ledger's views.
+  frame.views = {}
+  local prev
+  for _, v in ipairs(VIEWS) do
+    local b = T:Tab(frame, v[2], function() view = v[1]; refresh() end)
+    if prev then b:SetPoint("LEFT", prev, "RIGHT", 0, 0) else b:SetPoint("TOPLEFT", 4, -2) end
+    frame.views[v[1]] = b
+    prev = b
+  end
   local header = CreateFrame("Frame", nil, frame)
-  header:SetPoint("TOPLEFT", 6, -8)
-  header:SetPoint("TOPRIGHT", -6, -8)
+  header:SetPoint("TOPLEFT", 6, -34)
+  header:SetPoint("TOPRIGHT", -6, -34)
   header:SetHeight(20)
   T:Fill(header, { 1, 1, 1, 0.05 })
   for _, c in ipairs({ { "Item", 8, "LEFT" }, { "Qty", X.q, "RIGHT" }, { "Yours", X.each, "RIGHT" },
@@ -314,12 +449,13 @@ function ns:YourAuctionsFrame(side)
     fs:SetText(c[1])
   end
   frame.sf, frame.content = T:Scroll(frame)
-  frame.sf:SetPoint("TOPLEFT", 6, -30)
-  frame.sf:SetPoint("BOTTOMRIGHT", -6, 58)
+  frame.sf:SetPoint("TOPLEFT", 6, -56)
+  frame.sf:SetPoint("BOTTOMRIGHT", -6, 74)
   frame.empty = T:Text(frame.content, 12, T.dim)
   frame.empty:SetPoint("TOPLEFT", 8, -8)
   frame.empty:SetPoint("RIGHT", frame.content, "RIGHT", -8, 0)
   frame.empty:SetJustifyH("LEFT")
+
   frame.check = T:Button(frame, "Check prices", 110, function() ns:CheckMyAuctions() end, 22)
   frame.check:SetPoint("BOTTOMLEFT", 10, 8)
   frame.check:HookScript("OnEnter", function(self)
@@ -329,13 +465,43 @@ function ns:YourAuctionsFrame(side)
     GameTooltip:Show()
   end)
   frame.check:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  -- One button, always in the same place: asks once, then each click cancels the next
+  -- undercut auction (owner, October 4: fewer clicks; Blizzard needs one per cancel).
+  frame.cancelNext = T:Button(frame, "Cancel next undercut", 190, function()
+    local m = mine()
+    local todo = undercutList(m and m.list or {})
+    if #todo == 0 then return end
+    if cancelState == "on" then
+      cancelOne(todo[1])
+    elseif cancelState == "asking" and GetTime() - askedAt <= 8 then
+      cancelState = "on"
+      cancelOne(todo[1])
+    else
+      cancelState, askedAt = "asking", GetTime()
+    end
+    refresh()
+  end, 22)
+  frame.cancelNext:SetPoint("BOTTOMRIGHT", -10, 8)
+  frame.cancelNext:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Cancel next undercut", 1, 1, 1)
+    GameTooltip:AddLine("Asks once, then each click cancels the next undercut auction (the line above says which). The items come back by mail; each loses its deposit. Repost them just under the cheapest.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  frame.cancelNext:HookScript("OnLeave", function() GameTooltip:Hide() end)
   frame.info = T:Text(frame, 11, T.dim)
   frame.info:SetPoint("BOTTOMLEFT", 12, 36)
   frame.info:SetPoint("RIGHT", frame, "RIGHT", -10, 0)
   frame.info:SetJustifyH("LEFT")
   frame.info:SetWordWrap(false)
+  frame.gold = T:Text(frame, 11, T.dim)
+  frame.gold:SetPoint("BOTTOMLEFT", 12, 54)
+  frame.gold:SetPoint("RIGHT", frame, "RIGHT", -10, 0)
+  frame.gold:SetJustifyH("LEFT")
+  frame.gold:SetWordWrap(false)
   frame:SetScript("OnShow", function() query(); refresh() end)
-  C_Timer.NewTicker(2, function() if frame:IsVisible() then refresh() end end)   -- "Sure?" times out, prices arrive
+  frame:SetScript("OnHide", function() cancelState = nil end)
+  C_Timer.NewTicker(2, function() if frame:IsVisible() then refresh() end end)   -- countdowns, "Sure?" times out
   frame:Hide()
   return frame
 end
