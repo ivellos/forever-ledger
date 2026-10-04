@@ -57,6 +57,16 @@ local PAGES = {
   { key = "profiles", title = "Profiles", icon = "Interface\\Icons\\INV_Misc_Book_09", custom = true,
     desc = "Sets of settings your characters can share, switch between, export and import." },
 
+  { key = "appearance", title = "Appearance", icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
+    desc = "How Forever Ledger's windows look. A change shows after a reload.",
+    rows = {
+      { key = "theme", label = "Theme", kind = "choice", after = function() ns:OfferReload() end, options = {
+          { "clean", "FL Clean" }, { "default", "FL Default" }, { "gilded", "FL Gilded" } },
+        help = "FL Clean: flat and quiet. FL Default: a bronze edge, gold titles, sections as cards, switches. FL Gilded: a bronze frame and gold serif titles. Looks based on WoW Forever's and Blizzard's own windows are coming." },
+      { key = "accent", label = "Accent colour", kind = "accent", after = function() ns:OfferReload() end,
+        help = "The colour of what's active: the chosen tab, switches that are on, highlights. Auto uses EllesmereUI's colour when it's installed." },
+    } },
+
   { group = "Gold making" },
   { key = "ah", title = "Auction house", icon = "Interface\\Icons\\INV_Misc_Coin_02",
     desc = "Buying, selling and alerts at the auction house.",
@@ -206,6 +216,81 @@ for _, p in ipairs(PAGES) do
 end
 
 ---------------------------------------------------------------------------
+-- Appearance: a new look shows after a reload (every frame is drawn in the theme when
+-- it's made), so a change offers one. Accept is a click, which ReloadUI needs.
+---------------------------------------------------------------------------
+if StaticPopupDialogs then
+  StaticPopupDialogs.FLEDGER_RELOAD = {
+    text = "Forever Ledger: reload now to see the new look?",
+    button1 = "Reload", button2 = "Later",
+    OnAccept = function() ReloadUI() end,
+    timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+  }
+end
+function ns:OfferReload()
+  local T = ns.Theme
+  if T and T.NeedsReload and T:NeedsReload() and StaticPopup_Show then StaticPopup_Show("FLEDGER_RELOAD") end
+end
+
+-- The accent colours on offer ("" = auto: EllesmereUI's, else the theme's teal).
+local ACCENTS = { "0cd29d", "e8c27a", "f08a24", "e5484d", "9b7bff", "3e9bff" }
+
+-- WoW's colour picker, old and new forms. done(r, g, b) as the colour changes.
+local function pickColour(start, done)
+  local CP = ColorPickerFrame
+  if not CP then return end
+  local r, g, b = start[1], start[2], start[3]
+  local function changed() local nr, ng, nb = CP:GetColorRGB(); done(nr, ng, nb) end
+  if CP.SetupColorPickerAndShow then
+    CP:SetupColorPickerAndShow({ r = r, g = g, b = b, hasOpacity = false, swatchFunc = changed, cancelFunc = function() done(r, g, b) end })
+  else
+    CP.func, CP.cancelFunc, CP.hasOpacity = changed, function() done(r, g, b) end, false
+    CP:SetColorRGB(r, g, b)
+    CP:Hide(); CP:Show()
+  end
+end
+
+-- The accent control: Auto, a row of colour squares, and Custom (the colour picker).
+local function accentControl(parent, onChange)
+  local f = CreateFrame("Frame", nil, parent)
+  f.items = {}
+  local x = 0
+  local function add(b, value)
+    b:SetPoint("LEFT", x, 0)
+    x = x + b:GetWidth() + 4
+    b.value = value
+    f.items[#f.items + 1] = b
+  end
+  add(T:Button(f, "Auto", 44, function() f:SetValue(""); onChange("") end, 20), "")
+  for _, hex in ipairs(ACCENTS) do
+    local c = T:FromHex(hex)
+    local b = T:Button(f, "", 20, function() f:SetValue(hex); onChange(hex) end, 20)
+    b.bg:SetColorTexture(c[1], c[2], c[3], 1)
+    b:SetScript("OnLeave", function(self) self.bg:SetColorTexture(c[1], c[2], c[3], 1); for _, e in ipairs(self.borders) do e:SetColorTexture(1, 1, 1, self.selected and 1 or 0.15) end end)
+    b:SetScript("OnEnter", function(self) for _, e in ipairs(self.borders) do e:SetColorTexture(1, 1, 1, 0.8) end end)
+    function b:SetSelected(on) self.selected = on; self:GetScript("OnLeave")(self) end
+    add(b, hex)
+  end
+  add(T:Button(f, "Custom", 60, function()
+    pickColour(T:FromHex(f.value) or T.accent, function(r, g, b)
+      local hex = T:ToHex({ r, g, b })
+      f:SetValue(hex)
+      onChange(hex)
+    end)
+  end, 20), "custom")
+  f:SetSize(x, 20)
+  function f:SetValue(v)
+    self.value = v or ""
+    local preset = self.value == ""
+    for _, hex in ipairs(ACCENTS) do if hex == self.value then preset = true end end
+    for _, b in ipairs(self.items) do
+      b:SetSelected(b.value == self.value or (b.value == "custom" and not preset))
+    end
+  end
+  return f
+end
+
+---------------------------------------------------------------------------
 -- Profiles: switching, new, rename, delete, reset, export, import
 ---------------------------------------------------------------------------
 local function profileNames()
@@ -228,6 +313,7 @@ end
 -- After the profile changes: everything that reads a setting once is told.
 local function afterSwitch()
   ns:ApplyCharSettings()
+  ns:OfferReload()   -- (the profile may have another theme or accent)
   if ns.UpdateMinimapButton then pcall(ns.UpdateMinimapButton, ns) end
   if ns.LayoutTabs then pcall(ns.LayoutTabs, ns) end
   if ns.UpdateCustomerAds then pcall(ns.UpdateCustomerAds, ns) end
@@ -312,6 +398,7 @@ local function validValue(d, v)
   if d.kind == "choice" then
     for _, o in ipairs(d.options) do if o[1] == v then return true end end
   end
+  if d.kind == "accent" then return v == "" or (type(v) == "string" and v:match("^%x%x%x%x%x%x$") ~= nil) end
   return false
 end
 
@@ -365,6 +452,8 @@ local function defaultText(d)
     return ("Default: %g%s."):format(v, s == "" and "" or ((s:sub(1, 1) == "%" and "" or " ") .. s))
   elseif d.kind == "money" then
     return "Default: " .. ((v > 0) and ns.MoneyPlain(v) or "off") .. "."
+  elseif d.kind == "accent" then
+    return "Default: Auto."
   end
 end
 
@@ -402,8 +491,10 @@ local function makeRow(box, d)
     else
       r.control = T:Choice(box, opts, changed)
     end
+  elseif d.kind == "accent" then
+    r.control = accentControl(box, changed)
   elseif d.kind == "check" then
-    r.control = T:Check(box, function(self) changed(self:GetChecked()) end)
+    r.control = T:Check(box, function(self) changed(self:GetChecked()) end, "switch")
   end
   r.line = box:CreateTexture(nil, "BACKGROUND")
   r.line:SetColorTexture(1, 1, 1, 0.04)
@@ -415,17 +506,27 @@ end
 -- A small heading inside a tab, on a faint accent band (owner's test, October 3).
 local function makeSub(box, text)
   local r = { head = true }
-  r.text = T:Text(box, 11, T.accent)
-  r.text:SetText(text:upper())
-  r.text:SetAlpha(0.85)
+  r.text = T:Text(box, 11)
+  T:StyleHeading(r.text, text)
+  -- A faint band behind it; on Gilded a gold rule under it instead.
   r.band = box:CreateTexture(nil, "BACKGROUND")
-  r.band:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.07)
+  local c = T.theme.heading or T.accent
+  if T.theme.serif then
+    r.band:SetColorTexture(c[1], c[2], c[3], 0)
+    r.rule = box:CreateTexture(nil, "BORDER")
+    r.rule:SetColorTexture(c[1], c[2], c[3], 0.5)
+    r.rule:SetHeight(1)
+    r.rule:SetPoint("BOTTOMLEFT", r.band, "BOTTOMLEFT", 0, 0)
+    r.rule:SetPoint("BOTTOMRIGHT", r.band, "BOTTOMRIGHT", 0, 0)
+  else
+    r.band:SetColorTexture(c[1], c[2], c[3], 0.07)
+  end
   r.band:SetHeight(20)
   return r
 end
 
 local function showRow(r, on)
-  if r.head then r.text:SetShown(on); r.band:SetShown(on); return end
+  if r.head then r.text:SetShown(on); r.band:SetShown(on); if r.rule then r.rule:SetShown(on) end; return end
   r.label:SetShown(on); r.control:SetShown(on); r.line:SetShown(on)
   if r.help then r.help:SetShown(on) end
 end
@@ -449,7 +550,7 @@ local function layoutRows(box, rows, width, y)
     else
       local check = r.def.kind == "check"
       local cw = check and 0 or r.control:GetWidth()
-      local textX = (check and 34 or 12) + (r.indent or 0)
+      local textX = (check and (20 + r.control:GetWidth()) or 12) + (r.indent or 0)   -- (a switch is wider than a tick box)
       local textW = math.max(120, check and (width - textX - 12) or (width - cw - 36 - (r.indent or 0)))
       r.label:ClearAllPoints()
       r.label:SetPoint("TOPLEFT", box, "TOPLEFT", textX, -(y + 5))
@@ -713,9 +814,8 @@ function ns:BuildSettings(parent)
   local y = 38
   for _, p in ipairs(PAGES) do
     if p.group then
-      local h = T:Text(f.nav, 10, T.accent)
-      h:SetText(p.group:upper())
-      h:SetAlpha(0.8)
+      local h = T:Text(f.nav, 10)
+      T:StyleHeading(h, p.group)
       h:SetPoint("TOPLEFT", 10, -(y + 8))
       y = y + 26
     else
@@ -729,6 +829,7 @@ function ns:BuildSettings(parent)
 
   -- The page: title, a line about it, tabs, then its settings.
   f.title = T:Text(f, 16)
+  T:StyleTitle(f.title, 16)
   f.title:SetPoint("TOPLEFT", NAV_W + 14, -4)
   f.desc = T:Text(f, 11, T.dim)
   f.desc:SetPoint("TOPLEFT", NAV_W + 14, -26)
@@ -768,6 +869,7 @@ function ns:BuildSettings(parent)
         end
         local box = CreateFrame("Frame", nil, content)
         box:Hide()
+        T:Card(box)   -- (Default and Gilded: each part of a page as a card)
         box.page, box.tabIndex, box.rows = p, i, {}
         box.headBand = box:CreateTexture(nil, "BACKGROUND")
         box.headBand:SetColorTexture(1, 1, 1, 0.05)

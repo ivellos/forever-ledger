@@ -27,7 +27,8 @@ local function blizzButton(parent, label, width, onClick)
 end
 
 -- A dark, flat window with a title bar you can drag and a close button.
-local function themedWindow(name, w, h, titleText)
+-- footerY: pixels from the bottom where a footer starts (the theme tints it).
+local function themedWindow(name, w, h, titleText, footerY)
   local f = CreateFrame("Frame", name, UIParent)
   f:SetSize(w, h)
   f:SetPoint("CENTER")
@@ -55,6 +56,7 @@ local function themedWindow(name, w, h, titleText)
   bar:SetScript("OnDragStop", function() f:StopMovingOrSizing() end)
 
   f.title = T:Text(bar, 14)
+  if T.theme.serif then f.title:SetFont(T.SERIF, 16, "") end
   f.title:SetPoint("LEFT", 12, 0)
   f.title:SetText(titleText)
 
@@ -68,6 +70,7 @@ local function themedWindow(name, w, h, titleText)
   close:SetScript("OnLeave", function() x:SetTextColor(T.dim[1], T.dim[2], T.dim[3], T.dim[4]) end)
   close:SetScript("OnClick", function() f:Hide() end)
   f.bar = bar
+  T:DecorateWindow(f, footerY, bar)
   return f
 end
 
@@ -137,7 +140,7 @@ end
 local function buildMain()
   if main then return main end
   main = themedWindow("ForeverLedgerFrame", 760, 520,
-    T:AccentCode() .. "Forever Ledger|r  " .. dim(ns.VERSION))
+    T:TitleCode() .. "Forever Ledger|r  " .. dim(ns.VERSION), 46)
   -- Shopping lists away from the auction house, to plan ahead (owner, October 3).
   local lists = T:Button(main.bar, "Shopping lists", 110, function() ns:ShowSidePanel("lists") end, 22)
   lists:SetPoint("RIGHT", main.bar, "RIGHT", -36, 0)

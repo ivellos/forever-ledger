@@ -50,7 +50,8 @@ local DEFAULTS = {
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
     -- wheel starts off so nobody buys by accident (owner, October 2).
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = false, tab = "queue" },
-    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true },
+    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true,
+    theme = "default", accent = "" },
 }
 -- For Settings: "Default: Auto." under each choice (UI.lua).
 ns.DEFAULT_SETTINGS = DEFAULTS.settings
@@ -494,6 +495,7 @@ ns:On("ADDON_LOADED", function(name)
   copyDefaults(DEFAULTS, ForeverLedgerDB)
   ns.db = ForeverLedgerDB
   ns:ApplyCharSettings()
+  if ns.Theme and ns.Theme.Apply then ns.Theme:Apply() end   -- the look, before any of our frames exist
   for _, fn in ipairs(ns.readyCallbacks) do
     local ok, err = pcall(fn)
     if not ok then geterrorhandler()(err) end

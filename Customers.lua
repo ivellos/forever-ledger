@@ -587,7 +587,7 @@ end
 function ns:ShowCustomers(quiet)
   local T = ns.Theme
   if not win then
-    win = ns.ThemedWindow("ForeverLedgerCustomers", 620, 330, T:AccentCode() .. "Customers|r")
+    win = ns.ThemedWindow("ForeverLedgerCustomers", 620, 330, T:TitleCode() .. "Customers|r")
     win:ClearAllPoints()
     win:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -260, -160)
     -- Ad buttons: left-click posts, right-click edits the text.

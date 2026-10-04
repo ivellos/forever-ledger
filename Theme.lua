@@ -19,7 +19,69 @@ local T = {
 }
 ns.Theme = T
 
--- Read EllesmereUI's font and accent. Safe to call any time; does nothing without it.
+---------------------------------------------------------------------------
+-- Themes (owner, October 4: "implement all three" from the mockup). Settings,
+-- Appearance picks one per profile (settings.theme) and an accent colour
+-- (settings.accent: "" = EllesmereUI's when installed, else the theme's own; or a hex
+-- colour like "0cd29d"). Applied once at load (Core.lua calls T:Apply), before any of
+-- our frames exist, so every frame is drawn in it; changing it asks for a reload.
+-- All three keep EllesmereUI's flat dark base so they sit well next to it:
+--   clean    flat, thin borders, tick boxes, the accent for headings
+--   default  plus a bronze line along the top, gold titles, small-caps gold headings,
+--            sections as cards, toggle switches, a tinted footer
+--   gilded   plus a bronze frame, serif gold titles (Morpheus), serif headings with a
+--            gold rule, bronze-edged cards
+---------------------------------------------------------------------------
+local GOLD = { 0.91, 0.76, 0.48 }
+local BRONZE = { 0.61, 0.42, 0.21 }
+local TEAL = { 12 / 255, 210 / 255, 157 / 255 }
+
+T.THEMES = {
+  clean = { name = "FL Clean", accent = TEAL,
+    bg = { 0.067, 0.067, 0.067, 0.97 }, header = { 0.09, 0.09, 0.09, 1 } },
+  default = { name = "FL Default", accent = TEAL,
+    bg = { 0.071, 0.071, 0.071, 0.97 }, header = { 0.086, 0.078, 0.071, 1 },
+    topLine = BRONZE, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
+  gilded = { name = "FL Gilded", accent = TEAL,
+    bg = { 0.078, 0.071, 0.063, 0.97 }, header = { 0.114, 0.094, 0.075, 1 },
+    frame = BRONZE, topLine = BRONZE, title = GOLD, heading = GOLD, serif = true,
+    cards = true, cardEdge = BRONZE, toggles = true, footer = true },
+}
+T.THEME_ORDER = { "clean", "default", "gilded" }
+T.SERIF = "Fonts\\MORPHEUS.TTF"
+T.theme = T.THEMES.default
+
+-- "0cd29d" -> { r, g, b } (nil if it isn't a colour).
+function T:FromHex(hex)
+  if type(hex) ~= "string" or not hex:match("^%x%x%x%x%x%x$") then return end
+  return { tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255 }
+end
+function T:ToHex(c) return ("%02x%02x%02x"):format(c[1] * 255 + 0.5, c[2] * 255 + 0.5, c[3] * 255 + 0.5) end
+
+-- EllesmereUI's accent, if it's installed.
+local function euiAccent()
+  local E = EllesmereUI
+  if type(E) ~= "table" then return end
+  if type(E.ResolveProfileAccent) == "function" and type(E.GetActiveProfileData) == "function" then
+    local ok, _, r, g, b = pcall(function() return E.ResolveProfileAccent(E.GetActiveProfileData()) end)
+    if ok and r then return { r, g, b } end
+  end
+  local green = E.ELLESMERE_GREEN
+  if type(green) == "table" and green.r then return { green.r, green.g, green.b } end
+end
+
+-- The theme and accent this character's settings ask for (Core.lua, at load).
+function T:Apply()
+  local s = ns.db and ns.db.settings
+  local key = s and s.theme
+  T.themeKey = T.THEMES[key or ""] and key or "default"
+  T.theme = T.THEMES[T.themeKey]
+  T.bg, T.header = T.theme.bg, T.theme.header
+  T.accent = T:FromHex(s and s.accent) or euiAccent() or T.theme.accent
+end
+
+-- Read EllesmereUI's font, and its accent unless one was picked. Safe to call any time;
+-- does nothing without it.
 function T:Refresh()
   local E = EllesmereUI
   if type(E) ~= "table" then return end
@@ -27,12 +89,99 @@ function T:Refresh()
     local ok, path = pcall(E.GetFontPath)
     if ok and type(path) == "string" and path ~= "" then T.font = path end
   end
-  if type(E.ResolveProfileAccent) == "function" and type(E.GetActiveProfileData) == "function" then
-    local ok, _, r, g, b = pcall(function() return E.ResolveProfileAccent(E.GetActiveProfileData()) end)
-    if ok and r then T.accent = { r, g, b }; return end
+  local picked = ns.db and T:FromHex(ns.db.settings.accent)
+  if not picked then T.accent = euiAccent() or T.accent end
+end
+
+-- Whether the look on screen differs from the settings (a reload shows it).
+function T:NeedsReload()
+  local s = ns.db and ns.db.settings
+  if not s then return false end
+  local want = T.THEMES[s.theme or ""] and s.theme or "default"
+  local accent = T:FromHex(s.accent) or euiAccent() or T.THEMES[want].accent
+  return want ~= T.themeKey or T:ToHex(accent) ~= T:ToHex(T.accent)
+end
+
+-- Colour code for titles: gold on themes with gold titles, else the accent.
+function T:TitleCode()
+  local c = T.theme.title or T.accent
+  return ("|cff%02x%02x%02x"):format(c[1] * 255, c[2] * 255, c[3] * 255)
+end
+
+-- A page or window title: gold (and serif on Gilded) where the theme has them.
+function T:StyleTitle(fs, size)
+  local t = T.theme
+  fs:SetFont((t.serif and T.SERIF) or T.font, (size or 16) + (t.serif and 2 or 0), "")
+  local c = t.title or T.text
+  fs:SetTextColor(c[1], c[2], c[3], 1)
+end
+
+-- A small heading: accent small caps (Clean), gold small caps (Default), gold serif
+-- (Gilded). Pass the plain text; returns what to show.
+function T:StyleHeading(fs, text)
+  local t = T.theme
+  local c = t.heading or T.accent
+  if t.serif then
+    fs:SetFont(T.SERIF, 13, "")
+    fs:SetTextColor(c[1], c[2], c[3], 1)
+    fs:SetText(text)
+  else
+    fs:SetFont(T.font, 11, "")
+    fs:SetTextColor(c[1], c[2], c[3], 0.9)
+    fs:SetText(text:upper())
   end
-  local green = E.ELLESMERE_GREEN
-  if type(green) == "table" and green.r then T.accent = { green.r, green.g, green.b } end
+end
+
+-- A section as a card (Default and Gilded): a faint panel with an edge.
+function T:Card(frame)
+  if not T.theme.cards then return end
+  local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
+  bg:SetAllPoints()
+  bg:SetColorTexture(1, 1, 1, 0.025)
+  T:Border(frame, T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.07 })
+end
+
+-- The theme's dressing on a window: the bronze line along the top, a line under the
+-- title bar, the bronze frame, a tinted footer below footerY (pixels from the bottom;
+-- optional).
+function T:DecorateWindow(f, footerY, bar)
+  local t = T.theme
+  -- Under the title bar: a faint accent line (Default) or bronze (Gilded).
+  if bar and t.topLine then
+    local under = bar:CreateTexture(nil, "BORDER")
+    under:SetPoint("BOTTOMLEFT")
+    under:SetPoint("BOTTOMRIGHT")
+    under:SetHeight(1)
+    local c = t.frame or T.accent
+    under:SetColorTexture(c[1], c[2], c[3], 0.35)
+  end
+  if t.frame then
+    for _, e in ipairs(f.borders or {}) do e:SetColorTexture(t.frame[1], t.frame[2], t.frame[3], 0.9) end
+    local inner = CreateFrame("Frame", nil, f)
+    inner:SetPoint("TOPLEFT", 1, -1)
+    inner:SetPoint("BOTTOMRIGHT", -1, 1)
+    T:Border(inner, { t.frame[1], t.frame[2], t.frame[3], 0.5 })
+  end
+  if t.topLine then
+    local line = f:CreateTexture(nil, "OVERLAY")
+    line:SetPoint("TOPLEFT")
+    line:SetPoint("TOPRIGHT")
+    line:SetHeight(2)
+    line:SetColorTexture(t.topLine[1], t.topLine[2], t.topLine[3], 1)
+  end
+  if t.footer and footerY then
+    local foot = f:CreateTexture(nil, "BACKGROUND", nil, 1)
+    foot:SetPoint("BOTTOMLEFT", 1, 1)
+    foot:SetPoint("BOTTOMRIGHT", -1, 1)
+    foot:SetHeight(footerY - 1)
+    foot:SetColorTexture(0, 0, 0, 0.22)
+    local line = f:CreateTexture(nil, "BORDER")
+    line:SetPoint("BOTTOMLEFT", 1, footerY)
+    line:SetPoint("BOTTOMRIGHT", -1, footerY)
+    line:SetHeight(1)
+    local c = t.frame or T.accent
+    line:SetColorTexture(c[1], c[2], c[3], t.frame and 0.6 or 0.3)
+  end
 end
 
 -- The accent as a colour code for text, for example "|cff0cd29d".
@@ -287,8 +436,32 @@ function T:Tab(parent, label, onClick)
 end
 
 -- A small square checkbox with a label. GetChecked/SetChecked like Blizzard's.
-function T:Check(parent, onClick)
+-- style "switch", on themes with toggles (Default, Gilded): a small switch instead, a
+-- track in the accent when on, grey when off, with a knob that moves across. Same API
+-- either way. Only roomy places ask for it (Settings); grids keep the tick box.
+function T:Check(parent, onClick, style)
   local b = CreateFrame("Button", nil, parent)
+  if T.theme.toggles and style == "switch" then
+    b:SetSize(26, 14)
+    b.track = b:CreateTexture(nil, "BACKGROUND")
+    b.track:SetAllPoints()
+    b.knob = b:CreateTexture(nil, "ARTWORK")
+    b.knob:SetSize(10, 10)
+    b.knob:SetColorTexture(1, 1, 1, 1)
+    b.label = T:Text(b, 12)
+    b.label:SetPoint("LEFT", b, "RIGHT", 6, 0)
+    function b:SetChecked(on)
+      self.checked = on and true or false
+      if self.checked then self.track:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 1)
+      else self.track:SetColorTexture(1, 1, 1, 0.18) end
+      self.knob:ClearAllPoints()
+      self.knob:SetPoint(self.checked and "RIGHT" or "LEFT", self.checked and -2 or 2, 0)
+    end
+    function b:GetChecked() return self.checked end
+    b:SetScript("OnClick", function(self) self:SetChecked(not self.checked); if onClick then onClick(self) end end)
+    b:SetChecked(false)
+    return b
+  end
   b:SetSize(14, 14)
   T:Fill(b, T.button)
   T:Border(b, { 1, 1, 1, 0.25 })

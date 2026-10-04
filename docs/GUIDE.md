@@ -17,6 +17,8 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 **Settings** has a sidebar like EllesmereUI's options: **Global settings** first (the same for every character: the auction house cut, safety margin, seconds per craft, price source, and what counts as a vendor flip or a deal), then **Profiles**, then a page for each part of the addon (Auction house, Tooltips, Customers, Waylaid Crates, Sessions, Minimap and updates), with tabs across the top where a page has several parts.
 
+**Themes** (Settings, Appearance): **FL Clean** (flat and quiet), **FL Default** (a bronze edge, gold titles, sections as cards, switches) or **FL Gilded** (a bronze frame and gold serif titles), each with an **accent colour**: Auto uses EllesmereUI's colour when it's installed; or pick one of the colours, or Custom for any. A new look shows after a reload, which it offers. The theme is part of your profile, so a character can look different.
+
 **Profiles**: a profile is a set of settings your characters can share: no tooltips on one character, no customer finder on another. Each character uses one, **Default** to start; pick another in the dropdown. **New profile** starts as a copy of your settings now and switches to it; **Rename**, **Reset to defaults** and **Delete profile** (click twice) work on the profile this character uses. **Export profile** copies it as text with only the parts you tick, and **Import profile** makes a new profile from someone's text (only settings travel, never your data). Global settings are never in a profile.
 
 ![The Forever Ledger window, Dashboard tab](images/dashboard.png)
