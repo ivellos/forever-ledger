@@ -25,6 +25,7 @@ local AH = C_AuctionHouse
 local frame, rows = nil, {}
 local alerted = {}        -- [auctionID] = the cheapest price we alerted at
 local armed = {}          -- [auctionID] = time Cancel was clicked once ("Sure?")
+local depositsWaiting = {}   -- [itemID] = { deposit, ... }: paid when posting, not yet matched to an auction
 
 local function store()
   ns.db.myAuctions = ns.db.myAuctions or {}
@@ -117,6 +118,12 @@ local function readOwned()
       local e = { a = info.auctionID, id = id, link = info.itemLink, q = info.quantity or 1,
         each = eachPrice(info, id), left = info.timeLeftSeconds, sold = info.status == sold or nil }
       if e.sold then e.soldAt = (before[e.a] and before[e.a].soldAt) or now end
+      -- Its deposit: kept from before, or the one just paid when it was posted.
+      if before[e.a] then
+        e.dep = before[e.a].dep
+      elseif depositsWaiting[id] and #depositsWaiting[id] > 0 then
+        e.dep = table.remove(depositsWaiting[id], 1)
+      end
       list[#list + 1] = e
       if e.a then seen[e.a] = true end
     end
@@ -131,10 +138,39 @@ local function readOwned()
   store()[ns.CharKey()] = { t = now, list = list, alerted = (mine() or {}).alerted }
 end
 
--- What a sold auction brings after the auction house cut.
+-- What a sold auction brings: the sale after the cut, plus the deposit, which comes back
+-- with it (owner's mail, October 4: 10 Empty Vials at 8c = 80c - 4c cut + 50c deposit
+-- = 1s 26c; confirmed the gold arrives about an hour after the sale).
 local function proceeds(e)
-  return e.each and math.floor(e.each * (e.q or 1) * (1 - (ns.db.settings.ahCut or 5) / 100)) or 0
+  if not e.each then return 0 end
+  return math.floor(e.each * (e.q or 1) * (1 - (ns.db.settings.ahCut or 5) / 100)) + (e.dep or 0)
 end
+
+-- The deposit of each new auction: the money it took when posting, given to the next
+-- new auction of that item that shows up in your list.
+local posting               -- { id, money } while a post goes through
+local function itemOf(loc)
+  local ok, id = pcall(function() return C_Item and C_Item.GetItemID and C_Item.GetItemID(loc) end)
+  return ok and id or nil
+end
+local function onPost(loc)
+  local id = itemOf(loc)
+  if id then posting = { id = id, money = GetMoney() } end
+end
+ns:OnReady(function()
+  if AH and AH.PostItem then hooksecurefunc(AH, "PostItem", onPost) end
+  if AH and AH.PostCommodity then hooksecurefunc(AH, "PostCommodity", onPost) end
+end)
+ns:On("PLAYER_MONEY", function()
+  local p = posting
+  if not p then return end
+  posting = nil
+  local paid = p.money - GetMoney()
+  if paid > 0 then
+    depositsWaiting[p.id] = depositsWaiting[p.id] or {}
+    table.insert(depositsWaiting[p.id], paid)
+  end
+end)
 
 -- Gold waiting in the mailbox, read when you open it.
 ns:On("MAIL_INBOX_UPDATE", function()
@@ -351,7 +387,9 @@ local function getRow(i)
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine("Yours", e.each and (ns.Money(e.each) .. " each") or "?", 0.7, 0.7, 0.7, 1, 1, 1)
     if e.sold then
-      GameTooltip:AddDoubleLine("You get, after the cut", ns.Money(proceeds(e)), 0.7, 0.7, 0.7, 0.5, 0.83, 0.61)
+      GameTooltip:AddDoubleLine("You get", ns.Money(proceeds(e)), 0.7, 0.7, 0.7, 0.5, 0.83, 0.61)
+      GameTooltip:AddLine(e.dep and ("The sale after the cut, plus your %s deposit back."):format(ns.Money(e.dep))
+        or "The sale after the cut (plus the deposit, if it was posted before this was counted).", 0.6, 0.6, 0.6, true)
       GameTooltip:AddDoubleLine("Gold", mailText(e), 0.7, 0.7, 0.7, 1, 1, 1)
     else
       local _, rec = cheapestNow(e)
