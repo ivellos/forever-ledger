@@ -505,6 +505,8 @@ local SETTINGS = {
     help = "The Forever Ledger button on the minimap. /fl opens the window either way." },
   { key = "crates", label = "Waylaid Crates", kind = "check", after = function() ns:LayoutTabs() end,
     help = "The Crates tab and the \"cheapest fill\" tooltip line." },
+  { key = "updateNotice", label = "Tell me when a new version is out", kind = "check",
+    help = "Forever Ledger hears it from guildmates and group members who have a newer version, and says so in chat once a session. It only shares the version number." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
 -- Layout: sections listed on the left, the chosen one's settings on the right (owner,

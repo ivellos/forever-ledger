@@ -34,6 +34,7 @@ Work.lua
 Sessions.lua
 Dungeons.lua
 Sync.lua
+Version.lua
 AuctionHouse.lua
 SellGuard.lua
 ShoppingLists.lua

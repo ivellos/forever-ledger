@@ -159,18 +159,21 @@ end
 local function checkAlerts()
   local m = mine()
   if not m or ns.db.settings.undercutAlerts == false then return end
-  -- What was already alerted is saved, so a reload doesn't alert again (owner's test,
-  -- October 4); only auctions still up are kept.
+  -- Once per login as a reminder (owner, October 4: "a good reminder"), not on every
+  -- reload; again if the price drops further. Kept by item and price, saved: auction
+  -- IDs seem to change on a reload in Forever.
   m.alerted = m.alerted or {}
+  local function key(e) return e.id .. ":" .. (e.each or 0) .. ":" .. (e.q or 1) end
   local up = {}
-  for _, e in ipairs(m.list) do if e.a then up[e.a] = true end end
-  for a in pairs(m.alerted) do if not up[a] then m.alerted[a] = nil end end
+  for _, e in ipairs(m.list) do up[key(e)] = true end
+  for k in pairs(m.alerted) do if not up[k] then m.alerted[k] = nil end end
   alerted = m.alerted
   local news = {}
   for _, e in ipairs(m.list) do
     local now = undercutBy(e)
-    if now and e.a and (not alerted[e.a] or now < alerted[e.a]) then
-      alerted[e.a] = now
+    local k = key(e)
+    if now and (not alerted[k] or now < alerted[k]) then
+      alerted[k] = now
       news[#news + 1] = e
     end
   end
@@ -195,6 +198,11 @@ end)
 ns:On("AUCTION_CANCELED", function() C_Timer.After(0.5, query) end)
 ns:On("AUCTION_HOUSE_AUCTION_CREATED", function() C_Timer.After(0.5, query) end)
 ns:On("AUCTION_HOUSE_SHOW", function() C_Timer.After(1, query) end)
+-- A new login: remind about undercuts again (a reload doesn't).
+ns:On("PLAYER_ENTERING_WORLD", function(isLogin)
+  local m = isLogin and mine()
+  if m then m.alerted = nil end
+end)
 
 -- New prices from any scan: check your auctions against them.
 ns:OnReady(function()

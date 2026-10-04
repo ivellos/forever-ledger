@@ -98,6 +98,7 @@ ns.HELP = {
     { "Export and import", "On the Characters tab, to copy everything across by hand." },
   } },
   { "Help and community", {
+    { "New versions", "When a guildmate or group member has a newer Forever Ledger, chat says so once a session, with where to update. Only the version number is shared (Settings, Other)." },
     { "Discord", "discord.gg/WKsCtvupeC: updates, questions, and WoW Forever news." },
     { "Found a bug?", "Type /bug on the Discord and fill in the short form. Include /fl api output or the BugSack error if you can." },
     { "Have an idea?", "Type /feature on the Discord. You'll get updates in your post." },
