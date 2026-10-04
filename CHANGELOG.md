@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Price helper on the Sell tab: the usual price and the cheapest now above the price box, with Undercut and Usual buttons that fill the price in, and a note when the cheapest is well below usual. You still click Post.
+- Price helper on the Sell tab: the usual price and the cheapest now under the Create Auction button, with Undercut and Usual buttons that fill the price in, and a note when the cheapest is well below usual. You still click Post.
 - `/fl frame` names the window under the mouse, for troubleshooting.
 
 ### Changed
