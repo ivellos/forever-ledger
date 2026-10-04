@@ -1,33 +1,58 @@
 # Forever Ledger
 
-A gold-making addon built specifically for **WoW Forever**. It scans the auction house and shows what every item is actually worth to *you*: sell it, vendor it, disenchant it, or craft it into something better. Then it points you at the best buys.
+**Make gold in WoW Forever without the spreadsheet.** Forever Ledger scans the auction house, tells you what every item is really worth to *you*, and lines up the best buys for one click each.
 
-> **Status:** pre-release, tested in the Forever beta and updated often. Expect the odd rough edge, and please report it.
->
-> **Discord:** [discord.gg/WKsCtvupeC](https://discord.gg/WKsCtvupeC) for updates, help, bug reports and ideas.
+**[CurseForge](https://www.curseforge.com/wow/addons/forever-ledger)** · **[Wago](https://addons.wago.io/addons/forever-ledger)** · **[Discord](https://discord.gg/WKsCtvupeC)** · **[Guide](https://github.com/ivellos/forever-ledger/blob/main/docs/GUIDE.md)**
 
-## Features
+> **Status:** pre-release, tested in the Forever beta and updated often. Expect the odd rough edge, and please tell us on Discord.
 
-- **Tooltips that answer "what's this worth?"** The best way to turn an item into gold, the most it's worth paying, what it disenchants into, and which of your recipes use it. One line with Shift for more, if you prefer.
-- **Deals.** Listings well below their usual price, with why each one is a deal: the usual price and how many days of scans it's based on, the price now, the next listing up, and the resale profit after the auction house cut. Each deal is rated Good, Fair or Thin.
-- **Buy queue.** Vendor flips (things on the auction house for less than a vendor pays) and your shopping lists, lined up beside the auction house: click Buy, or scroll over it, to buy the next one, best profit you can afford first. Watch flips keeps scanning while the auction house is open and chimes when a new flip shows up. Spend at most caps what it spends each visit, and it never pays more than your limit or buys more than you asked for.
-- **Shopping lists.** Named lists of items (twink gear, raid consumables), saved and shareable. Search all checks the auction house for the whole list at once, even one version of gear ("of the Monkey"), and each item shows what you own across your characters. Tick one box to buy from a list in the Buy queue, with how many you want and the most you'll pay; set an item to Craft and the list shows its materials, and whether crafting or buying is cheaper.
-- **Shuffles.** Buy materials, craft, disenchant or convert, and sell, ranked by gold per hour. Work it walks you through each step with one-click buttons.
-- **On the auction house.** Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE).
-- **Disenchant finder.** Green armor and weapons by item level, with what each is worth to disenchant and the odds of each material.
-- **Recipes and trainers.** Every recipe for your professions: who knows it, where to get it, the skill needed and profit per craft.
-- **Waylaid Crates.** The cheapest way to fill each crate at today's prices, and gold per Merchant's Favor.
-- **Customer finder and ads.** Spots people in chat asking for what your character can do (enchanting, crafted items, Mage water and portals, Warlock summons, lockpicking), with Whisper and Invite buttons and one-click ads for Trade.
-- **Dashboard and Ledger.** Gold over time, and every transaction in one list: sales, purchases, resale profit and where the rest of your money goes. Select rows to see what they add up to.
-- **Sessions and dungeon runs.** A small tracker for what your time is worth (gold an hour, gold in and out, loot), and your dungeon runs and drops counted as you go.
-- **Price history.** Hold Ctrl over an item for its recent price range, which way it's heading, the usual price and the lowest ever seen.
-- **Quest items and sell protection.** Tooltips list the quests that need an item (and say keep it if you'll need it), and a warning stops you posting below what a vendor pays.
-- **Gear versions.** "Of the Eagle" and "of the Whale" are priced separately.
-- **Two accounts?** Live sync shares prices and recipes between them while both are online.
+![Item tooltip with what it's worth to you](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/tooltip.png)
+
+## At a glance
+
+- 💰 **Know what everything is worth.** Hover any item: sell it, vendor it, disenchant it or craft it, whichever pays most, and the most worth paying for it.
+- 🛒 **Buy the bargains in one click.** Vendor flips and your shopping lists lined up beside the auction house: click or scroll to buy the next one. It never pays more than your limit.
+- 📉 **Spot deals.** Listings well below their usual price, with the resale profit after the cut and how sure the deal is.
+- 📋 **Shopping lists.** Twink gear to watch for or raid consumables to buy: search the whole list at once, see what you already own, buy with a tick.
+- 🔨 **Profit from your professions.** Crafts and disenchants ranked by gold an hour, recipes and where to learn them, customers spotted in chat.
+- 📈 **See where your gold goes.** Gold over time, every sale and purchase in one list, and what each play session earned you.
+
+**The addon suggests; you click.** Every craft, purchase and auction is still your own click, as Blizzard requires.
+
+## Everything it does
+
+### Finding gold
+- **Tooltips:** what an item is worth to you and the best few ways to use it, the auction price, how fast it sells, what it disenchants into, which of your recipes use it, and quests that need it ("keep it" if you will). Hold Ctrl for its price history. One line with Shift for more, if you prefer.
+- **Deals:** listings well below their usual price, with the usual price, how many days of scans it's based on, the next listing up and the resale profit, rated Good, Fair or Thin.
+- **Vendor flips:** things on the auction house for less than a vendor pays. Watch flips keeps scanning while the auction house is open and chimes when one turns up.
+- **Shuffles:** buy materials, craft, disenchant or convert, and sell, ranked by gold an hour; Work it walks you through each step.
+- **On the auction house:** listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE).
+- **Disenchant finder:** green armor and weapons by item level, with what each is worth to disenchant, on average and on a bad or good roll.
+- **Gear versions:** "of the Eagle" and "of the Whale" are priced separately.
+
+### Buying
+- **Buy queue:** flips and shopping list items beside the auction house, best profit you can afford first; click Buy or scroll over it to buy the next one.
+- **Spend at most:** cap what the queue spends each auction house visit, or always keep some gold back for repairs.
+- **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Share a list as text.
+- **Sell protection:** a warning, and Post greyed out, before you list something for less than a vendor pays.
+
+### Crafting and professions
+- **Recipes and trainers:** every recipe for your professions, who knows it, where to get it, the skill needed and profit per craft.
+- **Waylaid Crates:** the cheapest way to fill each crate at today's prices, and gold per Merchant's Favor.
+- **Customer finder and ads:** spots people in chat asking for what your character can do (enchanting, crafted items, Mage water and portals, Warlock summons, lockpicking), with Whisper and Invite buttons, one-click ads for Trade, and a Silence button.
+
+### Your gold
+- **Dashboard:** gold over time, sales, expenses and profit.
+- **Ledger:** every transaction in one list; select rows to see what they add up to; resale profit per item.
+- **Sessions:** a small tracker for gold an hour, gold in and out and what you loot.
+- **Dungeon runs:** runs, time, coin and what dropped for you, per dungeon.
+
+### Getting around
+- **Welcome and Help:** a short guide the first time, Help by topic with common questions, and search boxes for Settings and Help.
 - **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
-- **Easy to find your way.** A short welcome the first time, Help by topic, and search boxes for Settings and Help.
+- **Two accounts?** Live sync shares prices and recipes between them while both are online.
 
-The addon suggests; you click. Every craft, purchase and auction still needs your own click, as Blizzard requires.
+![The Forever Ledger window, Dashboard tab](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/dashboard.png)
 
 ## Your data
 
@@ -59,35 +84,47 @@ See the [roadmap](https://github.com/ivellos/forever-ledger/blob/main/ROADMAP.md
 
 ## Commands
 
+Most things have a button; these are for when you'd rather type. The main ones:
+
 | Command | What it does |
 |---|---|
-| `/fl` | Open or close the ledger window |
-| `/fl scan` | Full scan if one is allowed, otherwise scan your materials (auction house must be open) |
+| `/fl` | Open or close the window |
+| `/fl scan` | Full scan if one is allowed, otherwise scan your materials (auction house open) |
+| `/fl watch` | Watch flips: keep scanning while the auction house is open |
+| `/fl queue`, `/fl lists` | The Buy queue, or your shopping lists (lists open anywhere) |
+| `/fl session start`, `/fl session stop` | Start or stop a session |
+| `/fl runs` | Your dungeon runs |
+
+<details>
+<summary>Show all commands</summary>
+
+| Command | What it does |
+|---|---|
 | `/fl scan full` | Scan every listing (Blizzard allows this about every 15 minutes) |
 | `/fl scan materials` | Scan just the materials and products of your recipes |
 | `/fl stop` | Stop a scan |
 | `/fl shuffles` | List the best shuffles and vendor flips in chat (`/fl shuffles all` for everything) |
+| `/fl deals` | Open the Deals tab (`/fl deals list` in chat) |
+| `/fl customers`, `/fl work` | The Customers window, or its Work done view; `/fl customers on` / `off` turns the customer finder on or off |
 | `/fl cut 5` | Auction house cut used in values, in percent |
 | `/fl margin 10` | Safety margin for shuffles and "buy at or below", in percent |
 | `/fl seconds 3` | Seconds per craft, used for profit per hour |
-| `/fl watch` | Watch flips: keep scanning while the auction house is open, chime on a new vendor flip |
-| `/fl queue`, `/fl lists` | The buy queue or shopping lists beside the auction house (lists open anywhere) |
-| `/fl deals` | Open the Deals tab (`/fl deals list` in chat, `/fl deals settings` for the options; they're also in the Settings tab) |
-| `/fl customers` / `/fl work` | The Customers window: requests from chat, ads, and work done |
-| `/fl session` | Open the Work it window for the running session |
 | `/fl money` | Today's money in and out for this character |
 | `/fl de` | Disenchant results so far, against what the addon expects (`/fl de reset` to start over) |
-| `/fl perf` | What the addon has spent time on (for lag reports) |
+| `/fl new`, `/fl welcome` | What's new in this version; the welcome again |
 | `/fl pair First Last` | Pair with your character on another account for live sync (do it on both) |
 | `/fl sync` | Sync status; `/fl sync now` sends everything, `/fl sync ping First Last` checks whispers reach someone |
 | `/fl minimap` | Hide or show the minimap button |
 | `/fl pull` | Copy prices from Auctionator, TSM or Auctioneer |
-| `/fl source auto` | Choose where prices come from: `auto`, `own`, `auctionator`, `tsm`, `auctioneer` |
-| `/fl export` / `/fl import` | Move data between accounts |
+| `/fl source auto` | Where prices come from: `auto`, `own`, `auctionator`, `tsm`, `auctioneer` |
+| `/fl export`, `/fl import` | Move data between accounts |
 | `/fl csv` | Prices as plain text |
 | `/fl tooltip` | Turn tooltip lines on or off |
-| `/fl api` | Show which game functions are available (useful in bug reports) |
+| `/fl perf` | What the addon has spent time on (for lag reports) |
+| `/fl api` | Which game functions are available (useful in bug reports) |
 | `/fl debug` | Turn debug messages on or off |
+
+</details>
 
 ## Community and bug reports
 
@@ -98,8 +135,9 @@ Join the **[Forever Ledger Discord](https://discord.gg/WKsCtvupeC)** for updates
 | Path | What it is |
 |---|---|
 | `*.lua`, `ForeverLedger.toc` | The addon itself |
+| `media/` | Pictures the addon uses |
 | `CHANGELOG.md` | What changed in each version |
-| `docs/` | Guides for testing, developing and releasing |
+| `docs/` | The guide, and notes on testing, developing and releasing |
 | `tools/flip-calculator.html` | The web version of the flip calculator |
 | `.github/` | Automatic checks, release builds and the bug report form |
 
