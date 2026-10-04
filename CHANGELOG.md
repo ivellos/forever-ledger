@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - New version notice: when a guildmate or group member has a newer Forever Ledger, chat says so once a session (only the version number is shared; Settings, Other).
 
 ### Changed
+- Recipes tab: click a column heading to sort by it; click again to reverse.
 - Your characters on another ruleset or faction no longer count where they couldn't help you: crafting values and shuffles, Used by in tooltips, craft or buy, the Recipes tab's who knows it, the Enchanting skill for disenchanting, and which materials Scan materials looks up (as Have already did). On the Dashboard and Ledger, All characters means this realm and faction; characters elsewhere are listed after them, with their realm, to look at on their own. Dropdown lists widen to fit long names.
 
 ## [0.11.0] - 2026-10-04
