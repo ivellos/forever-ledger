@@ -214,13 +214,9 @@ local function helper(frame, name)
     b:HookScript("OnLeave", function() GameTooltip:Hide() end)
   end
   h.box:Hide()
-  local since = 0
-  frame:HookScript("OnUpdate", function(_, elapsed)
-    since = since + elapsed
-    if since < 0.5 then return end
-    since = 0
-    helperUpdate(h)
-  end)
+  h.name = name
+  -- Kept up to date by the ticker below while the auction house is open (the page's own
+  -- OnUpdate hook never ran in Forever: owner's test, October 4).
   ns:Debug(("Price helper on %s: PriceInput %s, SetAmount %s."):format(name, input and "yes" or "no",
     input and input.SetAmount and "yes" or "no"))
 end
@@ -234,4 +230,32 @@ ns:On("AUCTION_HOUSE_SHOW", function()
     helper(ah.ItemSellFrame, "gear")
     helper(ah.CommoditiesSellFrame, "stacks")
   end)
+end)
+
+-- Every half second while the auction house is open: update the helper on whichever
+-- sell page is showing, and say in /fl debug which one that is when it changes.
+local ticker, lastSeen
+local function tick()
+  local seen = {}
+  for frame, h in pairs(helpers) do
+    if frame:IsVisible() then
+      seen[#seen + 1] = h.name
+      local ok, err = pcall(helperUpdate, h)
+      if not ok then ns:Debug("Price helper error: " .. tostring(err)) end
+    end
+  end
+  table.sort(seen)
+  local now = #seen > 0 and table.concat(seen, ", ") or "none"
+  if now ~= lastSeen then
+    lastSeen = now
+    ns:Debug("Price helper: sell page showing: " .. now)
+  end
+end
+ns:On("AUCTION_HOUSE_SHOW", function()
+  if ticker then ticker:Cancel() end
+  lastSeen = nil
+  ticker = C_Timer.NewTicker(0.5, tick)
+end)
+ns:On("AUCTION_HOUSE_CLOSED", function()
+  if ticker then ticker:Cancel(); ticker = nil end
 end)
