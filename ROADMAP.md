@@ -41,7 +41,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Training costs**: what the next levels of class and profession training will cost, so you can save for them.
 - **Riding fund**: how close you are to riding at 40 (and epic riding at 60), how long that takes at your usual gold per hour, and a warning when you spend into it.
 - **Skip this rank**: at the trainer, mark ranks of spells you never cast (learned from your own play, so it fits any class and build) and what skipping them saves.
-- **Bag value**: price per extra bag slot in tooltips, so you buy cheap bags first.
+- **Bag value**: in the addon now (price per slot in bag tooltips, and the cheapest bag per slot).
 - **Legacy advisor**: which Legacy perks pay off for how you play (priced from your own vendor, flight and Favor spending), and the cheapest route to your next point.
 
 ## Professions

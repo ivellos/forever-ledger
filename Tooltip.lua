@@ -58,6 +58,77 @@ local function historyLines(tt, id)
   if allLow then tt:AddDoubleLine("  lowest ever seen", ns.Money(allLow), 0.7, 0.7, 0.7, 1, 1, 1) end
 end
 
+---------------------------------------------------------------------------
+-- Bag value (roadmap, October 4): on a bag, what one slot costs at today's cheapest
+-- price (auction house or a vendor), and which bag is the cheapest per slot right now,
+-- so you buy the cheapest space first. Plain bags only (not profession bags).
+---------------------------------------------------------------------------
+local bagSlots = {}   -- [itemID] = slots, or false (not a plain bag / unknown), this session
+local SLOTS_PATTERN = (CONTAINER_SLOTS or "%d Slot %s"):gsub("%%d", "(%%d+)"):gsub("%%s", ".+")
+local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+
+local function slotsOf(id)
+  if bagSlots[id] ~= nil then return bagSlots[id] end
+  local slots = false
+  local ok, _, _, _, _, _, classID, subclassID = pcall(instant, id)
+  local container = (Enum and Enum.ItemClass and Enum.ItemClass.Container) or 1
+  if ok and classID == container and subclassID == 0 and C_TooltipInfo and C_TooltipInfo.GetItemByID then
+    local ok2, data = pcall(C_TooltipInfo.GetItemByID, id)
+    for _, line in ipairs(ok2 and data and data.lines or {}) do
+      local n = line.leftText and tonumber(line.leftText:match(SLOTS_PATTERN))
+      if n then slots = n; break end
+    end
+  end
+  bagSlots[id] = slots
+  return slots
+end
+
+-- The cheapest one costs now: the auction house's cheapest or a vendor's price.
+local function bagCost(id, market)
+  local rec = market[id]
+  local ah = rec and not rec.none and rec.m
+  local buy = ns.db.vendorBuy[id]
+  local vendor = buy and buy.p
+  if ah and vendor then return math.min(ah, vendor) end
+  return ah or vendor
+end
+
+local cheapestBag, cheapestAt = nil, 0
+local function cheapestPerSlot()
+  if cheapestBag ~= nil and GetTime() - cheapestAt < 300 then return cheapestBag end
+  cheapestAt = GetTime()
+  local market, best = ns.db.prices[ns.MarketKey()] or {}, false
+  local ids = {}
+  for id in pairs(market) do ids[id] = true end
+  for id in pairs(ns.db.vendorBuy) do ids[id] = true end
+  for id in pairs(ids) do
+    local slots = slotsOf(id)
+    local cost = slots and slots > 0 and bagCost(id, market)
+    if cost then
+      local per = cost / slots
+      if not best or per < best.per then best = { id = id, per = per, slots = slots } end
+    end
+  end
+  cheapestBag = best
+  return best
+end
+
+local function bagLines(tt, id)
+  local slots = slotsOf(id)
+  if not slots or slots <= 0 then return end
+  local market = ns.db.prices[ns.MarketKey()] or {}
+  local cost = bagCost(id, market)
+  if not cost then return end
+  tt:AddDoubleLine(("Per slot (%d slots)"):format(slots), ns.Money(math.floor(cost / slots + 0.5)), LR, LG, LB, 1, 1, 1)
+  local best = cheapestPerSlot()
+  if best and best.id ~= id and best.per < cost / slots then
+    tt:AddDoubleLine("  cheapest per slot now", ("%s, %s"):format(ns.ItemName(best.id) or "?", ns.Money(math.floor(best.per + 0.5))),
+      0.7, 0.7, 0.7, 0.5, 0.83, 0.61)
+  elseif best and best.id == id then
+    tt:AddLine("  the cheapest bag per slot right now", 0.5, 0.83, 0.61)
+  end
+end
+
 local function addLines(tt, id, forceFull)
   local s = ns.db and ns.db.settings
   if not id or not s or not s.tooltip then return end
@@ -201,6 +272,8 @@ local function addLines(tt, id, forceFull)
 
   local crateLine = on("tipCrate") and ns.CrateTooltipLine and ns:CrateTooltipLine(id)
   if crateLine then tt:AddLine(crateLine, LR, LG, LB, true) end
+
+  if on("tipBagSlot") then bagLines(tt, id) end
 
   local yield = on("tipDisenchant") and ns:DisenchantYield(id)
   if yield then

@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - Settings per character: tick "Just for this character" under the Settings sections and that character gets its own settings (a copy to start), for example no tooltips or no customer finder on one character. Price and deal rules stay shared and say "(all characters)".
+- Bag value: a bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor) and the cheapest bag per slot right now (Settings, Tooltips).
 - What sold while you were away: opening the auction house says in chat what sold since you were last there and the gold it brings with deposits back (Settings, Auction house). Auctions that sold and were mailed while you were away now show under Sold too.
 
 ### Changed

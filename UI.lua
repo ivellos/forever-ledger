@@ -385,6 +385,8 @@ local SETTINGS = {
     help = "Which of your characters' recipes use it, and how many." },
   { key = "tipCrate", label = "Crate cheapest fill", kind = "check",
     help = "On a Waylaid Crate: the cheapest way to fill it at today's prices." },
+  { key = "tipBagSlot", label = "Bag price per slot", kind = "check",
+    help = "On a bag: what one slot costs at today's cheapest price (auction house or vendor), and the cheapest bag per slot right now." },
 
   { section = "Auction house" },
   { sub = "Buying" },
