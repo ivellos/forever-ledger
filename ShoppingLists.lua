@@ -726,6 +726,7 @@ local function finishGear(e, versions, total, min)
   end
   e.found = found
   if runner then runner.waiting = nil end
+  if ns.RefreshQueueView then ns:RefreshQueueView() end
   C_Timer.After(0.2, function() if nextGear then nextGear() end end)
 end
 
@@ -754,6 +755,7 @@ nextGear = function()
   end
   r.waiting, r.tok, r.retried = e, (r.tok or 0) + 1, false
   local tok = r.tok
+  if ns.RefreshQueueView then ns:RefreshQueueView() end   -- (the row says "checking...")
   ns.queueSending = true
   local ok = pcall(AH.SendBrowseQuery, { searchString = ns.ItemName(e.id) or "", sorts = sorts(),
     filters = qualityFilters(), itemClassFilters = {} })
@@ -818,3 +820,20 @@ function ns:SearchAllList(list)
 end
 
 function ns:SearchAllRunning() return runner ~= nil end
+
+-- Where an item stands in a Search all under way: "checking", "waiting" or nil, so each
+-- row can say so (Magic, October 3: it takes a couple of seconds an item, and an empty
+-- row looked like nothing was found).
+function ns:SearchAllStatus(e)
+  local r = runner
+  if r then
+    if r.waiting == e then return "checking" end
+    for k = r.i + 1, #r.gear do if r.gear[k] == e then return "waiting" end end
+    for _, id in ipairs(r.rest) do if id == e.id then return "waiting" end end
+  end
+  local s = ns.Scan
+  if s and s.active and not s.quiet and not s.full then
+    if s.pending == e.id then return "checking" end
+    for _, id in ipairs(s.queue or {}) do if id == e.id then return "waiting" end end
+  end
+end

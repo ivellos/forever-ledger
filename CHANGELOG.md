@@ -20,6 +20,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Welcome: it shades the whole window until you pick a button, every button closes it (Open shopping lists no longer opens behind it), and Got it stands out.
 - Prices can be typed as 2 50 25 or 2.50.25 (gold silver copper) and 2 50 or 2.50 (gold silver), as well as 2g 50s 25c; a lone number is gold in every price box.
 - Sessions: gold an hour shows from 2 minutes in (one purchase swung it wildly before that); the tracker's hover and the end-of-session summary list gold by where it came from (auction sales, vendors, mail...); a session stopped with nothing in it isn't kept; short ones read "under a minute".
+- Search all: each row says "checking..." while it's looked up and "in line" until its turn, then when it was checked.
+- Have's hover lists only your characters on the same ruleset and faction (the same auction house).
 - Buy queue: the new-flips count has a dark ring so it sits on top of the button.
 - Tooltips: "avg of all 7" instead of "avg of cheapest 20" when 20 or fewer are listed.
 - Settings: small headings have a faint band; dropdown lists mark the default option. Help topics with long names are shorter (Auction house scans, Buy queue and lists, Two accounts).

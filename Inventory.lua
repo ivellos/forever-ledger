@@ -77,12 +77,16 @@ function ns:ItemLocations(id)
   local bags = count and count(id, false, false, true) or 0
   local bank = (ns.db.inventory[me] and ns.db.inventory[me].bank[id]) or 0
   local alts, byAlt = 0, {}
+  -- Only characters that could hand it over: same ruleset (realm) and faction, the same
+  -- auction house (Magic, October 3: characters on other rulesets counted too).
+  local realm, faction = GetRealmName and GetRealmName(), UnitFactionGroup and UnitFactionGroup("player")
   for key, inv in pairs(ns.db.inventory) do
-    if key ~= me then
+    local c = ns.db.chars[key]
+    local same = not c or ((not c.realm or c.realm == realm) and (not c.faction or c.faction == faction))
+    if key ~= me and same then
       local n = (inv.bags[id] or 0) + (inv.bank[id] or 0)
       if n > 0 then
         alts = alts + n
-        local c = ns.db.chars[key]
         byAlt[(c and c.name) or key] = n
       end
     end

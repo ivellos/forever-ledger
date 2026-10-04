@@ -1348,7 +1348,11 @@ function ns:RefreshQueueView()
   -- Scans report progress often: redraw at most twice a second.
   if viewQueued or not refreshQueue then return end
   viewQueued = true
-  C_Timer.After(0.5, function() viewQueued = false; refreshQueue() end)
+  C_Timer.After(0.5, function()
+    viewQueued = false
+    refreshQueue()
+    if ns.RefreshListsView then ns:RefreshListsView() end   -- (Search all's progress)
+  end)
 end
 function ns:SidePanelDocked() return side and side:IsShown() and not side.floating or false end
 
@@ -1413,6 +1417,10 @@ StaticPopupDialogs["FOREVER_LEDGER_LIST_DELETE"] = {
 }
 
 local refreshLists
+-- Redraw the lists tab if it's on screen (Search all's progress, via RefreshQueueView).
+function ns:RefreshListsView()
+  if refreshLists and listsView and listsView:IsVisible() then refreshLists() end
+end
 
 local function currentList() return (ns:CurrentShoppingList()) end
 
@@ -2278,7 +2286,15 @@ refreshLists = function()
       r.name:SetText(up and ns:ListEntryName(e) or ("|cff888888" .. ns:ListEntryName(e) .. "|r"))
       r.have:SetText(listed == nil and "|cff888888?|r" or up and ("|cffffffff" .. listed .. "|r") or "|cff8888880|r")
       r.now:SetText(up and min and ("|cff7fd39c" .. shortMoney(min) .. "|r") or "|cff888888-|r")
-      r.age:SetText(t and ns.Age(t) or "not yet")
+      -- Search all under way: this row is being checked, or waits its turn.
+      local status = ns.SearchAllStatus and ns:SearchAllStatus(e)
+      if status == "checking" then
+        r.age:SetText(T:AccentCode() .. "checking...|r")
+      elseif status == "waiting" then
+        r.age:SetText("|cff888888in line|r")
+      else
+        r.age:SetText(t and ns.Age(t) or "not yet")
+      end
       r.age:Show()
     elseif s.kind == "item" then
       local e = s.e
