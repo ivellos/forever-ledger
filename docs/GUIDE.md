@@ -15,6 +15,8 @@ The first time you open the window, a short welcome walks through these and the 
 
 Settings and Help each have a **search box** above their list: type two letters or more to see everything that mentions it, from every section at once.
 
+**Settings per character**: tick **Just for this character** under the Settings sections and that character gets its own settings, starting as a copy of the shared ones: no tooltips on one character, no customer finder on another. Price and deal rules (auction house cut, safety margin, what counts as a flip or a deal) stay the same for all characters and say "(all characters)". Untick to go back to the shared settings; the character's own are kept.
+
 ![The Forever Ledger window, Dashboard tab](images/dashboard.png)
 
 ## Scanning the auction house

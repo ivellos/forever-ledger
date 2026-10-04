@@ -378,6 +378,72 @@ function ns:PrintPerf(reset)
   end
 end
 
+---------------------------------------------------------------------------
+-- Settings per character (owner, October 4): a character can use its own settings
+-- (Settings, "Just for this character"), say no tooltips on one, no customer finder on
+-- another. Only the settings shown in Settings can differ, and not the shared ones
+-- (ns.PER_CHAR_SETTINGS, from UI.lua: price and deal rules stay the same everywhere).
+-- For such a character, ns.db.settings is a stand-in that reads its own value first and
+-- the shared one otherwise, and writes its own settings to charSettings[charKey].values.
+-- The shared table is put back before the game saves (PLAYER_LOGOUT), and is kept under
+-- settingsAccount too in case that ever fails. Everyone else: nothing changes.
+---------------------------------------------------------------------------
+local function ownSettings()
+  local all = ns.db and ns.db.charSettings
+  local c = all and all[ns.CharKey()]
+  return c and c.own and c or nil
+end
+
+function ns:PerCharSetting(key) return ns.PER_CHAR_SETTINGS and ns.PER_CHAR_SETTINGS[key] or false end
+function ns:UsingOwnSettings() return ownSettings() ~= nil end
+
+function ns:ApplyCharSettings()
+  local db = ns.db
+  ns.accountSettings = ns.accountSettings or db.settings
+  local account = ns.accountSettings
+  db.charSettings = db.charSettings or {}
+  local c = ownSettings()
+  if not c then
+    db.settings, db.settingsAccount = account, nil
+    return
+  end
+  c.values = c.values or {}
+  db.settingsAccount = account
+  db.settings = setmetatable({}, {
+    __index = function(_, k)
+      if ns:PerCharSetting(k) then
+        local v = c.values[k]
+        if v ~= nil then return v end
+      end
+      return account[k]
+    end,
+    __newindex = function(_, k, v)
+      if ns:PerCharSetting(k) then c.values[k] = v else account[k] = v end
+    end,
+  })
+end
+
+-- Turn this character's own settings on (starting as a copy of the shared ones) or off
+-- (back to the shared ones; its own are kept in case it's turned on again).
+function ns:SetOwnSettings(on)
+  local all = ns.db.charSettings
+  local key = ns.CharKey()
+  all[key] = all[key] or {}
+  local c = all[key]
+  if on and not c.values then
+    c.values = {}
+    for k in pairs(ns.PER_CHAR_SETTINGS or {}) do c.values[k] = ns.accountSettings[k] end
+  end
+  c.own = on or nil
+  ns:ApplyCharSettings()
+end
+
+ns:On("PLAYER_LOGOUT", function()
+  if ns.db and ns.accountSettings then
+    ns.db.settings, ns.db.settingsAccount = ns.accountSettings, nil
+  end
+end)
+
 ns.readyCallbacks = {}
 function ns:OnReady(fn) table.insert(ns.readyCallbacks, fn) end
 
@@ -406,8 +472,16 @@ ns:On("ADDON_LOADED", function(name)
     if ForeverLedgerDB.settings then ForeverLedgerDB.settings.listKind = nil end
     ForeverLedgerDB.schema = 4
   end
+  -- Settings per character (below): while a character used its own, the shared settings
+  -- were also kept under settingsAccount. If the game ever saved the stand-in instead of
+  -- the real table, this brings them back.
+  if type(ForeverLedgerDB.settingsAccount) == "table" then
+    ForeverLedgerDB.settings = ForeverLedgerDB.settingsAccount
+    ForeverLedgerDB.settingsAccount = nil
+  end
   copyDefaults(DEFAULTS, ForeverLedgerDB)
   ns.db = ForeverLedgerDB
+  ns:ApplyCharSettings()
   for _, fn in ipairs(ns.readyCallbacks) do
     local ok, err = pcall(fn)
     if not ok then geterrorhandler()(err) end

@@ -446,6 +446,15 @@ local SETTINGS = {
     help = "Forever Ledger hears it from guildmates and group members who have a newer version, and says so in chat once a session. It only shares the version number." },
   { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
 }
+-- Settings per character (Core.lua): every setting above can differ per character,
+-- except these, which decide what prices, flips and deals are and so stay the same
+-- everywhere (owner, October 4).
+local SHARED_SETTINGS = { ahCut = true, margin = true, actionSeconds = true, source = true, dealVendorPct = true,
+  dealVendorMin = true, dealUsualPct = true, dealWindow = true, dealHistory = true, dealUsualMin = true, debug = true }
+ns.PER_CHAR_SETTINGS = {}
+for _, def in ipairs(SETTINGS) do
+  if def.key and not SHARED_SETTINGS[def.key] then ns.PER_CHAR_SETTINGS[def.key] = true end
+end
 -- Layout: sections listed on the left, the chosen one's settings on the right (owner,
 -- October 3: like the Help tab), with a search box above the sections. Each setting is
 -- one block with a faint line under it (owner, September 30). Tick boxes sit left of
@@ -608,6 +617,7 @@ buildSettings = function()
       r.label = T:Text(page, 12)
       r.label:SetJustifyH("LEFT")
       r.label:SetText((def.label:gsub("^%s+", "")))
+      r.shared = SHARED_SETTINGS[def.key]
       r.indent = def.label:find("^%s") and 18 or 0   -- a sub-option of the one above
       local dflt = defaultText(def)
       local helpText = def.help and dflt and (def.help .. " " .. dflt) or def.help or dflt
@@ -645,9 +655,39 @@ buildSettings = function()
       r.line:SetColorTexture(1, 1, 1, 0.04)
       r.line:SetHeight(1)
       page.rows[#page.rows + 1] = r
-      f.controls[#f.controls + 1] = { def = def, control = r.control }
+      f.controls[#f.controls + 1] = { def = def, control = r.control, row = r }
     end
   end
+
+  -- Just for this character (owner, October 4), under the sections.
+  f.own = T:Check(f, function(self)
+    ns:SetOwnSettings(self:GetChecked())
+    ns:Print(self:GetChecked()
+      and "This character now has its own settings (a copy of the shared ones to start). Price and deal rules stay shared."
+      or "This character uses the shared settings again. Its own are kept if you switch back.")
+    if ns.UpdateMinimapButton then ns:UpdateMinimapButton() end
+    if ns.LayoutTabs then ns:LayoutTabs() end
+    refreshSettings()
+  end)
+  f.own:SetPoint("TOPLEFT", 4, -(30 + #f.pages * 23 + 12))
+  f.ownText = T:Text(f, 11)
+  f.ownText:SetPoint("TOPLEFT", f.own, "TOPRIGHT", 6, -1)
+  f.ownText:SetWidth(SET_NAV_W - 40)
+  f.ownText:SetJustifyH("LEFT")
+  f.ownText:SetText("Just for this character")
+  f.ownHelp = T:Text(f, 10, T.dim)
+  f.ownHelp:SetPoint("TOPLEFT", f.ownText, "BOTTOMLEFT", 0, -3)
+  f.ownHelp:SetWidth(SET_NAV_W - 40)
+  f.ownHelp:SetJustifyH("LEFT")
+  f.own:SetHitRectInsets(0, -(SET_NAV_W - 40), -4, -4)
+  f.own:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Settings just for this character", 1, 1, 1)
+    GameTooltip:AddLine("Ticked: changes here apply to this character only, for example no tooltips or no customer finder on one character. It starts as a copy of the shared settings.", nil, nil, nil, true)
+    GameTooltip:AddLine("Price and deal rules (auction house cut, safety margin, what counts as a flip or a deal) stay the same for all characters, marked \"all characters\".", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  f.own:HookScript("OnLeave", function() GameTooltip:Hide() end)
   return f
 end
 
@@ -682,10 +722,17 @@ refreshSettings = function()
   end
   f.noMatch:SetShown(q ~= nil and y == 0)
   f.content:SetHeight(math.max(y, 100))
+  local own = ns:UsingOwnSettings()
   for _, c in ipairs(f.controls) do
     local v = ns.db.settings[c.def.key]
     if c.def.kind == "check" then c.control:SetChecked(v) else c.control:SetValue(v) end
+    -- With this character's own settings on, the shared ones say so.
+    local label = (c.def.label:gsub("^%s+", ""))
+    c.row.label:SetText((own and c.row.shared) and (label .. "  |cff888888(all characters)|r") or label)
   end
+  f.own:SetChecked(own)
+  local who = ns.db.chars[ns.CharKey()]
+  f.ownHelp:SetText(own and ("Settings here are " .. ((who and who.name) or "this character") .. "'s own.") or "Off: one set of settings for all characters.")
   if f.rules then f.rules:SetText("Deals are listings " .. ns:DealRules() .. ".") end
   f.sf.UpdateScrollBar()
 end

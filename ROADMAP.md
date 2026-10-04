@@ -56,7 +56,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 - **Setup your way**: a short first-run setup that asks what you want: everything in one click, or pick the parts you'll use (gold making, shopping lists, crafting, sessions, crates, and more later), a few options for each, your look and tooltips, and what to switch off if you also use Auctionator, TSM or similar. Parts you turn off don't run at all. Run it again any time.
 - **Clearer screens**: a regular pass over every window for wording, layout and "what do I click", led by player feedback. A first-run welcome and "What's new" after each update are in the addon now.
-- **Your characters' bags and bank, and what they're worth**: in the addon since 0.13.0 (Characters tab). Next: a "what to sell first" list.
+- **Your characters' bags and bank, and what they're worth**: in the addon since 0.13.0 (Characters tab).
 - **Mail helper**: open all mail in one click (sales logged as it goes), and a warning when one mail carries many stacks.
 - **Plays nice with Auctionator and TSM**: features they already cover are switched off when they're installed, with a one-time message saying what and how to turn them back on. Later also Leatrix Plus and ForeverForge, for auto-selling and sniping.
 - **Prices for other addons' lists**: what GearQuest's suggested upgrades cost on the auction house right now, and what Dungeon Journal's boss loot is worth per run, when those addons are installed.
