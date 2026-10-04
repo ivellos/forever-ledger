@@ -48,7 +48,13 @@ local function historyLines(tt, id)
       tt:AddDoubleLine("  usually listed", tostring(math.floor(stats.listed + 0.5)), 0.7, 0.7, 0.7, 1, 1, 1)
     end
   end
+  -- Lowest ever: the all-time record only gets finished days, so today's (and the
+  -- recent days' cheapest, and what's listed now) count too (Magic, October 3: "lowest
+  -- ever seen 35g" with one listed at 20g).
   local allLow = ns.AllTimePrice and ns:AllTimePrice(id)
+  for _, d in ipairs(days) do allLow = math.min(allLow or d[2], d[2]) end
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if rec and rec.m and not rec.none then allLow = math.min(allLow or rec.m, rec.m) end
   if allLow then tt:AddDoubleLine("  lowest ever seen", ns.Money(allLow), 0.7, 0.7, 0.7, 1, 1, 1) end
 end
 

@@ -19,7 +19,7 @@ local T = ns.Theme
 -- (ShoppingLists.lua has the data) and the Disenchant finder (AuctionHouse.lua).
 ---------------------------------------------------------------------------
 local AH = C_AuctionHouse
-local WIDTH = 420
+local WIDTH = 460   -- (420 until the shopping list's Want and Have needed room, October 3)
 local DONE_FOR = 120        -- seconds an item with nothing left stays out of the queue
 local REBUILD_EVERY = 20    -- seconds before the queue is worked out again
 local USER_QUIET = 3        -- seconds after your own search before the queue looks things up again
@@ -885,14 +885,14 @@ local function laneRow(L, i)
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   r.name = T:Text(r, 11)
   r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
-  r.name:SetWidth(176)
+  r.name:SetWidth(216)
   r.name:SetJustifyH("LEFT")
   r.name:SetWordWrap(false)
   r.limit, r.n, r.profit = T:Text(r, 11), T:Text(r, 11), T:Text(r, 11)
   -- Profit gets the widest column: "10g 45s 64c" ran into Cheap (owner, October 2).
-  r.limit:SetPoint("RIGHT", r, "LEFT", 254, 0)
-  r.n:SetPoint("RIGHT", r, "LEFT", 300, 0)
-  r.profit:SetPoint("RIGHT", r, "LEFT", 392, 0)
+  r.limit:SetPoint("RIGHT", r, "LEFT", 294, 0)
+  r.n:SetPoint("RIGHT", r, "LEFT", 340, 0)
+  r.profit:SetPoint("RIGHT", r, "LEFT", 432, 0)
   r:SetScript("OnClick", function(self, button)
     if button == "RightButton" then
       skipped[self.entry.id] = true
@@ -1033,8 +1033,8 @@ local function buildLane(v, d)
   header:SetPoint("TOPRIGHT", strip, "BOTTOMRIGHT", -4, -2)
   header:SetHeight(14)
   -- "Up to" and "Cheap" ran together (Magic's screenshot, October 3): more room between.
-  for _, c in ipairs({ { "Item", 4, "LEFT" }, { "Up to", 254, "RIGHT" }, { "Cheap", 300, "RIGHT" },
-                       { d.key == "lists" and "Now" or "Profit", 388, "RIGHT" } }) do
+  for _, c in ipairs({ { "Item", 4, "LEFT" }, { "Up to", 294, "RIGHT" }, { "Cheap", 340, "RIGHT" },
+                       { d.key == "lists" and "Now" or "Profit", 428, "RIGHT" } }) do
     local fs = T:Text(header, 10, T.dim)
     if c[3] == "LEFT" then fs:SetPoint("LEFT", c[2], 0) else fs:SetPoint("RIGHT", header, "LEFT", c[2], 0) end
     fs:SetText(c[1])
@@ -1509,9 +1509,12 @@ end
 -- Columns (x from the left of a row), buying from the list: Item, Buy/Craft, Up to,
 -- Want, Have ("bought (owned)", right-aligned), Now. "Up to" is the Buy queue's word for
 -- the most you'll pay (owner, October 3: "Most each" didn't say it).
-local C = { name = 22, get = 138, max = 186, want = 244, have = 322, now = 376, x = 380 }
+-- Want shows up to four digits (9999): a narrow box showed one digit of a bigger
+-- number, so 9999 looked like 9 and the queue rightly bought for 9999 (owner's test,
+-- October 3; the 601 Strange Dust before it was the same).
+local C = { name = 22, get = 154, max = 210, want = 268, have = 372, now = 416, x = 420 }
 -- Not buying: Item, Checked, Listed, Have, Cheapest (at C.now).
-local SC = { checked = 168, listed = 252, have = 306 }
+local SC = { checked = 190, listed = 292, have = 350 }
 
 local function buildListsView(parent)
   local v = CreateFrame("Frame", nil, parent)
@@ -2023,6 +2026,8 @@ local function listRow(i)
   r.max = T:MoneyBox(r, function(value)
     if r.kind == "item" then
       r.entry.max = value
+      -- "off" typed on purpose: kept off, never refilled with your usual price.
+      r.entry.offSet = value == 0 or nil
     elseif r.kind == "mat" then
       local list = currentList()
       if list then
@@ -2039,10 +2044,11 @@ local function listRow(i)
 
   -- Want: whole numbers only, and clicking in selects what's there so typing replaces
   -- it (owner's test, October 3: digits typed beside a number that didn't show).
-  r.qty = T:EditBox(r, 32)
+  r.qty = T:EditBox(r, 42)
   r.qty:SetPoint("LEFT", C.want, 0)
+  r.qty:SetTextInsets(3, 3, 0, 0)
   r.qty:SetNumeric(true)
-  r.qty:SetMaxLetters(4)
+  r.qty:SetMaxLetters(4)   -- the most is 9999, and the box shows all of it
   r.qty:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
   r.qty:SetScript("OnEditFocusLost", function(self)
     local n = tonumber(self:GetText())
@@ -2061,7 +2067,7 @@ local function listRow(i)
   end)
   -- Materials: how many are needed, in the Want column.
   r.need = T:Text(r, 11)
-  r.need:SetPoint("RIGHT", r, "LEFT", C.want + 28, 0)
+  r.need:SetPoint("RIGHT", r, "LEFT", C.want + 38, 0)
   -- Not buying: how many are listed.
   r.listed = T:Text(r, 11)
   r.listed:SetPoint("RIGHT", r, "LEFT", SC.listed, 0)

@@ -29,6 +29,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Dungeon runs: walking in and straight back out (under 2 minutes, nothing looted) isn't counted as a run; short times read "under a minute".
 
 ### Fixed
+- Shopping lists: the Want box was too narrow to show more than about one digit, so a Want of 9999 (or 601) looked like 9 (or 2) while the Buy queue rightly bought for the real number. It now shows all four digits (Want goes up to 9999); the side panel is a little wider to make room. Up to set to off yourself stays off when you tick Buy from this list again.
+- Tooltips: price history's lowest ever seen counts today and what's listed now (it only counted finished days, so it could be higher than the current cheapest).
 - Buy queue: it could buy far more of a shopping list item than its Want (601 Strange Dust for a Want of 2). Before every purchase from a list it now checks how many the list itself still wants and never buys more. The Want box takes whole numbers only, and clicking in it selects what's there, so typing replaces it.
 - Shopping lists: adding an item that's already on a list with the price box empty no longer clears its Up to.
 - Shopping lists: the list menu drew under the Search/Buy buttons and the add box; dropdown menus and name suggestions stay on top now. Opened away from the auction house (from the welcome or the main window), the lists panel opens in front of the main window, not behind it.

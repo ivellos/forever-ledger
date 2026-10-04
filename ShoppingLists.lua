@@ -587,12 +587,13 @@ function ns:UsualPriceFor(id)
   return math.ceil(p)
 end
 
--- Fills Up to with your usual price on the list's items that are "off" (not Craft).
--- Returns how many were filled.
+-- Fills Up to with your usual price on the list's items that are "off" (not Craft),
+-- except ones you set to off yourself (e.offSet; owner's test, October 3: ticking the
+-- list again kept putting a price back on Strange Dust). Returns how many were filled.
 function ns:FillUsualPrices(list)
   local n = 0
   for _, e in ipairs(list.items) do
-    if e.mode ~= "craft" and (e.max or 0) == 0 then
+    if e.mode ~= "craft" and (e.max or 0) == 0 and not e.offSet then
       local p = ns:UsualPriceFor(e.id)
       if p then e.max, n = p, n + 1 end
     end
