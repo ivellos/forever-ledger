@@ -8,7 +8,7 @@
 
 ![Item tooltip with what it's worth to you](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/tooltip.png)
 
-## At a glance
+## Major features
 
 - <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/worth.png" width="20" height="20" alt=""> **Know what everything is worth.** Hover any item: sell it, vendor it, disenchant it or craft it, whichever pays most, and the most worth paying for it.
 - <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/buy.png" width="20" height="20" alt=""> **Buy the bargains in one click.** Vendor flips and your shopping lists lined up beside the auction house: click or scroll to buy the next one. It never pays more than your limit.
