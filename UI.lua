@@ -3,13 +3,6 @@ local T = ns.Theme
 
 local CLASS_COLORS = RAID_CLASS_COLORS or {}
 
-local KEY_ITEMS = {
-  { 2589, "Linen Cloth" }, { 2592, "Wool Cloth" }, { 10940, "Strange Dust" },
-  { 10938, "Lesser Magic Essence" }, { 10939, "Greater Magic Essence" },
-  { 10998, "Lesser Astral Essence" }, { 11082, "Greater Astral Essence" }, { 10978, "Small Glimmering Shard" },
-}
-
-local function heading(text) return T:AccentCode() .. text .. "|r" end
 local function dim(text) return "|cff888888" .. text .. "|r" end
 
 local function classColored(c)
@@ -169,7 +162,7 @@ local function buildMain()
     deals = ns:BuildDeals(main.body),
     crates = ns:BuildCrates(main.body),
     recipes = ns:BuildRecipes(main.body),
-    characters = textArea(),
+    characters = ns:BuildCharacters(main.body),   -- Characters.lua
     help = ns:BuildHelp(main.body),   -- Help.lua
   }
   main.views.settings = buildSettings()
@@ -325,65 +318,7 @@ end
 function ns:MainBody() return main and main.body end
 function ns:ShowTab(view) ns:ToggleUI(view) end
 
----------------------------------------------------------------------------
--- Characters tab (text). The Dashboard is in Dashboard.lua.
----------------------------------------------------------------------------
-local function charactersText(add)
-  add(heading("Your characters"))
-  local keys = sortedCharKeys()
-  if #keys == 0 then add("  None yet. Log in on each character once.") end
-  for _, k in ipairs(keys) do
-    local c = ns.db.chars[k]
-    add(("  %s, level %s %s"):format(classColored(c), c.level or "?", c.faction or ""))
-    local profNames = {}
-    for p in pairs(c.profs or {}) do profNames[#profNames + 1] = p end
-    table.sort(profNames)
-    if #profNames == 0 then add("      No professions saved yet.") end
-    for _, p in ipairs(profNames) do
-      local info = c.profs[p]
-      local n = info.recipeCount or 0
-      local recipes = n > 0 and (n .. " recipes saved") or "|cffee8597open this profession's window to save its recipes|r"
-      add(("      %s %s/%s, %s"):format(p, info.rank or "?", info.max or "?", recipes))
-    end
-  end
-
-  add("")
-  add(heading("Key prices") .. "  " .. dim("(" .. ns.MarketKey() .. ")"))
-  for _, item in ipairs(KEY_ITEMS) do
-    local price, src, t = ns:GetPrice(item[1])
-    if price then
-      add(("  %s: %s %s"):format(item[2], ns.Money(price), dim((src or "") .. " " .. (t and ns.Age(t) or ""))))
-    else
-      add(("  %s: %s"):format(item[2], dim("no price yet")))
-    end
-  end
-
-  add("")
-  add(heading("Price data"))
-  local market = ns.db.prices[ns.MarketKey()] or {}
-  local count, newest, oldest = 0, 0, nil
-  for _, rec in pairs(market) do
-    count = count + 1
-    if rec.t then
-      newest = math.max(newest, rec.t)
-      oldest = oldest and math.min(oldest, rec.t) or rec.t
-    end
-  end
-  add(("  %d items priced. Newest %s, oldest %s."):format(count, newest > 0 and ns.Age(newest) or "never", oldest and ns.Age(oldest) or "never"))
-  local ext = ns:ExternalSources()
-  add("  Other auction addons: " .. (#ext > 0 and table.concat(ext, ", ") or "none found"))
-  add("  Price source: " .. ns.db.settings.source)
-  local vb = 0
-  for _ in pairs(ns.db.vendorBuy) do vb = vb + 1 end
-  add(("  %d vendor prices saved. Open any vendor to add theirs."):format(vb))
-  add("")
-  add(heading("Live sync"))
-  add("  " .. ns:SyncStatus() .. "  " .. dim("/fl sync for help"))
-end
-
-local TEXT_VIEWS = {
-  characters = charactersText,
-}
+local TEXT_VIEWS = {}   -- (the Characters tab is Characters.lua now)
 
 ---------------------------------------------------------------------------
 -- Settings tab: a control for each setting. Changes apply straight away.
@@ -787,6 +722,8 @@ function ns:RefreshUI()
     ns:RefreshHelp()
   elseif main.view == "recipes" then
     ns:RefreshRecipes()
+  elseif main.view == "characters" then
+    ns:RefreshCharacters()
   elseif build then
     local L = {}
     build(function(s) L[#L + 1] = s or "" end)
