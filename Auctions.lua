@@ -128,7 +128,7 @@ local function readOwned()
       list[#list + 1] = e
     end
   end
-  store()[ns.CharKey()] = { t = now, list = list }
+  store()[ns.CharKey()] = { t = now, list = list, alerted = (mine() or {}).alerted }
 end
 
 -- What a sold auction brings after the auction house cut.
@@ -159,6 +159,13 @@ end
 local function checkAlerts()
   local m = mine()
   if not m or ns.db.settings.undercutAlerts == false then return end
+  -- What was already alerted is saved, so a reload doesn't alert again (owner's test,
+  -- October 4); only auctions still up are kept.
+  m.alerted = m.alerted or {}
+  local up = {}
+  for _, e in ipairs(m.list) do if e.a then up[e.a] = true end end
+  for a in pairs(m.alerted) do if not up[a] then m.alerted[a] = nil end end
+  alerted = m.alerted
   local news = {}
   for _, e in ipairs(m.list) do
     local now = undercutBy(e)
