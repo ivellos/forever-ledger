@@ -20,6 +20,8 @@ local TYPES = {
   loss = { label = "Not profitable", short = "Loss", color = "ee8597" },
 }
 local ORDER = { "shuffle", "sells", "enchant", "notsale", "loss" }
+local typeRank = {}
+for i, k in ipairs(ORDER) do typeRank[k] = i end
 
 local function dim(t) return "|cff888888" .. t .. "|r" end
 local function money(v)
@@ -318,7 +320,7 @@ local f
 local rows = {}
 local current     -- profession shown, or "Trainers:<profession>"
 
--- num: sorts high to low first (text sorts A to Z first).
+-- num: sorts high to low first (text sorts A to Z first; Type in the usual group order).
 local COLS = {
   { key = "name", label = "Recipe" },
   { key = "skill", label = "Skill", w = 36, num = true },
@@ -567,7 +569,7 @@ local function sortValue(e, key)
     local src = bestSource(e.r.n)
     return src and plain(sourceText(src)) or nil
   end
-  if key == "type" then return TYPES[e.type].label:lower() end
+  if key == "type" then return typeRank[e.type] end   -- the usual group order, not A to Z
   if key == "profit" then return e.profit end
 end
 
@@ -589,8 +591,6 @@ local function recipeRows(prof, width, lay)
     end
   end
   -- Grouped by type (flip or shuffle first), then most profit first.
-  local typeRank = {}
-  for i, k in ipairs(ORDER) do typeRank[k] = i end
   local function usual(a, b)
     if a.type ~= b.type then return typeRank[a.type] < typeRank[b.type] end
     if (a.profit ~= nil) ~= (b.profit ~= nil) then return a.profit ~= nil end
