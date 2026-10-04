@@ -115,14 +115,14 @@ end
 -- Highlights here and set the version (docs/RELEASING.md). /fl new shows them again.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.12.0",
+  version = "0.13.0",
   lines = {
-    "Your auctions: the Auctions tab beside the auction house shows what's undercut; cancel them one click each.",
-    "Gold on the way: sold auctions show what you get and when the gold reaches your mailbox.",
-    "New version notice: you'll hear about a newer Forever Ledger from your guild or group.",
-    "Recipes tab: click a column heading to sort by it.",
-    "Per realm: All characters and your recipes count only characters on your realm and faction.",
-    "Safer buying: Any price and Spend at most are stricter.",
+    "Characters tab: every character's bags and bank, with what it's all worth and the best way to turn it into gold.",
+    "Per realm and faction: pick which characters to look at at the top of the list; only those count.",
+    "Price helper: the usual price and the cheapest now on the Sell tab, with Undercut and Usual buttons.",
+    "One Export / import button: Export, Import and Prices as text in one window.",
+    "Easier money boxes: type 1.5 for one and a half gold.",
+    "Fixes: undercut reminders once per login, steadier Your auctions, a tidier session tracker.",
   },
 }
 

@@ -5,7 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-04
+
+### Highlights
+- **Characters tab**: every character's bags and bank, with what it's all worth and the best way to turn it into gold
+- **Per realm and faction**: pick which characters to look at; only those count
+- **Price helper**: the usual price and the cheapest now on the Sell tab, with Undercut and Usual buttons
+- **One Export / import button**: Export, Import and Prices as text in one window
+- **Easier money boxes**: type 1.5 for one and a half gold
+- **Fixes**: undercut reminders once per login, steadier Your auctions, a tidier session tracker
+
 ### Added
+- Characters tab: your characters down the left with their gold and class icon; pick one for its professions and everything in its bags and bank, each item with what it's worth to you and the best way to turn it into gold (sortable, searchable). All characters adds everyone up; hovers say who has what and what each character's things are worth.
 - Price helper on the Sell tab: the usual price and the cheapest now under the Create Auction button, with Undercut and Usual buttons that fill the price in, and a note when the cheapest is well below usual. You still click Post.
 - `/fl frame` names the window under the mouse, for troubleshooting.
 

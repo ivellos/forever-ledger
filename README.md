@@ -36,6 +36,7 @@
 - **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Share a list as text.
 ### Selling
 - **Your auctions:** what you have up, what's been undercut (with a reminder), and Cancel next undercut, one click each; sold ones show what you get and when the gold reaches your mailbox.
+- **Price helper:** the usual price and the cheapest now on the Sell tab, with Undercut and Usual buttons that fill the price in, and a warning when someone is dumping.
 - **Sell protection:** a warning, and Post greyed out, before you list something for less than a vendor pays.
 
 ### Crafting and professions
@@ -46,6 +47,7 @@
 ### Your gold
 - **Dashboard:** gold over time, sales, expenses and profit.
 - **Ledger:** every transaction in one list; select rows to see what they add up to; resale profit per item.
+- **Characters:** every character's bags and bank, per realm and faction, with what it's all worth and the best way to turn each item into gold.
 - **Sessions:** a small tracker for gold an hour, gold in and out and what you loot.
 - **Dungeon runs:** runs, time, coin and what dropped for you, per dungeon.
 
@@ -63,7 +65,7 @@ Forever Ledger keeps everything in its saved file on your own PC (`WTF\Account\.
 
 - **What it keeps:** auction house and vendor prices and their history; recipe, vendor and trainer locations you've seen; your characters' professions and recipes, gold over time, sales, purchases and vendor trades; bag and bank contents (this account only); requests the customer finder spotted in chat; and your work-done log.
 - **What it sends:** only two things, and only when you choose to. Live sync whispers prices and recipes to **your own** paired character (off until you use `/fl pair`), and the ad buttons post your ad in Trade chat when you click them.
-- **Export** copies your data as text for you to paste on your other account; it goes nowhere by itself.
+- **Export / import** copies your data as text for you to paste on your other account; it goes nowhere by itself.
 
 If a feature ever shares anything with other players (an idea on the roadmap: sharing where vendors and trainers are, so everyone's data fills in faster), it will be world facts only, never names, gold or bags, it will ask first, and you can turn it off.
 
