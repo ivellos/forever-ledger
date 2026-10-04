@@ -10,7 +10,7 @@ local ADDON, ns = "ForeverLedger", {}
 
 -- The files to load, in the .toc's order, up to the last one the tests need.
 local LOAD = { "Core.lua", "Prices.lua", "History.lua", "Inventory.lua", "Professions.lua", "Values.lua", "Crates.lua",
-  "Sessions.lua", "ShoppingLists.lua" }
+  "Disenchant.lua", "Sessions.lua", "ShoppingLists.lua" }
 local wanted = {}
 for _, f in ipairs(LOAD) do wanted[f] = true end
 local order = {}
@@ -19,9 +19,15 @@ for line in io.lines("ForeverLedger.toc") do
   if wanted[line] then order[#order + 1] = line end
 end
 assert(#order == #LOAD, "a file the tests need isn't in ForeverLedger.toc")
+-- Each file's ready callbacks (ns:OnReady), so a test can run one file's again: History.lua
+-- tidies its saved data in its own (test_retention.lua).
+local readyOf = {}
 for _, file in ipairs(order) do
   local chunk = assert(loadfile(file))
+  local before = ns.readyCallbacks and #ns.readyCallbacks or 0
   chunk(ADDON, ns)
+  readyOf[file] = {}
+  for i = before + 1, ns.readyCallbacks and #ns.readyCallbacks or 0 do readyOf[file][#readyOf[file] + 1] = ns.readyCallbacks[i] end
 end
 
 -- ClassicItems.lua (the list of items that bind) is 17,000 lines the tests don't need:
@@ -39,6 +45,34 @@ assert(ns.db, "ADDON_LOADED didn't set up ns.db")
 -- The runner
 ---------------------------------------------------------------------------
 local T = { ns = ns, S = S }
+
+-- Run one file's ready callbacks again (as at login). Their hooks on game functions
+-- are left out, so running them twice doesn't hook twice.
+function T.ready(file)
+  local real = hooksecurefunc
+  hooksecurefunc = function() end
+  for _, fn in ipairs(readyOf[file] or {}) do fn() end
+  hooksecurefunc = real
+end
+
+-- An event, as the game would send it (to the addon's event frames).
+function T.fire(event, ...)
+  for _, f in ipairs(S.frames) do
+    if f.events[event] and f.scripts.OnEvent then f.scripts.OnEvent(f, event, ...) end
+  end
+end
+
+-- Run the timers that are due (C_Timer.After), and any they start, until none are left.
+function T.runTimers()
+  local n = 0
+  while #S.timers > 0 do
+    local fn = table.remove(S.timers, 1)
+    fn()
+    n = n + 1
+    if n > 100000 then error("timers keep starting more timers") end
+  end
+  return n
+end
 local results = { pass = 0, fail = 0, xfail = 0, xpass = 0 }
 local failures = {}
 local current
@@ -96,11 +130,11 @@ function T.resetDB()
   for k in pairs(ns.db) do ns.db[k] = nil end
   for k, v in pairs(fresh) do ns.db[k] = v end
   S.money, S.now = 0, 1790000000
-  wipe(S.items); wipe(S.bags); wipe(S.bank)
+  wipe(S.items); wipe(S.bags); wipe(S.bank); wipe(S.timers)
 end
 
 -- The test files (listed here, so it runs the same on any system).
-local FILES = { "money", "export", "prices", "cut", "lists", "values" }
+local FILES = { "money", "export", "prices", "cut", "lists", "values", "logs", "retention" }
 for _, name in ipairs(FILES) do
   local f = "tests/test_" .. name .. ".lua"
   current = f:match("test_(.-)%.lua$")
