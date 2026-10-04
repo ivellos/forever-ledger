@@ -130,7 +130,13 @@ local function helperUpdate(h)
   local frame = h.frame
   local loc = call(frame, "GetItem")
   local id = loc and C_Item and C_Item.GetItemID and select(2, pcall(C_Item.GetItemID, loc))
-  if ns.db.settings.priceHelper == false or type(id) ~= "number" then h.box:Hide(); return end
+  -- /fl debug says why it's hidden, or where it is, once each time that changes (owner's
+  -- test, October 4: it didn't show on the stacks page).
+  local function why(text)
+    if h.why ~= text then h.why = text; ns:Debug("Price helper: " .. text) end
+  end
+  if ns.db.settings.priceHelper == false then h.box:Hide(); why("hidden, switched off in Settings"); return end
+  if type(id) ~= "number" then h.box:Hide(); why("hidden, no item on the page"); return end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   local cheapest = rec and not rec.none and rec.m
   -- Gear: the cheapest of this version ("of the Monkey"), as Your auctions does; the
@@ -144,11 +150,15 @@ local function helperUpdate(h)
   end
   local stats = ns.PriceStats and ns:PriceStats(id, "month")
   local usual = stats and stats.points >= 3 and math.floor(stats.usual)
-  if not (cheapest or usual) then h.box:Hide(); return end
-  -- The silver below the cheapest: Blizzard's price box takes gold and silver only, so
-  -- 1 copper under could round back up to the same price (review, PR #5). Under 1s,
-  -- 1 copper under.
-  h.under = cheapest and (cheapest > 100 and math.floor((cheapest - 1) / 100) * 100 or math.max(cheapest - 1, 1))
+  if not (cheapest or usual) then
+    h.box:Hide()
+    why(("hidden, no prices for item %d (cheapest %s, usual from %s days)"):format(id, tostring(rec and rec.m),
+      tostring(stats and stats.points)))
+    return
+  end
+  -- 1 copper under the cheapest: Forever's price box has a copper field (owner's test,
+  -- October 4).
+  h.under = cheapest and math.max(cheapest - 1, 1)
   h.usual = usual
   local parts = {}
   if usual then parts[#parts + 1] = "Usual " .. ns.Money(usual) end
@@ -162,6 +172,11 @@ local function helperUpdate(h)
   h.usual_b:SetEnabled(usual ~= nil)
   h.usual_b:SetWidth(h.usual_b:GetFontString():GetStringWidth() + 16)
   h.box:Show()
+  local l, t = h.box:GetLeft(), h.box:GetTop()
+  why(("shown for item %d at %s,%s (page %s,%s), visible %s, layer %s %d over the page's %d"):format(id,
+    l and math.floor(l) or "?", t and math.floor(t) or "?",
+    frame:GetLeft() and math.floor(frame:GetLeft()) or "?", frame:GetTop() and math.floor(frame:GetTop()) or "?",
+    tostring(h.box:IsVisible()), h.box:GetFrameStrata(), h.box:GetFrameLevel(), frame:GetFrameLevel()))
 end
 
 local function helper(frame, name)
@@ -192,7 +207,7 @@ local function helper(frame, name)
     b:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
       GameTooltip:AddLine(self == h.under_b and "Just under the cheapest" or "Your usual price", 1, 1, 1)
-      GameTooltip:AddLine(self == h.under_b and "Fills the price box with the silver just under the cheapest listing from your last scan. You still click Post."
+      GameTooltip:AddLine(self == h.under_b and "Fills the price box with 1 copper under the cheapest listing from your last scan. You still click Post."
         or "Fills the price box with the usual price from your scans this month. You still click Post.", nil, nil, nil, true)
       GameTooltip:Show()
     end)
