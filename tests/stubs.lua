@@ -71,6 +71,21 @@ S.merchant = {}
 function BuyMerchantItem() end
 function GetMerchantItemID(slot) return S.merchant[slot] end
 
+-- The auction house: S.owned is your auctions list (GetOwnedAuctionInfo's tables, status
+-- 1 = sold). Posting does nothing. Anything else the addon calls on it does nothing.
+S.owned = {}
+C_AuctionHouse = setmetatable({
+  GetNumOwnedAuctions = function() return #S.owned end,
+  GetOwnedAuctionInfo = function(i) return S.owned[i] end,
+  QueryOwnedAuctions = function() end,
+  PostItem = function() end,
+  PostCommodity = function() end,
+}, { __index = function() return function() end end })
+
+-- Sounds played: S.sounds[n] = the sound.
+S.sounds = {}
+function PlaySound(sound) S.sounds[#S.sounds + 1] = sound end
+
 function GetItemCount(id, includeBank)
   return (S.bags[id] or 0) + (includeBank and (S.bank[id] or 0) or 0)
 end
