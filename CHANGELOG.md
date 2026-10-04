@@ -18,7 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Your auctions: with two or more undercut, Cancel next undercut could cancel a different auction from the one the line above named. A cancel the server refused no longer stays "cancelling...".
 - Buy queue: Spend at most counts the gold that actually leaves you, so a purchase confirmed late is counted; only auction house errors count as a failed purchase.
 - Shopping lists: an error opening the list menu with a Craft item whose recipe became known later.
-- Sessions: a session carried over a logout no longer counts the time offline; starting one says which character a running session is on.
+- Sessions: a session carried over a logout no longer counts the time offline; a session left running on another character is ended (and kept) when you start one, in one click.
 - Auction sales: the deposit that comes back with a sale is kept apart (Auction deposits back, under Other), so the sale shows its real price and the Dashboard's Sales and Expenses aren't both inflated.
 - Smaller: the Ledger search waits for a pause in typing; the shopping list redraws every 2 seconds; long requests in the Customers window stop before the buttons.
 

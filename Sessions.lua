@@ -228,7 +228,7 @@ drawTracker = function()
   -- test, October 3: "-21g 60s an hour" 20 seconds in).
   local rate = st.secs >= 120 and rateText(st.perHour) or "|cff888888...|r"
   tracker.time:SetText(duration(st.secs))
-  tracker.rate:SetText(st.secs >= 120 and (rate .. " |cffbbbbbban hour|r") or "|cff888888an hour, from 2 min in|r")
+  tracker.rate:SetText(st.secs >= 120 and (rate .. " |cffbbbbbban hour|r") or "|cff888888gold an hour: shows after 2 min|r")
   tracker.smallRate:SetText(rate .. " |cffbbbbbb/h|r")
   tracker.gold:SetText(("|cff999999Gold|r |cff%s%s|r"):format(st.gained >= 0 and "7fd39c" or "ee8597", signed(st.gained)))
   tracker.loot:SetText(("|cff999999Loot|r %s"):format(ns.Money(st.loot)))
@@ -252,12 +252,15 @@ end
 ---------------------------------------------------------------------------
 function ns:StartGeneralSession()
   local s = live()
-  if s then
-    -- Say whose it is (code review, October 4: it could be on another character).
-    local c = ns.db.chars[s.char]
-    local who = s.char ~= ns.CharKey() and (" on " .. ((c and c.name) or s.char)) or ""
-    ns:Print(("A session is already running%s: /fl session stop ends it."):format(who))
+  if s and s.char == ns.CharKey() then
+    ns:Print("A session is already running: /fl session stop ends it.")
     return
+  elseif s then
+    -- One left running on another character: end it (kept with your sessions) and
+    -- start this one, in one click (owner's test, October 4).
+    local c = ns.db.chars[s.char]
+    ns:Print(("Ended the session left running on %s (it's in your sessions)."):format((c and c.name) or s.char))
+    ns:StopGeneralSession()
   end
   ns.db.liveSession = { t = time(), resume = time(), active = 0, char = ns.CharKey(), money = {}, loot = {} }
   ns:Print("Session started: gold in and out and what you loot are counted. /fl session stop (or Stop on the tracker) ends it.")
@@ -301,7 +304,12 @@ function ns:StopGeneralSession()
   if ns.RefreshUI then ns:RefreshUI() end
 end
 
-function ns:GeneralSessionRunning() return live() ~= nil end
+-- Running on this character (one left running on another doesn't count here: owner's
+-- test, October 4, the Dashboard's button stopped it instead of starting one).
+function ns:GeneralSessionRunning()
+  local s = live()
+  return s ~= nil and s.char == ns.CharKey()
+end
 
 -- A session left running at logout carries on at login, on the same character.
 ns:On("PLAYER_ENTERING_WORLD", function()
