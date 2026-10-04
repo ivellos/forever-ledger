@@ -96,16 +96,16 @@ T.test("A profile without a value reads the setting's default, not Default's val
   T.eq(ns.db.settings[CHECK], ns.DEFAULT_SETTINGS[CHECK])
 end)
 
--- Core.lua:427: a per-character setting with no default (tipBagSlot, the bag value
--- line in tooltips, isn't in Core.lua's DEFAULTS) falls through to the shared table, so
--- a profile without its own value takes Default's value instead of the setting's default.
-T.xfail("A setting with no default doesn't take Default's value on another profile", "falls through to the shared table", function()
+-- A per-character setting with no default fell through to the shared table, so a
+-- profile without its own value took Default's (tipBagSlot, found by this test; fixed
+-- October 4). Every per-character setting needs a default in Core.lua's DEFAULTS.
+T.test("Every per-character setting has a default, so a profile never takes Default's value", function()
   fresh()
-  T.ok(ns.PER_CHAR_SETTINGS.tipBagSlot and ns.DEFAULT_SETTINGS.tipBagSlot == nil, "a per-character setting with no default")
+  for k in pairs(ns.PER_CHAR_SETTINGS) do T.ok(ns.DEFAULT_SETTINGS[k] ~= nil, k .. " has a default in Core.lua") end
   ns.db.settings.tipBagSlot = false         -- turned off on Default
   ns.db.profiles.Alt = {}
   quiet(P.useProfile, "Alt")
-  T.eq(ns.db.settings.tipBagSlot, nil, "Alt never turned it off")
+  T.eq(ns.db.settings.tipBagSlot, true, "Alt never turned it off, so it reads the default")
 end)
 
 T.test("A character on a profile that no longer exists is on Default", function()

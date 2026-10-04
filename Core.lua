@@ -50,7 +50,7 @@ local DEFAULTS = {
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
     -- wheel starts off so nobody buys by accident (owner, October 2).
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = false, tab = "queue" },
-    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true },
+    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true },
 }
 -- For Settings: "Default: Auto." under each choice (UI.lua).
 ns.DEFAULT_SETTINGS = DEFAULTS.settings
