@@ -576,7 +576,7 @@ local function layoutRows(box, rows, width, y)
   return y
 end
 
--- The sidebar: a page's button (icon, name, a bar on the chosen one) or a group heading.
+-- The sidebar: a page's button (its name, a bar and a tint on the chosen one).
 local function navButton(p)
   local b = CreateFrame("Button", nil, f.nav)
   b:SetHeight(24)
@@ -591,13 +591,10 @@ local function navButton(p)
   local hl = b:CreateTexture(nil, "HIGHLIGHT")
   hl:SetAllPoints()
   hl:SetColorTexture(1, 1, 1, 0.05)
-  b.icon = b:CreateTexture(nil, "ARTWORK")
-  b.icon:SetSize(16, 16)
-  b.icon:SetPoint("LEFT", 9, 0)
-  b.icon:SetTexture(p.icon)
-  b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  -- No icons (owner, October 4: the game's icons looked busy, and there will be many
+  -- pages); the bar and the tint show the chosen one.
   b.text = T:Text(b, 12)
-  b.text:SetPoint("LEFT", 32, 0)
+  b.text:SetPoint("LEFT", 14, 0)
   b.text:SetJustifyH("LEFT")
   b.text:SetText(p.title)
   b.extra = T:Text(b, 10, T.dim)

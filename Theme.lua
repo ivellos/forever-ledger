@@ -26,11 +26,14 @@ ns.Theme = T
 -- colour like "0cd29d"). Applied once at load (Core.lua calls T:Apply), before any of
 -- our frames exist, so every frame is drawn in it; changing it asks for a reload.
 -- All three keep EllesmereUI's flat dark base so they sit well next to it:
---   clean    flat, thin borders, tick boxes, the accent for headings
---   default  plus a bronze line along the top, gold titles, small-caps gold headings,
---            sections as cards, toggle switches, a tinted footer
---   gilded   plus a bronze frame, serif gold titles (Morpheus), serif headings with a
---            gold rule, bronze-edged cards
+--   clean    flat and soft: neutral greys (not EllesmereUI's blue-grey), thin
+--            borders, tick boxes, the accent for headings
+--   default  warm browns, a bronze line along the top, gold titles, small-caps gold
+--            headings, sections as cards, rounded switches, a tinted footer
+--   gilded   plus a bronze frame, bronze-edged buttons and lines, titles and headings
+--            in WoW's Friz Quadrata in gold with a gold rule under headings
+-- Second pass after the owner's screenshots (October 4): the first was too close to
+-- EllesmereUI; these follow the mockup more closely.
 ---------------------------------------------------------------------------
 local GOLD = { 0.91, 0.76, 0.48 }
 local BRONZE = { 0.61, 0.42, 0.21 }
@@ -38,17 +41,20 @@ local TEAL = { 12 / 255, 210 / 255, 157 / 255 }
 
 T.THEMES = {
   clean = { name = "FL Clean", accent = TEAL,
-    bg = { 0.067, 0.067, 0.067, 0.97 }, header = { 0.09, 0.09, 0.09, 1 } },
+    bg = { 0.071, 0.071, 0.071, 0.97 }, header = { 0.09, 0.09, 0.09, 1 },
+    button = { 0.105, 0.105, 0.105, 0.95 }, border = { 1, 1, 1, 0.10 } },
   default = { name = "FL Default", accent = TEAL,
-    bg = { 0.071, 0.071, 0.071, 0.97 }, header = { 0.086, 0.078, 0.071, 1 },
+    bg = { 0.071, 0.065, 0.059, 0.97 }, header = { 0.094, 0.082, 0.071, 1 },
+    button = { 0.118, 0.106, 0.094, 0.95 }, border = { 1, 0.92, 0.80, 0.10 },
     topLine = BRONZE, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
   gilded = { name = "FL Gilded", accent = TEAL,
-    bg = { 0.078, 0.071, 0.063, 0.97 }, header = { 0.114, 0.094, 0.075, 1 },
+    bg = { 0.078, 0.069, 0.059, 0.97 }, header = { 0.118, 0.094, 0.071, 1 },
+    button = { 0.125, 0.106, 0.086, 0.95 }, border = { BRONZE[1], BRONZE[2], BRONZE[3], 0.55 },
     frame = BRONZE, topLine = BRONZE, title = GOLD, heading = GOLD, serif = true,
     cards = true, cardEdge = BRONZE, toggles = true, footer = true },
 }
 T.THEME_ORDER = { "clean", "default", "gilded" }
-T.SERIF = "Fonts\\MORPHEUS.TTF"
+T.SERIF = "Fonts\\FRIZQT__.TTF"   -- WoW's own Friz Quadrata (Morpheus read oddly at heading size)
 T.theme = T.THEMES.default
 
 -- "0cd29d" -> { r, g, b } (nil if it isn't a colour).
@@ -77,6 +83,7 @@ function T:Apply()
   T.themeKey = T.THEMES[key or ""] and key or "default"
   T.theme = T.THEMES[T.themeKey]
   T.bg, T.header = T.theme.bg, T.theme.header
+  T.button, T.border = T.theme.button or T.button, T.theme.border or T.border
   T.accent = T:FromHex(s and s.accent) or euiAccent() or T.theme.accent
 end
 
@@ -102,9 +109,9 @@ function T:NeedsReload()
   return want ~= T.themeKey or T:ToHex(accent) ~= T:ToHex(T.accent)
 end
 
--- Colour code for titles: gold on themes with gold titles, else the accent.
+-- Colour code for window titles: gold on themes with gold titles, else white.
 function T:TitleCode()
-  local c = T.theme.title or T.accent
+  local c = T.theme.title or T.text
   return ("|cff%02x%02x%02x"):format(c[1] * 255, c[2] * 255, c[3] * 255)
 end
 
@@ -442,18 +449,38 @@ end
 function T:Check(parent, onClick, style)
   local b = CreateFrame("Button", nil, parent)
   if T.theme.toggles and style == "switch" then
-    b:SetSize(26, 14)
-    b.track = b:CreateTexture(nil, "BACKGROUND")
-    b.track:SetAllPoints()
-    b.knob = b:CreateTexture(nil, "ARTWORK")
-    b.knob:SetSize(10, 10)
-    b.knob:SetColorTexture(1, 1, 1, 1)
+    -- A pill: a round cap at each end and a bar between, with a round knob (owner's
+    -- test, October 4: the square blocks didn't look like the mockup). Rounded with the
+    -- game's circle mask; square if masks aren't available.
+    b:SetSize(28, 14)
+    local round = b.CreateMaskTexture ~= nil
+    local function circle(layer, size)
+      local tex = b:CreateTexture(nil, layer)
+      tex:SetSize(size, size)
+      if round then
+        local m = b:CreateMaskTexture()
+        m:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetAllPoints(tex)
+        tex:AddMaskTexture(m)
+      end
+      return tex
+    end
+    b.capL = circle("BACKGROUND", 14)
+    b.capL:SetPoint("LEFT")
+    b.capR = circle("BACKGROUND", 14)
+    b.capR:SetPoint("RIGHT")
+    b.mid = b:CreateTexture(nil, "BACKGROUND")
+    b.mid:SetPoint("TOPLEFT", 7, 0)
+    b.mid:SetPoint("BOTTOMRIGHT", -7, 0)
+    b.knob = circle("ARTWORK", 10)
     b.label = T:Text(b, 12)
     b.label:SetPoint("LEFT", b, "RIGHT", 6, 0)
     function b:SetChecked(on)
       self.checked = on and true or false
-      if self.checked then self.track:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 1)
-      else self.track:SetColorTexture(1, 1, 1, 0.18) end
+      local r, g, bl, a = 0.24, 0.23, 0.22, 1   -- (opaque: the pieces overlap)
+      if self.checked then r, g, bl, a = T.accent[1], T.accent[2], T.accent[3], 1 end
+      for _, part in ipairs({ self.capL, self.capR, self.mid }) do part:SetColorTexture(r, g, bl, a) end
+      self.knob:SetColorTexture(1, 1, 1, self.checked and 1 or 0.75)
       self.knob:ClearAllPoints()
       self.knob:SetPoint(self.checked and "RIGHT" or "LEFT", self.checked and -2 or 2, 0)
     end
