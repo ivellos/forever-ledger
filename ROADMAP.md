@@ -60,7 +60,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Mail helper**: open all mail in one click (sales logged as it goes), and a warning when one mail carries many stacks.
 - **Plays nice with Auctionator and TSM**: features they already cover are switched off when they're installed, with a one-time message saying what and how to turn them back on. Later also Leatrix Plus and ForeverForge, for auto-selling and sniping.
 - **Prices for other addons' lists**: what GearQuest's suggested upgrades cost on the auction house right now, and what Dungeon Journal's boss loot is worth per run, when those addons are installed.
-- **UI styles**: choose the look: EllesmereUI (current), Retail, Classic or Forever.
+- **A new look and a new Settings window**: a look of our own that still sits well next to EllesmereUI, and Settings laid out like EllesmereUI's options: Global settings for everything account-wide, then a section per feature group with tabs inside. Settings profiles you can switch between per character, export (choosing which sections) and import.
 - **Shopping list** across shuffles.
 - **Macro library**: a searchable library of useful macros by class and purpose, each explained, with one-click "create". Players will be able to suggest macros on the Discord and vote for the most useful ones.
 
