@@ -13,7 +13,7 @@ local T = ns.Theme
 -- search box looks through everyone at once.
 -- Reads ns.db.inventory (Inventory.lua), ns.db.chars and ns.db.gold. Changes nothing.
 ---------------------------------------------------------------------------
-local NAV_W, ROW, MAX_ROWS = 180, 20, 400
+local NAV_W, ROW, MAX_ROWS = 190, 20, 400
 local f
 local navButtons, rows, heads, profCells = {}, {}, {}, {}
 local state = { char = nil, group = nil, where = "both", sort = { key = "total", desc = true } }
@@ -50,9 +50,21 @@ end
 local function realmOf(c) return c.realm or GetRealmName() or "?" end
 local function factionOf(c) return c.faction or UnitFactionGroup("player") or "?" end
 
-local function shortRealm(realm)
+-- "Classic Beta PvE 2" without the prefix and the number: "PvE". At launch there's one
+-- server per ruleset (owner, October 4), so the number only stays when two of your
+-- realms would otherwise read the same ("PvE 1", "PvE 2").
+local function trimRealm(realm)
   local s = realm:gsub("^Classic Beta%s+", ""):gsub("^WoW Forever%s+", ""):gsub("^Forever%s+", "")
   return s ~= "" and s or realm
+end
+local function shortRealm(realm)
+  local trimmed = trimRealm(realm)
+  local base = trimmed:gsub("%s+%d+$", "")
+  for _, c in pairs(ns.db.chars) do
+    local other = c.realm
+    if other and other ~= realm and trimRealm(other):gsub("%s+%d+$", "") == base then return trimmed end
+  end
+  return base
 end
 
 local function hereGroup() return (GetRealmName() or "?") .. "|" .. (UnitFactionGroup("player") or "?") end
@@ -207,7 +219,7 @@ end
 local function navButton(i)
   if navButtons[i] then return navButtons[i] end
   local b = CreateFrame("Button", nil, f.nav)
-  b:SetHeight(34)
+  b:SetHeight(36)
   b.bg = T:Fill(b, { 1, 1, 1, 0.03 })
   b.sel = b:CreateTexture(nil, "BACKGROUND", nil, 1)
   b.sel:SetAllPoints()
@@ -215,14 +227,28 @@ local function navButton(i)
   b.hl = b:CreateTexture(nil, "HIGHLIGHT")
   b.hl:SetAllPoints()
   b.hl:SetColorTexture(1, 1, 1, 0.05)
+  -- An accent bar on the chosen one's left edge.
+  b.bar = b:CreateTexture(nil, "ARTWORK")
+  b.bar:SetPoint("TOPLEFT")
+  b.bar:SetPoint("BOTTOMLEFT")
+  b.bar:SetWidth(2)
+  b.bar:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 1)
+  -- Class icon (or coins for All characters), name, then level and class with the gold
+  -- on the right (owner's test, October 4: make the character list more appealing).
+  b.icon = b:CreateTexture(nil, "ARTWORK")
+  b.icon:SetSize(22, 22)
+  b.icon:SetPoint("LEFT", 7, 0)
   b.name = T:Text(b, 12)
-  b.name:SetPoint("TOPLEFT", 8, -4)
+  b.name:SetPoint("TOPLEFT", 35, -4)
   b.name:SetPoint("RIGHT", b, "RIGHT", -6, 0)
   b.name:SetJustifyH("LEFT")
   b.name:SetWordWrap(false)
+  b.gold = T:Text(b, 10)
+  b.gold:SetPoint("BOTTOMRIGHT", -6, 5)
+  b.gold:SetJustifyH("RIGHT")
   b.sub = T:Text(b, 10, T.dim)
   b.sub:SetPoint("TOPLEFT", b.name, "BOTTOMLEFT", 0, -2)
-  b.sub:SetPoint("RIGHT", b, "RIGHT", -6, 0)
+  b.sub:SetPoint("RIGHT", b.gold, "LEFT", -4, 0)
   b.sub:SetJustifyH("LEFT")
   b.sub:SetWordWrap(false)
   b:SetScript("OnClick", function(self) state.char = self.key; ns:RefreshCharacters() end)
@@ -446,19 +472,31 @@ function ns:RefreshCharacters()
     b:SetWidth(navW)
     b.key = e.key
     b.sel:SetShown(state.char == e.key)
+    b.bar:SetShown(state.char == e.key)
+    b.icon:SetTexCoord(0, 1, 0, 1)
     if e.key == "all" then
       local total = 0
       for _, k in ipairs(mine) do total = total + (goldOf(k) or 0) end
+      b.icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_02")
+      b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
       b.name:SetText(T:AccentCode() .. "All characters|r")
-      b.sub:SetText(("%d %s, %s"):format(#mine, #mine == 1 and "character" or "characters", ns.MoneyPlain(total)))
+      b.sub:SetText(("%d %s"):format(#mine, #mine == 1 and "character" or "characters"))
+      b.gold:SetText(ns.MoneyPlain(total))
     else
       local c = ns.db.chars[e.key]
       local me = e.key == ns.CharKey()
+      local tc = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[c.class or ""]
+      if tc then
+        b.icon:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
+        b.icon:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+      else
+        b.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+      end
       b.name:SetText(className(c) .. (me and dim("  (you)") or ""))
       local g = goldOf(e.key)
       local other = state.group == "*" and realmOf(c) ~= GetRealmName()
-      b.sub:SetText(("level %s%s%s"):format(c.level or "?", g and (", " .. ns.MoneyPlain(g)) or "",
-        other and (", " .. shortRealm(realmOf(c))) or ""))
+      b.sub:SetText(("Level %s %s%s"):format(c.level or "?", classWord(c), other and (", " .. shortRealm(realmOf(c))) or ""))
+      b.gold:SetText(g and ns.MoneyPlain(g) or "")
     end
     b:Show()
     y = y + b:GetHeight() + 2

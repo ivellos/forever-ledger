@@ -84,9 +84,11 @@ T.test("ParseMoneyLoose: off, any and junk", function()
   T.eq(ns.ParseMoneyLoose("5x"), nil)
 end)
 
--- Core.lua:129: a number, a dot and more digits is read as gold and silver ("12.50" is
--- 12g 50s). With one digit after the dot, "1.5" in a gold box becomes 1g 5s, where a
--- player most likely means one and a half gold (1g 50s), as "1.5g" already gives.
-T.xfail("ParseMoneyLoose: 1.5 in a gold box is 1g 50s", "one digit after the dot reads as 5 silver", function()
+-- One digit after a dot is a decimal (owner, October 4): "1.5" is one and a half gold, as
+-- "1.5g" is. Two digits, or a space, stay gold and silver.
+T.test("ParseMoneyLoose: 1.5 is 1g 50s", function()
   T.eq(ns.ParseMoneyLoose("1.5", "g"), 15000)
+  T.eq(ns.ParseMoneyLoose("1.05", "g"), 10500)
+  T.eq(ns.ParseMoneyLoose("1 5", "g"), 10500, "a space is gold then silver")
+  T.eq(ns.ParseMoneyLoose("1.5.25"), 10525, "three numbers are gold silver copper")
 end)

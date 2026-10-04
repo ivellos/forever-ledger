@@ -1500,6 +1500,7 @@ function ns:ShowTextWindow(title, help, text, actionLabel, onAction, tabs)
     f.action:Hide()
   end
   f:Show()
+  f:Raise()   -- in front of the main window, even when already open (owner's test, October 4)
   f.eb:SetFocus()
   if text and text ~= "" then f.eb:HighlightText() end
 end
@@ -1520,6 +1521,7 @@ function ns:ShowExport()
   f.eb:SetText(ns:Export())
   f.action:Hide()
   f:Show()
+  f:Raise()   -- in front of the main window, even when already open (owner's test, October 4)
   f.eb:SetFocus()
   f.eb:HighlightText()
 end
@@ -1538,6 +1540,7 @@ function ns:ShowImport()
   end)
   f.action:Show()
   f:Show()
+  f:Raise()   -- in front of the main window, even when already open (owner's test, October 4)
   f.eb:SetFocus()
 end
 
@@ -1574,6 +1577,7 @@ function ns:ShowPricesCSV()
   f.eb:SetText(ns:PricesCSV())
   f.action:Hide()
   f:Show()
+  f:Raise()   -- in front of the main window, even when already open (owner's test, October 4)
   f.eb:SetFocus()
   f.eb:HighlightText()
 end

@@ -129,6 +129,9 @@ function ns.ParseMoneyLoose(s, plainUnit)
   if s:find("^%d+[%s%.]+%d+$") or s:find("^%d+[%s%.]+%d+[%s%.]+%d+$") then
     local p = {}
     for d in s:gmatch("%d+") do p[#p + 1] = tonumber(d) end
+    -- One digit after a dot is a decimal: "1.5" is one and a half gold, 1g 50s (owner,
+    -- October 4), as "1.5g" is; "1.05" and "1 5" stay 1g 5s.
+    if not p[3] and s:find("^%d+%.%d$") then p[2] = p[2] * 10 end
     return p[1] * 10000 + p[2] * 100 + (p[3] or 0)
   end
   local n = tonumber(s)

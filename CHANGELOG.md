@@ -11,10 +11,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - Characters tab: a dropdown picks the realm and faction (this one at first; both factions of a realm, or all realms), and only those characters count. No more greyed list of other realms.
 - Characters tab: professions in tidy columns; Best way says it short ("Auction house", "Craft Minor Wizard Oil"), the whole way on hover; hover a character for its gold and bags and bank worth, the bottom line for each character's part, a heading for what it means.
+- Characters tab: class icons, the gold on the right and a bar on the chosen character; realms show by ruleset ("PvE Alliance"), with a number only when two would read the same.
 - Export, Import and Prices as text are one Export / import button, with tabs.
+- Money boxes: "1.5" is one and a half gold (1g 50s), like "1.5g"; "1.05" and "1 5" are still 1g 5s.
 - Price helper: Undercut fills in the silver just under the cheapest, since the price box takes gold and silver only.
 
 ### Fixed
+- The Export / import window no longer opens behind the main window when the button is clicked again.
 - Price helper: on gear, Undercut and the cheapest now use your item's own version ("of the Monkey"), not the cheapest of any version.
 - Price helper: the "well below usual" note goes on a second line instead of being cut off.
 - Characters tab: a long professions line no longer runs into the Bags and bank buttons.
