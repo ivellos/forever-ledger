@@ -2657,6 +2657,16 @@ local function matchProfessionLayer()
 end
 ns:On("TRADE_SKILL_SHOW", function() C_Timer.After(0, matchProfessionLayer) end)
 
+-- A click anywhere on the panel, its buttons and rows included, brings it to the
+-- front, and beside the auction house the auction house window with it: the panel is
+-- part of that window, and raising only the panel left a profession window on top
+-- (owner's test, October 3: clicking the auction house worked, the panel didn't).
+ns:On("GLOBAL_MOUSE_DOWN", function()
+  if not (side and side:IsShown() and side:IsMouseOver()) then return end
+  if not side.floating and AuctionHouseFrame and AuctionHouseFrame:IsShown() then AuctionHouseFrame:Raise() end
+  side:Raise()
+end)
+
 function ns:ShowSidePanel(tab)
   ensureSide()
   place()

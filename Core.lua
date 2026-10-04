@@ -249,6 +249,8 @@ function ns:On(event, fn)
   end
   table.insert(handlers[event], fn)
 end
+-- Whether the game knows an event we listen for (for /fl api).
+function ns:EventKnown(event) return handlers[event] ~= nil and not handlers[event].unknown end
 -- Timing, for /fl perf: total and slowest single run per event or task.
 ns.perf, ns.perfSince = {}, GetTime()
 local clock = debugprofilestop or function() return GetTime() * 1000 end
@@ -537,6 +539,8 @@ function ns:ApiReport()
     print(("  %s %s"):format(has(path) and "|cff7fd39cyes|r" or "|cffee8597no|r ", path))
   end
   print("  Market: " .. ns.MarketKey())
+  print(("  %s GLOBAL_MOUSE_DOWN event (Buy queue panel comes to the front)"):format(
+    ns:EventKnown("GLOBAL_MOUSE_DOWN") and "|cff7fd39cyes|r" or "|cffee8597no|r "))
   -- Which ruleset the character is on (owner, October 3: group characters by ruleset,
   -- not by server name, if the game says it). Each is tried safely and printed.
   local function try(label, fn)
