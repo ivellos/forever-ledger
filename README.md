@@ -10,12 +10,14 @@
 
 ## Major features
 
-- <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/worth.png" width="20" height="20" alt=""> **Know what everything is worth.** Hover any item: sell it, vendor it, disenchant it or craft it, whichever pays most, and the most worth paying for it.
-- <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/buy.png" width="20" height="20" alt=""> **Buy the bargains in one click.** Vendor flips and your shopping lists lined up beside the auction house: click or scroll to buy the next one. It never pays more than your limit.
-- <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/deals.png" width="20" height="20" alt=""> **Spot deals.** Listings well below their usual price, with the resale profit after the cut and how sure the deal is.
-- <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/lists.png" width="20" height="20" alt=""> **Shopping lists.** Twink gear to watch for or raid consumables to buy: search the whole list at once, see what you already own, buy with a tick.
-- <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/crafting.png" width="20" height="20" alt=""> **Profit from your professions.** Crafts and disenchants ranked by gold an hour, recipes and where to learn them, customers spotted in chat.
-- <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/gold.png" width="20" height="20" alt=""> **See where your gold goes.** Gold over time, every sale and purchase in one list, and what each play session earned you.
+| | |
+|---|---|
+| <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/worth.png" width="32" height="32" alt=""> | **Know what everything is worth.** Hover any item: sell it, vendor it, disenchant it or craft it, whichever pays most, and the most worth paying for it. |
+| <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/buy.png" width="32" height="32" alt=""> | **Buy the bargains in one click.** Vendor flips and your shopping lists lined up beside the auction house: click or scroll to buy the next one. It never pays more than your limit. |
+| <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/deals.png" width="32" height="32" alt=""> | **Spot deals.** Listings well below their usual price, with the resale profit after the cut and how sure the deal is. |
+| <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/lists.png" width="32" height="32" alt=""> | **Shopping lists.** Twink gear to watch for or raid consumables to buy: search the whole list at once, see what you already own, buy with a tick. |
+| <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/crafting.png" width="32" height="32" alt=""> | **Profit from your professions.** Crafts and disenchants ranked by gold an hour, recipes and where to learn them, customers spotted in chat. |
+| <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/gold.png" width="32" height="32" alt=""> | **See where your gold goes.** Gold over time, every sale and purchase in one list, and what each play session earned you. |
 
 **The addon suggests; you click.** Every craft, purchase and auction is still your own click, as Blizzard requires.
 
