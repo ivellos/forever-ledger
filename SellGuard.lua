@@ -103,11 +103,106 @@ local function guard(frame, name)
     frame.GetItem and "yes" or "no", frame.GetUnitPrice and "GetUnitPrice" or (frame.PriceInput and "PriceInput" or "nothing")))
 end
 
+---------------------------------------------------------------------------
+-- Price helper (October 4, after Your auctions: cancel, then repost): a line above the
+-- price box with the usual price and the cheapest now, and two buttons that fill the
+-- price in: just under the cheapest, or the usual price. When the cheapest is far below
+-- usual (someone dumping), it says so, so you can wait rather than follow it down. It
+-- only fills the box; you still click Post. Settings, Auction house: priceHelper.
+---------------------------------------------------------------------------
+local helpers = {}
+local DUMP = 0.7   -- cheapest under 70% of usual: "well below usual"
+
+local function setPrice(frame, copper)
+  local input = frame.PriceInput
+  if not (input and copper and copper > 0) then return end
+  if call(input, "SetAmount", copper) == nil and not input.SetAmount then
+    ns:Debug("Price helper: no SetAmount on the price box")
+    return
+  end
+  -- Let the page work out the total and Post again.
+  call(frame, "OnPriceChanged")
+  call(frame, "UpdateTotalPrice")
+  call(frame, "UpdatePostButtonState")
+end
+
+local function helperUpdate(h)
+  local frame = h.frame
+  local loc = call(frame, "GetItem")
+  local id = loc and C_Item and C_Item.GetItemID and select(2, pcall(C_Item.GetItemID, loc))
+  if ns.db.settings.priceHelper == false or type(id) ~= "number" then h.box:Hide(); return end
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  local cheapest = rec and not rec.none and rec.m
+  local stats = ns.PriceStats and ns:PriceStats(id, "month")
+  local usual = stats and stats.points >= 3 and math.floor(stats.usual)
+  if not (cheapest or usual) then h.box:Hide(); return end
+  h.under = cheapest and math.max(cheapest - 1, 1)
+  h.usual = usual
+  local parts = {}
+  if usual then parts[#parts + 1] = "Usual " .. ns.Money(usual) end
+  if cheapest then parts[#parts + 1] = "cheapest now " .. ns.Money(cheapest) end
+  local dumped = usual and cheapest and cheapest < usual * DUMP
+  h.text:SetText(table.concat(parts, "   ") .. (dumped and "   |cffffd100well below usual: you may do better waiting|r" or ""))
+  h.under_b:SetText(h.under and ("Undercut " .. ns.MoneyPlain(h.under)) or "Undercut")
+  h.under_b:SetEnabled(h.under ~= nil)
+  h.under_b:SetWidth(h.under_b:GetFontString():GetStringWidth() + 16)
+  h.usual_b:SetText(usual and ("Usual " .. ns.MoneyPlain(usual)) or "Usual")
+  h.usual_b:SetEnabled(usual ~= nil)
+  h.usual_b:SetWidth(h.usual_b:GetFontString():GetStringWidth() + 16)
+  h.box:Show()
+end
+
+local function helper(frame, name)
+  if not frame or helpers[frame] then return end
+  local input = frame.PriceInput
+  local h = { frame = frame }
+  helpers[frame] = h
+  h.box = CreateFrame("Frame", nil, frame)
+  h.box:SetSize(320, 40)
+  -- Above the price box (its label sits to the left); the page has room there.
+  if input then h.box:SetPoint("BOTTOMLEFT", input, "TOPLEFT", -60, 4)
+  else h.box:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -60) end
+  h.box:SetFrameLevel(frame:GetFrameLevel() + 10)
+  h.text = T:Text(h.box, 10, T.dim)
+  h.text:SetPoint("TOPLEFT", 0, 0)
+  h.text:SetWidth(320)
+  h.text:SetJustifyH("LEFT")
+  h.text:SetWordWrap(false)
+  h.under_b = T:Button(h.box, "Undercut", 90, function() setPrice(frame, h.under) end, 18)
+  h.under_b:SetPoint("TOPLEFT", h.text, "BOTTOMLEFT", 0, -3)
+  h.under_b:GetFontString():SetFont(T.font, 10, "")
+  h.usual_b = T:Button(h.box, "Usual", 90, function() setPrice(frame, h.usual) end, 18)
+  h.usual_b:SetPoint("LEFT", h.under_b, "RIGHT", 4, 0)
+  h.usual_b:GetFontString():SetFont(T.font, 10, "")
+  for _, b in ipairs({ h.under_b, h.usual_b }) do
+    b:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine(self == h.under_b and "Just under the cheapest" or "Your usual price", 1, 1, 1)
+      GameTooltip:AddLine(self == h.under_b and "Fills the price box with 1 copper under the cheapest listing from your last scan. You still click Post."
+        or "Fills the price box with the usual price from your scans this month. You still click Post.", nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  h.box:Hide()
+  local since = 0
+  frame:HookScript("OnUpdate", function(_, elapsed)
+    since = since + elapsed
+    if since < 0.5 then return end
+    since = 0
+    helperUpdate(h)
+  end)
+  ns:Debug(("Price helper on %s: PriceInput %s, SetAmount %s."):format(name, input and "yes" or "no",
+    input and input.SetAmount and "yes" or "no"))
+end
+
 ns:On("AUCTION_HOUSE_SHOW", function()
   C_Timer.After(0.3, function()
     local ah = AuctionHouseFrame
     if not ah then return end
     guard(ah.ItemSellFrame, "gear")
     guard(ah.CommoditiesSellFrame, "stacks")
+    helper(ah.ItemSellFrame, "gear")
+    helper(ah.CommoditiesSellFrame, "stacks")
   end)
 end)
