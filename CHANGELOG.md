@@ -17,6 +17,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Money boxes: "1.5" is one and a half gold (1g 50s), like "1.5g"; "1.05" and "1 5" are still 1g 5s.
 
 ### Fixed
+- Undercut reminders no longer chime again after a `/reload` (only after logging in, as meant).
+- Session tracker: "an hour: after 2 min" fits in the tracker.
+- Starting a session on another character says in one line what happened to the one left running.
 - The Export / import window no longer opens behind the main window when the button is clicked again.
 - Price helper: on gear, Undercut and the cheapest now use your item's own version ("of the Monkey"), not the cheapest of any version.
 - Price helper: the "well below usual" note goes on a second line instead of being cut off.

@@ -228,7 +228,7 @@ drawTracker = function()
   -- test, October 3: "-21g 60s an hour" 20 seconds in).
   local rate = st.secs >= 120 and rateText(st.perHour) or "|cff888888...|r"
   tracker.time:SetText(duration(st.secs))
-  tracker.rate:SetText(st.secs >= 120 and (rate .. " |cffbbbbbban hour|r") or "|cff888888gold an hour: shows after 2 min|r")
+  tracker.rate:SetText(st.secs >= 120 and (rate .. " |cffbbbbbban hour|r") or "|cff888888an hour: after 2 min|r")   -- (shorter: the longer text ran past the tracker, October 4)
   tracker.smallRate:SetText(rate .. " |cffbbbbbb/h|r")
   tracker.gold:SetText(("|cff999999Gold|r |cff%s%s|r"):format(st.gained >= 0 and "7fd39c" or "ee8597", signed(st.gained)))
   tracker.loot:SetText(("|cff999999Loot|r %s"):format(ns.Money(st.loot)))
@@ -258,9 +258,12 @@ function ns:StartGeneralSession()
   elseif s then
     -- One left running on another character: end it (kept with your sessions) and
     -- start this one, in one click (owner's test, October 4).
+    -- One line, not two that disagree ("it's in your sessions", then "isn't kept":
+    -- owner's test, October 4).
     local c = ns.db.chars[s.char]
-    ns:Print(("Ended the session left running on %s (it's in your sessions)."):format((c and c.name) or s.char))
-    ns:StopGeneralSession()
+    local kept = ns:StopGeneralSession(true)
+    ns:Print(("Ended the session left running on %s (%s)."):format((c and c.name) or s.char,
+      kept and "it's in your sessions" or "nothing happened in it, so it isn't kept"))
   end
   ns.db.liveSession = { t = time(), resume = time(), active = 0, char = ns.CharKey(), money = {}, loot = {} }
   ns:Print("Session started: gold in and out and what you loot are counted. /fl session stop (or Stop on the tracker) ends it.")
@@ -268,7 +271,9 @@ function ns:StartGeneralSession()
   if ns.RefreshUI then ns:RefreshUI() end
 end
 
-function ns:StopGeneralSession()
+-- quiet: no summary in chat (ending one left on another character says it in one line).
+-- Returns true when the session was kept.
+function ns:StopGeneralSession(quiet)
   local s = live()
   if not s then ns:Print("No session is running. /fl session start begins one."); return end
   local st = ns:SessionTotals(s)
@@ -277,15 +282,19 @@ function ns:StopGeneralSession()
   -- Started and stopped with nothing happening (a misclick, a test): not kept (owner's
   -- test, October 3: the Dashboard listed several "0 min, gold 0c" sessions).
   if st.secs < 60 and st.earned == 0 and st.spent == 0 and st.loot == 0 then
-    ns:Print("Session stopped. Nothing happened in it, so it isn't kept.")
+    if not quiet then ns:Print("Session stopped. Nothing happened in it, so it isn't kept.") end
     if ns.RefreshUI then ns:RefreshUI() end
-    return
+    return false
   end
   local top = {}
   for k = 1, math.min(5, #st.items) do top[k] = { st.items[k].id, st.items[k].n, st.items[k].value } end
   table.insert(ns.db.sessions, { kind = "general", name = "Session", t = s.t, stop = time(), secs = st.secs, earned = st.earned,
     spent = st.spent, loot = st.loot, top = top, runs = 0, money = s.money })
   while #ns.db.sessions > 100 do table.remove(ns.db.sessions, 1) end
+  if quiet then
+    if ns.RefreshUI then ns:RefreshUI() end
+    return true
+  end
   ns:Print(("Session over after %s: gold %s, looted about %s, so about %s an hour."):format(duration(st.secs),
     signed(st.gained), ns.Money(st.loot), rateText(st.perHour)))
   -- Gold by where it came from, biggest first.
@@ -302,6 +311,7 @@ function ns:StopGeneralSession()
     print(("  %d x %s, about %s"):format(it.n, ns.ItemName(it.id) or "?", ns.Money(it.value)))
   end
   if ns.RefreshUI then ns:RefreshUI() end
+  return true
 end
 
 -- Running on this character (one left running on another doesn't count here: owner's

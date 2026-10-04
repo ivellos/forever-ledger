@@ -185,6 +185,9 @@ local function checkAlerts()
   -- reload; again if the price drops further. Kept by item and price, saved: auction
   -- IDs seem to change on a reload in Forever.
   m.alerted = m.alerted or {}
+  -- Right after a reload the game can report no auctions for a moment: forgetting what
+  -- was alerted then made the chime come back on every reload (owner's test, October 4).
+  if #m.list == 0 then return end
   local function key(e) return e.id .. ":" .. (e.each or 0) .. ":" .. (e.q or 1) end
   local up = {}
   for _, e in ipairs(m.list) do up[key(e)] = true end
@@ -195,6 +198,7 @@ local function checkAlerts()
     local now = undercutBy(e)
     local k = key(e)
     if now and (not alerted[k] or now < alerted[k]) then
+      ns:Debug(("Undercut alert for %s: %s"):format(k, alerted[k] and ("cheaper again, was " .. alerted[k]) or "not alerted since login"))
       alerted[k] = now
       news[#news + 1] = e
     end
