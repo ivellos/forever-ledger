@@ -40,6 +40,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: a new flip of an item the queue had just finished with could take up to two minutes to show up.
 
 ### Added
+- Customers window: a Silence button quiets customer alerts until you're next in a capital city, until you reload, until you log out, or always (turns the finder off; Turn alerts back on or /fl customers on brings it back). Requests are still listed while it's quiet. /fl customers on and off.
 - Search boxes for Settings and Help: type two letters or more to see every setting or help entry that mentions it.
 - Buy queue: Spend at most, a box at the bottom of the panel that caps what the queue spends each auction house visit (no limit until you type one), with what's left beside it. Settings, Auction house: Buy queue: always keep, to never spend below a set amount of gold.
 - Tooltips: hold Ctrl over an item for its price history: the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen.

@@ -126,6 +126,81 @@ local function wanted(msg)
   end
 end
 
+---------------------------------------------------------------------------
+-- Silence (owner, October 3): quiet the alerts for a while without going into
+-- Settings: until you're next in a capital city, until you reload, until you log out,
+-- or always (that switches the finder off in Settings; /fl customers on brings it
+-- back). While quiet, requests are still listed, just with no window, sound or chat.
+-- settings.customerSilence = "city" or "logout" (kept over reloads); "until reload" is
+-- this session only. customerSilenceLeft: you've been out of a city since (so "next
+-- time" means the next visit, not the one you're in).
+---------------------------------------------------------------------------
+local silencedThisSession = false
+local CAPITALS = {
+  ["Stormwind City"] = true, ["Ironforge"] = true, ["Darnassus"] = true,
+  ["Orgrimmar"] = true, ["Thunder Bluff"] = true, ["Undercity"] = true,
+}
+local CAPITAL_MAPS = { [1453] = true, [1455] = true, [1457] = true, [1454] = true, [1456] = true, [1458] = true,
+  [84] = true, [87] = true, [89] = true, [85] = true, [88] = true, [90] = true }
+local function inCity()
+  local zone = GetRealZoneText and GetRealZoneText()
+  if zone and CAPITALS[zone] then return true end
+  local map = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+  return map and CAPITAL_MAPS[map] or false
+end
+local function silenced()
+  local s = ns.db and ns.db.settings
+  return silencedThisSession or (s and (s.customerSilence == "city" or s.customerSilence == "logout")) or false
+end
+local SILENCE_TEXT = {
+  city = "until you're next in a capital city", reload = "until you reload or log out", logout = "until you log out",
+}
+local function silenceKind()
+  if silencedThisSession then return "reload" end
+  return ns.db and ns.db.settings.customerSilence
+end
+
+local updateSilenceButton   -- (the window's button, once it's built)
+function ns:SilenceCustomers(kind)
+  local s = ns.db.settings
+  silencedThisSession, s.customerSilence, s.customerSilenceLeft = false, nil, nil
+  if kind == "reload" then
+    silencedThisSession = true
+  elseif kind == "logout" or kind == "city" then
+    s.customerSilence = kind
+    s.customerSilenceLeft = kind == "city" and not inCity() or nil
+  elseif kind == "always" then
+    s.customers = false
+    ns:Print("Customer finder off. Turn it back on in Settings, Customers, or with /fl customers on.")
+  elseif kind == "on" then
+    s.customers = true
+    ns:Print("Customer alerts are on.")
+  end
+  if SILENCE_TEXT[kind] then ns:Print(("Customer alerts are quiet %s. Requests are still listed in the Customers window."):format(SILENCE_TEXT[kind])) end
+  if updateSilenceButton then updateSilenceButton() end
+  if ns.RefreshUI then ns:RefreshUI() end
+end
+
+-- Back on after a logout, or on reaching a capital city after being away from one.
+local function checkSilence(isLogin)
+  local s = ns.db and ns.db.settings
+  if not s or not s.customerSilence then return end
+  if s.customerSilence == "logout" and isLogin then
+    s.customerSilence = nil
+    ns:Print("Customer alerts are back on (you logged out since silencing them).")
+  elseif s.customerSilence == "city" then
+    if not inCity() then
+      s.customerSilenceLeft = true
+    elseif s.customerSilenceLeft then
+      s.customerSilence, s.customerSilenceLeft = nil, nil
+      ns:Print("You're in a city again: customer alerts are back on.")
+    end
+  end
+  if updateSilenceButton then updateSilenceButton() end
+end
+ns:On("PLAYER_ENTERING_WORLD", function(isLogin) checkSilence(isLogin) end)
+ns:On("ZONE_CHANGED_NEW_AREA", function() checkSilence(false) end)
+
 local function onChat(msg, sender, channel)
   local s = ns.db and ns.db.settings
   if not (s and s.customers) or not msg or not sender then return end
@@ -136,10 +211,11 @@ local function onChat(msg, sender, channel)
   if lastAlert[sender] and GetTime() - lastAlert[sender] < THROTTLE then return end
   lastAlert[sender] = GetTime()
   local where = channel and channel ~= "" and channel:match("^(%S+)") or "chat"
-  if s.customerChat then
+  local quiet = silenced()   -- (still listed below, just no window, sound or chat)
+  if s.customerChat and not quiet then
     ns:Print(("Customer? |Hplayer:%s|h[%s]|h (%s, %s): %s"):format(sender, sender, where, what, msg))
   end
-  if s.customerSound and PlaySound and SOUNDKIT and SOUNDKIT.TELL_MESSAGE then PlaySound(SOUNDKIT.TELL_MESSAGE) end
+  if not quiet and s.customerSound and PlaySound and SOUNDKIT and SOUNDKIT.TELL_MESSAGE then PlaySound(SOUNDKIT.TELL_MESSAGE) end
   local log = ns.db.customers or {}
   ns.db.customers = log
   -- Asking again (Roh Riding posted every few minutes): move the open request to the top
@@ -153,7 +229,8 @@ local function onChat(msg, sender, channel)
   end
   log[#log + 1] = { t = time(), who = sender, what = what, msg = msg, where = where, c = ns.CharKey() }
   while #log > LOG_SIZE do table.remove(log, 1) end
-  if s.customerWindow then ns:ShowCustomers(true) end
+  if s.customerWindow and not quiet then ns:ShowCustomers(true) end
+  if quiet and ns.RefreshCustomersIfShown then ns:RefreshCustomersIfShown() end
 end
 
 ---------------------------------------------------------------------------
@@ -432,7 +509,15 @@ refresh = function()
   if win.mode == "work" then return refreshWork() end
   for _, r in ipairs(workRows) do r:Hide() end
   win.empty:SetText("No requests in the last hour. They appear here as soon as someone asks for what you do.")
-  win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
+  -- The footer says when alerts are quiet or off, and until when.
+  local k = silenceKind()
+  if not ns.db.settings.customers then
+    win.foot:SetText("|cffee8597Customer finder off.|r Silence > Turn alerts back on, or /fl customers on.")
+  elseif k then
+    win.foot:SetText(("|cffffd100Quiet %s.|r New requests still show here."):format(SILENCE_TEXT[k] or ""))
+  else
+    win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
+  end
   local T = ns.Theme
   local list = {}
   local log = ns.db.customers or {}
@@ -550,7 +635,78 @@ function ns:ShowCustomers(quiet)
     win.empty:SetText("No requests in the last hour. They appear here as soon as someone asks for what you do.")
     win.foot = T:Text(win, 11, T.dim)
     win.foot:SetPoint("BOTTOMLEFT", 10, 10)
+    win.foot:SetJustifyH("LEFT")
+    win.foot:SetWordWrap(false)
     win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
+
+    -- Silence: a button with a short menu of how long (owner, October 3).
+    local sil = T:Button(win, "Silence", 84, nil, 22)
+    sil:SetPoint("BOTTOMRIGHT", -8, 5)
+    win.foot:SetPoint("RIGHT", sil, "LEFT", -8, 0)
+    local menu = CreateFrame("Frame", nil, sil)
+    menu:SetPoint("BOTTOMRIGHT", sil, "TOPRIGHT", 0, 2)
+    menu:SetWidth(230)
+    menu:EnableMouse(true)
+    T:Fill(menu, { 0.05, 0.05, 0.05, 0.98 })
+    T:Border(menu)
+    menu:Hide()
+    local ITEMS = {
+      { "city", "Until I'm next in a city" }, { "reload", "Until I reload" }, { "logout", "Until I log out" },
+      { "always", "Always (turns the finder off)" }, { "on", "Turn alerts back on" },
+    }
+    menu.buttons = {}
+    for i, it in ipairs(ITEMS) do
+      local b = CreateFrame("Button", nil, menu)
+      b:SetHeight(20)
+      local hl = b:CreateTexture(nil, "HIGHLIGHT")
+      hl:SetAllPoints()
+      hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
+      b.text = T:Text(b, 12)
+      b.text:SetPoint("LEFT", 8, 0)
+      b.kind, b.label = it[1], it[2]
+      b:SetScript("OnClick", function(self) menu:Hide(); ns:SilenceCustomers(self.kind) end)
+      menu.buttons[i] = b
+    end
+    local function layoutMenu()
+      local off = not ns.db.settings.customers
+      local current = off and "always" or silenceKind()
+      local y = 2
+      for _, b in ipairs(menu.buttons) do
+        -- "Turn alerts back on" only while quiet or off; the one in use in the accent colour.
+        local show = b.kind ~= "on" or current ~= nil
+        b:SetShown(show)
+        if show then
+          b:ClearAllPoints()
+          b:SetPoint("TOPLEFT", 2, -y)
+          b:SetPoint("RIGHT", -2, 0)
+          b.text:SetText(b.kind == current and (T:AccentCode() .. b.label .. "|r") or b.label)
+          y = y + 20
+        end
+      end
+      menu:SetHeight(y + 2)
+    end
+    sil:SetScript("OnClick", function()
+      if menu:IsShown() then menu:Hide(); return end
+      layoutMenu()
+      menu:SetFrameStrata("FULLSCREEN_DIALOG")
+      menu:Show()
+    end)
+    sil:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine("Silence customer alerts", 1, 1, 1)
+      GameTooltip:AddLine("No window, sound or chat line for new requests, for as long as you pick. They're still listed here.", nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    sil:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    win:HookScript("OnHide", function() menu:Hide() end)
+    updateSilenceButton = function()
+      local off = not ns.db.settings.customers
+      local k = silenceKind()
+      sil:SetText(off and "Off" or (k and "Silenced" or "Silence"))
+      sil:SetSelected(off or k ~= nil)
+      if win:IsShown() then refresh() end
+    end
+    updateSilenceButton()
     win:SetScript("OnShow", function(self) self:Raise(); self:LayoutAds(); refresh() end)
     win:LayoutAds()
     C_Timer.NewTicker(30, refresh)   -- keep the "3m" ages current (does nothing while hidden)
@@ -560,6 +716,10 @@ function ns:ShowCustomers(quiet)
   if quiet then win.mode = "requests"; win.modeChoice:SetValue("requests") end
   win:Show()
   refresh()
+end
+
+function ns:RefreshCustomersIfShown()
+  if win and win:IsShown() then refresh() end
 end
 
 -- /fl work: open straight on Work done.

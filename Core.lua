@@ -626,6 +626,10 @@ SlashCmdList.FOREVERLEDGER = function(msg)
   elseif msg == "welcome" then
     ns:ToggleUI("dashboard")
     if ns.ShowWelcome then ns:ShowWelcome() end
+  elseif msg == "customers on" then
+    ns:SilenceCustomers("on")
+  elseif msg == "customers off" then
+    ns:SilenceCustomers("always")
   elseif msg == "customers" then
     ns:ShowCustomers()
   elseif msg == "work" or msg == "worklog" then

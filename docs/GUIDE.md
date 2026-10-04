@@ -122,6 +122,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 ## Customers and work
 
 - **Customers window** (`/fl customers`): opens when someone in chat asks for what your character can do, with **Whisper** and **Invite** buttons.
+- **Silence**: the button at the bottom right of the Customers window quiets the alerts: **until you're next in a capital city**, **until you reload**, **until you log out**, or **always** (that turns the customer finder off; **Turn alerts back on** in the same menu, Settings, or `/fl customers on` brings it back). While quiet, requests are still listed in the window, just with no pop-up, sound or chat line; the window's bottom line says until when.
 - **Class services**: the finder also spots requests for Mage food, water and portals (portals from level 40), Warlock summons (from level 20) and Rogue lockpicking (from level 16), when you're on that class. **Settings, Customers** turns each service (and crafting requests) on or off, along with its ad button; the Customer finder switch turns the whole thing off.
 - **Ad buttons** post your crafting (with profession links) to Trade, plus a button per class service: food and water (with links), portals (with the cities you know), summons, or lockpicking. Right-click a button to change its text.
 - **Work done** (`/fl work`): enchants and paid trades, with today's and this week's earnings.
@@ -195,7 +196,7 @@ The in-game Help tab has these under each topic too.
 | `/fl scan` | Full scan if allowed, otherwise your materials |
 | `/fl watch` | Start or stop the flip watch |
 | `/fl queue`, `/fl lists` | The buy queue or shopping lists (beside the auction house, or a window of their own elsewhere) |
-| `/fl customers`, `/fl work` | The Customers window, or its Work done view |
+| `/fl customers`, `/fl work` | The Customers window, or its Work done view; `/fl customers on` / `off` turns the customer finder on or off |
 | `/fl de` | Your disenchant results |
 | `/fl deals` | Open the Deals tab (`/fl deals list` lists them in chat) |
 | `/fl book` | Recipe data gathered so far |

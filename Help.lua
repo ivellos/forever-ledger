@@ -79,6 +79,7 @@ ns.HELP = {
   } },
   { "Customers and work", {
     { "Customers window", "Opens when someone in chat asks for what your character can do, with Whisper and Invite buttons. /fl customers opens it any time." },
+    { "Silence", "The Silence button (bottom right of the Customers window) quiets the alerts: until you're next in a capital city, until you reload, until you log out, or always (that turns the finder off; Turn alerts back on, or /fl customers on, brings it back). While quiet, requests are still listed in the window, with no pop-up, sound or chat line." },
     { "Class services", "The finder also spots requests for Mage food, water and portals (portals from level 40), Warlock summons (from 20) and Rogue lockpicking (from 16), on those classes. Settings, Customers turns each one (and crafting) on or off." },
     { "Ads", "Post your crafting (with profession links) to Trade, and on those classes your food and water, portals, summons or lockpicking. Right-click a button to change the text." },
     { "Work done", "Enchants and paid trades, with today's and this week's earnings. /fl work." },
@@ -109,7 +110,7 @@ ns.HELP = {
     { "/fl scan", "Full scan or materials." },
     { "/fl watch", "Flip watch." },
     { "/fl deals", "The Deals tab (/fl deals list in chat)." },
-    { "/fl customers, /fl work", "The Customers window." },
+    { "/fl customers, /fl work", "The Customers window. /fl customers on or off turns the customer finder on or off." },
     { "/fl de", "Your disenchant results." },
     { "/fl book", "Recipe data gathered." },
     { "/fl sync", "Sync status." },
