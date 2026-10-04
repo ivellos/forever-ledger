@@ -2506,7 +2506,7 @@ refreshLists = ns.Timed("Shopping lists view", refreshLists)
 -- The side panel and its tabs. Beside the auction house when it's open; anywhere else
 -- (/fl lists) it's a window of its own you can move, so lists can be made before a raid.
 ---------------------------------------------------------------------------
-local TABS = { { "queue", "Buy queue" }, { "lists", "Shopping lists" }, { "finder", "Disenchant finder" } }
+local TABS = { { "queue", "Buy queue" }, { "lists", "Shopping lists" }, { "finder", "Disenchant finder" }, { "auctions", "Auctions" } }
 
 local function showTab(tab)
   S().tab = tab
@@ -2515,6 +2515,8 @@ local function showTab(tab)
   listsView:SetShown(tab == "lists")
   local finder = ns:DisenchantFinderFrame(side)
   if finder then finder:SetShown(tab == "finder") end
+  local mine = ns.YourAuctionsFrame and ns:YourAuctionsFrame(side)   -- (Auctions.lua)
+  if mine then mine:SetShown(tab == "auctions") end
   updateBinding()
   if tab == "queue" then
     -- Fill every section (armed or not) from the last scan.

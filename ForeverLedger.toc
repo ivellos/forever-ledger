@@ -38,4 +38,5 @@ AuctionHouse.lua
 SellGuard.lua
 ShoppingLists.lua
 BuyQueue.lua
+Auctions.lua
 Probe.lua

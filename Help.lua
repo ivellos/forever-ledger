@@ -22,6 +22,7 @@ ns.HELP = {
     { "Scan materials", "Checks just what your recipes use." },
     { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. It can only scan with the auction house open: it pauses when you close it and picks up again when you come back (Settings, Auction house: Resume the flip watch)." },
     { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too. With Auctionator, TSM or ForeverForge installed, features they already cover (like auction prices in tooltips, or a sound when an auction sells) are switched off once, with a message; turn them back on in Settings." },
+    { "Your auctions", "The Auctions tab beside the auction house lists what you have up: how many, your price each, the cheapest now, and undercut (red), cheapest (green) or sold. Check prices looks them all up at once; full scans and the flip watch check them too, and an undercut gets a chat line and a sound (Settings, Auction house). Cancel on an undercut row, clicked twice, cancels it (the deposit is lost) so you can repost just under the cheapest." },
     { "Sale sound", "A coin sound when one of your auctions sells. Settings, Auction house: Sound when an auction sells." },
     { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
     { "Sell protection", "On the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line under Post says so and Post is greyed out until you click Post anyway. Settings, Auction house: untick Stop posts below vendor price to keep just the warning." },
@@ -364,6 +365,7 @@ ns.OVERLAPS = {
   { setting = "tipPrice", label = "Auction and vendor prices in tooltips",
     addons = { Auctionator = true, TradeSkillMaster = true, ForeverForge_Auction = true } },
   { setting = "saleSound", label = "A sound when an auction sells", addons = { ForeverForge = true } },
+  { setting = "undercutAlerts", label = "Undercut alerts", addons = { Auctionator = true, TradeSkillMaster = true } },
 }
 
 local function loaded(a)
