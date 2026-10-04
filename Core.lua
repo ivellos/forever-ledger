@@ -717,6 +717,26 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:PrintRecipeBook()
   elseif msg == "probe" then
     ns:Probe()
+  elseif msg == "frame" then
+    -- Which frame is under the mouse, and its parents (for finding the game's windows:
+    -- the Sell page in Forever, October 4). Type it with the mouse over the thing.
+    local foci = GetMouseFoci and GetMouseFoci() or { GetMouseFocus and GetMouseFocus() }
+    local fr = foci and foci[1]
+    if not fr then ns:Print("Nothing under the mouse.") end
+    local depth = 0
+    while fr and depth < 8 do
+      local name = fr.GetName and fr:GetName() or nil
+      local key = fr.GetParentKey and fr:GetParentKey() or nil
+      ns:Print(("%s%s%s (%s, shown %s)"):format(("  "):rep(depth), name or "unnamed", key and (" ." .. key) or "",
+        fr.GetObjectType and fr:GetObjectType() or "?", tostring(fr.IsVisible and fr:IsVisible())))
+      fr = fr.GetParent and fr:GetParent() or nil
+      depth = depth + 1
+    end
+    local ah = AuctionHouseFrame
+    ns:Print(("AuctionHouseFrame %s; ItemSellFrame %s; CommoditiesSellFrame %s"):format(
+      ah and (ah:IsVisible() and "shown" or "hidden") or "missing",
+      ah and ah.ItemSellFrame and (ah.ItemSellFrame:IsVisible() and "shown" or "hidden") or "missing",
+      ah and ah.CommoditiesSellFrame and (ah.CommoditiesSellFrame:IsVisible() and "shown" or "hidden") or "missing"))
   elseif msg == "perf" or msg == "perf reset" then
     ns:PrintPerf(msg == "perf reset")
   elseif msg == "de" or msg == "de reset" then

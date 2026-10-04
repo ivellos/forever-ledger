@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - Price helper on the Sell tab: the usual price and the cheapest now above the price box, with Undercut and Usual buttons that fill the price in, and a note when the cheapest is well below usual. You still click Post.
+- `/fl frame` names the window under the mouse, for troubleshooting.
 
 ### Changed
 - Characters tab: a dropdown picks the realm and faction (this one at first; both factions of a realm, or all realms), and only those characters count. No more greyed list of other realms.
