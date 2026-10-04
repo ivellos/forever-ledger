@@ -461,9 +461,6 @@ local SETTINGS = {
     help = "If the flip watch was on when you closed the auction house, start it again when you come back. It can only scan while the auction house is open." },
   { key = "keepGold", label = "Buy queue: always keep", kind = "money", plainUnit = "g",
     help = "The Buy queue never takes your gold below this, so there's always enough for repairs, training or a mount. Type 100 for 100g. \"off\": it may spend all of it. (The most to spend each visit is on the Buy queue itself.)" },
-  { key = "listKind", label = "New shopping lists are", kind = "choice", options = {
-      { "search", "Search lists" }, { "buy", "Buy lists" } },
-    help = "Search lists check what's on the auction house in one click (Search all), for buying by hand. Buy lists add how many you want and the most you'd pay, and feed the buy queue. Each list can be switched at its top." },
   { sub = "Selling" },
   { key = "sellGuard", label = "Stop posts below vendor price", kind = "check",
     help = "On the Sell tab, when a vendor would pay more than the auction house after its cut, Post is greyed out until you click Post anyway. Off: just the warning." },

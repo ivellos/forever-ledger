@@ -6,10 +6,18 @@ local _, ns = ...
 -- materials, or twink gear to watch for. Searched in one click on the auction house
 -- (BuyQueue.lua), and items at or under their price join the buy queue.
 --
--- Saved in ns.db.shopping = { lists = { { name, on, kind, items = { { id, max, qty, suffix, found } } } }, current }
--- kind: "search" or "buy" (nil: a list from before kinds, a buy list).
--- max: copper, 0 = no limit (search only, never bought by the queue).
--- qty: how many you want to have (bags and bank), nil = no limit.
+-- One kind of list (owner and Magic, October 3: "search" and "buy" lists were two
+-- things to learn). Every list shows what's listed, the cheapest and what you have; the
+-- tick "Buy from this list in the Buy queue" (on) adds Want and Most each, and the
+-- queue buys from it.
+--
+-- Saved in ns.db.shopping = { lists = { { name, on, anyPrice, countHave, items = { { id, max,
+--   qty, suffix, found, mode, bought, done } } } }, current, oneKind }
+-- on: buying from it in the Buy queue.
+-- max: copper, 0 = no limit set (not bought by the queue), -1 = any price.
+-- qty: Want, how many to buy (what's bought since Buy again counts: e.bought), nil = 1.
+-- countHave: crate lists only (Crates.lua): Want counts what you have, so the queue buys
+--   what a crate is short of. Not shown or offered anywhere else (owner, October 3).
 -- suffix: one version of a gear item ("of the Monkey"); found: the last Search all of a
 -- gear item, { t, total, min, versions = { { name, min, qty } } }.
 ---------------------------------------------------------------------------
@@ -29,20 +37,52 @@ function ns:SelectShoppingList(i)
   if #d.lists > 0 then d.current = ((i - 1) % #d.lists) + 1 end
 end
 
--- kind: "search" (an "is any of it up right now" list: Search all, no buying settings)
--- or "buy" (Want, price limits, the buy queue). New lists start as the setting says,
--- search unless changed (Magic, October 3: searching is what most lists are for).
--- Lists from before kinds existed have no kind and are buy lists.
-function ns:NewShoppingList(name, kind)
+function ns:NewShoppingList(name)
   local d = data()
-  kind = kind or ns.db.settings.listKind or "search"
   -- Not in the buy queue until you tick it (owner, October 2).
-  d.lists[#d.lists + 1] = { name = name, on = false, items = {}, kind = kind }
+  d.lists[#d.lists + 1] = { name = name, on = false, items = {} }
   d.current = #d.lists
   return d.lists[d.current]
 end
 
-function ns:IsSearchList(list) return list ~= nil and list.kind == "search" end
+-- Not buying from it: it shows what's on the auction house only (Checked, Listed).
+function ns:IsSearchList(list) return list ~= nil and not list.on end
+
+-- From two kinds of list to one, once, at the first login with this version (it needs
+-- bag counts, so it can't run with the other saved-data changes in Core.lua). Search
+-- lists are lists with buying off. "Keep this many" lists become "buy this many" with
+-- what you have counted as bought, so nothing extra is bought; ones that craft things
+-- (whose materials were counted differently) have buying paused, with a message.
+ns:OnReady(function()
+  local d = data()
+  if d.oneKind then return end
+  d.oneKind = true
+  local converted, paused = 0, {}
+  for _, list in ipairs(d.lists) do
+    if list.kind == "search" then
+      list.on = false
+    elseif list.temp or list.crateID then
+      list.countHave = true
+    elseif list.wantMode ~= "buy" then
+      local crafts = false
+      for _, e in ipairs(list.items) do
+        if e.mode == "craft" then crafts = true end
+        if not e.done then e.bought = math.min(ns:HaveCount(e.id), e.qty or 1) end
+      end
+      if crafts and list.on then list.on = false; paused[#paused + 1] = list.name end
+      converted = converted + 1
+    end
+    list.kind, list.wantMode = nil, nil
+  end
+  if converted > 0 then
+    C_Timer.After(10, function()
+      ns:Print("Shopping lists are one kind now: tick Buy from this list in the Buy queue to buy from one. Want is how many to buy; Have shows what you own. What you already had counts as bought, so nothing extra gets bought.")
+      if #paused > 0 then
+        ns:Print(("Buying is paused on %s (it crafts things): check its Want and tick Buy from this list again."):format(table.concat(paused, ", ")))
+      end
+    end)
+  end
+end)
 
 function ns:DeleteShoppingList(i)
   local d = data()
@@ -238,9 +278,10 @@ local HEADER = "Forever Ledger shopping list: "
 
 function ns:ExportShoppingList(list)
   local lines = { HEADER .. list.name }
+  -- (Older versions read "search list" / "buy list" and "buy this many"; still written.)
   lines[#lines + 1] = ns:IsSearchList(list) and "search list" or "buy list"
   if list.anyPrice then lines[#lines + 1] = "any price" end
-  if ns:BuyMode(list) then lines[#lines + 1] = "buy this many" end
+  if not ns:IsSearchList(list) then lines[#lines + 1] = "buy this many" end
   for _, e in ipairs(list.items) do
     local parts = { e.id .. " " .. ns.ItemName(e.id) }
     if e.suffix then parts[#parts + 1] = "version " .. e.suffix end
@@ -257,7 +298,7 @@ end
 function ns:ImportShoppingLists(text)
   local made, items, unknown = {}, 0, {}
   local list
-  local kindSaid = {}   -- [list] = true once a "search list" / "buy list" line was read
+  local buying = false   -- a shared list someone bought from: say how to buy from it too
   local function newList(name)
     name = (name or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if name == "" then name = "Imported list" end
@@ -277,15 +318,15 @@ function ns:ImportShoppingLists(text)
     elseif lower:find(HEADER:lower(), 1, true) == 1 then
       newList(line:sub(#HEADER + 1))
     elseif lower == "search list" or lower == "buy list" then
+      -- Imports never buy by themselves: buying stays off until you tick it.
       if not list then newList() end
-      list.kind = lower == "search list" and "search" or "buy"
-      kindSaid[list] = true
+      if lower == "buy list" then buying = true end
     elseif lower == "any price" then
       if not list then newList() end
       list.anyPrice = true
     elseif lower == "buy this many" or lower == "keep this many" then
+      -- (Want is always how many to buy now.)
       if not list then newList() end
-      list.wantMode = lower == "buy this many" and "buy" or nil
     elseif line:find("|Hitem:", 1, true) then
       -- A pasted item link (it has | in it, so it's read whole).
       local id = ns.ItemIDFromLink(line)
@@ -311,8 +352,7 @@ function ns:ImportShoppingLists(text)
           elseif f:match("^version%s") then suffix = fields[i]:match("^%a+%s+(.+)$")
           elseif f:match("^max%s") then max = ns.ParseMoneyLoose(f:match("^max%s+(.+)$"), "g") end
         end
-        -- Lists shared before list kinds: buying settings mean a buy list.
-        if (max or qty or craft) and not kindSaid[list] then list.kind = "buy" end
+        if max or qty or craft then buying = true end
         local e = ns:AddToShoppingList(list, id, max, qty, suffix)
         if craft then e.mode = "craft" end
         items = items + 1
@@ -330,6 +370,7 @@ function ns:ImportShoppingLists(text)
   if #unknown > 0 then
     msg = msg .. (" Couldn't find %d: %s."):format(#unknown, table.concat(unknown, ", "):sub(1, 200))
   end
+  if buying then msg = msg .. " To buy from it, tick Buy from this list in the Buy queue." end
   return true, msg
 end
 
@@ -531,12 +572,20 @@ end
 -- and stays done, saved, even after you use some, until you click Buy again. The same
 -- for a material once you have enough of it.
 ---------------------------------------------------------------------------
--- Two ways to read Want (owner, October 2: "the option for both, if we can make it clear"):
---   "keep" (the default): keep this many, counting bags, bank and the mail; Buy again
---     tops you up to it after you've used some (raid consumables).
---   "buy": buy this many, whatever you have; what's bought since Buy again counts (e.bought,
---     list.matBought), and Buy again buys the whole amount again.
-function ns:BuyMode(list) return list and list.wantMode == "buy" end
+-- Want is how many to buy, whatever you have; what's bought since Buy again counts
+-- (e.bought, list.matBought), and Buy again buys the whole amount again. "Keep this many"
+-- (top up to Want, counting what you have) was a second meaning to explain, so it went
+-- (owner, October 3: "just show the number of what you have"). Crate lists still count
+-- what you have (countHave), out of sight: a crate needs its parts, wherever they came from.
+function ns:BuyMode(list) return list ~= nil and not list.countHave end
+
+-- What you own of an item, for the Have column: this character (bags, bank, bought and
+-- still in the mail) and your characters on the same ruleset and faction (as of their
+-- last login). Returns the total and the other characters' part.
+function ns:OwnedCount(id)
+  local _, _, alts = ns:ItemLocations(id)
+  return ns:HaveCount(id) + (alts or 0), alts or 0
+end
 
 function ns:ItemDone(e, list)
   if not e.done then
@@ -564,8 +613,8 @@ function ns:BuyListAgain(list)
   list.matDone, list.matBought = nil, nil
 end
 
--- An auction house purchase: lists set to "buy this many" count it, items first, then
--- materials, only up to what each still needs.
+-- An auction house purchase: lists count it (not crate lists, which count what you
+-- have), items first, then materials, only up to what each still needs.
 function ns:NoteListPurchase(id, qty)
   for _, list in ipairs(data().lists) do
     if ns:BuyMode(list) and qty > 0 then
@@ -593,8 +642,8 @@ function ns:ListMaterials(list)
   local buyMode = ns:BuyMode(list)
   local need, order, missing = {}, {}, {}
   for _, e in ipairs(list.items) do
-    -- Buy this many: materials for the whole amount, done or not (they show as done).
-    -- Keep this many: only for what you're short of.
+    -- Materials for the whole amount, done or not (they show as done). Crate lists:
+    -- only for what you're short of.
     if e.mode == "craft" and (buyMode or not ns:ItemDone(e, list)) then
       local recipe = ns:RecipeFor(e.id)
       if not recipe then
@@ -636,13 +685,13 @@ end
 function ns:ShoppingTargets()
   local out, seen = {}, {}
   for _, list in ipairs(data().lists) do
-    -- Search lists never feed the buy queue: buying from them is by hand.
-    if list.on and not ns:IsSearchList(list) then
+    -- Only lists ticked "Buy from this list in the Buy queue".
+    if list.on then
       for _, e in ipairs(list.items) do
         local max = list.anyPrice and -1 or (e.max or 0)
         if e.mode ~= "craft" and max ~= 0 and not seen[e.id] and not ns:ItemDone(e, list) then
-          -- Without a Want number, just one. Buy this many: less what's been bought;
-          -- keep this many: less what you have.
+          -- Without a Want number, just one, less what's been bought (crate lists: less
+          -- what you have).
           local got = ns:BuyMode(list) and (e.bought or 0) or ns:HaveCount(e.id)
           local want = math.max(0, (e.qty or 1) - got)
           if want > 0 then
@@ -806,15 +855,27 @@ function ns:SearchAllList(list)
   end
   local r = { list = list, gear = {}, rest = {}, i = 0 }
   local seen = {}
+  -- Buying from the list: items set to Craft are made, so their materials are looked up
+  -- instead (not ones a vendor sells).
+  local buying = not ns:IsSearchList(list)
   for _, e in ipairs(list.items) do
-    if isGear(e.id) then
+    if buying and e.mode == "craft" then
+      -- (materials below)
+    elseif isGear(e.id) then
       r.gear[#r.gear + 1] = e
     elseif not seen[e.id] then
       seen[e.id] = true
       r.rest[#r.rest + 1] = e.id
     end
   end
-  ns:Print(("Searching %d %s from %s."):format(#list.items, #list.items == 1 and "item" or "items", list.name))
+  if buying then
+    for _, m in ipairs((ns:ListMaterials(list))) do
+      if not m.vendor and not seen[m.id] then seen[m.id] = true; r.rest[#r.rest + 1] = m.id end
+    end
+  end
+  if #r.gear == 0 and #r.rest == 0 then ns:Print("Nothing on that list to look up."); return end
+  local n = #r.gear + #r.rest
+  ns:Print(("Searching %d %s from %s."):format(n, n == 1 and "item" or "items", list.name))
   runner = r
   nextGear()
 end

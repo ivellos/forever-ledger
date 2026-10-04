@@ -10,7 +10,7 @@ end
 ns.PREFIX = "|cffb9a2ffForever Ledger:|r"
 
 local DEFAULTS = {
-  schema = 3,
+  schema = 4,
   chars = {},       -- [charKey] = { name, realm, class, level, faction, updated, profs = { [profName] = { rank, max, updated, recipes = {...} } } }
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
@@ -42,7 +42,7 @@ local DEFAULTS = {
   ledgerMonths = {},  -- ledger entries older than 30 days, as monthly totals per item: { { t = month start, c, k = "sale" | "buy" | "vsell" | "vbuy", id or n, q, a, cnt, mx } } (History.lua, kept a year)
   historySold2 = {},  -- [marketKey][itemID] = "day:bought:minutes:minutes|..." units that vanished though they couldn't have expired (sell speed, since October 2)
   shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, sellGuard = true, watchResume = true, listKind = "search", sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0,
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, sellGuard = true, watchResume = true, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0,
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
     svcCrafting = true, svcFood = true, svcPortal = true, svcSummon = true, svcLockpick = true,
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
@@ -357,6 +357,13 @@ ns:On("ADDON_LOADED", function(name)
   if ForeverLedgerDB.schema < 3 then
     ForeverLedgerDB.crateFavor, ForeverLedgerDB.crateMoney = nil, nil
     ForeverLedgerDB.schema = 3
+  end
+  -- Schema 4: one kind of shopping list (list.kind and list.wantMode go, list.countHave
+  -- for crate lists). The lists themselves are changed at login by ShoppingLists.lua
+  -- (it needs bag counts), once (shopping.oneKind). The setting for new lists' kind goes.
+  if ForeverLedgerDB.schema < 4 then
+    if ForeverLedgerDB.settings then ForeverLedgerDB.settings.listKind = nil end
+    ForeverLedgerDB.schema = 4
   end
   copyDefaults(DEFAULTS, ForeverLedgerDB)
   ns.db = ForeverLedgerDB

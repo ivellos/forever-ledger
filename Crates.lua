@@ -129,7 +129,10 @@ function ns:CrateToShoppingList(r, bundle)
   local list
   for _, l in ipairs(ns:ShoppingLists()) do if l.name == name then list = l end end
   if not list then
-    list = ns:NewShoppingList(name, "buy")   -- the queue buys what you're short of
+    list = ns:NewShoppingList(name)
+    -- What you have counts towards Want (the only lists that do): the queue buys what
+    -- the crate is short of.
+    list.countHave = true
   else
     for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i) end end
   end
@@ -169,7 +172,7 @@ function ns:CrateToShoppingList(r, bundle)
     end
   end
   ns:ScaleCrateList(list)
-  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Set the crate's Want there to fill more than one; tick Use in the buy queue to buy what you're short (/fl lists). The list goes when you fill the last crate.%s"):format(
+  ns:Print(("Added %d %s for %s to the shopping list \"%s\". Set the crate's Want there to fill more than one; tick Buy from this list in the Buy queue to buy what you're short (/fl lists). The list goes when you fill the last crate.%s"):format(
     added, added == 1 and "item" or "items", r.name or "the crate", name,
     #unknown > 0 and (" Not added (not seen in a scan yet): " .. table.concat(unknown, ", ") .. ".") or ""))
   return list

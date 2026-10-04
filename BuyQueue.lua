@@ -809,11 +809,11 @@ local function statusText()
   local why
   if view() == "lists" then
     local any = false
-    for _, l in ipairs(ns:ShoppingLists()) do if l.on and not ns:IsSearchList(l) then any = true end end
+    for _, l in ipairs(ns:ShoppingLists()) do if l.on then any = true end end
     why = (poor > 0 and poorText:format(poor))
       or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
-      or (any and "Click Search lists below to check the auction house for your lists.")
-      or "No lists here yet: on the Shopping lists tab, tick Use in the buy queue on a Buy list."
+      or (any and "Click Search my lists below to check the auction house for them.")
+      or "No lists here yet: on the Shopping lists tab, tick Buy from this list in the Buy queue."
   else
     why = (poor > 0 and poorText:format(poor))
       or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
@@ -880,7 +880,7 @@ local function laneRow(L, i)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(reasonLine(self.entry), T.accent[1], T.accent[2], T.accent[3], true)
     if self.entry.waiting then
-      GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or Search list again later.", 1, 0.82, 0, true)
+      GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Most each on the list, or click Search all on the list again later.", 1, 0.82, 0, true)
     end
     if self.entry.stale then
       GameTooltip:AddLine(("Last seen %d minutes ago, so it may be gone. Buying it (or the flip watch) checks it again."):format(
@@ -1053,7 +1053,7 @@ local function buildQueueView(parent)
         GameTooltip:AddLine("Things listed for less than a vendor pays, found by scans. Buy them, sell them to a vendor.", nil, nil, nil, true)
       else
         GameTooltip:AddLine("Shopping lists", 1, 1, 1)
-        GameTooltip:AddLine("Items from your Buy lists ticked \"Use in the buy queue\", at or under your price.", nil, nil, nil, true)
+        GameTooltip:AddLine("Items from your shopping lists ticked \"Buy from this list in the Buy queue\", at or under your price.", nil, nil, nil, true)
       end
       GameTooltip:Show()
     end)
@@ -1093,7 +1093,7 @@ local function buildQueueView(parent)
     end)
     b:HookScript("OnLeave", function() GameTooltip:Hide() end)
   end
-  -- Flips view: Watch flips. Shopping lists view: Search lists (every Buy list in the queue).
+  -- Flips view: Watch flips. Shopping lists view: Search lists (every list bought from).
   v.watchBtn = T:Button(v, "Watch flips", 118, function()
     if view() == "lists" then ns:SearchQueueLists() else ns:ToggleFlipWatch() end
   end, 22)
@@ -1101,8 +1101,8 @@ local function buildQueueView(parent)
   v.watchBtn:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     if view() == "lists" then
-      GameTooltip:AddLine("Search lists", 1, 1, 1)
-      GameTooltip:AddLine("Checks the auction house for everything on your Buy lists ticked \"Use in the buy queue\" (and the materials you're short of), one item at a time. What's at or under your price shows up here.", nil, nil, nil, true)
+      GameTooltip:AddLine("Search my lists", 1, 1, 1)
+      GameTooltip:AddLine("Checks the auction house for everything on your lists ticked \"Buy from this list in the Buy queue\" (and the materials you're short of), one item at a time. What's at or under your price shows up here.", nil, nil, nil, true)
     else
       GameTooltip:AddLine("Watch flips", 1, 1, 1)
       GameTooltip:AddLine("Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes) and quick checks of likely items in between. New flips chime and join the queue. Click again to stop.", nil, nil, nil, true)
@@ -1361,26 +1361,26 @@ function ns:UpdatePanelScanButtons()
   local v = queueView
   if not v or not v.watchBtn then return end
   local lists = view() == "lists"
-  v.watchBtn:SetText(lists and "Search lists" or (ns:IsFlipWatching() and "Stop watching" or "Watch flips"))
+  v.watchBtn:SetText(lists and "Search my lists" or (ns:IsFlipWatching() and "Stop watching" or "Watch flips"))
   v.watchBtn:SetEnabled(not (lists and ns.Scan.active))
   v.matsBtn:SetShown(not lists)
   v.matsBtn:SetText((ns.Scan.active and not ns.Scan.full) and "Stop scan" or "Scan materials")
   if v.viewChoice then v.viewChoice:SetValue(view()) end
 end
 
--- Search every Buy list used in the queue (its items and missing materials) at once.
+-- Search every list bought from in the queue (its items and missing materials) at once.
 function ns:SearchQueueLists()
   local ids, seen, names = {}, {}, {}
   local function add(id) if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
   for _, l in ipairs(ns:ShoppingLists()) do
-    if l.on and not ns:IsSearchList(l) then
+    if l.on then
       names[#names + 1] = l.name
       for _, e in ipairs(l.items) do if e.mode ~= "craft" then add(e.id) end end
       for _, m in ipairs((ns:ListMaterials(l))) do if not m.vendor then add(m.id) end end
     end
   end
   if #ids == 0 then
-    ns:Print("No shopping lists are used in the buy queue: on the Shopping lists tab, tick Use in the buy queue on a Buy list.")
+    ns:Print("No shopping lists are bought from yet: on the Shopping lists tab, tick Buy from this list in the Buy queue.")
     return
   end
   ns.Scan:StartList(ids, table.concat(names, ", "))
@@ -1471,11 +1471,11 @@ local function hinted(parent, width, hint, justify)
   return eb
 end
 
--- Columns (x from the left of a row).
-local C = { name = 22, get = 160, max = 206, want = 274, have = 336, now = 376, x = 380 }
--- Search lists have no Get, Most each or Want: their three columns spread out (the
--- headings ran together at the Buy list spots, owner's test October 3).
-local SC = { checked = 214, listed = 300 }
+-- Columns (x from the left of a row), buying from the list: Item, Get (Buy or Craft),
+-- Most each, Want ("3/" bought, right-aligned at prog, then the Want box), Have, Now.
+local C = { name = 22, get = 150, max = 194, prog = 276, want = 278, have = 338, now = 376, x = 380 }
+-- Not buying: Item, Checked, Listed, Have, Cheapest (at C.now).
+local SC = { checked = 172, listed = 262, have = 306 }
 
 local function buildListsView(parent)
   local v = CreateFrame("Frame", nil, parent)
@@ -1590,94 +1590,46 @@ local function buildListsView(parent)
   delete:SetPoint("LEFT", rename, "RIGHT", 4, 0)
   v.listButtons = { rename, delete }
 
-  -- What kind of list: Search (is any of it up right now? Search all, no buying
-  -- settings) or Buy (Want, prices, the buy queue). Magic, October 3.
-  local kindLabel = T:Text(v, 12, T.dim)
-  kindLabel:SetPoint("TOPLEFT", 12, -42)
-  kindLabel:SetText("This list:")
-  v.kind = T:Choice(v, { { value = "search", label = "Search" }, { value = "buy", label = "Buy" } }, function(value)
+  -- Buying from this list: one tick (owner and Magic, October 3: one kind of list
+  -- instead of Search and Buy lists). Off, the list shows what's on the auction house;
+  -- on, it adds Want and Most each, and the Buy queue buys from it.
+  v.on = T:Check(v, function(self)
     local list = currentList()
     if not list then return end
-    list.kind = value
+    list.on = self:GetChecked()
     Q.built = 0
     refreshLists()
   end)
-  v.kind:SetPoint("LEFT", kindLabel, "RIGHT", 8, 0)
-  v.kindLabel = kindLabel
-  for _, b in ipairs(v.kind.buttons) do
-    b:HookScript("OnEnter", function(self)
-      GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      if self.value == "search" then
-        GameTooltip:AddLine("Search list", 1, 1, 1)
-        GameTooltip:AddLine("For checking whether any of it is up right now, like rare twink gear: Search all looks for everything at once and shows what's listed and the cheapest of each. You buy by hand; nothing goes in the buy queue.", nil, nil, nil, true)
-      else
-        GameTooltip:AddLine("Buy list", 1, 1, 1)
-        GameTooltip:AddLine("For buying amounts, like raid consumables: how many you want, the most you'd pay, and the buy queue buys what you're short of.", nil, nil, nil, true)
-      end
-      GameTooltip:Show()
-    end)
-    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
-  end
-
-  v.on = T:Check(v, function(self)
-    local list = currentList()
-    if list then list.on = self:GetChecked(); Q.built = 0 end
+  v.on:SetPoint("TOPLEFT", 12, -42)
+  v.on.label:SetText("Buy from this list in the Buy queue")
+  v.on:SetHitRectInsets(0, -(v.on.label:GetStringWidth() + 8), 0, 0)
+  v.on:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Buy from this list in the Buy queue", 1, 1, 1)
+    GameTooltip:AddLine("Off: the list shows what's on the auction house (Search all checks it all at once), and you buy by hand. On: set how many you want and the most you'd pay for each, and the Buy queue's Shopping lists view buys them for you.", nil, nil, nil, true)
+    GameTooltip:Show()
   end)
-  v.on:SetPoint("TOPLEFT", 12, -66)
-  v.on:SetHitRectInsets(0, -170, 0, 0)
-  v.on.label:SetText("Use in the buy queue")
+  v.on:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   -- Any price: the list is what you need, whatever it costs (raid prep).
   v.any = T:Check(v, function(self)
     local list = currentList()
     if list then list.anyPrice = self:GetChecked() or nil; Q.built = 0; refreshLists() end
   end)
-  v.any:SetPoint("TOPLEFT", 200, -66)
-  v.any:SetHitRectInsets(0, -170, 0, 0)
-  v.any.label:SetText("Any price (just what I need)")
+  v.any:SetPoint("TOPLEFT", 268, -42)
+  v.any.label:SetText("Any price")
+  v.any:SetHitRectInsets(0, -(v.any.label:GetStringWidth() + 8), 0, 0)
   v.any:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:AddLine("Any price", 1, 1, 1)
-    GameTooltip:AddLine("For lists where you just need the items, like raid prep: prices are ignored and the buy queue buys the cheapest ones until you have the number you want (1 if no number is set). It never pays more than 3 times an item's usual price, so a joke listing can't slip in. Type any in one item's price for just that item.", nil, nil, nil, true)
+    GameTooltip:AddLine("For lists where you just need the items, like raid prep: prices are ignored and the Buy queue buys the cheapest ones until it has bought the number you want (1 if no number is set). It never pays more than 3 times an item's usual price, so a joke listing can't slip in. Type any in one item's price for just that item.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   v.any:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-  -- What Want means for this list (owner, October 2: both, made clear).
-  local wantLabel = T:Text(v, 12, T.dim)
-  wantLabel:SetPoint("TOPLEFT", 12, -90)
-  wantLabel:SetText("Want means:")
-  v.wantLabel = wantLabel
-  v.wantMode = T:Choice(v, { { value = "keep", label = "Keep this many" }, { value = "buy", label = "Buy this many" } }, function(value)
-    local list = currentList()
-    if not list then return end
-    list.wantMode = value == "buy" and "buy" or nil
-    -- A different meaning: start counting afresh.
-    ns:BuyListAgain(list)
-    local ids = {}
-    for _, e in ipairs(list.items) do ids[#ids + 1] = e.id end
-    unpark(ids)
-    refreshLists()
-  end)
-  v.wantMode:SetPoint("LEFT", wantLabel, "RIGHT", 8, 0)
-  for _, b in ipairs(v.wantMode.buttons) do
-    b:HookScript("OnEnter", function(self)
-      GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      if self.value == "keep" then
-        GameTooltip:AddLine("Keep this many", 1, 1, 1)
-        GameTooltip:AddLine("Want is how many you want to have: bags, bank and what's in the mail count. The queue only buys what you're short of. After you use some, Buy again tops you back up. Good for raid consumables you keep in stock.", nil, nil, nil, true)
-      else
-        GameTooltip:AddLine("Buy this many", 1, 1, 1)
-        GameTooltip:AddLine("Want is how many to buy, whatever you already have. The list counts what's been bought since Buy again (the Bought column). Buy again buys the whole amount again. Good for \"I need 20 of these for a craft\".", nil, nil, nil, true)
-      end
-      GameTooltip:Show()
-    end)
-    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
-  end
-
   -- Add an item: shift-click, drag, or type its name; the most you'd pay; how many.
   v.add = hinted(v, 196, "Shift-click, drag or type an item", "LEFT")
-  v.add:SetPoint("TOPLEFT", 10, -114)   -- moved up for search lists (layoutTop)
+  v.add:SetPoint("TOPLEFT", 10, -66)
   v.add:HookScript("OnTextChanged", function(self) v.pendingID = ns.ItemIDFromLink(self:GetText()) end)
 
   -- Suggestions while you type a name (owner, October 2): up to 8 items whose name
@@ -1766,36 +1718,39 @@ local function buildListsView(parent)
   v.addB = addB
 
   local header = CreateFrame("Frame", nil, v)
-  header:SetPoint("TOPLEFT", 6, -142)
-  header:SetPoint("TOPRIGHT", -6, -142)
+  header:SetPoint("TOPLEFT", 6, -94)
+  header:SetPoint("TOPRIGHT", -6, -94)
   header:SetHeight(20)
   v.header = header
   T:Fill(header, { 1, 1, 1, 0.05 })
+  -- Headings for both layouts; refreshLists places and shows the right ones.
   v.headers = {}
-  for _, c in ipairs({ { "Item", 8, "LEFT" }, { "Get", C.get, "LEFT" }, { "Most each", C.max, "LEFT" }, { "Want", C.want, "LEFT" },
-                       { "Have", C.have, "RIGHT" }, { "Now", C.now, "RIGHT" } }) do
+  for _, name in ipairs({ "Item", "Get", "Most each", "Want", "Checked", "Listed", "Have", "Now" }) do
     local fs = T:Text(header, 11, T.dim)
-    if c[3] == "LEFT" then fs:SetPoint("LEFT", c[2], 0) else fs:SetPoint("RIGHT", header, "LEFT", c[2], 0) end
-    fs:SetText(c[1])
-    v.headers[c[1]] = fs
+    fs:SetText(name)
+    v.headers[name] = fs
   end
-  -- "Bought" is wider than "Have": nudge it right so it doesn't run into Want.
-  v.headers.Have:ClearAllPoints()
-  v.headers.Have:SetPoint("RIGHT", header, "LEFT", C.have + 8, 0)
+  v.headers.Item:SetPoint("LEFT", 8, 0)
+  -- Hover Have: what it counts.
+  local haveTip = CreateFrame("Frame", nil, header)
+  haveTip:SetSize(36, 20)
+  haveTip:SetPoint("RIGHT", v.headers.Have, "RIGHT", 2, 0)
+  haveTip:EnableMouse(true)
+  haveTip:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Have", 1, 1, 1)
+    GameTooltip:AddLine("What you own: this character's bags, bank and auction house purchases still in the mail, and your characters on this ruleset and faction (as of their last login). Hover a number to see where. It doesn't change what's bought: Want is how many to buy.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  haveTip:SetScript("OnLeave", function() GameTooltip:Hide() end)
   v.sf, v.content = T:Scroll(v)
-  v.sf:SetPoint("TOPLEFT", 6, -164)
+  v.sf:SetPoint("TOPLEFT", 6, -116)
   v.sf:SetPoint("BOTTOMRIGHT", -6, 58)
   v.rows = {}
 
   local searchB = T:Button(v, "Search all", 96, function()
     local list = currentList()
-    if not list then return end
-    if ns:IsSearchList(list) then ns:SearchAllList(list); return end
-    local ids, seen = {}, {}
-    local function add(id) if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
-    for _, e in ipairs(list.items) do if e.mode ~= "craft" then add(e.id) end end
-    for _, m in ipairs((ns:ListMaterials(list))) do if not m.vendor then add(m.id) end end
-    ns.Scan:StartList(ids, list.name)
+    if list then ns:SearchAllList(list) end   -- (buying: Craft items' materials too)
   end, 22)
   searchB:SetPoint("BOTTOMLEFT", 10, 8)
   v.searchB = searchB
@@ -1819,14 +1774,15 @@ local function buildListsView(parent)
     for _, e in ipairs(list.items) do ids[#ids + 1] = e.id end
     for _, m in ipairs((ns:ListMaterials(list))) do ids[#ids + 1] = m.id end
     unpark(ids)
-    ns:Print(("%s: everything you're short of goes back in the buy queue."):format(list.name))
+    ns:Print(("%s: started over, so the Buy queue buys every Want again."):format(list.name))
     refreshLists()
   end, 22)
   again:SetPoint("RIGHT", share, "LEFT", -4, 0)
+  v.again = again
   again:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:AddLine("Buy again", 1, 1, 1)
-    GameTooltip:AddLine("Items stay done once you've had enough of them, even after you use some, so the queue doesn't keep refilling them. Click this to start the list over: whatever you're short of now goes back in the queue.", nil, nil, nil, true)
+    GameTooltip:AddLine("An item is done once its Want has been bought, and stays done, so the queue doesn't keep buying it. Click this to start the list over (next raid): the bought counts go back to 0 and the queue buys every Want again. Check Have first if you still have some.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   again:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1945,7 +1901,7 @@ local function listRow(i)
     local cob = r.kind == "item" and list and not ns:IsSearchList(list) and ns.CraftOrBuy and ns:CraftOrBuy(list, r.entry)
     if cob then
       GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(("Craft or buy, for the %d you're short of:"):format(cob.short), T.accent[1], T.accent[2], T.accent[3])
+      GameTooltip:AddLine(("Craft or buy, for the %d still to get:"):format(cob.short), T.accent[1], T.accent[2], T.accent[3])
       GameTooltip:AddDoubleLine("Buy them", cob.buy and ("about " .. ns.Money(cob.buy)) or "none listed", 0.9, 0.9, 0.9, 1, 1, 1)
       GameTooltip:AddDoubleLine(("Craft them (%d %s)"):format(cob.crafts, cob.crafts == 1 and "craft" or "crafts"),
         cob.craft and (cob.craft == 0 and "you have the materials" or ("about " .. ns.Money(cob.craft) .. " in materials"))
@@ -2011,35 +1967,43 @@ local function listRow(i)
     end
     unpark({ (r.kind == "item" and r.entry.id) or (r.mat and r.mat.id) })
   end, "g", true)
-  r.max:SetWidth(64)
+  r.max:SetWidth(60)
   r.max:SetPoint("LEFT", C.max, 0)
   r.maxText = T:Text(r, 11, T.section)
   r.maxText:SetPoint("LEFT", C.max + 6, 0)
 
-  r.qty = T:EditBox(r, 30)
+  -- Want: "3/" bought so far, then the box with how many to buy.
+  r.prog = T:Text(r, 11)
+  r.prog:SetPoint("RIGHT", r, "LEFT", C.prog, 0)
+  r.qty = T:EditBox(r, 28)
   r.qty:SetPoint("LEFT", C.want, 0)
   r.qty:SetScript("OnEditFocusLost", function(self)
     local n = tonumber(self:GetText())
     local old = r.entry.qty
     r.entry.qty = n and n > 0 and math.floor(n) or nil
-    -- Wanting more than you have opens a done item again.
-    if r.entry.qty ~= old and ns:HaveCount(r.entry.id) < (r.entry.qty or 1) then r.entry.done = nil end
+    -- Wanting more than has been bought opens a done item again.
+    local list = ns:CurrentShoppingList()
+    local got = ns:BuyMode(list) and (r.entry.bought or 0) or ns:HaveCount(r.entry.id)
+    if r.entry.qty ~= old and got < (r.entry.qty or 1) then r.entry.done = nil end
     self:SetText(r.entry.qty and tostring(r.entry.qty) or "")
     if r.entry.qty ~= old then unpark({ r.entry.id }) end
     -- A crate list: the crate's Want is how many crates, so its items follow (Crates.lua).
-    local list = ns:CurrentShoppingList()
     if r.entry.qty ~= old and list and list.crateID == r.entry.id and ns.ScaleCrateList then
       unpark(ns:ScaleCrateList(list))
     end
   end)
+  -- Materials: "bought/need" in the Want column.
   r.need = T:Text(r, 11)
   r.need:SetPoint("RIGHT", r, "LEFT", C.want + 28, 0)
-  r.have = T:Text(r, 11, T.dim)
+  -- Not buying: how many are listed.
+  r.listed = T:Text(r, 11)
+  r.listed:SetPoint("RIGHT", r, "LEFT", SC.listed, 0)
+  r.have = T:Text(r, 11)
   r.have:SetPoint("RIGHT", r, "LEFT", C.have, 0)
-  -- Hover Have: where they are (bags, bank, other characters on this account).
+  -- Hover Have: where they are (bags, bank, mail, your other characters).
   r.haveHit = CreateFrame("Frame", nil, r)
-  r.haveHit:SetPoint("LEFT", C.want + 32, 0)
-  r.haveHit:SetSize(C.have - C.want - 30, 22)
+  r.haveHit:SetSize(34, 22)
+  r.haveHit:SetPoint("RIGHT", r.have, "RIGHT", 2, 0)
   r.haveHit:EnableMouse(true)
   r.haveHit:SetScript("OnEnter", function(self)
     local id = (r.kind == "item" and r.entry.id) or (r.kind == "mat" and r.mat.id)
@@ -2055,12 +2019,13 @@ local function listRow(i)
       GameTooltip:AddLine("Opening your mailbox checks this.", 0.6, 0.6, 0.6)
     end
     for name, n in pairs(byAlt) do GameTooltip:AddDoubleLine(name, tostring(n), 0.8, 0.8, 0.8, 1, 1, 1) end
-    if ns:BuyMode(currentList()) then
-      GameTooltip:AddLine("This list is set to Buy this many: the column counts what's been bought since Buy again (auction house purchases, from the queue or by hand). Where you have them is shown above.", 0.6, 0.6, 0.6, true)
+    if alts == 0 then GameTooltip:AddLine("None on your other characters on this ruleset and faction.", 0.6, 0.6, 0.6, true) end
+    local list = currentList()
+    if list and list.countHave then
+      GameTooltip:AddLine("A crate list: what this character has counts towards Want.", 0.6, 0.6, 0.6, true)
     else
-      GameTooltip:AddLine("Have counts this character's bags, bank and auction house purchases still in the mail. Bank as of your last visit; other characters as of their last login on this account.", 0.6, 0.6, 0.6, true)
+      GameTooltip:AddLine("For your information: Want is how many to buy, whatever you have. Bank as of your last visit; other characters as of their last login.", 0.6, 0.6, 0.6, true)
     end
-    if alts == 0 then GameTooltip:AddLine("None on your other characters.", 0.6, 0.6, 0.6) end
     GameTooltip:Show()
   end)
   r.haveHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2081,7 +2046,7 @@ local function listRow(i)
   r.head:SetPoint("RIGHT", r, "RIGHT", -4, 0)
   r.head:SetJustifyH("LEFT")
   r.headCols = {}
-  for _, c in ipairs({ { "Up to", C.max }, { "Need", C.want } }) do
+  for _, c in ipairs({ { "Up to", C.max }, { "Need", C.prog - 18 } }) do
     local fs = T:Text(r, 11, T.dim)
     fs:SetPoint("LEFT", c[2], 0)
     fs:SetText(c[1])
@@ -2153,6 +2118,8 @@ local function showRow(r, kind)
   r.max:SetShown(false)
   r.maxText:SetShown(false)
   r.qty:SetShown(item)
+  r.prog:SetShown(item)
+  r.listed:SetShown(false)
   r.need:SetShown(mat)
   r.have:SetShown(item or mat)
   r.haveHit:SetShown(item or mat)
@@ -2176,40 +2143,37 @@ refreshLists = function()
   local lists = ns:ShoppingLists()
   v.title:SetText(list and list.name or "No lists yet: click New")
   for _, b in ipairs(v.listButtons) do b:SetEnabled(list ~= nil) end
-  -- Search lists hide everything about buying; the list starts higher up.
+  -- Not buying from it ("search"): what's on the auction house. Buying: Want, Most each
+  -- and the rest. One tick switches (owner and Magic, October 3).
   local search = ns:IsSearchList(list)
-  v.kind:SetShown(list ~= nil)
-  v.kindLabel:SetShown(list ~= nil)
-  v.kind:SetValue(search and "search" or "buy")
-  local buying = list ~= nil and not search
-  v.on:SetChecked(list and list.on)
-  v.on:SetShown(buying)
-  v.any:SetChecked(list and list.anyPrice)
-  v.any:SetShown(buying)
   local buyMode = ns:BuyMode(list)
-  v.wantMode:SetValue(buyMode and "buy" or "keep")
-  v.wantMode:SetShown(buying)
-  v.wantLabel:SetShown(buying)
-  local top = search and 66 or 114
-  v.add:SetPoint("TOPLEFT", 10, -top)
-  v.header:SetPoint("TOPLEFT", 6, -(top + 28))
-  v.header:SetPoint("TOPRIGHT", -6, -(top + 28))
-  v.sf:SetPoint("TOPLEFT", 6, -(top + 50))
+  v.on:SetShown(list ~= nil)
+  v.on:SetChecked(list and list.on)
+  v.any:SetShown(list ~= nil and not search)
+  v.any:SetChecked(list and list.anyPrice)
   v.max:SetShown(not search)
   v.qty:SetShown(not search)
   v.addB:ClearAllPoints()
   v.addB:SetPoint("LEFT", search and v.add or v.qty, "RIGHT", 4, 0)
-  -- Column headings: Search lists show what's on the auction house.
-  v.headers.Get:SetShown(not search)
-  v.headers["Most each"]:SetShown(not search)
-  v.headers.Want:SetText(search and "Checked" or "Want")
-  v.headers.Now:SetText(search and "Cheapest" or "Now")
-  -- Buy this many counts what's been bought, so the column says so.
-  v.headers.Have:SetText(search and "Listed" or (buyMode and "Bought" or "Have"))
-  v.headers.Want:ClearAllPoints()
-  v.headers.Want:SetPoint("LEFT", search and SC.checked or C.want, 0)
-  v.headers.Have:ClearAllPoints()
-  v.headers.Have:SetPoint("RIGHT", v.header, "LEFT", search and SC.listed or (C.have + 8), 0)
+  v.again:SetShown(not search)
+  -- Column headings for this layout.
+  local H = v.headers
+  local function place(name, x, right)
+    local fs = H[name]
+    fs:ClearAllPoints()
+    if x then
+      if right then fs:SetPoint("RIGHT", v.header, "LEFT", x, 0) else fs:SetPoint("LEFT", x, 0) end
+    end
+    fs:SetShown(x ~= nil)
+  end
+  place("Get", not search and C.get or nil)
+  place("Most each", not search and C.max or nil)
+  place("Want", not search and (C.prog - 18) or nil)
+  place("Checked", search and SC.checked or nil)
+  place("Listed", search and SC.listed or nil, true)
+  place("Have", search and SC.have or C.have, true)
+  place("Now", C.now, true)
+  H.Now:SetText(search and "Cheapest" or "Now")
 
   -- What to show: the list's items, then the materials for its Craft items.
   local show = {}
@@ -2255,12 +2219,18 @@ refreshLists = function()
     r.stripe:SetShown(i % 2 == 0 and (s.kind == "item" or s.kind == "mat"))
     r.icon:ClearAllPoints()
     r.icon:SetPoint("LEFT", s.sub and 18 or 2, 0)
-    -- Search lists have no Get or Most each columns: names get that room.
+    -- Not buying: no Get or Most each columns, so names get that room.
     local nameRight = search and (SC.checked - 8) or C.get
     r.age:ClearAllPoints()
-    r.age:SetPoint("LEFT", search and SC.checked or C.want, 0)
+    r.age:SetPoint("LEFT", SC.checked, 0)
     r.have:ClearAllPoints()
-    r.have:SetPoint("RIGHT", r, "LEFT", search and s.kind == "item" and SC.listed or C.have, 0)
+    r.have:SetPoint("RIGHT", r, "LEFT", search and SC.have or C.have, 0)
+    -- What you own, everywhere on this ruleset and faction (hover for where).
+    local ownedID = (s.kind == "item" and s.e.id) or (s.kind == "mat" and s.m.id)
+    if ownedID then
+      local owned = ns:OwnedCount(ownedID)
+      r.have:SetText(owned > 0 and ("|cffffffff" .. owned .. "|r") or "|cff6666660|r")
+    end
     r.name:SetWidth(nameRight - C.name - 6 - (s.sub and 16 or 0))
     r.hit:SetWidth(nameRight - 4)
     r.icon:SetDesaturated(false)
@@ -2269,7 +2239,8 @@ refreshLists = function()
       local e = s.e
       r.entry = e
       r.icon:SetTexture(ns:ItemIcon(e.id))
-      r.mode:Hide(); r.qty:Hide(); r.max:Hide(); r.maxText:Hide(); r.haveHit:Hide()
+      r.mode:Hide(); r.qty:Hide(); r.max:Hide(); r.maxText:Hide(); r.prog:Hide()
+      r.listed:Show()
       local listed, min, t
       if e.found then
         listed, min, t = e.found.total, e.found.min, e.found.t
@@ -2284,7 +2255,7 @@ refreshLists = function()
       if up then done = done + 1 end
       r.icon:SetDesaturated(not up)
       r.name:SetText(up and ns:ListEntryName(e) or ("|cff888888" .. ns:ListEntryName(e) .. "|r"))
-      r.have:SetText(listed == nil and "|cff888888?|r" or up and ("|cffffffff" .. listed .. "|r") or "|cff8888880|r")
+      r.listed:SetText(listed == nil and "|cff888888?|r" or up and ("|cffffffff" .. listed .. "|r") or "|cff8888880|r")
       r.now:SetText(up and min and ("|cff7fd39c" .. shortMoney(min) .. "|r") or "|cff888888-|r")
       -- Search all under way: this row is being checked, or waits its turn.
       local status = ns.SearchAllStatus and ns:SearchAllStatus(e)
@@ -2312,16 +2283,23 @@ refreshLists = function()
       r.maxText:SetText(craft and "crafted" or "any")
       if not craft and not r.max:HasFocus() then r.max:SetValue(e.max or 0) end
       if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
-      -- Have against Want (1 if no number): green when you have enough. Done stays
-      -- done (grey Have) after you use some, until Buy again.
-      -- Buy this many shows what's been bought instead.
-      local have, want = ns:HaveCount(e.id), e.qty or 1
-      if buyMode then have = craft and have or (e.bought or 0) end
+      -- Bought so far against Want (1 if no number), "3/" before the box: yellow while
+      -- buying, green once done. Done stays done until Buy again. (Crate lists count
+      -- what you have instead; craft items' progress is their materials'.)
+      local want = e.qty or 1
+      local got = buyMode and (e.bought or 0) or ns:HaveCount(e.id)
       local isDone = ns:ItemDone(e, list)
       if isDone then done = done + 1 end
-      r.have:SetText((have >= want and "|cff7fd39c" or isDone and "|cff888888" or "|cffffd100") .. have .. "|r")
+      if craft or (got == 0 and not isDone) then
+        r.prog:SetText("")
+      else
+        r.prog:SetText(((isDone or got >= want) and "|cff7fd39c" or "|cffffd100") .. math.min(got, want) .. "/|r")
+      end
+      local status = ns.SearchAllStatus and ns:SearchAllStatus(e)
       if isDone then
         r.now:SetText("|cff7fd39cdone|r")
+      elseif status then
+        r.now:SetText(status == "checking" and (T:AccentCode() .. "checking|r") or "|cff888888in line|r")
       else
         local text, ok = nowText(e.id, not craft and (any and ns:AnyPriceLimit(e.id) or e.max) or nil)
         r.now:SetText(text)
@@ -2340,11 +2318,15 @@ refreshLists = function()
         r.max:SetValue(m.own == "any" and -1 or m.limit or 0)
         r.max:SetTextColor(1, 1, 1, m.own and 1 or 0.55)   -- grey: the usual price, not one you typed
       end
-      r.need:SetText(m.buy > 0 and ("|cffffd100%d|r"):format(m.need) or ("|cff7fd39c%d|r"):format(m.need))
+      -- "bought/need" (crate lists: have/need), yellow while short, green when enough.
       local got = buyMode and m.bought or m.have
-      r.have:SetText(m.buy > 0 and ("|cffffd100" .. got .. "|r") or ("|cff7fd39c" .. got .. "|r"))
+      r.need:SetText((m.buy > 0 and "|cffffd100" or "|cff7fd39c") .. math.min(got, m.need) .. "/" .. m.need .. "|r")
       if m.buy > 0 then matsShort = matsShort + 1 end
-      r.now:SetText(m.done and "|cff7fd39cdone|r" or (nowText(m.id, m.limit, m.vendor)))
+      local status = not m.done and ns.SearchAllStatus and ns:SearchAllStatus({ id = m.id })
+      r.now:SetText(m.done and "|cff7fd39cdone|r"
+        or (status == "checking" and (T:AccentCode() .. "checking|r"))
+        or (status == "waiting" and "|cff888888in line|r")
+        or (nowText(m.id, m.limit, m.vendor)))
       if m.buy > 0 and not m.vendor then toBuy = toBuy + 1 end
     else
       r.head:SetText(s.text)
@@ -2369,7 +2351,9 @@ refreshLists = function()
   local busy = (ns.Scan.active and not ns.Scan.quiet) or ns:SearchAllRunning()
   v.searchB:SetEnabled(list ~= nil and #show > 0 and ns:IsAHOpen() and not busy)
   if search then
-    if ns:SearchAllRunning() or (ns.Scan.active and not ns.Scan.quiet) then
+    if not list then
+      v.info:SetText("Click New to start a list.")
+    elseif ns:SearchAllRunning() or (ns.Scan.active and not ns.Scan.quiet) then
       v.info:SetText("Searching...")
     elseif not ns:IsAHOpen() then
       v.info:SetText(#list.items > 0 and "Open the auction house, then Search all." or "Add items above, or Import a shared list.")
@@ -2388,14 +2372,15 @@ refreshLists = function()
       if e.mode == "craft" and not ns:ItemDone(e, list) then craftsReady = craftsReady + 1 end
     end
   end
-  if ns.Scan.active then
+  if ns:SearchAllRunning() or (ns.Scan.active and not ns.Scan.quiet) then
     v.info:SetText("Searching...")
   elseif not list then
     v.info:SetText("Click New to start a list.")
   elseif #list.items == 0 then
     v.info:SetText("Add items above, or Import a shared list.")
   elseif done == #list.items then
-    v.info:SetText("|cff7fd39cComplete: you have everything on this list.|r")
+    v.info:SetText(buyMode and "|cff7fd39cComplete: everything on this list is bought. Buy again starts it over.|r"
+      or "|cff7fd39cComplete: you have everything on this list.|r")
   elseif craftsReady > 0 and matsShort == 0 and done + craftsReady == #list.items then
     v.info:SetText(("|cff7fd39cYou have all the materials:|r %d to craft, then it's complete."):format(craftsReady))
   elseif not ns:IsAHOpen() then
