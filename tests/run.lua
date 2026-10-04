@@ -10,7 +10,7 @@ local ADDON, ns = "ForeverLedger", {}
 
 -- The files to load, in the .toc's order, up to the last one the tests need.
 local LOAD = { "Core.lua", "Prices.lua", "History.lua", "Inventory.lua", "Professions.lua", "Values.lua", "Crates.lua",
-  "Disenchant.lua", "Sessions.lua", "ShoppingLists.lua" }
+  "Disenchant.lua", "Sessions.lua", "ShoppingLists.lua", "Auctions.lua" }
 local wanted = {}
 for _, f in ipairs(LOAD) do wanted[f] = true end
 local order = {}
@@ -130,11 +130,11 @@ function T.resetDB()
   for k in pairs(ns.db) do ns.db[k] = nil end
   for k, v in pairs(fresh) do ns.db[k] = v end
   S.money, S.now = 0, 1790000000
-  wipe(S.items); wipe(S.bags); wipe(S.bank); wipe(S.timers)
+  wipe(S.items); wipe(S.bags); wipe(S.bank); wipe(S.timers); wipe(S.owned); wipe(S.sounds)
 end
 
 -- The test files (listed here, so it runs the same on any system).
-local FILES = { "money", "export", "prices", "cut", "lists", "values", "logs", "retention" }
+local FILES = { "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions" }
 for _, name in ipairs(FILES) do
   local f = "tests/test_" .. name .. ".lua"
   current = f:match("test_(.-)%.lua$")
