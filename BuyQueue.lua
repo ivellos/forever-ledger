@@ -2537,6 +2537,7 @@ local function place()
   if ah and ah:IsShown() then
     side:SetParent(ah)
     side:SetFrameStrata(ah:GetFrameStrata())
+    side:SetToplevel(true)
     side:SetPoint("TOPLEFT", ah, "TOPRIGHT", 4, 0)
     side:SetPoint("BOTTOMLEFT", ah, "BOTTOMRIGHT", 4, 0)
     side:SetWidth(WIDTH)
@@ -2560,6 +2561,10 @@ local function ensureSide()
   side = CreateFrame("Frame", "ForeverLedgerSidePanel", UIParent)
   side:SetSize(WIDTH, 560)
   side:EnableMouse(true)
+  -- A click anywhere on it brings it in front of other windows, such as a profession
+  -- window over the auction house (owner's test, October 3).
+  side:SetToplevel(true)
+  side:SetScript("OnMouseDown", function(self) self:Raise() end)
   side:SetMovable(true)
   side:SetClampedToScreen(true)
   T:Fill(side, T.bg)

@@ -83,6 +83,9 @@ local function money(v) return (v < 0 and "-" or "") .. ns.Money(math.abs(v)) en
 
 local function settings()
   local s = ns.db.settings.ledger
+  -- All is the first view, once for everyone (owner's test, October 3: a saved Sales
+  -- choice kept it from showing); after that the view you pick is remembered.
+  if not s.allShown then s.tab, s.allShown = "all", true end
   s.tab = s.tab or "all"
   s.range = s.range or "month"
   s.char = s.char or "all"
@@ -422,7 +425,16 @@ end
 local function rowTooltip(r)
   local rec = shown[r.index]
   if not rec then return end
-  GameTooltip:SetOwner(r, "ANCHOR_CURSOR")
+  -- Beside the window, not at the cursor: at the cursor it could run off the screen's
+  -- edge (owner's test, October 3).
+  GameTooltip:SetOwner(r, "ANCHOR_NONE")
+  GameTooltip:ClearAllPoints()
+  local scale, right = f:GetEffectiveScale(), f:GetRight() or 0
+  if right * scale + 320 < (GetScreenWidth() * UIParent:GetEffectiveScale()) then
+    GameTooltip:SetPoint("TOPLEFT", r, "TOPLEFT", f:GetWidth() + 16, 0)
+  else
+    GameTooltip:SetPoint("TOPRIGHT", r, "TOPLEFT", -16, 0)
+  end
   if rec.id then GameTooltip:SetItemByID(rec.id); GameTooltip:AddLine(" ")
   else GameTooltip:AddLine(rec.item ~= "" and rec.item or (rec.kind or "?"), 1, 1, 1) end
   local function line(a, b) if b then GameTooltip:AddDoubleLine(a, b, 0.7, 0.7, 0.7, 1, 1, 1) end end
