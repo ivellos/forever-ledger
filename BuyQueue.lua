@@ -214,9 +214,23 @@ local function finishTarget(note)
   C_Timer.After(0.3, prepare)
 end
 
+-- What the queue spends is counted from the gold that actually leaves you, in the
+-- seconds after one of its purchases (code review, October 4: a purchase whose reply came
+-- late, or after an unrelated error, was never counted, so Spend at most could be
+-- passed). bought() counts items, not gold.
+ns:On("PLAYER_MONEY", function()
+  local now = GetMoney()
+  local before = Q.lastMoney
+  Q.lastMoney = now
+  if before and now < before and Q.buyAt and GetTime() - Q.buyAt < 15 and ns:IsAHOpen() then
+    Q.spent = Q.spent + (before - now)
+  end
+end)
+ns:On("AUCTION_HOUSE_SHOW", function() Q.lastMoney = GetMoney() end)
+
 local function bought(n, cost)
   local e = Q.cur
-  Q.bought, Q.spent = Q.bought + n, Q.spent + cost
+  Q.bought = Q.bought + n
   if e and e.worth then Q.worth = Q.worth + n * e.worth end
   if e and e.want then e.want = e.want - n end
   if e then Q.note = ("Bought %d %s for %s."):format(n, ns.ItemName(e.id), money(cost)) end
@@ -568,6 +582,7 @@ function ns:BuyQueueAct(clicked)
     setState("price")
     timeout(6, function() pcall(AH.CancelCommoditiesPurchase); Q.note = "No final price came back: checking again."; again() end)
   elseif Q.state == "confirm" and p and p.kind == "commodity" then
+    Q.buyAt, Q.lastMoney = GetTime(), GetMoney()
     local ok, err = pcall(AH.ConfirmCommoditiesPurchase, e.id, p.qty)
     if not ok then ns:Print("Couldn't confirm that purchase: " .. tostring(err)); again(); return end
     setState("buying")
@@ -575,6 +590,7 @@ function ns:BuyQueueAct(clicked)
   elseif Q.state == "ready" and p and p.kind == "item" then
     -- So the purchase is logged under the right item (History.lua's PlaceBid hook).
     ns.queueBidItem = e.id
+    Q.buyAt, Q.lastMoney = GetTime(), GetMoney()
     local ok, err = pcall(AH.PlaceBid, p.auctionID, p.price)
     ns.queueBidItem = nil
     if not ok then ns:Print("Couldn't buy that: " .. tostring(err)); again(); return end
@@ -728,7 +744,20 @@ local function failed(_, msg)
   if type(msg) == "string" and msg ~= "" then Q.note = msg end
   again()
 end
-ns:On("UI_ERROR_MESSAGE", failed)
+-- Only the auction house's own errors mean the purchase failed (code review, October 4:
+-- "Not enough energy" from a keybind counted as one, so a purchase that went through
+-- was never counted).
+local auctionErrors
+ns:On("UI_ERROR_MESSAGE", function(errType, msg)
+  if not auctionErrors then
+    auctionErrors = {}
+    for k, v in pairs(_G) do
+      if type(k) == "string" and type(v) == "string" and (k:find("^ERR_AUCTION") or k == "ERR_NOT_ENOUGH_MONEY"
+        or k == "ERR_ITEM_NOT_FOUND" or k:find("^ERR_COMMODITY")) then auctionErrors[v] = true end
+    end
+  end
+  if auctionErrors[msg] then failed(errType, msg) end
+end)
 ns:On("AUCTION_HOUSE_SHOW_ERROR", function() failed(nil, "The auction house refused that purchase.") end)
 
 -- If the game won't let an addon buy (it could restrict these calls), say so plainly.
@@ -1874,7 +1903,9 @@ local function buildListsView(parent)
   local elapsed = 0
   v:SetScript("OnUpdate", function(_, dt)
     elapsed = elapsed + dt
-    if elapsed >= 1 then elapsed = 0; refreshLists() end
+    -- Every 2 seconds (it was 1: a big list redid all its prices each second, code
+    -- review October 4); list edits, Search all and purchases redraw it at once anyway.
+    if elapsed >= 2 then elapsed = 0; refreshLists() end
   end)
   return v
 end

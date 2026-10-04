@@ -13,6 +13,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Recipes tab: click a column heading to sort by it; click again to reverse.
 - Your characters on another ruleset or faction no longer count where they couldn't help you: crafting values and shuffles, Used by in tooltips, craft or buy, the Recipes tab's who knows it, the Enchanting skill for disenchanting, and which materials Scan materials looks up (as Have already did). On the Dashboard and Ledger, All characters means this realm and faction; characters elsewhere are listed after them, with their realm, to look at on their own. Dropdown lists widen to fit long names.
 
+### Fixed
+- Shopping lists: Any price could buy a lone overpriced listing (its cap was raised to the cheapest listing), and with no saved price it had no cap at all. The cap is now 3 times the usual price, and an item with no price yet isn't bought until a search has priced it.
+- Your auctions: with two or more undercut, Cancel next undercut could cancel a different auction from the one the line above named. A cancel the server refused no longer stays "cancelling...".
+- Buy queue: Spend at most counts the gold that actually leaves you, so a purchase confirmed late is counted; only auction house errors count as a failed purchase.
+- Shopping lists: an error opening the list menu with a Craft item whose recipe became known later.
+- Sessions: a session carried over a logout no longer counts the time offline; starting one says which character a running session is on.
+- Auction sales: the deposit that comes back with a sale is kept apart (Auction deposits back, under Other), so the sale shows its real price and the Dashboard's Sales and Expenses aren't both inflated.
+- Smaller: the Ledger search waits for a pause in typing; the shopping list redraws every 2 seconds; long requests in the Customers window stop before the buttons.
+
 ## [0.11.0] - 2026-10-04
 
 ### Highlights

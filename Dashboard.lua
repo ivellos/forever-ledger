@@ -105,7 +105,8 @@ local function totals(keys, from, to)
       if day >= fromDay and day <= toDay then
         if not firstDay or day < firstDay then firstDay = day end
         for s, amt in pairs(src) do
-          if SALES[s] then sales = sales + amt elseif EXPENSES[s] then expenses = expenses + amt end
+          if SALES[s] then sales = sales + amt elseif EXPENSES[s] then expenses = expenses + amt
+          elseif s == "ahDepositBack" then expenses = expenses - amt end   -- a deposit back offsets the fee paid
         end
       end
     end
@@ -528,7 +529,7 @@ function ns:RefreshDashboard(f)
   local list = ns.db.sessions
   for i = #list, math.max(1, #list - 20), -1 do   -- as many as fit (trimmed below)
     local x = list[i]
-    local mins = math.floor((x.stop - x.t) / 60)
+    local mins = math.floor((x.secs or (x.stop - x.t)) / 60)   -- time played, if recorded
     if x.kind == "general" then
       lines[#lines + 1] = ("%s  Session: %s, gold %s, looted about %s"):format(dim(date("%b %d %H:%M", x.t)),
         mins < 1 and "under a minute" or (mins .. " min"), money(x.earned - x.spent), ns.Money(x.loot or 0))

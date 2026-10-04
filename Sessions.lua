@@ -52,7 +52,16 @@ function ns:SessionTotals(s)
     items[#items + 1] = { id = id, n = n, value = value }
   end
   table.sort(items, function(a, b) return a.value > b.value end)
-  local secs = math.max(1, time() - s.t)
+  -- Time played, not time since it started: a session carried over a logout doesn't
+  -- count the time offline (code review, October 4). s.active = seconds before the
+  -- last logout, s.resume = when it carried on (old sessions: from the start).
+  local secs
+  if s.active == nil and s.resume == nil then
+    secs = time() - s.t   -- a session from before this was counted (or a stored one)
+  else
+    secs = (s.active or 0) + (s.resume and (time() - s.resume) or 0)
+  end
+  secs = math.max(1, secs)
   local gained = earned - spent
   return { secs = secs, earned = earned, spent = spent, gained = gained, loot = loot, items = items,
     perHour = (gained + loot) / secs * 3600 }
@@ -242,8 +251,15 @@ end
 -- Start and stop
 ---------------------------------------------------------------------------
 function ns:StartGeneralSession()
-  if live() then ns:Print("A session is already running: /fl session stop ends it."); return end
-  ns.db.liveSession = { t = time(), char = ns.CharKey(), money = {}, loot = {} }
+  local s = live()
+  if s then
+    -- Say whose it is (code review, October 4: it could be on another character).
+    local c = ns.db.chars[s.char]
+    local who = s.char ~= ns.CharKey() and (" on " .. ((c and c.name) or s.char)) or ""
+    ns:Print(("A session is already running%s: /fl session stop ends it."):format(who))
+    return
+  end
+  ns.db.liveSession = { t = time(), resume = time(), active = 0, char = ns.CharKey(), money = {}, loot = {} }
   ns:Print("Session started: gold in and out and what you loot are counted. /fl session stop (or Stop on the tracker) ends it.")
   showTracker()
   if ns.RefreshUI then ns:RefreshUI() end
@@ -264,7 +280,7 @@ function ns:StopGeneralSession()
   end
   local top = {}
   for k = 1, math.min(5, #st.items) do top[k] = { st.items[k].id, st.items[k].n, st.items[k].value } end
-  table.insert(ns.db.sessions, { kind = "general", name = "Session", t = s.t, stop = time(), earned = st.earned,
+  table.insert(ns.db.sessions, { kind = "general", name = "Session", t = s.t, stop = time(), secs = st.secs, earned = st.earned,
     spent = st.spent, loot = st.loot, top = top, runs = 0, money = s.money })
   while #ns.db.sessions > 100 do table.remove(ns.db.sessions, 1) end
   ns:Print(("Session over after %s: gold %s, looted about %s, so about %s an hour."):format(duration(st.secs),
@@ -290,5 +306,21 @@ function ns:GeneralSessionRunning() return live() ~= nil end
 -- A session left running at logout carries on at login, on the same character.
 ns:On("PLAYER_ENTERING_WORLD", function()
   local s = live()
+  -- Carrying on after a logout or reload: count time again from now.
+  if s and not s.resume then
+    if s.active == nil then s.active = time() - s.t end   -- one started before this was counted
+    s.resume = time()
+  end
   if s and s.char == ns.CharKey() then showTracker() else hideTracker() end
+end)
+-- Logging out (or reloading): bank the time played so far, so time offline isn't counted.
+ns:On("PLAYER_LOGOUT", function()
+  local s = live()
+  if not s then return end
+  if s.resume then
+    s.active = (s.active or 0) + (time() - s.resume)
+  elseif s.active == nil then
+    s.active = time() - s.t
+  end
+  s.resume = nil
 end)

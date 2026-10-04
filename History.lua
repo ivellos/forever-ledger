@@ -248,7 +248,13 @@ local function onMoney()
   local day = charTable(ns.db.money)
   day[today()] = day[today()] or {}
   local totals = day[today()]
-  totals[source] = (totals[source] or 0) + math.abs(delta)
+  -- An auction sale's mail pays the deposit back too: that part is kept apart, so Sales
+  -- is the sale after the cut and the deposit offsets the fee you paid (owner's
+  -- question, October 4: 10 Empty Vials showed 13c each, 1s 26c with 50c deposit).
+  local dep = source == "ahSale" and hints[1] and hints[1].deposit or 0
+  if dep <= 0 or dep >= math.abs(delta) then dep = 0 end
+  totals[source] = (totals[source] or 0) + math.abs(delta) - dep
+  if dep > 0 then totals.ahDepositBack = (totals.ahDepositBack or 0) + dep end
   -- A running session counts it too (Sessions.lua).
   if ns.SessionMoney then ns:SessionMoney(source, delta) end
   if ns.DungeonMoney then ns:DungeonMoney(source, delta) end   -- and a dungeon run (Dungeons.lua)
@@ -257,7 +263,8 @@ local function onMoney()
   for _, h in ipairs(hints) do
     local amount = (#hints > 1 and h.amount) or math.abs(delta)
     if h.log == "sale" then
-      addLog(ns.db.sales, { t = now, c = who, n = h.item, a = amount, cut = h.cut, q = h.qty, b = h.buyer })
+      local d = (h.deposit and h.deposit > 0 and h.deposit < amount) and h.deposit or nil
+      addLog(ns.db.sales, { t = now, c = who, n = h.item, a = amount - (d or 0), dep = d, cut = h.cut, q = h.qty, b = h.buyer })
       ns:Debug("Sale", h.qty or "?", "x", h.item or "?", "to", h.buyer or "?", "for", ns.Money(amount))
     elseif h.log == "vendor" then
       addLog(ns.db.vendorLog, { t = now, c = who, id = h.item, q = h.qty, a = amount, s = h.source == "vendorSell" and "sell" or "buy" })
@@ -333,14 +340,14 @@ local function mailHint(index)
   if not GetInboxHeaderInfo then return end
   local _, _, _, _, money = GetInboxHeaderInfo(index)
   if not money or money <= 0 then return end
-  local invoiceType, itemName, buyer, consignment, count
+  local invoiceType, itemName, buyer, deposit, consignment, count
   if GetInboxInvoiceInfo then
     local info = { GetInboxInvoiceInfo(index) }
-    invoiceType, itemName, buyer, consignment, count = info[1], info[2], info[3], info[7], info[11]
+    invoiceType, itemName, buyer, deposit, consignment, count = info[1], info[2], info[3], info[6], info[7], info[11]
   end
   if invoiceType == "seller" then
     hint({ source = "ahSale", amount = money, item = itemName, cut = consignment, log = "sale",
-      buyer = buyer, qty = tonumber(count) })
+      buyer = buyer, qty = tonumber(count), deposit = tonumber(deposit) })
   else
     hint({ source = "mailIn", amount = money })
   end
@@ -801,13 +808,14 @@ end
 ---------------------------------------------------------------------------
 local LABELS = {
   ahSale = "Auction house sales", ahBuy = "Auction house purchases", ahFee = "Auction house fees",
+  ahDepositBack = "Auction deposits back",
   vendorSell = "Sold to vendors", vendorBuy = "Bought from vendors", repair = "Repairs",
   mailIn = "Mail received", mailOut = "Mail sent", tradeIn = "Trade received", tradeOut = "Trade given",
   loot = "Loot", quest = "Quests", training = "Training", flight = "Flights",
   otherIn = "Other income", otherOut = "Other spending",
 }
 ns.MONEY_LABELS = LABELS   -- (Sessions.lua: the tracker's hover lists money by source)
-local INCOME = { ahSale = true, vendorSell = true, mailIn = true, tradeIn = true, loot = true, quest = true, otherIn = true }
+local INCOME = { ahSale = true, ahDepositBack = true, vendorSell = true, mailIn = true, tradeIn = true, loot = true, quest = true, otherIn = true }
 
 -- Today's money for this character as lines ("Sold to vendors: +5s"), plus the net.
 function ns:MoneyToday()

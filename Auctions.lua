@@ -79,28 +79,12 @@ local function cheapestNow(e)
   return rec.m, rec
 end
 
--- Whether it Forever reports buyout per item or for the whole stack isn't confirmed:
--- take whichever is closer to what the item sells for (per item when there's nothing
--- to go by). Logged with /fl debug, to settle it in the beta.
-local debugged = {}
-local function eachPrice(info, id)
+-- The buyout is per item in Forever (owner's test, October 4: Empty Vial x10 read 8c,
+-- posted at 8c each), so no guessing (a guess could mark a fair auction undercut).
+local function eachPrice(info)
   local buy = info.buyoutAmount or info.bidAmount
-  local q = math.max(info.quantity or 1, 1)
   if not buy or buy <= 0 then return nil end
-  local per, split = buy, buy / q
-  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
-  local market = rec and not rec.none and (rec.a or rec.m)
-  local each = per
-  if q > 1 and market and market > 0 then
-    local function off(v) return math.abs(math.log(v / market)) end
-    if off(split) < off(per) then each = split end
-  end
-  if q > 1 and not debugged[id] then
-    debugged[id] = true
-    ns:Debug(("Your auctions: %s x%d, buyout %s, market %s: taken as %s each."):format(ns.ItemName(id), q,
-      ns.MoneyPlain(buy), market and ns.MoneyPlain(market) or "?", ns.MoneyPlain(math.floor(each))))
-  end
-  return math.floor(each + 0.5)
+  return buy
 end
 
 local function readOwned()
@@ -327,7 +311,7 @@ end
 
 local function cancelOne(e)
   if not (e and e.a and AH and AH.CancelAuction) then return end
-  pending[e.a] = true
+  pending[e.a] = GetTime()
   local ok, err = pcall(AH.CancelAuction, e.a)
   if not ok then pending[e.a] = nil; ns:Print("Couldn't cancel that auction: " .. tostring(err)) end
 end
@@ -489,6 +473,7 @@ refresh = function()
 
   -- Cancel next undercut: asks once, then each click cancels the next one.
   local todo = undercutList(order)
+  frame.todo = todo   -- the button cancels these, in this order: the one the line names first
   if cancelState == "asking" and GetTime() - askedAt > 8 then cancelState = nil end
   if #todo == 0 then cancelState = nil end
   frame.cancelNext:SetEnabled(#todo > 0 and ns:IsAHOpen())
@@ -520,7 +505,11 @@ end
 ns:On("OWNED_AUCTIONS_UPDATED", function()
   local still = {}
   for _, e in ipairs((mine() or {}).list or {}) do if e.a then still[e.a] = true end end
-  for a in pairs(pending) do if not still[a] then pending[a] = nil end end
+  -- Gone: cancelled. Still listed a few seconds on: the server refused it, so it can be
+  -- tried again (code review, October 4: it stayed "cancelling..." until closing).
+  for a, at in pairs(pending) do
+    if not still[a] or GetTime() - at > 4 then pending[a] = nil end
+  end
 end)
 ns:On("AUCTION_HOUSE_CLOSED", function() cancelState = nil; wipe(pending) end)
 
@@ -569,8 +558,9 @@ function ns:YourAuctionsFrame(side)
   -- One button, always in the same place: asks once, then each click cancels the next
   -- undercut auction (owner, October 4: fewer clicks; Blizzard needs one per cancel).
   frame.cancelNext = T:Button(frame, "Cancel next undercut", 190, function()
-    local m = mine()
-    local todo = undercutList(m and m.list or {})
+    -- The list on screen (code review, October 4: the game's order cancelled a different
+    -- auction from the one the line named).
+    local todo = frame.todo or {}
     if #todo == 0 then return end
     if cancelState == "on" then
       cancelOne(todo[1])

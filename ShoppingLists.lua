@@ -548,9 +548,12 @@ function ns:AnyPriceLimit(id)
   local usual = stats and stats.points >= 3 and stats.usual
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   local now = rec and not rec.none and (rec.a or rec.m)
+  -- Never raised to the cheapest listing (that let a lone joke listing set the cap), and
+  -- nothing to base it on means don't buy yet: nil, until a search has priced it (code
+  -- review, October 4).
   local base = usual or now
-  if not base then return math.huge end
-  return math.floor(math.max(base * ANY_CAP, rec and rec.m or 0))
+  if not base then return nil end
+  return math.floor(base * ANY_CAP)
 end
 
 -- The most to pay for a material by default: its usual (typical) price from your scans,
@@ -636,7 +639,7 @@ function ns:ItemDone(e, list)
         local recipe = ns:RecipeFor(e.id)
         local all = recipe and list.matDone and true
         for _, r in ipairs(recipe and recipe.r or {}) do
-          if not list.matDone[r[1]] then all = false end
+          if not (list.matDone and list.matDone[r[1]]) then all = false end
         end
         if all then e.done = true end
       elseif (e.bought or 0) >= (e.qty or 1) then

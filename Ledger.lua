@@ -27,11 +27,11 @@ local SUBTABS = {
   { key = "other", label = "Other" },
 }
 local OTHER = {
-  ahFee = "Auction house fees", repair = "Repairs", mailIn = "Mail received", mailOut = "Mail sent",
+  ahFee = "Auction house fees", ahDepositBack = "Auction deposits back", repair = "Repairs", mailIn = "Mail received", mailOut = "Mail sent",
   tradeIn = "Trade received", tradeOut = "Trade given", loot = "Loot", quest = "Quests",
   training = "Training", flight = "Flights", otherIn = "Other income", otherOut = "Other spending",
 }
-local OTHER_IN = { mailIn = true, tradeIn = true, loot = true, quest = true, otherIn = true }
+local OTHER_IN = { ahDepositBack = true, mailIn = true, tradeIn = true, loot = true, quest = true, otherIn = true }
 
 local COLUMNS = {
   all = {
@@ -345,7 +345,15 @@ function ns:BuildLedger(parent)
   f.searchLabel:SetText("Search")
   f.search = T:EditBox(f, 180, "LEFT")
   f.search:SetPoint("LEFT", f.searchLabel, "RIGHT", 8, 0)
-  f.search:SetScript("OnTextChanged", function() clearSelection(); ns:RefreshLedger() end)
+  -- Redraw once typing pauses (code review, October 4: every key rebuilt every record).
+  local typed = 0
+  f.search:SetScript("OnTextChanged", function()
+    typed = typed + 1
+    local mine = typed
+    C_Timer.After(0.25, function()
+      if mine == typed then clearSelection(); ns:RefreshLedger() end
+    end)
+  end)
   f.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
   f.charLabel = T:Text(f, 12, T.dim)
   f.charLabel:SetPoint("LEFT", f.search, "RIGHT", 18, 0)
