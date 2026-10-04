@@ -10,18 +10,22 @@ A gold-making addon built specifically for **WoW Forever**. It scans the auction
 
 - **Tooltips that answer "what's this worth?"** The best way to turn an item into gold, the most it's worth paying, what it disenchants into, and which of your recipes use it. One line with Shift for more, if you prefer.
 - **Deals.** Listings well below their usual price, with why each one is a deal: the usual price and how many days of scans it's based on, the price now, the next listing up, and the resale profit after the auction house cut. Each deal is rated Good, Fair or Thin.
-- **Buy queue.** Vendor flips (things on the auction house for less than a vendor pays) and your shopping lists, lined up beside the auction house: click Buy, or scroll over it, to buy the next one. Watch flips keeps scanning while the auction house is open and chimes when a new flip shows up.
-- **Shopping lists.** Named lists with the most you'd pay and how many you want (raid consumables, twink gear), saved and shareable. Set an item to Craft and the list shows the materials you need, less what you have.
+- **Buy queue.** Vendor flips (things on the auction house for less than a vendor pays) and your shopping lists, lined up beside the auction house: click Buy, or scroll over it, to buy the next one, best profit you can afford first. Watch flips keeps scanning while the auction house is open and chimes when a new flip shows up. Spend at most caps what it spends each visit, and it never pays more than your limit or buys more than you asked for.
+- **Shopping lists.** Named lists of items (twink gear, raid consumables), saved and shareable. Search all checks the auction house for the whole list at once, even one version of gear ("of the Monkey"), and each item shows what you own across your characters. Tick one box to buy from a list in the Buy queue, with how many you want and the most you'll pay; set an item to Craft and the list shows its materials, and whether crafting or buying is cheaper.
 - **Shuffles.** Buy materials, craft, disenchant or convert, and sell, ranked by gold per hour. Work it walks you through each step with one-click buttons.
 - **On the auction house.** Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE).
 - **Disenchant finder.** Green armor and weapons by item level, with what each is worth to disenchant and the odds of each material.
 - **Recipes and trainers.** Every recipe for your professions: who knows it, where to get it, the skill needed and profit per craft.
 - **Waylaid Crates.** The cheapest way to fill each crate at today's prices, and gold per Merchant's Favor.
 - **Customer finder and ads.** Spots people in chat asking for what your character can do (enchanting, crafted items, Mage water and portals, Warlock summons, lockpicking), with Whisper and Invite buttons and one-click ads for Trade.
-- **Dashboard and Ledger.** Gold over time, every sale and purchase, resale profit, and where the rest of your money goes.
+- **Dashboard and Ledger.** Gold over time, and every transaction in one list: sales, purchases, resale profit and where the rest of your money goes. Select rows to see what they add up to.
+- **Sessions and dungeon runs.** A small tracker for what your time is worth (gold an hour, gold in and out, loot), and your dungeon runs and drops counted as you go.
+- **Price history.** Hold Ctrl over an item for its recent price range, which way it's heading, the usual price and the lowest ever seen.
+- **Quest items and sell protection.** Tooltips list the quests that need an item (and say keep it if you'll need it), and a warning stops you posting below what a vendor pays.
 - **Gear versions.** "Of the Eagle" and "of the Whale" are priced separately.
 - **Two accounts?** Live sync shares prices and recipes between them while both are online.
-- **Works with Auctionator, TSM and Auctioneer** prices and full scans, and looks at home with EllesmereUI.
+- **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
+- **Easy to find your way.** A short welcome the first time, Help by topic, and search boxes for Settings and Help.
 
 The addon suggests; you click. Every craft, purchase and auction still needs your own click, as Blizzard requires.
 
