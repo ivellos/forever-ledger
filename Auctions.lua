@@ -257,10 +257,11 @@ local function shortLeft(secs)
 end
 
 -- When a sale's gold reaches the mailbox: "in 34m", or "in your mailbox".
+-- By the clock, not by the sale leaving the list: Forever drops a sale from your list
+-- before its gold arrives (owner's test, October 4: "gold mailed", mailbox empty).
 local function mailText(e)
-  if e.mailed then return "gold mailed" end
   local left = (e.soldAt or time()) + SALE_MAIL_SECONDS - time()
-  if left <= 0 then return "in your mailbox soon" end
+  if left <= 0 then return "gold mailed" end
   return "mail in " .. shortLeft(left)
 end
 
@@ -367,10 +368,10 @@ refresh = function()
   for _, e in ipairs(order) do
     if e.sold then
       counts.sold = counts.sold + 1
-      if not e.mailed then
+      local left = (e.soldAt or time()) + SALE_MAIL_SECONDS - time()
+      if left > 0 then
         onWay = onWay + proceeds(e)
-        local left = (e.soldAt or time()) + SALE_MAIL_SECONDS - time()
-        if left > 0 then nextIn = math.min(nextIn or left, left) end
+        nextIn = math.min(nextIn or left, left)
       end
     else
       counts.up = counts.up + 1
@@ -531,8 +532,17 @@ function ns:YourAuctionsFrame(side)
   frame.cancelNext:SetPoint("BOTTOMRIGHT", -10, 8)
   frame.cancelNext:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    -- Short lines under headings (owner's test, October 4: one block was hard to read).
+    local A = T.accent
     GameTooltip:AddLine("Cancel next undercut", 1, 1, 1)
-    GameTooltip:AddLine("Asks once, then each click cancels the next undercut auction (the line above says which). The items come back by mail; each loses its deposit. Repost them just under the cheapest.", nil, nil, nil, true)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("How it works", A[1], A[2], A[3])
+    GameTooltip:AddLine("First click asks to confirm. After that, each click cancels one.", 0.9, 0.9, 0.9, true)
+    GameTooltip:AddLine("The line above says which one is next.", 0.9, 0.9, 0.9, true)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("What happens", A[1], A[2], A[3])
+    GameTooltip:AddLine("The items come back by mail. Each loses its deposit.", 0.9, 0.9, 0.9, true)
+    GameTooltip:AddLine("Repost them just under the cheapest.", 0.9, 0.9, 0.9, true)
     GameTooltip:Show()
   end)
   frame.cancelNext:HookScript("OnLeave", function() GameTooltip:Hide() end)
