@@ -69,7 +69,7 @@ ns.HELP = {
     { "Work it", "The Disenchant button disenchants the shuffle's items one click at a time. /fl de shows your own results." },
   } },
   { "Recipes and trainers", {
-    { "Recipes tab", "Every recipe of your professions, who knows it, where to get it, the skill needed, and profit per craft. Right-click a recipe to set its type yourself." },
+    { "Recipes tab", "Every recipe of your professions, who knows it, where to get it, the skill needed, and profit per craft. Right-click a recipe to set its type yourself. Click a column heading to sort." },
     { "Types", "Flip or shuffle, Crafts that sell, Enchant service, Not for sale, Not profitable." },
     { "Where from", "What you've seen in game first, otherwise original Classic data marked (Classic), or the auction house when its recipe item is listed there. Pin puts a map pin on the vendor, trainer or mob." },
     { "Trainers view", "Trainers you've visited, Classic ones, and spots city guards mark when you ask them for a profession trainer (marked guard)." },

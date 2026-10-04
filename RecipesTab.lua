@@ -32,6 +32,7 @@ local function settings()
   s.view = s.view or "known"   -- "view", not the first test's "show", so everyone starts on Known
   s.type = s.type or "all"
   if s.custom == nil then s.custom = true end
+  -- s.sort = { key, desc } after a column heading is clicked; nil keeps the usual order.
   return s
 end
 
@@ -317,15 +318,18 @@ local f
 local rows = {}
 local current     -- profession shown, or "Trainers:<profession>"
 
+-- num: sorts high to low first (text sorts A to Z first).
 local COLS = {
   { key = "name", label = "Recipe" },
-  { key = "skill", label = "Skill", w = 36 },
+  { key = "skill", label = "Skill", w = 36, num = true },
   { key = "known", label = "Known by", w = 120 },
   { key = "source", label = "Where from (hover for all)", w = 300 },
   { key = "type", label = "Type", w = 104 },
-  { key = "profit", label = "Per craft", w = 80 },
+  { key = "profit", label = "Per craft", w = 80, num = true },
   { key = "pin", label = "", w = 36 },
 }
+local NUMERIC = {}   -- [key] = true for numbers, false for text; columns with a label only
+for _, c in ipairs(COLS) do if c.label ~= "" then NUMERIC[c.key] = c.num or false end end
 
 local function professions()
   local set = {}
@@ -551,6 +555,22 @@ local function skillText(skill, rank)
   return (rank >= skill and "|cff7fd39c%d|r" or "|cffee8597%d|r"):format(skill)
 end
 
+-- What a row sorts by in a column (nil: no value, always last).
+local function plain(text)
+  return (text:gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("^%s+", ""):lower())
+end
+local function sortValue(e, key)
+  if key == "name" then return e.r.n and e.r.n:lower() end
+  if key == "skill" then return skillFor(e.r.n) end
+  if key == "known" then return #e.names > 0 and table.concat(e.names, ", "):lower() or nil end
+  if key == "source" then
+    local src = bestSource(e.r.n)
+    return src and plain(sourceText(src)) or nil
+  end
+  if key == "type" then return TYPES[e.type].label:lower() end
+  if key == "profit" then return e.profit end
+end
+
 local function recipeRows(prof, width, lay)
   local rank = bestRank(prof)
   local s = settings()
@@ -571,12 +591,28 @@ local function recipeRows(prof, width, lay)
   -- Grouped by type (flip or shuffle first), then most profit first.
   local typeRank = {}
   for i, k in ipairs(ORDER) do typeRank[k] = i end
-  table.sort(list, function(a, b)
+  local function usual(a, b)
     if a.type ~= b.type then return typeRank[a.type] < typeRank[b.type] end
     if (a.profit ~= nil) ~= (b.profit ~= nil) then return a.profit ~= nil end
     if a.profit and b.profit and a.profit ~= b.profit then return a.profit > b.profit end
     return (a.r.n or "") < (b.r.n or "")
-  end)
+  end
+  -- A clicked column heading: by that column, ties and rows with no value in the usual order.
+  local sort = s.sort
+  if sort and NUMERIC[sort.key] ~= nil then
+    for _, e in ipairs(list) do e.sortBy = sortValue(e, sort.key) end
+    table.sort(list, function(a, b)
+      local va, vb = a.sortBy, b.sortBy
+      if va == nil or vb == nil or va == vb then
+        if (va == nil) ~= (vb == nil) then return va ~= nil end
+        return usual(a, b)
+      end
+      if sort.desc then return va > vb end
+      return va < vb
+    end)
+  else
+    table.sort(list, usual)
+  end
   local n = math.min(#list, MAX_ROWS)
   for i = 1, n do
     local e, row = list[i], getRow(i)
@@ -788,14 +824,35 @@ function ns:RefreshRecipes()
   local width = f:GetWidth() - 12
   local cols = trainers and TRAINER_COLS or COLS
   local lay = layout(cols, width)
+  -- Recipe columns sort when their heading is clicked (not the Trainers view).
+  local sort = not trainers and s.sort or nil
   for i, c in ipairs(cols) do
     local h = f.heads[i]
-    if not h then h = T:Text(f.header, 11, T.dim); f.heads[i] = h end
+    if not h then
+      h = CreateFrame("Button", nil, f.header)
+      h.fs = T:Text(h, 11, T.dim)
+      h.fs:SetAllPoints()
+      h:SetScript("OnClick", function(self)
+        if not self.key then return end
+        local st = settings()
+        local cur = st.sort
+        if cur and cur.key == self.key then cur.desc = not cur.desc
+        else st.sort = { key = self.key, desc = NUMERIC[self.key] and true or false } end
+        ns:RefreshRecipes()
+      end)
+      f.heads[i] = h
+    end
+    local sortable = not trainers and c.label ~= ""
+    h.key = sortable and c.key or nil
+    h:EnableMouse(sortable)
     h:ClearAllPoints()
     h:SetPoint("LEFT", f.header, "LEFT", lay[c.key].x, 0)
-    h:SetWidth(math.max(lay[c.key].w, 1))
-    h:SetJustifyH(c.key == "profit" and not trainers and "RIGHT" or "LEFT")
-    h:SetText(c.label)
+    h:SetSize(math.max(lay[c.key].w, 1), 22)
+    h.fs:SetJustifyH(c.key == "profit" and not trainers and "RIGHT" or "LEFT")
+    local sorted = sort and sortable and sort.key == c.key
+    h.fs:SetText(c.label .. (sorted and (sort.desc and " v" or " ^") or ""))
+    local col = sorted and { T.accent[1], T.accent[2], T.accent[3], 1 } or T.dim
+    h.fs:SetTextColor(col[1], col[2], col[3], col[4] or 1)
   end
 
   f.content:SetWidth(width)
