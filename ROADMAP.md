@@ -1,6 +1,6 @@
 # Forever Ledger roadmap
 
-![Forever Ledger roadmap, autumn 2026](docs/images/branding/roadmap-autumn-2026.png)
+![Forever Ledger roadmap, autumn 2026](docs/images/branding/roadmap-autumn-2026-new-coins.png)
 
 What's planned for Forever Ledger. These are plans, not promises: the order changes with what players find useful, and anything that depends on how WoW Forever works gets tested first. Ideas and feedback are welcome: use **/feature** on our [Discord](https://discord.gg/WKsCtvupeC), or open an [issue](https://github.com/ivellos/forever-ledger/issues).
 

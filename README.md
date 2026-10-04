@@ -63,7 +63,7 @@
 
 ## What's coming
 
-![Forever Ledger roadmap, autumn 2026](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/branding/roadmap-autumn-2026.png)
+![Forever Ledger roadmap, autumn 2026](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/branding/roadmap-autumn-2026-new-coins.png)
 
 Plans, not promises: the full list is in the [roadmap](https://github.com/ivellos/forever-ledger/blob/main/ROADMAP.md), and ideas are welcome on our [Discord](https://discord.gg/WKsCtvupeC).
 
