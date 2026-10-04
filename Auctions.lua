@@ -258,7 +258,7 @@ end
 
 -- When a sale's gold reaches the mailbox: "in 34m", or "in your mailbox".
 local function mailText(e)
-  if e.mailed then return "in your mailbox" end
+  if e.mailed then return "gold mailed" end
   local left = (e.soldAt or time()) + SALE_MAIL_SECONDS - time()
   if left <= 0 then return "in your mailbox soon" end
   return "mail in " .. shortLeft(left)
@@ -286,6 +286,9 @@ local function getRow(i)
   r:SetHeight(ROW)
   r:EnableMouse(true)
   r.stripe = T:Fill(r, { 1, 1, 1, 0.025 })
+  -- Undercut: the whole row tinted red (owner's test, October 4), not just the word.
+  r.tint = T:Fill(r, { 0.93, 0.32, 0.38, 0.18 })
+  r.tint:Hide()
   r.icon = r:CreateTexture(nil, "ARTWORK")
   r.icon:SetSize(16, 16)
   r.icon:SetPoint("LEFT", 4, 0)
@@ -410,10 +413,11 @@ refresh = function()
       if e.a and pending[e.a] then r.status:SetText("|cff888888cancelling...|r")
       elseif by then r.status:SetText("|cffee8597undercut|r")
       elseif now then r.status:SetText("|cff7fd39ccheapest|r")
-      else r.status:SetText("|cff888888not priced|r") end
+      else r.status:SetText("|cff888888not priced: Check prices|r") end
     end
     local canCancel = by ~= nil and e.a ~= nil and not pending[e.a]
     r.cancel:SetShown(canCancel)
+    r.tint:SetShown(by ~= nil)
     -- The status runs to the edge, or up to the Cancel button.
     r.status:SetPoint("RIGHT", r, "RIGHT", canCancel and -60 or -4, 0)
     r.cancel:SetText((e.a and armed[e.a] and GetTime() - armed[e.a] < 4) and "Sure?" or "Cancel")
@@ -449,7 +453,8 @@ refresh = function()
       #todo, #todo == 1 and "auction" or "auctions"))
   elseif #todo > 0 then
     local e = todo[1]
-    frame.info:SetText(("Next: %s x%d, yours %s, cheapest %s."):format(ns.ItemName(e.id), e.q or 1, ns.MoneyPlain(e.each), ns.MoneyPlain(undercutBy(e))))
+    frame.info:SetText(("Next: %s x%d, yours %s, cheapest %s.%s"):format(ns.ItemName(e.id), e.q or 1, ns.MoneyPlain(e.each), ns.MoneyPlain(undercutBy(e)),
+      cancelState == "on" and "" or " |cff888888(First click asks, then one click each.)|r"))
   elseif counts.up > 0 then
     frame.info:SetText(("%d up, none undercut at the last check%s."):format(counts.up, m and m.t and (" (" .. ns.Age(m.t) .. ")") or ""))
   else

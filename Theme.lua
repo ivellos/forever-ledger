@@ -395,9 +395,19 @@ function T:Dropdown(parent, width, onChange)
 
   -- The list follows the button's width (it can be narrowed to fit, Dashboard.lua).
   -- d.default: that option says "(default)" in the list (Settings, owner's test October 3).
+  local measure = T:Text(menu, 12)   -- (hidden: sizes the list to its longest name)
+  measure:Hide()
   local function fill()
-    menu:SetWidth(d:GetWidth())
-    menu.content:SetWidth(d:GetWidth() - 16)
+    -- At least the button's width, wider when a name needs it (owner's test, October 4:
+    -- "Aukshaun Vondrizzle (Classic Beta PvP 2)" was cut off).
+    local w = d:GetWidth()
+    for _, o in ipairs(d.options) do
+      measure:SetText(o.label .. ((d.default ~= nil and o.value == d.default) and " (default)" or ""))
+      w = math.max(w, measure:GetStringWidth() + 32)
+    end
+    w = math.min(w, 420)
+    menu:SetWidth(w)
+    menu.content:SetWidth(w - 16)
     for i, o in ipairs(d.options) do
       local r = menu.rows[i]
       if not r then

@@ -6,10 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Your auctions: an Auctions tab beside the auction house lists what you have up, your price each, the cheapest now, and undercut, cheapest or sold. Check prices looks them all up; scans and the flip watch check them too. Undercut alerts in chat with a sound (Settings, Auction house; off by themselves with Auctionator or TSM). All, Up, Undercut and Sold views; sold ones show what you get and when the gold reaches the mailbox, and the bottom line the gold on the way and in your mailbox. Cancel next undercut asks once, then cancels one undercut auction per click. Gear is checked version by version, like Search all.
+- Your auctions: an Auctions tab beside the auction house lists what you have up, your price each, the cheapest now, and undercut, cheapest or sold. Check prices looks them all up; scans and the flip watch check them too. Undercut alerts in chat with a sound (Settings, Auction house; off by themselves with Auctionator or TSM). All, Up, Undercut and Sold views; sold ones show what you get and when the gold reaches the mailbox, and the bottom line the gold on the way and in your mailbox. Cancel next undercut asks once, then cancels one undercut auction per click. Gear is checked version by version, like Search all. Undercut rows are tinted red.
 
 ### Changed
-- Your characters on another ruleset or faction no longer count where they couldn't help you: crafting values and shuffles, Used by in tooltips, craft or buy, the Recipes tab's who knows it, the Enchanting skill for disenchanting, and which materials Scan materials looks up (as Have already did). On the Dashboard and Ledger, All characters means this realm and faction; characters elsewhere are listed after them, with their realm, to look at on their own.
+- Your characters on another ruleset or faction no longer count where they couldn't help you: crafting values and shuffles, Used by in tooltips, craft or buy, the Recipes tab's who knows it, the Enchanting skill for disenchanting, and which materials Scan materials looks up (as Have already did). On the Dashboard and Ledger, All characters means this realm and faction; characters elsewhere are listed after them, with their realm, to look at on their own. Dropdown lists widen to fit long names.
 
 ## [0.11.0] - 2026-10-04
 
