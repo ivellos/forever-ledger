@@ -119,7 +119,7 @@ local function readOwned()
       list[#list + 1] = e
     end
   end
-  store()[ns.CharKey()] = { t = now, list = list, alerted = (mine() or {}).alerted }
+  store()[ns.CharKey()] = { t = now, list = list, alerts = (mine() or {}).alerts }
 end
 
 -- What a sold auction brings: the sale after the cut, plus the deposit, which comes back
@@ -184,22 +184,24 @@ local function checkAlerts()
   -- Once per login as a reminder (owner, October 4: "a good reminder"), not on every
   -- reload; again if the price drops further. Kept by item and price, saved: auction
   -- IDs seem to change on a reload in Forever.
-  m.alerted = m.alerted or {}
-  -- Right after a reload the game can report no auctions for a moment: forgetting what
-  -- was alerted then made the chime come back on every reload (owner's test, October 4).
-  if #m.list == 0 then return end
+  -- m.alerts[key] = { p = cheapest alerted at, t = when }. Not tidied against the list of
+  -- auctions (that list can come back empty or partial right after a reload, which
+  -- wiped the record and brought the chime back: owner's tests, October 4); old ones
+  -- just expire after two days.
+  m.alerted = nil   -- (the older record, which was tidied that way)
+  m.alerts = m.alerts or {}
+  local nowT = time()
+  for k, a in pairs(m.alerts) do if type(a) ~= "table" or nowT - (a.t or 0) > 172800 then m.alerts[k] = nil end end
+  alerted = m.alerts
   local function key(e) return e.id .. ":" .. (e.each or 0) .. ":" .. (e.q or 1) end
-  local up = {}
-  for _, e in ipairs(m.list) do up[key(e)] = true end
-  for k in pairs(m.alerted) do if not up[k] then m.alerted[k] = nil end end
-  alerted = m.alerted
   local news = {}
   for _, e in ipairs(m.list) do
     local now = undercutBy(e)
     local k = key(e)
-    if now and (not alerted[k] or now < alerted[k]) then
-      ns:Debug(("Undercut alert for %s: %s"):format(k, alerted[k] and ("cheaper again, was " .. alerted[k]) or "not alerted since login"))
-      alerted[k] = now
+    local a = alerted[k]
+    if now and (not a or now < a.p) then
+      ns:Debug(("Undercut alert for %s: %s"):format(k, a and ("cheaper again, was " .. a.p) or "not alerted since login"))
+      alerted[k] = { p = now, t = nowT }
       news[#news + 1] = e
     end
   end
@@ -225,9 +227,13 @@ ns:On("AUCTION_CANCELED", function() C_Timer.After(0.5, query) end)
 ns:On("AUCTION_HOUSE_AUCTION_CREATED", function() C_Timer.After(0.5, query) end)
 ns:On("AUCTION_HOUSE_SHOW", function() C_Timer.After(1, query) end)
 -- A new login: remind about undercuts again (a reload doesn't).
-ns:On("PLAYER_ENTERING_WORLD", function(isLogin)
-  local m = isLogin and mine()
-  if m then m.alerted = nil end
+ns:On("PLAYER_ENTERING_WORLD", function(isLogin, isReload)
+  local m = mine()
+  local n = 0
+  for _ in pairs(m and m.alerts or {}) do n = n + 1 end
+  ns:Debug(("Your auctions: entering the world, login %s, reload %s, %d undercut alerts remembered."):format(
+    tostring(isLogin), tostring(isReload), n))
+  if m and isLogin == true and not isReload then m.alerts = nil end
 end)
 
 -- New prices from any scan: check your auctions against them.
