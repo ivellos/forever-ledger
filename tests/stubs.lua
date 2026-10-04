@@ -45,7 +45,7 @@ S.now = 1790000000            -- a fixed "now" (2026), so ages and days don't dr
 S.money = 0
 local realTime = os.time
 time = function(t) if t then return realTime(t) end return S.now end
-date = os.date
+date = function(fmt, t) return os.date(fmt or "%c", t or S.now) end
 GetTime = function() return S.now % 100000 end
 debugprofilestop = function() return os.clock() * 1000 end
 GetRealmName = function() return "Testrealm" end
@@ -66,6 +66,11 @@ function GetItemInfo(id)
   return i.name, "|Hitem:" .. id .. "|h[" .. i.name .. "]|h", i.quality or 1, i.ilvl or 1, 1, "", "", 1,
     i.equipLoc or "", 0, i.sell or 0, i.classID or 15
 end
+-- A vendor: S.merchant[slot] = itemID. History.lua hooks BuyMerchantItem at login.
+S.merchant = {}
+function BuyMerchantItem() end
+function GetMerchantItemID(slot) return S.merchant[slot] end
+
 function GetItemCount(id, includeBank)
   return (S.bags[id] or 0) + (includeBank and (S.bank[id] or 0) or 0)
 end
@@ -74,8 +79,10 @@ InCombatLockdown = function() return false end
 IsLoggedIn = function() return false end
 
 -- Timers run never on their own (the tests don't wait); tickers can be cancelled.
+-- Timers wait in S.timers until a test runs them (T.runTimers); tickers never run.
+S.timers = {}
 C_Timer = {
-  After = function() end,
+  After = function(_, fn) S.timers[#S.timers + 1] = fn end,
   NewTicker = function() return { Cancel = function() end } end,
   NewTimer = function() return { Cancel = function() end } end,
 }
