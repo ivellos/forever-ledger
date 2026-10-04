@@ -139,7 +139,7 @@ local function itemOf(loc)
 end
 local function onPost(loc)
   local id = itemOf(loc)
-  if id then posting = { id = id, money = GetMoney() } end
+  if id then posting = { id = id, money = GetMoney(), t = GetTime() } end
 end
 ns:OnReady(function()
   if AH and AH.PostItem then hooksecurefunc(AH, "PostItem", onPost) end
@@ -150,7 +150,9 @@ ns:On("PLAYER_MONEY", function()
   if not p then return end
   posting = nil
   local paid = p.money - GetMoney()
-  if paid > 0 then
+  -- Only the money change from the post itself: a post that failed must not take the
+  -- next purchase or repair as its deposit.
+  if paid > 0 and GetTime() - p.t < 5 then
     depositsWaiting[p.id] = depositsWaiting[p.id] or {}
     table.insert(depositsWaiting[p.id], paid)
   end
@@ -392,12 +394,18 @@ refresh = function()
   local m = mine()
   local list = m and m.list or {}
   -- Undercut first, then the rest; sold at the end.
-  local function rank(e) return e.sold and 3 or (undercutBy(e) and 1 or 2) end
-  local order = {}
-  for _, e in ipairs(list) do order[#order + 1] = e end
+  -- Worked out once per redraw (each one looks up prices), and the same item in a steady
+  -- order (by auction), so rows don't swap places every 2 seconds.
+  local rank, order = {}, {}
+  for _, e in ipairs(list) do
+    rank[e] = e.sold and 3 or (undercutBy(e) and 1 or 2)
+    order[#order + 1] = e
+  end
   table.sort(order, function(a, b)
-    if rank(a) ~= rank(b) then return rank(a) < rank(b) end
-    return ns.ItemName(a.id) < ns.ItemName(b.id)
+    if rank[a] ~= rank[b] then return rank[a] < rank[b] end
+    local na, nb = ns.ItemName(a.id), ns.ItemName(b.id)
+    if na ~= nb then return na < nb end
+    return (a.a or 0) < (b.a or 0)
   end)
   -- Counts for the view tabs, and the gold on its way.
   local counts = { all = #order, up = 0, undercut = 0, sold = 0 }

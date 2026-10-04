@@ -199,6 +199,7 @@ function ns:BuildCharacters(parent)
   f.profs:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -4)
   f.profs:SetPoint("RIGHT", f, "RIGHT", -6, 0)
   f.profs:SetJustifyH("LEFT")
+  if f.profs.SetMaxLines then f.profs:SetMaxLines(2) end   -- a third line ran into Bags and bank
 
   -- Bags, bank or both; and a search through them.
   f.where = T:Choice(f, { { value = "both", label = "Bags and bank" }, { value = "bags", label = "Bags" }, { value = "bank", label = "Bank" } },
@@ -301,7 +302,8 @@ function ns:RefreshCharacters()
     f.profs:SetText("What everyone has, added up; hover an item for who has it.")
   else
     local c = ns.db.chars[key]
-    f.title:SetText(("%s  %s"):format(className(c), dim(("level %s %s %s"):format(c.level or "?", c.class or "", c.faction or ""))))
+    f.title:SetText(("%s  %s"):format(className(c), dim(("level %s %s %s"):format(c.level or "?",
+      (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[c.class or ""]) or c.class or "", c.faction or ""))))
     local parts = {}
     local names = {}
     for p in pairs(c.profs or {}) do names[#names + 1] = p end
