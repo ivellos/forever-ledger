@@ -34,10 +34,12 @@
 - **Buy queue:** flips and shopping list items beside the auction house, best profit you can afford first; click Buy or scroll over it to buy the next one.
 - **Spend at most:** cap what the queue spends each auction house visit, or always keep some gold back for repairs.
 - **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Share a list as text.
+### Selling
+- **Your auctions:** what you have up, what's been undercut (with a reminder), and Cancel next undercut, one click each; sold ones show what you get and when the gold reaches your mailbox.
 - **Sell protection:** a warning, and Post greyed out, before you list something for less than a vendor pays.
 
 ### Crafting and professions
-- **Recipes and trainers:** every recipe for your professions, who knows it, where to get it, the skill needed and profit per craft.
+- **Recipes and trainers:** every recipe for your professions, who knows it, where to get it, the skill needed and profit per craft; sort by any column.
 - **Waylaid Crates:** the cheapest way to fill each crate at today's prices, and gold per Merchant's Favor.
 - **Customer finder and ads:** spots people in chat asking for what your character can do (enchanting, crafted items, Mage water and portals, Warlock summons, lockpicking), with Whisper and Invite buttons, one-click ads for Trade, and a Silence button.
 
@@ -51,6 +53,7 @@
 - **Welcome and Help:** a short guide the first time, Help by topic with common questions, and search boxes for Settings and Help.
 - **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
 - **Two accounts?** Live sync shares prices and recipes between them while both are online.
+- **Update notice:** hear from your guild or group when a newer version is out.
 
 ![The Forever Ledger window, Dashboard tab](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/dashboard.png)
 

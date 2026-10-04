@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-04
+
+### Highlights
+- **Your auctions**: see what's undercut at a glance, get a reminder, and cancel the undercut ones one click each
+- **Gold on the way**: sold auctions show what you get and when the gold reaches your mailbox
+- **New version notice**: hear about a newer Forever Ledger from your guild or group
+- **Recipes, sorted**: click a column heading on the Recipes tab to sort by it
+- **Per realm**: All characters and your recipes count only characters on your realm and faction
+- **Safer buying**: Any price and Spend at most are stricter, from a full code review
+
 ### Added
 - Your auctions: an Auctions tab beside the auction house lists what you have up, your price each, the cheapest now, and undercut, cheapest or sold. Check prices looks them all up; scans and the flip watch check them too. Undercut alerts in chat with a sound (Settings, Auction house; off by themselves with Auctionator or TSM). All, Up, Undercut and Sold views; sold ones show what you get and when the gold reaches the mailbox, and the bottom line the gold on the way and in your mailbox. Cancel next undercut asks once, then cancels one undercut auction per click. Gear is checked version by version, like Search all. Undercut rows are tinted red. What a sale brings counts the deposit, which comes back with it. The undercut alert comes once each login as a reminder, and again only if the price drops further.
 - New version notice: when a guildmate or group member has a newer Forever Ledger, chat says so once a session (only the version number is shared; Settings, Other).

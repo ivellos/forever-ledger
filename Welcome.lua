@@ -115,15 +115,14 @@ end
 -- Highlights here and set the version (docs/RELEASING.md). /fl new shows them again.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.11.0",
+  version = "0.12.0",
   lines = {
-    "Shopping lists, simpler: one kind of list with Search all and what you own; tick one box to buy from it.",
-    "Buy queue, clearer: Vendor flips and Shopping lists views, a glow where to scroll, profit you can afford.",
-    "Spend at most: cap what the Buy queue spends each visit, or always keep some gold back.",
-    "Ledger: every transaction in one list (All); select rows to see their total.",
-    "Sessions and dungeon runs: a small tracker for gold an hour, and your runs and drops counted.",
-    "Price history: hold Ctrl over an item for its recent range, trend and lowest price.",
-    "Search Settings and Help: type a word to find any setting or help entry.",
+    "Your auctions: the Auctions tab beside the auction house shows what's undercut; cancel them one click each.",
+    "Gold on the way: sold auctions show what you get and when the gold reaches your mailbox.",
+    "New version notice: you'll hear about a newer Forever Ledger from your guild or group.",
+    "Recipes tab: click a column heading to sort by it.",
+    "Per realm: All characters and your recipes count only characters on your realm and faction.",
+    "Safer buying: Any price and Spend at most are stricter.",
   },
 }
 
