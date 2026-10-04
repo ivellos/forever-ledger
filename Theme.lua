@@ -46,10 +46,12 @@ T.THEMES = {
   default = { name = "FL Default", accent = TEAL,
     bg = { 0.071, 0.065, 0.059, 0.97 }, header = { 0.094, 0.082, 0.071, 1 },
     button = { 0.118, 0.106, 0.094, 0.95 }, border = { 1, 0.92, 0.80, 0.10 },
+    font = "Fonts\\ARIALN.TTF", fontAdd = 1,
     topLine = BRONZE, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
   gilded = { name = "FL Gilded", accent = TEAL,
     bg = { 0.078, 0.069, 0.059, 0.97 }, header = { 0.118, 0.094, 0.071, 1 },
     button = { 0.125, 0.106, 0.086, 0.95 }, border = { BRONZE[1], BRONZE[2], BRONZE[3], 0.55 },
+    font = "Fonts\\FRIZQT__.TTF",
     frame = BRONZE, topLine = BRONZE, title = GOLD, heading = GOLD, serif = true,
     cards = true, cardEdge = BRONZE, toggles = true, footer = true },
 }
@@ -84,6 +86,10 @@ function T:Apply()
   T.theme = T.THEMES[T.themeKey]
   T.bg, T.header = T.theme.bg, T.theme.header
   T.button, T.border = T.theme.button or T.button, T.theme.border or T.border
+  -- Fonts (owner, October 4): Clean keeps EllesmereUI's (it fits in); Default and
+  -- Gilded use WoW's own, which moves them away from EllesmereUI like the mockup.
+  T.fontAdd = T.theme.fontAdd or 0
+  if T.theme.font then T.font = T.theme.font end
   T.accent = T:FromHex(s and s.accent) or euiAccent() or T.theme.accent
 end
 
@@ -92,7 +98,7 @@ end
 function T:Refresh()
   local E = EllesmereUI
   if type(E) ~= "table" then return end
-  if type(E.GetFontPath) == "function" then
+  if type(E.GetFontPath) == "function" and not T.theme.font then
     local ok, path = pcall(E.GetFontPath)
     if ok and type(path) == "string" and path ~= "" then T.font = path end
   end
@@ -198,7 +204,7 @@ function T:AccentCode()
 end
 
 function T:Font(fs, size, color)
-  fs:SetFont(T.font, size or 12, "")
+  fs:SetFont(T.font, (size or 12) + (T.fontAdd or 0), "")
   fs:SetShadowColor(0, 0, 0, 0.8)
   fs:SetShadowOffset(1, -1)
   local c = color or T.text
