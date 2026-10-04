@@ -30,6 +30,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Shopping lists: the Want box was too narrow to show more than about one digit, so a Want of 9999 (or 601) looked like 9 (or 2) while the Buy queue rightly bought for the real number. It now shows all four digits (Want goes up to 9999); the side panel is a little wider to make room. Up to set to off yourself stays off when you tick Buy from this list again.
+- Shopping lists: a big Up to price shows short in its box (12g 40s, 123g) and in full when you click in or hover, so it doesn't run out of the box.
 - Tooltips: price history's lowest ever seen counts today and what's listed now (it only counted finished days, so it could be higher than the current cheapest).
 - Buy queue: it could buy far more of a shopping list item than its Want (601 Strange Dust for a Want of 2). Before every purchase from a list it now checks how many the list itself still wants and never buys more. The Want box takes whole numbers only, and clicking in it selects what's there, so typing replaces it.
 - Shopping lists: adding an item that's already on a list with the price box empty no longer clears its Up to.

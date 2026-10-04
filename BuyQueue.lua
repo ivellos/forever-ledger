@@ -2038,6 +2038,7 @@ local function listRow(i)
     unpark({ (r.kind == "item" and r.entry.id) or (r.mat and r.mat.id) })
   end, "g", true)
   r.max:SetWidth(54)
+  r.max.compact = true   -- "123g" while not typing in it; exact when you click in or hover
   r.max:SetPoint("LEFT", C.max, 0)
   r.maxText = T:Text(r, 11, T.section)
   r.maxText:SetPoint("LEFT", C.max + 6, 0)

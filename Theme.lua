@@ -191,17 +191,40 @@ end
 -- plainUnit); it's tidied up when you press Enter or click away. 0 shows as "off".
 -- allowAny: "any" is accepted (-1), for shopping lists.
 -- offText: what 0 shows as ("off" unless given, e.g. "no limit").
+-- eb.compact = true: a narrow box shows a short form while you're not typing in it
+-- ("12g 40s", "123g"); clicking in shows the exact amount to edit, and hovering shows
+-- it too (owner's test, October 3: big prices ran out of the shopping list's box).
+local function shortPrice(c)
+  if c < 10000 then return ns.MoneyPlain(c) end
+  if c < 1000000 then
+    local g, s = math.floor(c / 10000), math.floor(c % 10000 / 100)
+    return s > 0 and (g .. "g " .. s .. "s") or (g .. "g")
+  end
+  return math.floor(c / 10000) .. "g"
+end
 function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
   local eb = editBox(parent, 100)
   eb.allowAny = allowAny
-  local function show(v)
+  local function show(v, exact)
     v = v or 0
-    eb:SetText((v < 0 and "any") or (v > 0 and ns.MoneyPlain(v)) or offText or "off")
+    eb:SetText((v < 0 and "any") or (v > 0 and ((eb.compact and not exact) and shortPrice(v) or ns.MoneyPlain(v))) or offText or "off")
   end
-  function eb:SetValue(v) self.value = v; show(v) end
-  eb:SetScript("OnEscapePressed", function(self) show(self.value); self:ClearFocus() end)
-  -- Clicking in selects what's there, so typing replaces it.
-  eb:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+  function eb:SetValue(v) self.value = v; show(v, self:HasFocus()) end
+  eb:SetScript("OnEscapePressed", function(self) self:ClearFocus(); show(self.value) end)
+  -- Clicking in shows the exact amount and selects it, so typing replaces it.
+  eb:SetScript("OnEditFocusGained", function(self)
+    if self.compact then show(self.value, true) end
+    self:HighlightText()
+  end)
+  eb:HookScript("OnEnter", function(self)
+    local v = self.value or 0
+    if self.compact and v > 0 and not self:HasFocus() and shortPrice(v) ~= ns.MoneyPlain(v) then
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine(ns.Money(v), 1, 1, 1)
+      GameTooltip:Show()
+    end
+  end)
+  eb:HookScript("OnLeave", function() GameTooltip:Hide() end)
   eb:SetScript("OnEditFocusLost", function(self)
     local v = ns.ParseMoneyLoose(self:GetText(), plainUnit)
     if v == -1 and not allowAny then v = nil end
