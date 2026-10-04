@@ -533,9 +533,12 @@ local function layoutRows(page, rows, width)
   local y = page.top
   for _, r in ipairs(rows) do
     if r.head then
+      r.band:ClearAllPoints()
+      r.band:SetPoint("TOPLEFT", 4, -(y + 4))
+      r.band:SetWidth(width - 8)
       r.text:ClearAllPoints()
-      r.text:SetPoint("TOPLEFT", 12, -(y + 8))
-      y = y + 28
+      r.text:SetPoint("LEFT", r.band, "LEFT", 8, 0)
+      y = y + 30
     else
       local check = r.def.kind == "check"
       local cw = check and 0 or r.control:GetWidth()
@@ -572,7 +575,7 @@ local function rowMatches(r, q)
 end
 
 local function showRow(r, on)
-  if r.head then r.text:SetShown(on); return end
+  if r.head then r.text:SetShown(on); r.band:SetShown(on); return end
   r.label:SetShown(on); r.control:SetShown(on); r.line:SetShown(on)
   if r.help then r.help:SetShown(on) end
 end
@@ -630,6 +633,8 @@ buildSettings = function()
       end, 21)
       b:SetPoint("TOPLEFT", 0, -(30 + (index - 1) * 23))
       b:GetFontString():SetFont(T.font, 11, "")
+      b:GetFontString():SetWidth(SET_NAV_W - 24)
+      b:GetFontString():SetWordWrap(false)
       f.navButtons[index] = b
       local band = page:CreateTexture(nil, "BACKGROUND")
       band:SetColorTexture(1, 1, 1, 0.05)
@@ -650,8 +655,12 @@ buildSettings = function()
       -- A group inside a section: a small heading.
       local text = T:Text(page, 11, T.accent)
       text:SetText(def.sub:upper())
-      text:SetAlpha(0.8)
-      page.rows[#page.rows + 1] = { head = true, text = text }
+      text:SetAlpha(0.85)
+      -- A faint band behind it, lighter than the section's (owner's test, October 3).
+      local band = page:CreateTexture(nil, "BACKGROUND")
+      band:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.07)
+      band:SetHeight(20)
+      page.rows[#page.rows + 1] = { head = true, text = text, band = band }
     else
       local r = { def = def, page = page }
       r.label = T:Text(page, 12)
@@ -680,7 +689,8 @@ buildSettings = function()
         for _, o in ipairs(def.options) do opts[#opts + 1] = { value = o[1], label = o[2] } end
         -- Many options would run off the page: a dropdown instead.
         if #opts > 3 then
-          r.control = T:Dropdown(page, 170, changed)
+          r.control = T:Dropdown(page, 190, changed)
+          r.control.default = ns.DEFAULT_SETTINGS and ns.DEFAULT_SETTINGS[def.key]
           r.control:SetOptions(opts)
         else
           r.control = T:Choice(page, opts, changed)

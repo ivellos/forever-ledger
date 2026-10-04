@@ -450,6 +450,11 @@ function ns:RefreshDashboard(f)
   local running = ns.GeneralSessionRunning and ns:GeneralSessionRunning()
   f.sessionBtn:ClearAllPoints()
   f.sessionBtn:SetPoint("RIGHT", f.rangeChoice, "LEFT", -12, 0)
+  -- The character list narrows to fit before the button (owner's test, October 3: they
+  -- overlapped at the smallest window size).
+  local room = f:GetWidth() - f.rangeChoice:GetWidth() - 12 - f.sessionBtn:GetWidth() - 12
+    - (f.charLabel:GetStringWidth() + 2 + 10)
+  f.charChoice:SetWidth(math.max(110, math.min(200, room)))
   f.sessionBtn:SetText(running and "Stop the session" or "Start a session")
   f.sessionBtn:SetSelected(running)
 

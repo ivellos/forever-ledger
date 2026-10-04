@@ -370,8 +370,11 @@ function T:Dropdown(parent, width, onChange)
   end
   function d:SetOptions(opts) self.options = opts; self:SetValue(self.value) end
 
+  -- The list follows the button's width (it can be narrowed to fit, Dashboard.lua).
+  -- d.default: that option says "(default)" in the list (Settings, owner's test October 3).
   local function fill()
-    menu.content:SetWidth(width - 16)
+    menu:SetWidth(d:GetWidth())
+    menu.content:SetWidth(d:GetWidth() - 16)
     for i, o in ipairs(d.options) do
       local r = menu.rows[i]
       if not r then
@@ -395,7 +398,8 @@ function T:Dropdown(parent, width, onChange)
       r.value = o.value
       r:SetPoint("TOPLEFT", 0, -(i - 1) * 20)
       r:SetPoint("RIGHT", 0, 0)
-      r.text:SetText(o.value == d.value and (T:AccentCode() .. o.label .. "|r") or o.label)
+      local label = o.label .. ((d.default ~= nil and o.value == d.default) and " |cff888888(default)|r" or "")
+      r.text:SetText(o.value == d.value and (T:AccentCode() .. o.label .. "|r" .. label:sub(#o.label + 1)) or label)
       r:Show()
     end
     for i = #d.options + 1, #menu.rows do menu.rows[i]:Hide() end

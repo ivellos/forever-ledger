@@ -17,7 +17,7 @@ ns.HELP = {
     { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button under the list of topics, or /fl welcome." },
     { "What's new", "After an update, chat lists what's new in that version, once. /fl new shows it again." },
   } },
-  { "Scanning the auction house", {
+  { "Auction house scans", {
     { "Full scan", "Reads every listing in a few seconds." },
     { "Scan materials", "Checks just what your recipes use." },
     { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. It can only scan with the auction house open: it pauses when you close it and picks up again when you come back (Settings, Auction house: Resume the flip watch)." },
@@ -41,7 +41,7 @@ ns.HELP = {
     { "Vendor flips", "Things on the auction house for less than a vendor pays. They're in the Buy queue beside the auction house (its Vendor flips view); a full scan that finds some opens it if it's closed, and the flip watch chimes. Settings, Vendor flips sets the least profit worth your time, as a share of the vendor price and as an amount." },
     { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },
-  { "Buy queue and shopping lists", {
+  { "Buy queue and lists", {
     { "Buy queue", "Click Buy queue on the auction house: a panel beside it lines up vendor flips and your shopping lists. Click a section to buy from it; it finds the next one by itself, and a click on Buy (or, with Scroll to buy ticked, a tick of the mouse wheel down over its top strip) buys it. Stacks of materials take a second tick to confirm the final price. /fl queue." },
     { "Scanning from the panel", "The panel's bottom row has Watch flips, Full scan and Scan materials (Stop watching and Stop scan while they run), with the scan's progress just above. While the panel is open beside the auction house, the same buttons under the auction house window are hidden. With nothing to buy, the big button starts the flip watch." },
     { "Two views", "Vendor flips or Shopping lists, switched at the top of the panel, one at a time; the one you're on is the one that buys, so a list never buys a flip by accident. Each has its own buttons at the bottom. With Scroll to buy ticked, the strip to scroll over glows teal and shows a mouse wheel. Scans and the flip watch add to the lists but never switch the view; new flips found while you're on Shopping lists show a teal count on the Vendor flips button (and on the Buy queue tab)." },
@@ -92,7 +92,7 @@ ns.HELP = {
     { "Dungeon runs", "Counted as you go, session or not: each dungeon's runs, time, coin and what dropped for you (going back in within 5 minutes is the same run). /fl runs lists them; item tooltips say \"Dropped for you: Deadmines, 2 in 14 runs\"." },
     { "How long it's kept", "Sales and purchases one by one for 30 days, then as one line per item per month for a year. Gold and money in and out per day for a year, then per month. Prices per day for 14 days, then weekly averages for a year. Recipes, vendors, items and your characters are kept for good. Nothing is lost at a reload: only data past these ages is summed up or dropped." },
   } },
-  { "Sharing between accounts", {
+  { "Two accounts", {
     { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online." },
     { "Export and import", "On the Characters tab, to copy everything across by hand." },
   } },
@@ -129,7 +129,7 @@ ns.HELP_FAQ = {
     { "Does it buy or sell anything by itself?", "No. Every purchase and auction is your own click (or wheel tick), as Blizzard requires. Forever Ledger finds, suggests and queues." },
     { "Why are some things empty on the first day?", "Prices and flips work from your first full scan. Deals and how fast things sell need a few days of scans to know what's usual." },
   },
-  ["Scanning the auction house"] = {
+  ["Auction house scans"] = {
     { "Why can't I run a full scan?", "The game allows one about every 15 minutes. The Full scan button counts down to the next." },
     { "Does Watch flips work with the auction house closed?", "No: the game only lets addons search with the auction house open. The watch pauses when you close it and picks up when you come back." },
     { "What are the 120 items the watch re-checks?", "Between full scans, the items whose price was closest to what a vendor pays: the likeliest to turn into flips when someone lists one cheap." },
@@ -137,7 +137,7 @@ ns.HELP_FAQ = {
   ["Tooltips"] = {
     { "Why does it say none listed?", "Your last scan found none of that item on the auction house." },
   },
-  ["Buy queue and shopping lists"] = {
+  ["Buy queue and lists"] = {
     { "Do I click the big button or a row?", "Either. The big button (or the wheel over its strip, with Scroll to buy ticked) buys the next one. Clicking a row buys that one next." },
     { "Why did items disappear from the queue?", "Someone else bought them first, or their price is too old: finds over 15 minutes old are left out until a scan finds them again. Items you can't afford stay at the bottom, marked." },
   },
@@ -206,6 +206,9 @@ function ns:BuildHelp(parent)
     end, 21)
     b:SetPoint("TOPLEFT", 0, -(i - 1) * 23)
     b:GetFontString():SetFont(T.font, 11, "")
+    -- Never wider than the button, whatever the font (Magic, October 3: names ran out).
+    b:GetFontString():SetWidth(NAV_W - 24)
+    b:GetFontString():SetWordWrap(false)
     hv.navButtons[i] = b
   end
   nav:SetHeight(#ns.HELP * 23)

@@ -101,7 +101,9 @@ local function addLines(tt, id, forceFull)
       local listed = rec.q and (" |cff999999" .. rec.q .. " listed|r") or ""
       tt:AddDoubleLine("Auction, cheapest", ns.Money(rec.m) .. listed .. age, LR, LG, LB, 1, 1, 1)
       if rec.a and rec.a ~= rec.m then
-        tt:AddDoubleLine("  avg of cheapest 20", ns.Money(rec.a), 0.7, 0.7, 0.7, 1, 1, 1)
+        -- With 20 or fewer listed it's the average of all of them, so say so (Magic, October 3).
+        tt:AddDoubleLine((rec.q and rec.q <= 20) and ("  avg of all " .. rec.q) or "  avg of cheapest 20",
+          ns.Money(rec.a), 0.7, 0.7, 0.7, 1, 1, 1)
       end
     else
       tt:AddDoubleLine("Auction price (" .. (src or "?") .. ")", ns.Money(price) .. age, LR, LG, LB, 1, 1, 1)

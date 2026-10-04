@@ -18,6 +18,14 @@ local TRACKER_SECONDS = 1   -- the tracker redraws this often, and only while a 
 
 local function live() return ns.db and ns.db.liveSession end
 
+-- Gold an hour, losses in red with a minus (owner's test, October 3: a session that
+-- spent 16s said "0c an hour").
+local function rateText(v)
+  v = math.floor(v + 0.5)
+  if v >= 0 then return ns.Money(v) end
+  return "|cffee8597-|r" .. ns.Money(-v)
+end
+
 -- What one looted item is worth: the better of the auction house after the cut and a
 -- vendor; items that bind when picked up only to a vendor (they can't be listed).
 function ns:LootValue(id)
@@ -197,7 +205,7 @@ end
 drawTracker = function()
   local st = ns:SessionTotals()
   if not (tracker and st) then return end
-  local rate = ns.Money(math.max(0, math.floor(st.perHour)))
+  local rate = rateText(st.perHour)
   tracker.time:SetText(duration(st.secs))
   tracker.rate:SetText(rate .. " |cffbbbbbban hour|r")
   tracker.smallRate:SetText(rate .. " |cffbbbbbb/h|r")
@@ -241,7 +249,7 @@ function ns:StopGeneralSession()
   ns.db.liveSession = nil
   hideTracker()
   ns:Print(("Session over after %s: gold %s, looted about %s, so about %s an hour."):format(duration(st.secs),
-    signed(st.gained), ns.Money(st.loot), ns.Money(math.max(0, math.floor(st.perHour)))))
+    signed(st.gained), ns.Money(st.loot), rateText(st.perHour)))
   for k = 1, math.min(3, #st.items) do
     local it = st.items[k]
     print(("  %d x %s, about %s"):format(it.n, ns.ItemName(it.id) or "?", ns.Money(it.value)))

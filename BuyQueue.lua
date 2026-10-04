@@ -30,6 +30,13 @@ local function S() return ns.db.settings.buyQueue end
 -- view you're on is the one that buys: a shopping list never buys a flip by accident.
 local function view() return S().view == "lists" and "lists" or "flips" end
 local TEAL = { 0.2, 0.85, 0.75 }   -- Scroll to buy is on: the area to scroll glows this colour
+-- ...in Vendor flips; Shopping lists glow purple, so the two views look different at a
+-- glance (Magic, October 3).
+local PURPLE = { 0.68, 0.55, 1 }
+local function laneColor(key) return key == "lists" and PURPLE or TEAL end
+local function hex(c)
+  return ("%02x%02x%02x"):format(math.floor(c[1] * 255), math.floor(c[2] * 255), math.floor(c[3] * 255))
+end
 local function money(c) return ns.Money(math.floor((c or 0) + 0.5)) end
 -- An entry's limit as words: "any price" ones say so (and how high they'd go).
 local function limitText(e)
@@ -861,8 +868,8 @@ local function laneRow(L, i)
     end
     local e = self.entry
     if e.reason == "flip" and e.affordN and e.n and e.affordN < e.n and e.affordN > 0 then
-      GameTooltip:AddLine(("You can afford %d of the %d cheap ones with %s%s, so the profit shown is for those."):format(
-        e.affordN, e.n, money(spendable()), spendable() < GetMoney() and " left to spend" or ""), 1, 0.82, 0, true)
+      GameTooltip:AddLine(("You can afford %d of the %d cheap ones with %s%s, so the profit shown is for those. All %d would make %s."):format(
+        e.affordN, e.n, money(spendable()), spendable() < GetMoney() and " left to spend" or "", e.n, money(e.profit or 0)), 1, 0.82, 0, true)
     end
     local poor = cantAfford(self.entry)
     if poor then
@@ -943,7 +950,7 @@ local function buildLane(v, d)
   m.arrows:SetPoint("LEFT", m, "RIGHT", 4, 0)
   m.arrows:SetTexture("Interface\\AddOns\\" .. ADDON .. "\\media\\updown")
   function m:SetLit(on)
-    local c = on and TEAL or { 0.5, 0.5, 0.5 }
+    local c = on and laneColor(d.key) or { 0.5, 0.5, 0.5 }
     self.icon:SetVertexColor(c[1], c[2], c[3], on and 1 or 0.7)
     self.arrows:SetVertexColor(c[1], c[2], c[3], on and 1 or 0.7)
   end
@@ -956,7 +963,8 @@ local function buildLane(v, d)
     local a = ({ 0.45, 0.25, 0.12, 0.05 })[k]
     for _, edge in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
       local t = strip:CreateTexture(nil, "BACKGROUND")
-      t:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], a)
+      local c = laneColor(d.key)
+      t:SetColorTexture(c[1], c[2], c[3], a)
       if edge == "TOP" or edge == "BOTTOM" then
         t:SetHeight(1)
         t:SetPoint(edge .. "LEFT", strip, edge .. "LEFT", -k, edge == "TOP" and k or -k)
@@ -1201,17 +1209,18 @@ local function fillLane(L)
   -- Scroll to buy on: the section glows teal, the strip most of all, so where to scroll
   -- shows without reading (Magic, October 3).
   local wheel = S().wheel and true or false
+  local c = laneColor(d.key)
   for _, e in ipairs(L.borders or {}) do
-    if wheel then e:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], 0.9)
+    if wheel then e:SetColorTexture(c[1], c[2], c[3], 0.9)
     else e:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4]) end
   end
-  if wheel then L.stripBg:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], 0.12)
+  if wheel then L.stripBg:SetColorTexture(c[1], c[2], c[3], 0.12)
   else L.stripBg:SetColorTexture(1, 1, 1, 0.05) end
   for _, t in ipairs(L.glow) do t:SetShown(wheel) end
   local ready = 0
   for _, x in ipairs(list) do if not x.waiting and not cantAfford(x) then ready = ready + 1 end end
   L.title:SetText(("%s  |cff888888%d to buy|r%s"):format(d.title, ready,
-    wheel and "   |cff33d9bfscroll down here to buy|r" or "   |cff888888click Buy, or tick Scroll to buy|r"))
+    wheel and ("   |cff" .. hex(c) .. "scroll down here to buy|r") or "   |cff888888click Buy, or tick Scroll to buy|r"))
   local a, b, label
   if armed then
     a, b, label = statusText()
@@ -1260,8 +1269,10 @@ local function fillLane(L)
       local each = (e.worth or 0) - (e.cost or e.limit or 0)
       local afford = math.min(e.n or 1, math.floor(spendable() / math.max(e.cost or e.limit or 1, 1)))
       e.affordN = afford
+      -- Just what you can make with your gold and limit; the full amount is in the hover
+      -- (Magic, October 3: "of 48c" isn't needed at a glance).
       if e.profit and e.profit > 0 and afford < (e.n or 1) and afford > 0 then
-        r.profit:SetText(("|cff7fd39c%s|r |cff888888of %s|r"):format(money(each * afford), money(e.profit)))
+        r.profit:SetText(("|cff7fd39c%s|r"):format(money(each * afford)))
       else
         r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
       end
@@ -2571,9 +2582,11 @@ end)
 -- Shopping lists view, a teal count on the Buy queue tab and the Vendor flips button
 -- says they're there.
 local function badge(parent)
+  -- On the corner, half outside, like a notification count: inside the button it
+  -- covered "flips" (owner's test, October 3).
   local b = CreateFrame("Frame", nil, parent)
-  b:SetSize(18, 13)
-  b:SetPoint("TOPRIGHT", -1, -1)
+  b:SetSize(16, 12)
+  b:SetPoint("CENTER", parent, "TOPRIGHT", 0, 1)
   b:SetFrameLevel(parent:GetFrameLevel() + 5)
   T:Fill(b, { TEAL[1], TEAL[2], TEAL[3], 0.95 })
   b.text = T:Text(b, 10, { 0.03, 0.12, 0.1, 1 })
