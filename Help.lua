@@ -25,7 +25,7 @@ ns.HELP = {
     { "Your auctions", "The Auctions tab beside the auction house: All, Up, Undercut and Sold, like the Ledger. Each auction shows how many, your price each, the cheapest now, and undercut (red) or cheapest (green); sold ones show what you get after the cut and when the gold reaches your mailbox. The bottom line says what gold is on the way and what's waiting in your mailbox. Check prices looks them all up; scans and the flip watch check them too, and an undercut gets a chat line and a sound (Settings, Auction house). Cancel next undercut asks once, then each click cancels the next one (each loses its deposit)." },
     { "Sale sound", "A coin sound when one of your auctions sells. Settings, Auction house: Sound when an auction sells." },
     { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
-    { "Price helper", "On the Sell tab, above the price box: your usual price and the cheapest now, with Undercut (1 copper under the cheapest) and Usual buttons that fill in the price. When the cheapest is well below usual it says so, so you can wait. You still click Post (Settings, Auction house)." },
+    { "Price helper", "On the Sell tab, above the price box: your usual price and the cheapest now, with Undercut (the silver just under the cheapest) and Usual buttons that fill in the price. When the cheapest is well below usual it says so, so you can wait. You still click Post (Settings, Auction house)." },
     { "Sell protection", "On the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line under Post says so and Post is greyed out until you click Post anyway. Settings, Auction house: untick Stop posts below vendor price to keep just the warning." },
   } },
   { "Tooltips", {
@@ -88,7 +88,7 @@ ns.HELP = {
   } },
   { "Your gold", {
     { "Dashboard", "Gold over time, sales, expenses and profit, and your sessions." },
-    { "Characters", "Your characters down the left with their gold (this realm and faction first). Pick one for its professions and what's in its bags and bank, each item with what it's worth to you and the best way to turn it into gold; All characters adds everyone up, and hovering an item says who has it. Search finds an item on any of them. Bags as of each character's last login, bank as of the last bank visit." },
+    { "Characters", "Your characters on this realm and faction down the left with their gold (the dropdown above them picks another realm or faction, both factions, or all realms). Pick one for its professions and what's in its bags and bank, each item with what it's worth to you (Each: the best of auction house, vendor, disenchanting or crafting) and the best way to get it; All characters adds everyone up. Hover an item for who has it, a character for gold and bags and bank worth, the bottom line for what it's made of. Bags as of each character's last login, bank as of the last bank visit." },
     { "Ledger", "All: every transaction in one list (auction and vendor sales and purchases, repairs, mail, loot, quests...), money in green and out in red. Sales, Purchases, Resale (profit on items bought and sold) and Other show one kind each. Filter by time, character or a word; click a heading to sort; hover a row for the details." },
     { "Totals of rows", "Select rows to see what they add up to: click one, Shift-click another for everything between, Ctrl-click to add or take one, or press and drag across rows. The bottom line shows the money in, out and net of the selection. Right-click a row or Clear selection to start again." },
     { "Sessions", "Start one (Start a session at the top of the Dashboard, Ctrl-click on the minimap button, or /fl session start) and a small tracker you can drag counts what your time is worth: gold an hour, gold in and out, and what you loot (at the better of auction and vendor price; Settings can make it vendor only). Right-click the tracker to fold it to one line. Stop it to get a summary in chat; it joins the Dashboard's sessions. A session carries on through a logout on the same character." },
@@ -97,7 +97,7 @@ ns.HELP = {
   } },
   { "Two accounts", {
     { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online." },
-    { "Export and import", "On the Characters tab, to copy everything across by hand." },
+    { "Export and import", "Export / import on the Characters tab, to copy everything across by hand (and Prices as text)." },
   } },
   { "Help and community", {
     { "New versions", "When a guildmate or group member has a newer Forever Ledger, chat says so once a session, with where to update. Only the version number is shared (Settings, Other)." },

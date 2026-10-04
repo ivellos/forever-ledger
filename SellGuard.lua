@@ -145,7 +145,10 @@ local function helperUpdate(h)
   local stats = ns.PriceStats and ns:PriceStats(id, "month")
   local usual = stats and stats.points >= 3 and math.floor(stats.usual)
   if not (cheapest or usual) then h.box:Hide(); return end
-  h.under = cheapest and math.max(cheapest - 1, 1)
+  -- The silver below the cheapest: Blizzard's price box takes gold and silver only, so
+  -- 1 copper under could round back up to the same price (review, PR #5). Under 1s,
+  -- 1 copper under.
+  h.under = cheapest and (cheapest > 100 and math.floor((cheapest - 1) / 100) * 100 or math.max(cheapest - 1, 1))
   h.usual = usual
   local parts = {}
   if usual then parts[#parts + 1] = "Usual " .. ns.Money(usual) end
@@ -189,7 +192,7 @@ local function helper(frame, name)
     b:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
       GameTooltip:AddLine(self == h.under_b and "Just under the cheapest" or "Your usual price", 1, 1, 1)
-      GameTooltip:AddLine(self == h.under_b and "Fills the price box with 1 copper under the cheapest listing from your last scan. You still click Post."
+      GameTooltip:AddLine(self == h.under_b and "Fills the price box with the silver just under the cheapest listing from your last scan. You still click Post."
         or "Fills the price box with the usual price from your scans this month. You still click Post.", nil, nil, nil, true)
       GameTooltip:Show()
     end)

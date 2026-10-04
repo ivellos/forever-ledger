@@ -4,31 +4,114 @@ local T = ns.Theme
 ---------------------------------------------------------------------------
 -- Characters tab (owner, October 4: "rework it into something useful, or remove it";
 -- with the roadmap's "view your alts' bags and bank" and "what it's all worth").
--- Characters down the left (this realm and faction first, then the rest greyed), with
--- their gold. On the right, the chosen character's professions and their bags and bank
--- (as of their last login, and their last bank visit), each item with what it's worth to
--- you and the best way to turn it into gold. "All characters" adds them up and says who
--- has what; the search box looks through everyone at once.
+-- A realm and faction to look at (a dropdown above the list, this one by default; owner's
+-- test, October 4: other realms must not count in what you're looking at), its
+-- characters down the left with their gold. On the right, the chosen character's
+-- professions and their bags and bank (as of their last login, and their last bank
+-- visit), each item with what it's worth to you and the best way to turn it into gold.
+-- "All characters" adds up everyone in the chosen group and says who has what; the
+-- search box looks through everyone at once.
 -- Reads ns.db.inventory (Inventory.lua), ns.db.chars and ns.db.gold. Changes nothing.
 ---------------------------------------------------------------------------
 local NAV_W, ROW, MAX_ROWS = 180, 20, 400
 local f
-local navButtons, rows, heads = {}, {}, {}
-local state = { char = nil, where = "both", sort = { key = "total", desc = true } }
+local navButtons, rows, heads, profCells = {}, {}, {}, {}
+local state = { char = nil, group = nil, where = "both", sort = { key = "total", desc = true } }
 
 local COLS = {
   { key = "name", label = "Item" },
   { key = "n", label = "Count", w = 50, right = true },
-  { key = "each", label = "Each", w = 80, right = true },
-  { key = "total", label = "Total", w = 90, right = true },
-  { key = "how", label = "Best way", w = 190 },
+  { key = "each", label = "Each", w = 80, right = true,
+    tip = "What one is worth to you: the best of selling it on the auction house (after the cut), to a vendor, disenchanting it or crafting it into something." },
+  { key = "total", label = "Total", w = 90, right = true, tip = "Count times Each." },
+  { key = "how", label = "Best way", w = 170, tip = "How to get the most for it. Hover an item for the whole way." },
 }
+
+-- Secondary professions go after the main ones on the professions line.
+local SECONDARY = { ["Cooking"] = true, ["First Aid"] = true, ["Fishing"] = true }
 
 local function dim(t) return "|cff888888" .. t .. "|r" end
 
 local function className(c)
   local cc = RAID_CLASS_COLORS and RAID_CLASS_COLORS[c.class or ""]
   return cc and ("|c" .. (cc.colorStr or "ffffffff") .. (c.name or "?") .. "|r") or (c.name or "?")
+end
+
+-- "Mage" rather than the game's "MAGE".
+local function classWord(c)
+  return (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[c.class or ""]) or c.class or ""
+end
+
+---------------------------------------------------------------------------
+-- Realm and faction groups. Forever's realm name is its ruleset; the beta's servers
+-- were "Classic Beta PvE 2", shown as "PvE 2". Characters saved before realm and
+-- faction were recorded count as this one.
+---------------------------------------------------------------------------
+local function realmOf(c) return c.realm or GetRealmName() or "?" end
+local function factionOf(c) return c.faction or UnitFactionGroup("player") or "?" end
+
+local function shortRealm(realm)
+  local s = realm:gsub("^Classic Beta%s+", ""):gsub("^WoW Forever%s+", ""):gsub("^Forever%s+", "")
+  return s ~= "" and s or realm
+end
+
+local function hereGroup() return (GetRealmName() or "?") .. "|" .. (UnitFactionGroup("player") or "?") end
+
+-- Does a character belong to a group: "realm|faction", "realm|*" (both factions) or "*".
+local function inGroup(key, group)
+  if group == "*" then return true end
+  local c = ns.db.chars[key]
+  local realm, faction = group:match("^(.*)|(.-)$")
+  return realmOf(c) == realm and (faction == "*" or factionOf(c) == faction)
+end
+
+local function groupLabel(group)
+  if group == "*" then return "All realms" end
+  local realm, faction = group:match("^(.*)|(.-)$")
+  return shortRealm(realm) .. (faction == "*" and ", both factions" or (" " .. faction))
+end
+
+-- The dropdown's choices: each realm and faction you have characters on (yours first),
+-- both factions of a realm when you have both there, and all realms when there's more
+-- than one group.
+local function groupOptions()
+  local realms, order = {}, {}
+  for _, c in pairs(ns.db.chars) do
+    local r = realmOf(c)
+    if not realms[r] then realms[r] = {}; order[#order + 1] = r end
+    realms[r][factionOf(c)] = true
+  end
+  local here = GetRealmName() or "?"
+  table.sort(order, function(a, b)
+    if (a == here) ~= (b == here) then return a == here end
+    return a < b
+  end)
+  local opts, groups = {}, 0
+  local mine = UnitFactionGroup("player")
+  for _, r in ipairs(order) do
+    local facs = {}
+    for fac in pairs(realms[r]) do facs[#facs + 1] = fac end
+    table.sort(facs, function(a, b)
+      if (a == mine) ~= (b == mine) then return a == mine end
+      return a < b
+    end)
+    for _, fac in ipairs(facs) do
+      local g = r .. "|" .. fac
+      opts[#opts + 1] = { value = g, label = groupLabel(g) }
+      groups = groups + 1
+    end
+    if #facs > 1 then opts[#opts + 1] = { value = r .. "|*", label = groupLabel(r .. "|*") } end
+  end
+  if groups > 1 then opts[#opts + 1] = { value = "*", label = groupLabel("*") } end
+  return opts, groups
+end
+
+-- A character's name in lists that span realms: "Ivellos Veren (PvP 2)".
+local function whoName(key)
+  local c = ns.db.chars[key]
+  local name = c and c.name or key
+  if state.group == "*" and c and realmOf(c) ~= GetRealmName() then name = name .. " (" .. shortRealm(realmOf(c)) .. ")" end
+  return name
 end
 
 -- A character's gold at their last login (the newest hour in History.lua's record).
@@ -41,50 +124,50 @@ local function goldOf(key)
   return best
 end
 
--- This realm and faction first (you at the top), then the rest.
+-- The chosen group's characters, you at the top, then by name.
 local function charOrder()
-  local me, here, away = ns.CharKey(), {}, {}
+  local me, out = ns.CharKey(), {}
   for k in pairs(ns.db.chars) do
-    if k ~= me then
-      if ns:SameMarketChar(k) then here[#here + 1] = k else away[#away + 1] = k end
-    end
+    if k ~= me and inGroup(k, state.group) then out[#out + 1] = k end
   end
-  local function byName(a, b) return (ns.db.chars[a].name or a):lower() < (ns.db.chars[b].name or b):lower() end
-  table.sort(here, byName)
-  table.sort(away, byName)
-  local out = {}
-  if ns.db.chars[me] then out[1] = me end
-  for _, k in ipairs(here) do out[#out + 1] = k end
-  return out, away
+  table.sort(out, function(a, b) return (ns.db.chars[a].name or a):lower() < (ns.db.chars[b].name or b):lower() end)
+  if ns.db.chars[me] and inGroup(me, state.group) then table.insert(out, 1, me) end
+  return out
 end
 
 -- What one is worth to you and how: the best way (auction house, vendor, disenchant,
--- craft); items that bind can only go to a vendor.
+-- craft), short for the column ("Craft Minor Wizard Oil") and in full for the hover;
+-- items that bind can only go to a vendor.
 local function worth(id)
   local vendor = ns:GetSellPrice(id) or 0
   if ns.IsClassicBound and ns:IsClassicBound(id) then
-    return vendor, vendor > 0 and "Sell to vendor" or dim("can't be sold")
+    if vendor > 0 then return vendor, "Vendor", "Sell to vendor (it binds)", "vendor" end
+    return 0, dim("can't be sold"), "It binds and no vendor buys it", "none"
   end
   local best, options = ns:GetValue(id)
-  if best and best > 0 then return best, options[1].label end
-  if vendor > 0 then return vendor, "Sell to vendor" end
-  return 0, dim("no price yet")
+  local o = options and options[1]
+  if best and best > 0 and o then
+    local short = (o.kind == "ah" and "Auction house") or (o.kind == "vendor" and "Vendor")
+      or (o.kind == "disenchant" and "Disenchant") or o.step or o.label
+    return best, short, o.label, o.kind
+  end
+  if vendor > 0 then return vendor, "Vendor", "Sell to vendor", "vendor" end
+  return 0, dim("no price yet"), "No price yet: scan the auction house", "none"
 end
 
--- The items to list: one character, or everyone on this realm ("all").
+-- The items to list: one character, or everyone in the chosen group ("all").
 local function gather(key, where, search)
   local items, keys = {}, {}
-  if key == "all" then keys = (charOrder()) else keys = { key } end
+  if key == "all" then keys = charOrder() else keys = { key } end
   for _, k in ipairs(keys) do
     local inv = ns.db.inventory[k]
     if inv then
-      local c = ns.db.chars[k]
       local function add(list, place)
         for id, n in pairs(list or {}) do
           local e = items[id]
           if not e then e = { id = id, n = 0, who = {} }; items[id] = e end
           e.n = e.n + n
-          local label = key == "all" and (c and c.name or k) or place
+          local label = key == "all" and whoName(k) or place
           e.who[label] = (e.who[label] or 0) + n
         end
       end
@@ -97,12 +180,25 @@ local function gather(key, where, search)
   for id, e in pairs(items) do
     e.name = ns.ItemName(id) or ("item " .. id)
     if not q or e.name:lower():find(q, 1, true) then
-      e.each, e.how = worth(id)
+      e.each, e.how, e.howFull, e.kind = worth(id)
       e.total = e.each * e.n
       list[#list + 1] = e
     end
   end
   return list
+end
+
+-- What one character's bags and bank are worth (for hovers): total, bags, bank.
+local function worthOf(key)
+  local inv = ns.db.inventory[key]
+  if not inv then return end
+  local function sum(list)
+    local t = 0
+    for id, n in pairs(list or {}) do t = t + (worth(id)) * n end
+    return math.floor(t)
+  end
+  local bags, bank = sum(inv.bags), sum(inv.bank)
+  return bags + bank, bags, bank, inv
 end
 
 ---------------------------------------------------------------------------
@@ -130,6 +226,31 @@ local function navButton(i)
   b.sub:SetJustifyH("LEFT")
   b.sub:SetWordWrap(false)
   b:SetScript("OnClick", function(self) state.char = self.key; ns:RefreshCharacters() end)
+  -- Hover: gold and what the bags and bank are worth, so the totals add up at a glance.
+  b:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    if self.key == "all" then
+      GameTooltip:AddLine("All characters: " .. groupLabel(state.group), 1, 1, 1)
+      for _, k in ipairs(charOrder()) do
+        local w = worthOf(k)
+        GameTooltip:AddDoubleLine(whoName(k), (ns.MoneyPlain(goldOf(k) or 0)) .. dim("  items ") .. ns.MoneyPlain(w or 0), 0.8, 0.8, 0.8, 1, 1, 1)
+      end
+    else
+      local c = ns.db.chars[self.key]
+      GameTooltip:AddLine(whoName(self.key), 1, 1, 1)
+      GameTooltip:AddDoubleLine("Gold", ns.MoneyPlain(goldOf(self.key) or 0), 0.8, 0.8, 0.8, 1, 1, 1)
+      local w, bags, bank, inv = worthOf(self.key)
+      if w then
+        GameTooltip:AddDoubleLine("Bags worth", ns.MoneyPlain(bags), 0.8, 0.8, 0.8, 1, 1, 1)
+        GameTooltip:AddDoubleLine("Bank worth", inv.bankT and ns.MoneyPlain(bank) or dim("not seen yet"), 0.8, 0.8, 0.8, 1, 1, 1)
+      else
+        GameTooltip:AddLine("Bags not saved yet: log in on it once.", 0.6, 0.6, 0.6, true)
+      end
+      if c and c.realm then GameTooltip:AddLine(groupLabel(realmOf(c) .. "|" .. factionOf(c)), 0.6, 0.6, 0.6) end
+    end
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
   navButtons[i] = b
   return b
 end
@@ -156,6 +277,7 @@ local function getRow(i)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetItemByID(e.id)
     GameTooltip:AddLine(" ")
+    if e.howFull then GameTooltip:AddLine("Best way: " .. e.howFull, 1, 0.82, 0) end
     local names = {}
     for who in pairs(e.who) do names[#names + 1] = who end
     table.sort(names)
@@ -177,6 +299,15 @@ local function getHead(i)
     if s.key == self.key then s.desc = not s.desc else s.key, s.desc = self.key, self.key ~= "name" and self.key ~= "how" end
     ns:RefreshCharacters()
   end)
+  h:SetScript("OnEnter", function(self)
+    if not self.tip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(self.label, 1, 1, 1)
+    GameTooltip:AddLine(self.tip, nil, nil, nil, true)
+    GameTooltip:AddLine("Click to sort.", 0.6, 0.6, 0.6)
+    GameTooltip:Show()
+  end)
+  h:SetScript("OnLeave", function() GameTooltip:Hide() end)
   heads[i] = h
   return h
 end
@@ -184,8 +315,21 @@ end
 function ns:BuildCharacters(parent)
   f = CreateFrame("Frame", nil, parent)
   f:SetAllPoints()
+  -- Which realm and faction (shown when you have characters on more than one).
+  f.group = T:Dropdown(f, NAV_W - 14, function(v)
+    state.group = v
+    state.char = "all"
+    ns:RefreshCharacters()
+  end)
+  f.group:SetPoint("TOPLEFT", 0, 0)
+  f.group:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("Realm and faction", 1, 1, 1)
+    GameTooltip:AddLine("Whose characters to show and add up. Only characters on the same realm and faction share an auction house and can mail each other.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  f.group:HookScript("OnLeave", function() GameTooltip:Hide() end)
   f.navSf, f.nav = T:Scroll(f)
-  f.navSf:SetPoint("TOPLEFT", 0, 0)
   f.navSf:SetPoint("BOTTOMLEFT", 0, 0)
   f.navSf:SetWidth(NAV_W)
 
@@ -195,11 +339,19 @@ function ns:BuildCharacters(parent)
   f.title:SetPoint("RIGHT", f, "RIGHT", -6, 0)
   f.title:SetJustifyH("LEFT")
   f.title:SetWordWrap(false)
+  -- Professions in neat columns, three to a line (one wrapping line split "(7 recipes)"
+  -- across lines: owner's test, October 4). f.profs is the line for everything else.
   f.profs = T:Text(f, 11, T.dim)
   f.profs:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -4)
   f.profs:SetPoint("RIGHT", f, "RIGHT", -6, 0)
   f.profs:SetJustifyH("LEFT")
-  if f.profs.SetMaxLines then f.profs:SetMaxLines(2) end   -- a third line ran into Bags and bank
+  f.profs:SetWordWrap(false)
+  for i = 1, 6 do
+    local fs = T:Text(f, 11)
+    fs:SetJustifyH("LEFT")
+    fs:SetWordWrap(false)
+    profCells[i] = fs
+  end
 
   -- Bags, bank or both; and a search through them.
   f.where = T:Choice(f, { { value = "both", label = "Bags and bank" }, { value = "bags", label = "Bags" }, { value = "bank", label = "Bank" } },
@@ -238,20 +390,51 @@ function ns:BuildCharacters(parent)
   f.summary:SetPoint("RIGHT", f, "RIGHT", -6, 0)
   f.summary:SetJustifyH("LEFT")
   f.summary:SetWordWrap(false)
+  -- Hover the bottom line: what it's made of (per character, or bags and bank).
+  f.sumHit = CreateFrame("Frame", nil, f)
+  f.sumHit:SetPoint("BOTTOMLEFT", NAV_W + 6, 0)
+  f.sumHit:SetPoint("BOTTOMRIGHT", 0, 0)
+  f.sumHit:SetHeight(20)
+  f.sumHit:EnableMouse(true)
+  f.sumHit:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("What it's worth", 1, 1, 1)
+    GameTooltip:AddLine("Everything in the list above, each at its Each price. Search and the Bags / Bank buttons change it.", nil, nil, nil, true)
+    if state.char == "all" then
+      GameTooltip:AddLine(" ")
+      for _, k in ipairs(charOrder()) do
+        local w = worthOf(k)
+        GameTooltip:AddDoubleLine(whoName(k), w and ns.MoneyPlain(w) or dim("not saved yet"), 0.8, 0.8, 0.8, 1, 1, 1)
+      end
+      GameTooltip:AddLine("(bags and bank, before any search)", 0.6, 0.6, 0.6)
+    end
+    GameTooltip:Show()
+  end)
+  f.sumHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
   f:SetScript("OnSizeChanged", function() if f:IsShown() then ns:RefreshCharacters() end end)
   return f
 end
 
 function ns:RefreshCharacters()
   if not (f and f:IsShown()) then return end
-  local mine, away = charOrder()
-  if not state.char or not (state.char == "all" or ns.db.chars[state.char]) then state.char = ns.CharKey() end
+  -- The realm and faction: this one unless another was picked (and still exists).
+  local opts, groups = groupOptions()
+  local known = false
+  for _, o in ipairs(opts) do if o.value == state.group then known = true end end
+  if not known then state.group = hereGroup() end
+  f.group:SetOptions(opts)
+  f.group:SetValue(state.group)
+  f.group:SetShown(groups > 1)
+  f.navSf:SetPoint("TOPLEFT", 0, groups > 1 and -28 or 0)
 
-  -- The list on the left: All, this realm, then the rest.
+  local mine = charOrder()
+  if not state.char or not (state.char == "all" or (ns.db.chars[state.char] and inGroup(state.char, state.group))) then
+    state.char = inGroup(ns.CharKey(), state.group) and ns.CharKey() or "all"
+  end
+
+  -- The list on the left: All, then the group's characters.
   local entries = { { key = "all" } }
   for _, k in ipairs(mine) do entries[#entries + 1] = { key = k } end
-  if #away > 0 then entries[#entries + 1] = { heading = "Other realms or factions" } end
-  for _, k in ipairs(away) do entries[#entries + 1] = { key = k, away = true } end
   local y, n = 0, 0
   local navW = NAV_W - 14
   f.nav:SetWidth(navW)
@@ -262,31 +445,20 @@ function ns:RefreshCharacters()
     b:SetPoint("TOPLEFT", 0, -y)
     b:SetWidth(navW)
     b.key = e.key
-    if e.heading then
-      b:SetHeight(22)
-      b.name:SetText(dim(e.heading))
-      b.sub:SetText("")
-      b:EnableMouse(false)
-      b.bg:Hide()
-      b.sel:Hide()
+    b.sel:SetShown(state.char == e.key)
+    if e.key == "all" then
+      local total = 0
+      for _, k in ipairs(mine) do total = total + (goldOf(k) or 0) end
+      b.name:SetText(T:AccentCode() .. "All characters|r")
+      b.sub:SetText(("%d %s, %s"):format(#mine, #mine == 1 and "character" or "characters", ns.MoneyPlain(total)))
     else
-      b:SetHeight(34)
-      b:EnableMouse(true)
-      b.bg:Show()
-      b.sel:SetShown(state.char == e.key)
-      if e.key == "all" then
-        local total = 0
-        for _, k in ipairs(mine) do total = total + (goldOf(k) or 0) end
-        b.name:SetText(T:AccentCode() .. "All characters|r")
-        b.sub:SetText("this realm, gold " .. ns.MoneyPlain(total))
-      else
-        local c = ns.db.chars[e.key]
-        local me = e.key == ns.CharKey()
-        b.name:SetText((e.away and dim(c.name or e.key) or className(c)) .. (me and dim("  (you)") or ""))
-        local g = goldOf(e.key)
-        b.sub:SetText(("level %s%s"):format(c.level or "?", g and (", " .. ns.MoneyPlain(g)) or "")
-          .. (e.away and (", " .. (c.realm or c.faction or "")) or ""))
-      end
+      local c = ns.db.chars[e.key]
+      local me = e.key == ns.CharKey()
+      b.name:SetText(className(c) .. (me and dim("  (you)") or ""))
+      local g = goldOf(e.key)
+      local other = state.group == "*" and realmOf(c) ~= GetRealmName()
+      b.sub:SetText(("level %s%s%s"):format(c.level or "?", g and (", " .. ns.MoneyPlain(g)) or "",
+        other and (", " .. shortRealm(realmOf(c))) or ""))
     end
     b:Show()
     y = y + b:GetHeight() + 2
@@ -297,24 +469,35 @@ function ns:RefreshCharacters()
 
   -- The chosen one: who, and their professions (where to open the window if not saved).
   local key = state.char
+  for _, fs in ipairs(profCells) do fs:Hide() end
   if key == "all" then
-    f.title:SetText(T:AccentCode() .. "All characters|r " .. dim("on this realm and faction"))
+    f.title:SetText(T:AccentCode() .. "All characters|r " .. dim(groupLabel(state.group)))
     f.profs:SetText("What everyone has, added up; hover an item for who has it.")
+    f.profs:Show()
   else
     local c = ns.db.chars[key]
-    f.title:SetText(("%s  %s"):format(className(c), dim(("level %s %s %s"):format(c.level or "?",
-      (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[c.class or ""]) or c.class or "", c.faction or ""))))
-    local parts = {}
+    f.title:SetText(("%s  %s"):format(className(c), dim(("level %s %s %s"):format(c.level or "?", classWord(c), c.faction or ""))))
     local names = {}
     for p in pairs(c.profs or {}) do names[#names + 1] = p end
-    table.sort(names)
-    for _, p in ipairs(names) do
+    table.sort(names, function(a, b)
+      if (SECONDARY[a] or false) ~= (SECONDARY[b] or false) then return not SECONDARY[a] end
+      return a < b
+    end)
+    local cellW = math.floor((f:GetWidth() - NAV_W - 18) / 3)
+    for i, p in ipairs(names) do
+      local fs = profCells[i]
+      if not fs then break end
       local info = c.profs[p]
-      local saved = (info.recipeCount or 0) > 0 and dim((" (%d recipes)"):format(info.recipeCount))
-        or " |cffee8597(open its window to save recipes)|r"
-      parts[#parts + 1] = ("%s %s/%s%s"):format(p, info.rank or "?", info.max or "?", saved)
+      local saved = (info.recipeCount or 0) > 0 and dim(("  %d recipes"):format(info.recipeCount))
+        or "  |cffee8597open to save recipes|r"
+      fs:SetText(("%s %s/%s%s"):format(p, info.rank or "?", info.max or "?", saved))
+      fs:ClearAllPoints()
+      fs:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", ((i - 1) % 3) * cellW, -4 - math.floor((i - 1) / 3) * 15)
+      fs:SetWidth(cellW - 8)
+      fs:Show()
     end
-    f.profs:SetText(#parts > 0 and table.concat(parts, "   ") or "No professions saved yet: open each profession's window once.")
+    f.profs:SetText(#names > 0 and "" or "No professions saved yet: open each profession's window once.")
+    f.profs:SetShown(#names == 0)
   end
   f.where:SetValue(state.where)
 
@@ -340,7 +523,7 @@ function ns:RefreshCharacters()
   end
   for i, c in ipairs(COLS) do
     local h = getHead(i)
-    h.key = c.key
+    h.key, h.label, h.tip = c.key, c.label, c.tip
     h:ClearAllPoints()
     h:SetPoint("LEFT", f.header, "LEFT", lay[c.key].x, 0)
     h:SetSize(lay[c.key].w, 20)
@@ -356,7 +539,7 @@ function ns:RefreshCharacters()
   local total, vendorTrash = 0, 0
   for _, e in ipairs(list) do
     total = total + e.total
-    if e.how == "Sell to vendor" then vendorTrash = vendorTrash + e.total end
+    if e.kind == "vendor" then vendorTrash = vendorTrash + e.total end
   end
   for i = 1, shown do
     local e, r = list[i], getRow(i)

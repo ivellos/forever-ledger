@@ -174,17 +174,15 @@ local function buildMain()
   full:SetPoint("BOTTOMLEFT", 12, 12)
   local scan = T:Button(main, "Scan materials", 120, function() ns.Scan:Start("watch") end)
   scan:SetPoint("LEFT", full, "RIGHT", 6, 0)
-  local exp = T:Button(main, "Export", 70, function() ns:ShowExport() end)
-  exp:SetPoint("LEFT", scan, "RIGHT", 18, 0)
-  local imp = T:Button(main, "Import", 70, function() ns:ShowImport() end)
-  imp:SetPoint("LEFT", exp, "RIGHT", 6, 0)
-  local csv = T:Button(main, "Prices as text", 110, function() ns:ShowPricesCSV() end)
-  csv:SetPoint("LEFT", imp, "RIGHT", 6, 0)
+  -- One button for copying data across (owner's test, October 4: like the shopping
+  -- lists' Share/import); Export, Import and Prices as text are tabs in its window.
+  local dataBtn = T:Button(main, "Export / import", 120, function() ns:ShowExport() end)
+  dataBtn:SetPoint("LEFT", scan, "RIGHT", 18, 0)
   main.scanBtn, main.fullBtn = scan, full
   main.footer = {
     dashboard = { full, scan },
     deals = { full, scan },
-    characters = { full, scan, exp, imp, csv },
+    characters = { full, scan, dataBtn },
   }
 
   main.refreshBtn = T:Button(main, "Refresh", 90, function() ns:RefreshShuffles() end)
@@ -1506,9 +1504,17 @@ function ns:ShowTextWindow(title, help, text, actionLabel, onAction, tabs)
   if text and text ~= "" then f.eb:HighlightText() end
 end
 
+-- Export, Import and Prices as text share one window, with tabs to switch.
+local function dataTabs(current)
+  return { current = current,
+    { "Export", function() ns:ShowExport() end },
+    { "Import", function() ns:ShowImport() end },
+    { "Prices as text", function() ns:ShowPricesCSV() end } }
+end
+
 function ns:ShowExport()
   local f = ioWindow()
-  setTabs(f, nil)
+  setTabs(f, dataTabs(1))
   f.title:SetText("Export")
   f.help:SetText("Press Ctrl+A, then Ctrl+C to copy. Paste it into Import on your other account, or send it to Claude.")
   f.eb:SetText(ns:Export())
@@ -1520,7 +1526,7 @@ end
 
 function ns:ShowImport()
   local f = ioWindow()
-  setTabs(f, nil)
+  setTabs(f, dataTabs(2))
   f.title:SetText("Import")
   f.help:SetText("Paste an export from your other account with Ctrl+V, then click Import. Newer data replaces older data.")
   f.eb:SetText("")
@@ -1562,6 +1568,7 @@ end
 
 function ns:ShowPricesCSV()
   local f = ioWindow()
+  setTabs(f, dataTabs(3))
   f.title:SetText("Prices as text")
   f.help:SetText("Press Ctrl+A, then Ctrl+C. Paste this into a chat with Claude to check flips at today's prices.")
   f.eb:SetText(ns:PricesCSV())
