@@ -48,7 +48,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 ## Shuffles and vendor flips
 
-- **Shuffles**: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; **Work it** walks you through them with one-click buttons.
+- **Shuffles**: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step.
 - **Vendor flips**: things on the auction house for less than a vendor pays. They're bought from the **Buy queue** beside the auction house (below): a full scan that finds some opens it if it's closed, and the flip watch chimes when a new one turns up. Settings, **Vendor flips** sets the least profit worth your time: a share of the vendor price (0% counts anything below it) and an amount each (say 10c). On the auction house, listings worth buying get a green bar and a **BUY** badge, and the line above the list says how many are still there (red "None left" once they've been bought).
 
 ## Buy queue and shopping lists
@@ -99,7 +99,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 ## Disenchanting
 
 - **Disenchant finder** (beside the auction house: Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material and what a bad and a good roll would bring. The worth is an average over many disenchants (Settings, Auction house can hide the rolls).
-- The **Disenchant** button in Work it disenchants the shuffle's items one click at a time. `/fl de` shows your own results.
+- `/fl de` shows your own disenchanting results against the expected odds.
 
 ![Disenchant finder beside the auction house](images/disenchant-finder.png)
 

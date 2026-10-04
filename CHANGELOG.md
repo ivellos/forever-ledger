@@ -27,6 +27,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Export, Import and Prices as text are one Export / import button, with tabs.
 - Money boxes: "1.5" is one and a half gold (1g 50s), like "1.5g"; "1.05" and "1 5" are still 1g 5s.
 
+### Removed
+- The Work it window and its shuffle sessions: shopping lists and the Buy queue do its job now. Shuffles still list every step; finished shuffle sessions still show on the Dashboard. `/fl session` now just says how to start a session.
+
 ### Fixed
 - Undercut reminders no longer chime again after a `/reload` (only after logging in, as meant).
 - Session tracker: "an hour: after 2 min" fits in the tracker.

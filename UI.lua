@@ -1083,8 +1083,6 @@ local function getDetail(i)
   d.steps:SetSpacing(3)
   d.profit = T:Text(d, 11)
   d.profit:SetJustifyH("LEFT")
-  d.work = T:Button(d, "Work it", 90, function() ns:OpenWork(d.shuffle) end, 22)
-  d.work:SetPoint("TOPRIGHT", -10, -6)
   d.lines = {}
   details[i] = d
   return d

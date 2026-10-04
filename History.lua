@@ -289,7 +289,6 @@ local function onMoney()
       if not ok then ns:Debug("Couldn't take the purchase off the listings:", err) end
     end
   end
-  if ns.OnMoneyLogged then ns:OnMoneyLogged() end
   ns:Debug("Money", source, delta > 0 and "+" or "-", ns.Money(math.abs(delta)))
 end
 

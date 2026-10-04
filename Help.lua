@@ -39,7 +39,7 @@ ns.HELP = {
     { "Sells", "How fast an item sells: Fast, Steady, Slow, Rare (seldom listed, goes quickly) or No sales seen, judged against items of the same kind, so ore and swords aren't held to the same bar. It counts listings that vanished before they could have expired, so it builds up as you run full scans (fastest with Watch flips) and shows after 3 hours of scans compared (and, in the first day, at least 3 sales)." },
   } },
   { "Shuffles and vendor flips", {
-    { "Shuffles", "Buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step; Work it walks you through them with one-click buttons." },
+    { "Shuffles", "Buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step." },
     { "Vendor flips", "Things on the auction house for less than a vendor pays. They're in the Buy queue beside the auction house (its Vendor flips view); a full scan that finds some opens it if it's closed, and the flip watch chimes. Settings, Vendor flips sets the least profit worth your time, as a share of the vendor price and as an amount." },
     { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },
@@ -67,7 +67,6 @@ ns.HELP = {
   } },
   { "Disenchanting", {
     { "Disenchant finder", "Beside the auction house (Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant, on average. Hover a band for the odds and what a bad and a good roll would bring (Settings, Auction house can hide the rolls)." },
-    { "Work it", "The Disenchant button disenchants the shuffle's items one click at a time. /fl de shows your own results." },
   } },
   { "Recipes and trainers", {
     { "Recipes tab", "Every recipe of your professions, who knows it, where to get it, the skill needed, and profit per craft. Right-click a recipe to set its type yourself. Click a column heading to sort." },

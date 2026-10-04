@@ -148,6 +148,29 @@ function ns.ParseMoneyLoose(s, plainUnit)
   if found and rest:gsub("[%s%a]", "") == "" and not rest:find("%d") then return math.floor(total + 0.5) end
 end
 
+function ns.SpellName(spellID)
+  if not spellID then return end
+  if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(spellID) end
+  if GetSpellInfo then return (GetSpellInfo(spellID)) end
+end
+
+-- Search the open auction house for an item by its exact name (clicking an item in the
+-- Buy queue, Deals, crates...). (Filling in the Quantity box was tried and removed: the
+-- auction house kept its old amount and price, so purchases failed with "no longer
+-- available".)
+function ns:SearchAuctionHouse(id)
+  local ah, name = AuctionHouseFrame, ns.GetItemInfo(id)
+  if not (ah and ah:IsShown() and name) then return false end
+  if ah.SetDisplayMode and AuctionHouseFrameDisplayMode and AuctionHouseFrameDisplayMode.Buy then
+    pcall(ah.SetDisplayMode, ah, AuctionHouseFrameDisplayMode.Buy)
+  end
+  local bar = ah.SearchBar
+  if not (bar and bar.SearchBox) then return false end
+  bar.SearchBox:SetText('"' .. name .. '"')
+  if bar.StartSearch then pcall(bar.StartSearch, bar) end
+  return true
+end
+
 function ns.ItemIDFromLink(link)
   if type(link) ~= "string" then return nil end
   return tonumber(link:match("item:(%d+)"))
@@ -748,9 +771,9 @@ SlashCmdList.FOREVERLEDGER = function(msg)
   elseif msg == "session stop" or msg == "session end" then
     ns:StopGeneralSession()
   elseif msg == "session" then
-    -- A session running: stop it; otherwise the shuffle work window (Work it).
-    if ns:GeneralSessionRunning() then ns:Print("A session is running: /fl session stop ends it.") end
-    ns:OpenWork()
+    -- (It opened the Work it window, removed October 4.)
+    if ns:GeneralSessionRunning() then ns:Print("A session is running: /fl session stop ends it.")
+    else ns:Print("/fl session start begins a session (or Start a session on the Dashboard).") end
   elseif msg == "money" then
     ns:PrintMoney()
   elseif msg == "minimap" then

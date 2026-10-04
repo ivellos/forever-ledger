@@ -410,81 +410,9 @@ function ns:ShuffleRuns(s)
   return runs
 end
 
-local DISENCHANT_SPELL = 13262
-
--- What a session on this shuffle should watch: inputs (bought) and products (sold)
--- as sets of item IDs, and what counts as one run: a spell cast (the first craft,
--- or Disenchant), or, for a vendor flip, selling the item.
-function ns:ShuffleItems(s)
-  local inputs, products = {}, {}
-  for _, b in ipairs(ns:ShuffleBuys(s)) do inputs[b.id] = true end
-  local function walk(o)
-    if o.kind == "craft" then
-      for _, b in ipairs(o.buys or {}) do inputs[b.id] = true end
-      products[o.rec.out] = true
-      walk(o.next)
-    elseif o.kind == "convert" then
-      products[o.next.id] = true
-      walk(o.next)
-    elseif o.kind == "disenchant" then
-      for _, m in ipairs(o.mats) do products[m.id] = true; walk(m.opt) end
-    end
-  end
-  walk(s.opt)
-  local run = {}
-  if s.opt.kind == "craft" then
-    run.spell = s.opt.recipeID
-  elseif s.opt.kind == "disenchant" then
-    run.spell = DISENCHANT_SPELL
-  elseif s.opt.kind == "vendor" then
-    products[s.id] = true
-    run.sellItem = s.id
-  end
-  return inputs, products, run
-end
-
--- Everything the player does in this shuffle, in order, for Work it's buttons:
--- { kind = "craft", opt = craft option, first = true for the first step },
--- { kind = "use", item = itemID, label = "Split into …" } (essence split/combine),
--- { kind = "disenchant" }. Each craft and item appears once.
-function ns:ShuffleActions(s)
-  local out, seen = {}, {}
-  local function add(key, a) if not seen[key] then seen[key] = true; out[#out + 1] = a end end
-  local function walk(o)
-    if not o then return end
-    if o.kind == "craft" then
-      add("craft" .. tostring(o.recipeID or o.step), { kind = "craft", opt = o, first = #out == 0 })
-      walk(o.next)
-    elseif o.kind == "convert" then
-      add("use" .. tostring(o.id), { kind = "use", item = o.id, label = o.step })
-      walk(o.next)
-    elseif o.kind == "disenchant" then
-      add("disenchant", { kind = "disenchant" })
-      for _, m in ipairs(o.mats or {}) do walk(m.opt) end
-    end
-  end
-  walk(s.opt)
-  return out
-end
-
--- The items this shuffle disenchants (a group's members, the item itself, or what a
--- craft makes right before disenchanting), as a set of item IDs, or nil if none.
-function ns:ShuffleDisenchantTargets(s)
-  local set, any = {}, false
-  if s.group then
-    for _, m in ipairs(s.members) do set[m.id] = true; any = true end
-  elseif s.opt.kind == "disenchant" then
-    set[s.id] = true; any = true
-  end
-  local o = s.opt
-  while o and (o.kind == "craft" or o.kind == "convert") do
-    if o.kind == "craft" and o.next and o.next.kind == "disenchant" and o.rec.out then
-      set[o.rec.out] = true; any = true
-    end
-    o = o.next
-  end
-  return any and set or nil
-end
+-- (Work it's helpers, ShuffleItems, ShuffleActions and ShuffleDisenchantTargets, went
+-- with the Work it window: owner, October 4; its jobs moved to shopping lists and the
+-- Buy queue.)
 
 -- A short name for the table: the item or recipe, without the steps.
 function ns:ShuffleName(s)

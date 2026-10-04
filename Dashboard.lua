@@ -521,11 +521,6 @@ function ns:RefreshDashboard(f)
     lines[#lines + 1] = ("Running: %d min so far, gold %s, looted about %s."):format(math.floor(gs.secs / 60),
       money(gs.gained), ns.Money(gs.loot))
   end
-  local st = ns.SessionStats and ns:SessionStats()
-  if st then
-    lines[#lines + 1] = ("Running: %s, %d runs, profit %s so far. %s"):format(
-      ns.db.session.name, st.runs, money(st.profit), dim("/fl session to open it"))
-  end
   local list = ns.db.sessions
   for i = #list, math.max(1, #list - 20), -1 do   -- as many as fit (trimmed below)
     local x = list[i]
@@ -539,7 +534,7 @@ function ns:RefreshDashboard(f)
     end
   end
   if #list == 0 and not st and not gs then
-    lines[#lines + 1] = dim("None yet. Start a session to count what your time is worth, or click Work it on a shuffle.")
+    lines[#lines + 1] = dim("None yet. Start a session to count what your time is worth.")
   end
   -- Only as many lines as fit below the boxes.
   local fit = math.max(1, math.floor((H - (boxY + 98)) / 14))

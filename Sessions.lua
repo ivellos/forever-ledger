@@ -6,8 +6,8 @@ local T = ns.Theme
 -- time was worth: gold in and out by where it came from (History.lua tells us each
 -- change and its source), and what you looted, valued at the better of the auction
 -- house (after the cut) and a vendor, or vendor only (setting). At the end, a summary
--- in chat and a line in the Dashboard's sessions. The "Work it" shuffle sessions
--- (Work.lua) are separate and carry on as before. Dungeon runs and chase items build on
+-- in chat and a line in the Dashboard's sessions. (The "Work it" shuffle sessions were
+-- removed with that window, October 4; their finished ones still show.) Dungeon runs and chase items build on
 -- this later (docs/ROADMAP.md).
 --
 -- ns.db.liveSession = { t, char, money = { [source] = signed copper }, loot = { [itemID] = count } }
