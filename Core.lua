@@ -537,6 +537,18 @@ function ns:ApiReport()
     print(("  %s %s"):format(has(path) and "|cff7fd39cyes|r" or "|cffee8597no|r ", path))
   end
   print("  Market: " .. ns.MarketKey())
+  -- Which ruleset the character is on (owner, October 3: group characters by ruleset,
+  -- not by server name, if the game says it). Each is tried safely and printed.
+  local function try(label, fn)
+    local ok, a, b = pcall(fn)
+    print(("  %s: %s"):format(label, ok and (tostring(a) .. (b ~= nil and (", " .. tostring(b)) or "")) or "not available"))
+  end
+  try("Realm", function() return GetRealmName(), GetNormalizedRealmName and GetNormalizedRealmName() end)
+  try("Realm ID", function() return GetRealmID and GetRealmID() end)
+  try("Season", function() return C_Seasons and C_Seasons.GetActiveSeason and C_Seasons.GetActiveSeason() end)
+  try("Hardcore", function() return C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive() end)
+  try("PvP server", function() return C_PvP and C_PvP.IsWarModeDesired and C_PvP.IsWarModeDesired(), IsPVPTimerRunning and IsPVPTimerRunning() end)
+  try("Server type", function() return GetCVar and GetCVar("realmName"), GetCVar and GetCVar("portal") end)
   -- If the pet journal exists: how many pets it knows, and one sample with its
   -- "how to get it" text (the 12th value), to see what a pet module could show.
   if C_PetJournal and C_PetJournal.GetNumPets then

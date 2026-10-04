@@ -1508,8 +1508,38 @@ end
 -- The same text window for other things to copy or paste (shopping lists). With
 -- actionLabel and onAction(text), a button acts on what was pasted; onAction returns
 -- ok, message.
-function ns:ShowTextWindow(title, help, text, actionLabel, onAction)
+-- Tabs along the top of the window (a shopping list's Share and Import, owner's test
+-- October 3: one window for both): tabs = { current = index, { label, fn }, ... }, or
+-- nil for none. The help moves down under them.
+local function setTabs(f, tabs)
+  f.tabChoices = f.tabChoices or {}
+  for _, c in pairs(f.tabChoices) do c:Hide() end
+  f.help:ClearAllPoints()
+  f.help:SetPoint("RIGHT", f, "RIGHT", -14, 0)
+  if not tabs then
+    f.help:SetPoint("TOPLEFT", 14, -42)
+    return
+  end
+  local labels = {}
+  for i, t in ipairs(tabs) do labels[i] = t[1] end
+  local key = table.concat(labels, "|")
+  local c = f.tabChoices[key]
+  if not c then
+    local opts = {}
+    for i, t in ipairs(tabs) do opts[i] = { value = i, label = t[1] } end
+    c = T:Choice(f, opts, function(i) if c.tabs and c.tabs[i] then c.tabs[i][2]() end end)
+    c:SetPoint("TOPLEFT", 14, -40)
+    f.tabChoices[key] = c
+  end
+  c.tabs = tabs
+  c:SetValue(tabs.current or 1)
+  c:Show()
+  f.help:SetPoint("TOPLEFT", 14, -70)
+end
+
+function ns:ShowTextWindow(title, help, text, actionLabel, onAction, tabs)
   local f = ioWindow()
+  setTabs(f, tabs)
   f.title:SetText(title)
   f.help:SetText(help)
   f.eb:SetText(text or "")
@@ -1531,6 +1561,7 @@ end
 
 function ns:ShowExport()
   local f = ioWindow()
+  setTabs(f, nil)
   f.title:SetText("Export")
   f.help:SetText("Press Ctrl+A, then Ctrl+C to copy. Paste it into Import on your other account, or send it to Claude.")
   f.eb:SetText(ns:Export())
@@ -1542,6 +1573,7 @@ end
 
 function ns:ShowImport()
   local f = ioWindow()
+  setTabs(f, nil)
   f.title:SetText("Import")
   f.help:SetText("Paste an export from your other account with Ctrl+V, then click Import. Newer data replaces older data.")
   f.eb:SetText("")

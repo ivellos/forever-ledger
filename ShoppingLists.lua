@@ -563,6 +563,43 @@ function ns:MaterialLimit(list, id)
   if rec and not rec.none and (rec.a or rec.m) then return math.floor(rec.a or rec.m), false end
 end
 
+-- The most to pay for an item on a list: what's in Up to, or the "any" cap. nil when
+-- it's "off": not bought. Second value "any" for any price.
+function ns:ItemLimit(list, e)
+  if list.anyPrice or e.max == -1 then return ns:AnyPriceLimit(e.id), "any" end
+  if (e.max or 0) > 0 then return e.max end
+end
+
+-- Your usual price for an item (the month's typical price from scans, else the average
+-- of the cheapest listings), rounded up to the silver, or nil. Filled into Up to when
+-- you start buying from a list or add an item to one, as a number you can see and
+-- change (owner's test, October 3: items left at "off" never got bought, so it seemed
+-- broken; filled in openly rather than "off" quietly meaning "usual price").
+function ns:UsualPriceFor(id)
+  local stats = ns.PriceStats and ns:PriceStats(id, "month")
+  local p = stats and stats.points >= 3 and stats.usual
+  if not p then
+    local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+    p = rec and not rec.none and (rec.a or rec.m)
+  end
+  if not p then return end
+  if p >= 100 then return math.ceil(p / 100) * 100 end
+  return math.ceil(p)
+end
+
+-- Fills Up to with your usual price on the list's items that are "off" (not Craft).
+-- Returns how many were filled.
+function ns:FillUsualPrices(list)
+  local n = 0
+  for _, e in ipairs(list.items) do
+    if e.mode ~= "craft" and (e.max or 0) == 0 then
+      local p = ns:UsualPriceFor(e.id)
+      if p then e.max, n = p, n + 1 end
+    end
+  end
+  return n
+end
+
 -- Materials for the list's Craft items: { { id, need, have, buy, vendor, limit, own } }
 -- (vendor: a vendor sells it, so it isn't bought on the auction house), and the Craft
 -- items with no recipe known.
@@ -583,8 +620,9 @@ function ns:BuyMode(list) return list ~= nil and not list.countHave end
 -- still in the mail) and your characters on the same ruleset and faction (as of their
 -- last login). Returns the total and the other characters' part.
 function ns:OwnedCount(id)
-  local _, _, alts = ns:ItemLocations(id)
-  return ns:HaveCount(id) + (alts or 0), alts or 0
+  -- The same parts the Have hover lists, so the number is their sum.
+  local bags, bank, alts = ns:ItemLocations(id)
+  return (bags or 0) + (bank or 0) + ns:InTheMail(id) + (alts or 0), alts or 0
 end
 
 function ns:ItemDone(e, list)
@@ -688,16 +726,16 @@ function ns:ShoppingTargets()
     -- Only lists ticked "Buy from this list in the Buy queue".
     if list.on then
       for _, e in ipairs(list.items) do
-        local max = list.anyPrice and -1 or (e.max or 0)
-        if e.mode ~= "craft" and max ~= 0 and not seen[e.id] and not ns:ItemDone(e, list) then
+        -- Up to (ItemLimit); "off" isn't bought.
+        local limit, how = ns:ItemLimit(list, e)
+        if e.mode ~= "craft" and limit and not seen[e.id] and not ns:ItemDone(e, list) then
           -- Without a Want number, just one, less what's been bought (crate lists: less
           -- what you have).
           local got = ns:BuyMode(list) and (e.bought or 0) or ns:HaveCount(e.id)
           local want = math.max(0, (e.qty or 1) - got)
           if want > 0 then
             seen[e.id] = true
-            out[#out + 1] = { id = e.id, limit = max == -1 and ns:AnyPriceLimit(e.id) or max, any = max == -1,
-              want = want, list = list.name }
+            out[#out + 1] = { id = e.id, limit = limit, any = how == "any", want = want, list = list.name }
           end
         end
       end
@@ -710,6 +748,17 @@ function ns:ShoppingTargets()
     end
   end
   return out
+end
+
+-- How many more of an item the lists you buy from still want, read from the lists
+-- themselves right now. The Buy queue checks this just before every purchase from a
+-- list and never buys more (owner's test, October 3: 601 Strange Dust bought for a list
+-- whose Want showed 2).
+function ns:ListStillWanted(id)
+  for _, t in ipairs(ns:ShoppingTargets()) do
+    if t.id == id then return t.want or 0 end
+  end
+  return 0
 end
 
 ---------------------------------------------------------------------------
