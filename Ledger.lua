@@ -83,9 +83,7 @@ local function money(v) return (v < 0 and "-" or "") .. ns.Money(math.abs(v)) en
 
 local function settings()
   local s = ns.db.settings.ledger
-  -- All is the first view, once for everyone (owner's test, October 3: a saved Sales
-  -- choice kept it from showing); after that the view you pick is remembered.
-  if not s.allShown then s.tab, s.allShown = "all", true end
+  -- (The tab opens on All each time: UI.lua's setView.)
   s.tab = s.tab or "all"
   s.range = s.range or "month"
   s.char = s.char or "all"

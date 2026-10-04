@@ -42,7 +42,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - Ledger: an All view (now the first) with every transaction in one list: auction and vendor sales and purchases and other money (repairs, mail, loot, quests...), money in green and out in red, with a Type column. In every view, select rows (click, Shift-click, Ctrl-click or drag) to see their money in, out and net on the bottom line; hover a row for its details. Each view says what fills it when it's empty.
-- The Buy queue panel comes in front of other windows (a profession window over the auction house) when you click it.
+- The Buy queue panel comes in front of other windows (a profession window over the auction house) when you click it; with a profession window open it joins that window's layer, so clicking either brings it to the front.
+- Ledger: opens on All each time you open the tab.
 - Customers window: a Silence button quiets customer alerts until you're next in a capital city, until you reload, until you log out, or always (turns the finder off; Turn alerts back on or /fl customers on brings it back). Requests are still listed while it's quiet. /fl customers on and off.
 - Search boxes for Settings and Help: type two letters or more to see every setting or help entry that mentions it.
 - Buy queue: Spend at most, a box at the bottom of the panel that caps what the queue spends each auction house visit (no limit until you type one), with what's left beside it. Settings, Auction house: Buy queue: always keep, to never spend below a set amount of gold.

@@ -258,6 +258,8 @@ setView = function(view)
     local h = main.views.help
     if h and h.search then h.search:SetText("") end
   end
+  -- The Ledger opens on All each time (owner's test, October 3), like Help and Settings.
+  if view == "ledger" and ns.db and ns.db.settings.ledger then ns.db.settings.ledger.tab = "all" end
   if view == "settings" then
     ns.settingsSection, ns.settingsQuery = nil, nil
     local s = main.views.settings

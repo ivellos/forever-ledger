@@ -2639,11 +2639,30 @@ function ns:OpenBuyQueueGently()
   showTab("queue")
 end
 
+-- A profession window open over the auction house: the panel joins its drawing layer
+-- if that's higher, so a click on either brings that one to the front (owner's test,
+-- October 3: the enchanting window stayed over the panel, clicked or not; bringing a
+-- window forward only works within its own layer).
+local LAYERS = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5, FULLSCREEN = 6, FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
+local function matchProfessionLayer()
+  if not (side and side:IsShown() and not side.floating) then return end
+  local pf = (ProfessionsFrame and ProfessionsFrame:IsShown() and ProfessionsFrame)
+    or (TradeSkillFrame and TradeSkillFrame:IsShown() and TradeSkillFrame)
+  if not pf then return end
+  local theirs = pf:GetFrameStrata()
+  if (LAYERS[theirs] or 0) > (LAYERS[side:GetFrameStrata()] or 0) then
+    side:SetFrameStrata(theirs)
+    ns:Debug("Buy queue panel: moved to the profession window's layer,", theirs)
+  end
+end
+ns:On("TRADE_SKILL_SHOW", function() C_Timer.After(0, matchProfessionLayer) end)
+
 function ns:ShowSidePanel(tab)
   ensureSide()
   place()
   if not side.floating then S().shown = true end
   side:Show()
+  matchProfessionLayer()
   side:Raise()
   showTab(tab or S().tab or "queue")
 end
