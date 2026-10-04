@@ -5,7 +5,7 @@ local _, ns = ...
 -- so copies tell each other. Each released copy says its version to your guild, and to
 -- your party or raid when you join one; a copy that hears a newer version says so in
 -- chat, once a session. Dev builds ("dev") never send, so testers don't spread one.
--- Its own prefix, separate from live sync (Sync.lua). Settings, Other: updateNotice.
+-- Its own prefix, separate from live sync (Sync.lua). Settings, Minimap and updates: updateNotice.
 ---------------------------------------------------------------------------
 local PREFIX = "FLedgerVer"
 local told = false          -- the notice is shown once a session

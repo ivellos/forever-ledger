@@ -28,6 +28,7 @@ ClassicItems.lua
 QuestItems.lua
 RecipesTab.lua
 Characters.lua
+Settings.lua
 UI.lua
 Help.lua
 Welcome.lua

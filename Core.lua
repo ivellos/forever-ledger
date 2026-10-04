@@ -41,6 +41,8 @@ local DEFAULTS = {
   dungeons = {},      -- [dungeon name] = { runs, secs, coin, drops = { [itemID] = runs it dropped in } } (Dungeons.lua)
   ledgerMonths = {},  -- ledger entries older than 30 days, as monthly totals per item: { { t = month start, c, k = "sale" | "buy" | "vsell" | "vbuy", id or n, q, a, cnt, mx } } (History.lua, kept a year)
   historySold2 = {},  -- [marketKey][itemID] = "day:bought:minutes:minutes|..." units that vanished though they couldn't have expired (sell speed, since October 2)
+  profiles = {},     -- settings profiles: [name] = { [setting] = value } (Settings.lua; "Default" is settings itself)
+  charProfile = {},  -- [charKey] = profile name; none = Default
   shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, sellGuard = true, watchResume = true, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
@@ -379,63 +381,55 @@ function ns:PrintPerf(reset)
 end
 
 ---------------------------------------------------------------------------
--- Settings per character (owner, October 4): a character can use its own settings
--- (Settings, "Just for this character"), say no tooltips on one, no customer finder on
--- another. Only the settings shown in Settings can differ, and not the shared ones
--- (ns.PER_CHAR_SETTINGS, from UI.lua: price and deal rules stay the same everywhere).
--- For such a character, ns.db.settings is a stand-in that reads its own value first and
--- the shared one otherwise, and writes its own settings to charSettings[charKey].values.
--- The shared table is put back before the game saves (PLAYER_LOGOUT), and is kept under
--- settingsAccount too in case that ever fails. Everyone else: nothing changes.
+-- Settings profiles (owner, October 4; like EllesmereUI's): each character uses a
+-- profile, "Default" to start. A profile holds only the settings that can differ per
+-- character (ns.PER_CHAR_SETTINGS, from Settings.lua); Global settings (price and deal
+-- rules) are the same for everyone and never in a profile.
+--   Default: those settings live in ns.db.settings itself, as they always have.
+--   Any other: ns.db.profiles[name] = { [setting] = value }, and charProfile[charKey] =
+--   name. For a character on one, ns.db.settings is a stand-in that reads the profile's
+--   value (or the setting's default) for per-character settings and the shared table for
+--   the rest, and writes the same way. The shared table is put back before the game
+--   saves (PLAYER_LOGOUT) and kept under settingsAccount too, in case that ever fails.
+-- Characters on Default (everyone who never makes a profile): nothing changes.
 ---------------------------------------------------------------------------
-local function ownSettings()
-  local all = ns.db and ns.db.charSettings
-  local c = all and all[ns.CharKey()]
-  return c and c.own and c or nil
-end
+ns.DEFAULT_PROFILE = "Default"
 
 function ns:PerCharSetting(key) return ns.PER_CHAR_SETTINGS and ns.PER_CHAR_SETTINGS[key] or false end
-function ns:UsingOwnSettings() return ownSettings() ~= nil end
+
+-- The profile a character uses (this one if no key).
+function ns:ProfileOf(charKey)
+  local name = ns.db and ns.db.charProfile and ns.db.charProfile[charKey or ns.CharKey()]
+  if name and ns.db.profiles[name] then return name end
+  return ns.DEFAULT_PROFILE
+end
 
 function ns:ApplyCharSettings()
   local db = ns.db
   ns.accountSettings = ns.accountSettings or db.settings
   local account = ns.accountSettings
-  db.charSettings = db.charSettings or {}
-  local c = ownSettings()
-  if not c then
+  local name = ns:ProfileOf()
+  if name == ns.DEFAULT_PROFILE then
     db.settings, db.settingsAccount = account, nil
     return
   end
-  c.values = c.values or {}
+  local values = db.profiles[name]
+  local defaults = ns.DEFAULT_SETTINGS or {}
   db.settingsAccount = account
   db.settings = setmetatable({}, {
     __index = function(_, k)
       if ns:PerCharSetting(k) then
-        local v = c.values[k]
+        local v = values[k]
         if v ~= nil then return v end
+        -- (A setting added after the profile was made starts at its default.)
+        if defaults[k] ~= nil then return defaults[k] end
       end
       return account[k]
     end,
     __newindex = function(_, k, v)
-      if ns:PerCharSetting(k) then c.values[k] = v else account[k] = v end
+      if ns:PerCharSetting(k) then values[k] = v else account[k] = v end
     end,
   })
-end
-
--- Turn this character's own settings on (starting as a copy of the shared ones) or off
--- (back to the shared ones; its own are kept in case it's turned on again).
-function ns:SetOwnSettings(on)
-  local all = ns.db.charSettings
-  local key = ns.CharKey()
-  all[key] = all[key] or {}
-  local c = all[key]
-  if on and not c.values then
-    c.values = {}
-    for k in pairs(ns.PER_CHAR_SETTINGS or {}) do c.values[k] = ns.accountSettings[k] end
-  end
-  c.own = on or nil
-  ns:ApplyCharSettings()
 end
 
 ns:On("PLAYER_LOGOUT", function()
@@ -471,6 +465,24 @@ ns:On("ADDON_LOADED", function(name)
   if ForeverLedgerDB.schema < 4 then
     if ForeverLedgerDB.settings then ForeverLedgerDB.settings.listKind = nil end
     ForeverLedgerDB.schema = 4
+  end
+  -- Schema 5: "Just for this character" (charSettings, one day in testing) becomes
+  -- settings profiles: a character that had its own settings gets a profile named after it.
+  if ForeverLedgerDB.schema < 5 then
+    local db = ForeverLedgerDB
+    db.profiles, db.charProfile = db.profiles or {}, db.charProfile or {}
+    for key, c in pairs(db.charSettings or {}) do
+      if type(c) == "table" and c.own and type(c.values) == "table" then
+        local who = db.chars and db.chars[key]
+        local name, n = (who and who.name) or key, 2
+        local base = name
+        while db.profiles[name] or name == "Default" do name = base .. " " .. n; n = n + 1 end
+        db.profiles[name] = c.values
+        db.charProfile[key] = name
+      end
+    end
+    db.charSettings = nil
+    db.schema = 5
   end
   -- Settings per character (below): while a character used its own, the shared settings
   -- were also kept under settingsAccount. If the game ever saved the stand-in instead of
@@ -571,6 +583,8 @@ end
 function ns:Import(text)
   local data, err = ns.Deserialize(text)
   if not data then return false, err end
+  if type(data) ~= "table" then return false, "That isn't a Forever Ledger export." end
+  if data.kind == "profile" then return false, "That's a settings profile: import it in Settings, Profiles." end
   local nChars, nPrices = ns:MergeData(data)
   return true, ("Imported %d characters and %d prices."):format(nChars, nPrices)
 end

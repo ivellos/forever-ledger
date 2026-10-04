@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Settings per character: tick "Just for this character" under the Settings sections and that character gets its own settings (a copy to start), for example no tooltips or no customer finder on one character. Price and deal rules stay shared and say "(all characters)".
+- Settings profiles: a set of settings characters can share (Settings, Profiles), for example no tooltips or no customer finder on one character. Each character uses one, Default to start. New, Rename, Reset to defaults and Delete; export a profile as text with the parts you tick, and import someone's. Global settings are never in a profile.
 - Bag value: a bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor) and the cheapest bag per slot right now (Settings, Tooltips).
 - What sold while you were away: opening the auction house says in chat what sold since you were last there and the gold it brings with deposits back (Settings, Auction house). Auctions that sold and were mailed while you were away now show under Sold too.
 
@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Ledger: once a log holds 10,000 entries, the oldest one now goes into its month's total instead of being dropped, so no copper goes missing.
 
 ### Changed
+- Settings has a sidebar like EllesmereUI's options: Global settings (the same for every character: auction house cut, safety margin, price source, flip and deal rules), Profiles, then a page per part of the addon, with tabs across the top. Search still finds any setting.
 - Deal and vendor flip alerts are remembered until you log out, so a `/reload` no longer announces them all again.
 
 ## [0.13.0] - 2026-10-04

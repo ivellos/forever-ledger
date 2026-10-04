@@ -15,7 +15,8 @@ ns.HELP = {
     { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it one line, with Shift for more." },
     { "Bags", "A bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor), and which bag is the cheapest per slot right now, so you buy the cheapest space first." },
     { "Search", "Settings and Help each have a search box above their list: type two letters or more to see everything that mentions it, from every section at once." },
-    { "Settings per character", "Tick Just for this character under the Settings sections and that character gets its own settings (a copy to start): say no tooltips on one, no customer finder on another. Price and deal rules stay the same everywhere and say (all characters)." },
+    { "Settings", "A sidebar like EllesmereUI's: Global settings first (the same for every character: the auction house cut, safety margin, price source and what counts as a flip or a deal), then Profiles, then a page per part of the addon, with tabs across the top for its parts." },
+    { "Profiles", "Settings, Profiles: a profile is a set of settings characters can share, say no tooltips on one character, no customer finder on another. Each character uses one (Default to start). New profile copies your settings now; Rename, Reset to defaults and Delete profile (click twice) work on the one this character uses. Export copies a profile as text with the parts you tick; Import makes a new profile from someone's text. Global settings are never in a profile." },
     { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button under the list of topics, or /fl welcome." },
     { "What's new", "After an update, chat lists what's new in that version, once. /fl new shows it again." },
   } },
@@ -42,7 +43,7 @@ ns.HELP = {
   } },
   { "Shuffles and vendor flips", {
     { "Shuffles", "Buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step." },
-    { "Vendor flips", "Things on the auction house for less than a vendor pays. They're in the Buy queue beside the auction house (its Vendor flips view); a full scan that finds some opens it if it's closed, and the flip watch chimes. Settings, Vendor flips sets the least profit worth your time, as a share of the vendor price and as an amount." },
+    { "Vendor flips", "Things on the auction house for less than a vendor pays. They're in the Buy queue beside the auction house (its Vendor flips view); a full scan that finds some opens it if it's closed, and the flip watch chimes. Settings, Global settings, Flips and deals sets the least profit worth your time, as a share of the vendor price and as an amount." },
     { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },
   { "Buy queue and lists", {
@@ -101,7 +102,7 @@ ns.HELP = {
     { "Export and import", "Export / import on the Characters tab, to copy everything across by hand (and Prices as text)." },
   } },
   { "Help and community", {
-    { "New versions", "When a guildmate or group member has a newer Forever Ledger, chat says so once a session, with where to update. Only the version number is shared (Settings, Other)." },
+    { "New versions", "When a guildmate or group member has a newer Forever Ledger, chat says so once a session, with where to update. Only the version number is shared (Settings, Minimap and updates)." },
     { "Discord", "discord.gg/WKsCtvupeC: updates, questions, and WoW Forever news." },
     { "Found a bug?", "Type /bug on the Discord and fill in the short form. Include /fl api output or the BugSack error if you can." },
     { "Have an idea?", "Type /feature on the Discord. You'll get updates in your post." },

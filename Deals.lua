@@ -331,7 +331,7 @@ function ns:RefreshDeals()
   if filtered > 0 then parts[#parts + 1] = ("%d filtered out"):format(filtered) end
   if newest then parts[#parts + 1] = "prices from " .. date("%H:%M", newest) end
   if #list > MAX_ROWS then parts[#parts + 1] = ("showing the first %d"):format(MAX_ROWS) end
-  f.summary:SetText(table.concat(parts, ", ") .. ". Rules in Settings, Deal alerts.")
+  f.summary:SetText(table.concat(parts, ", ") .. ". Rules in Settings, Global settings, Flips and deals.")
 end
 
 ns.RefreshDeals = ns.Timed("Deals tab", ns.RefreshDeals)
