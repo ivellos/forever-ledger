@@ -398,7 +398,7 @@ local SETTINGS = {
     help = "The Buy queue never takes your gold below this, so there's always enough for repairs, training or a mount. Type 100 for 100g. \"off\": it may spend all of it. (The most to spend each visit is on the Buy queue itself.)" },
   { sub = "Selling" },
   { key = "priceHelper", label = "Price helper on the Sell tab", kind = "check",
-    help = "Above the price box: the usual price and the cheapest now, and buttons to fill in just under the cheapest or the usual price. Says when the cheapest is well below usual." },
+    help = "Under the Create Auction button: the usual price and the cheapest now, and buttons to fill in 1 copper under the cheapest or the usual price. Says when the cheapest is well below usual." },
   { key = "sellGuard", label = "Stop posts below vendor price", kind = "check",
     help = "On the Sell tab, when a vendor would pay more than the auction house after its cut, Post is greyed out until you click Post anyway. Off: just the warning." },
   { key = "undercutAlerts", label = "Undercut alerts", kind = "check",

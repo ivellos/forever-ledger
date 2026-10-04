@@ -164,7 +164,7 @@ local function helperUpdate(h)
   if usual then parts[#parts + 1] = "Usual " .. ns.Money(usual) end
   if cheapest then parts[#parts + 1] = "cheapest now " .. ns.Money(cheapest) end
   local dumped = usual and cheapest and cheapest < usual * DUMP
-  h.text:SetText(table.concat(parts, "   ") .. (dumped and "   |cffffd100well below usual: you may do better waiting|r" or ""))
+  h.text:SetText(table.concat(parts, "   ") .. (dumped and "\n|cffffd100Well below usual: you may do better waiting.|r" or ""))
   h.under_b:SetText(h.under and ("Undercut " .. ns.MoneyPlain(h.under)) or "Undercut")
   h.under_b:SetEnabled(h.under ~= nil)
   h.under_b:SetWidth(h.under_b:GetFontString():GetStringWidth() + 16)
