@@ -899,3 +899,8 @@ function ns:RefreshSettings()
   end
   f.sf.UpdateScrollBar()
 end
+
+-- For the tests (tests/test_profiles.lua): the profile functions above are local, and
+-- the tests call them the way the Profiles page's buttons do.
+ns._test = { DEFS = DEFS, newProfile = newProfile, renameProfile = renameProfile, deleteProfile = deleteProfile,
+  resetProfile = resetProfile, exportProfile = exportProfile, importProfile = importProfile, useProfile = useProfile }
