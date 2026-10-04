@@ -185,23 +185,26 @@ local function helper(frame, name)
   local h = { frame = frame }
   helpers[frame] = h
   h.box = CreateFrame("Frame", nil, frame)
-  h.box:SetSize(320, 40)
-  -- Above the price box (its label sits to the left); the page has room there.
-  if input then h.box:SetPoint("BOTTOMLEFT", input, "TOPLEFT", -60, 4)
+  h.box:SetSize(320, 44)
+  -- Under the Post (Create Auction) button, centred, below where the sell protection
+  -- warning goes: above the price box it sat on Quantity and off the window's left
+  -- edge (owner's test, October 4); the empty space under Post has room.
+  local post = frame.PostButton
+  if post then h.box:SetPoint("TOP", post, "BOTTOM", 0, -40)
+  elseif input then h.box:SetPoint("TOPLEFT", input, "BOTTOMLEFT", 0, -8)
   else h.box:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -60) end
   h.box:SetFrameLevel(frame:GetFrameLevel() + 10)
-  h.under_b = T:Button(h.box, "Undercut", 90, function() setPrice(frame, h.under) end, 18)
-  h.under_b:SetPoint("BOTTOMLEFT", h.box, "BOTTOMLEFT", 0, 0)
-  -- Above the buttons, growing upwards to a second line: on one line the "well below
-  -- usual" warning was cut off after the two prices.
   h.text = T:Text(h.box, 10, T.dim)
-  h.text:SetPoint("BOTTOMLEFT", h.under_b, "TOPLEFT", 0, 3)
+  h.text:SetPoint("TOP", h.box, "TOP", 0, 0)
   h.text:SetWidth(320)
-  h.text:SetJustifyH("LEFT")
+  h.text:SetJustifyH("CENTER")
   if h.text.SetMaxLines then h.text:SetMaxLines(2) end
+  -- The two buttons side by side under the text, centred.
+  h.under_b = T:Button(h.box, "Undercut", 90, function() setPrice(frame, h.under) end, 18)
+  h.under_b:SetPoint("BOTTOMRIGHT", h.box, "BOTTOM", -2, 0)
   h.under_b:GetFontString():SetFont(T.font, 10, "")
   h.usual_b = T:Button(h.box, "Usual", 90, function() setPrice(frame, h.usual) end, 18)
-  h.usual_b:SetPoint("LEFT", h.under_b, "RIGHT", 4, 0)
+  h.usual_b:SetPoint("BOTTOMLEFT", h.box, "BOTTOM", 2, 0)
   h.usual_b:GetFontString():SetFont(T.font, 10, "")
   for _, b in ipairs({ h.under_b, h.usual_b }) do
     b:HookScript("OnEnter", function(self)
