@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - Price helper on the Sell tab: the usual price and the cheapest now above the price box, with Undercut and Usual buttons that fill the price in, and a note when the cheapest is well below usual. You still click Post.
 
+### Fixed
+- Price helper: on gear, Undercut and the cheapest now use your item's own version ("of the Monkey"), not the cheapest of any version.
+- Price helper: the "well below usual" note goes on a second line instead of being cut off.
+- Characters tab: a long professions line no longer runs into the Bags and bank buttons.
+- Characters tab: the class shows as a word ("Mage"), not in capitals.
+- Your auctions: a post that didn't go through no longer counts your next purchase or repair as its deposit.
+- Your auctions: auctions of the same item keep their places instead of swapping every few seconds.
+
 ## [0.12.0] - 2026-10-04
 
 ### Highlights

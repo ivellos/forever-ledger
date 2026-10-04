@@ -133,6 +133,15 @@ local function helperUpdate(h)
   if ns.db.settings.priceHelper == false or type(id) ~= "number" then h.box:Hide(); return end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   local cheapest = rec and not rec.none and rec.m
+  -- Gear: the cheapest of this version ("of the Monkey"), as Your auctions does; the
+  -- item's own cheapest can be another version's.
+  local okLink, link = false, nil
+  if cheapest and C_Item and C_Item.GetItemLink then okLink, link = pcall(C_Item.GetItemLink, loc) end
+  if okLink and type(link) == "string" and ns.VersionOfLink and ns.SuffixPrice then
+    local suffix = ns:VersionOfLink(id, link)
+    local m = suffix and ns:SuffixPrice(id, suffix)
+    if m and m > 0 then cheapest = m end
+  end
   local stats = ns.PriceStats and ns:PriceStats(id, "month")
   local usual = stats and stats.points >= 3 and math.floor(stats.usual)
   if not (cheapest or usual) then h.box:Hide(); return end
@@ -163,13 +172,15 @@ local function helper(frame, name)
   if input then h.box:SetPoint("BOTTOMLEFT", input, "TOPLEFT", -60, 4)
   else h.box:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -60) end
   h.box:SetFrameLevel(frame:GetFrameLevel() + 10)
+  h.under_b = T:Button(h.box, "Undercut", 90, function() setPrice(frame, h.under) end, 18)
+  h.under_b:SetPoint("BOTTOMLEFT", h.box, "BOTTOMLEFT", 0, 0)
+  -- Above the buttons, growing upwards to a second line: on one line the "well below
+  -- usual" warning was cut off after the two prices.
   h.text = T:Text(h.box, 10, T.dim)
-  h.text:SetPoint("TOPLEFT", 0, 0)
+  h.text:SetPoint("BOTTOMLEFT", h.under_b, "TOPLEFT", 0, 3)
   h.text:SetWidth(320)
   h.text:SetJustifyH("LEFT")
-  h.text:SetWordWrap(false)
-  h.under_b = T:Button(h.box, "Undercut", 90, function() setPrice(frame, h.under) end, 18)
-  h.under_b:SetPoint("TOPLEFT", h.text, "BOTTOMLEFT", 0, -3)
+  if h.text.SetMaxLines then h.text:SetMaxLines(2) end
   h.under_b:GetFontString():SetFont(T.font, 10, "")
   h.usual_b = T:Button(h.box, "Usual", 90, function() setPrice(frame, h.usual) end, 18)
   h.usual_b:SetPoint("LEFT", h.under_b, "RIGHT", 4, 0)
