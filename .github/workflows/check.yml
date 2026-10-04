@@ -1,6 +1,7 @@
 name: Check code
 
-# Runs on every push and pull request. Fails if any Lua file has a syntax error.
+# Runs on every push and pull request. Fails if any Lua file has a syntax error or a
+# test in tests/ fails.
 on:
   push:
     branches: ["**"]
@@ -22,6 +23,9 @@ jobs:
             echo "Checking $f"
             luac5.1 -p "$f"
           done
+
+      - name: Run the tests
+        run: lua5.1 tests/run.lua
 
       - name: Check the TOC lists every Lua file
         run: |
