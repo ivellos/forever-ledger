@@ -58,7 +58,7 @@ end)
 T.test("Export, then Import into a fresh database, gives the same data", function()
   local key = ns.MarketKey()
   ns.db.chars["Tester-Testrealm"] = { name = "Tester", realm = "Testrealm", class = "MAGE", level = 60, updated = 100,
-    profs = { Tailoring = { rank = 300, max = 300, recipes = { [1] = true } } } }
+    profs = { Tailoring = { rank = 300, max = 300, recipes = { [1] = { n = "Bolt of Linen Cloth", out = 2996, r = { { 2589, 2 } } } } } } }
   ns.db.prices[key] = { [2589] = { m = 12, a = 15, q = 40, t = 500, l = "12:10,14:40" }, [4306] = { none = true, t = 600 } }
   ns.db.vendorBuy[2320] = { p = 10, t = 700 }
   ns.db.vendorSell[2589] = 3

@@ -9,7 +9,8 @@ local S = require("stubs")
 local ADDON, ns = "ForeverLedger", {}
 
 -- The files to load, in the .toc's order, up to the last one the tests need.
-local LOAD = { "Core.lua", "Prices.lua", "Values.lua", "Crates.lua", "Sessions.lua" }
+local LOAD = { "Core.lua", "Prices.lua", "History.lua", "Inventory.lua", "Professions.lua", "Values.lua", "Crates.lua",
+  "Sessions.lua", "ShoppingLists.lua" }
 local wanted = {}
 for _, f in ipairs(LOAD) do wanted[f] = true end
 local order = {}
@@ -22,6 +23,10 @@ for _, file in ipairs(order) do
   local chunk = assert(loadfile(file))
   chunk(ADDON, ns)
 end
+
+-- ClassicItems.lua (the list of items that bind) is 17,000 lines the tests don't need:
+-- two made-up item IDs stand in as bound items (test_values.lua).
+ns.CLASSIC_BOUND = "99001,99002"
 
 -- ADDON_LOADED: saved data with defaults, then the addon's ready callbacks.
 ForeverLedgerDB = nil
@@ -91,10 +96,11 @@ function T.resetDB()
   for k in pairs(ns.db) do ns.db[k] = nil end
   for k, v in pairs(fresh) do ns.db[k] = v end
   S.money, S.now = 0, 1790000000
+  wipe(S.items); wipe(S.bags); wipe(S.bank)
 end
 
 -- The test files (listed here, so it runs the same on any system).
-local FILES = { "money", "export", "prices", "cut" }
+local FILES = { "money", "export", "prices", "cut", "lists", "values" }
 for _, name in ipairs(FILES) do
   local f = "tests/test_" .. name .. ".lua"
   current = f:match("test_(.-)%.lua$")
