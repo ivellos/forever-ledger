@@ -43,7 +43,8 @@ end
 local function chosenKeys()
   local want, keys = settings().char, {}
   for k in pairs(ns.db.chars) do
-    if want == "all" or want == k then keys[#keys + 1] = k end
+    -- All: this ruleset and faction only (CharacterOptions).
+    if (want == "all" and ns:SameMarketChar(k)) or want == k then keys[#keys + 1] = k end
   end
   table.sort(keys)
   return keys
@@ -392,14 +393,29 @@ end
 -- The character list for dropdowns (Dashboard, Ledger): All, then the character you're
 -- on, then the rest by name (owner, October 3: a button each didn't fit).
 function ns:CharacterOptions()
+  -- "All characters" is this ruleset and faction: gold on another ruleset is another
+  -- economy (owner's test, October 4: a PvP Orc's gold was in the totals). Characters
+  -- elsewhere come last, with their realm or faction, to look at on their own.
   local me = ns.CharKey()
-  local others = {}
-  for k in pairs(ns.db.chars) do if k ~= me then others[#others + 1] = k end end
+  local here, away = {}, {}
+  for k in pairs(ns.db.chars) do
+    if k ~= me then
+      if ns:SameMarketChar(k) then here[#here + 1] = k else away[#away + 1] = k end
+    end
+  end
   local function name(k) return (ns.db.chars[k] and ns.db.chars[k].name) or k end
-  table.sort(others, function(a, b) return name(a):lower() < name(b):lower() end)
-  local opts = { { value = "all", label = "All characters" } }
+  local function byName(a, b) return name(a):lower() < name(b):lower() end
+  table.sort(here, byName)
+  table.sort(away, byName)
+  local opts = { { value = "all", label = "All characters (this realm)" } }
   if ns.db.chars[me] then opts[#opts + 1] = { value = me, label = name(me) .. " (this one)" } end
-  for _, k in ipairs(others) do opts[#opts + 1] = { value = k, label = name(k) } end
+  for _, k in ipairs(here) do opts[#opts + 1] = { value = k, label = name(k) } end
+  local myRealm = GetRealmName and GetRealmName()
+  for _, k in ipairs(away) do
+    local c = ns.db.chars[k]
+    local where = (c.realm and c.realm ~= myRealm and c.realm) or c.faction or "elsewhere"
+    opts[#opts + 1] = { value = k, label = ("%s |cff888888(%s)|r"):format(name(k), where) }
+  end
   return opts
 end
 

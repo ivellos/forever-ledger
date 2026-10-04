@@ -532,7 +532,8 @@ function ns:RefreshLedger()
   -- Records for the filters
   local from = 0
   for _, r in ipairs(RANGES) do if r.key == s.range and r.secs then from = time() - r.secs end end
-  local function charOK(c) return s.char == "all" or c == s.char end
+  -- All: this ruleset and faction (Dashboard.lua CharacterOptions).
+  local function charOK(c) return (s.char == "all" and ns:SameMarketChar(c)) or c == s.char end
   local list = records(s.tab, from, charOK, (f.search:GetText() or ""):lower())
   f.list = list
 

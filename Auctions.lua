@@ -51,9 +51,21 @@ local function query(retry)
 end
 ns:On("OWNED_AUCTIONS_UPDATED", function() answered = GetTime() end)
 
--- What the cheapest one of this item costs now, from your scans: for gear, the same
--- version when the scan knows it. nil if not priced.
+-- Gear checked by Check prices: looked up by name like Search all, each version on its
+-- own (a plain item search finds nothing for gear: owner's test, October 4, the
+-- leggings went "not priced"). [itemID .. version] = { t, min } for your version.
+local gearChecked = {}
+local GEAR_FRESH = 1800
+local function gearKey(e)
+  local _, suffix = ns.ResolveItemVersion and ns:ResolveItemVersion(e.link or "")
+  return e.id .. "|" .. (suffix or ""), suffix
+end
+
+-- What the cheapest one of this item costs now: for gear, your version from Check
+-- prices if recent, else the version from the last full scan. nil if not priced.
 local function cheapestNow(e)
+  local g = e.link and gearChecked[(gearKey(e))]
+  if g and time() - g.t < GEAR_FRESH and g.min then return g.min, { t = g.t } end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
   if not rec or rec.none then return nil, rec end
   if e.link and ns.VersionOfLink and ns.SuffixPrice then
@@ -195,23 +207,43 @@ function ns:CheckMyAuctions()
   local m = mine()
   if not (m and #m.list > 0) then ns:Print("You have no auctions up on this character (or the list isn't loaded yet)."); return end
   if not ns:IsAHOpen() then ns:Print("Open the auction house first."); return end
-  local ids, seen = {}, {}
+  -- A list like a shopping list's: Search all looks up gear by name, each version
+  -- apart (yours: its "of the ..."), and the rest with an ordinary search.
+  local items, seen = {}, {}
   for _, e in ipairs(m.list) do
-    if not e.sold and not seen[e.id] then seen[e.id] = true; ids[#ids + 1] = e.id end
+    if not e.sold then
+      local key, suffix = gearKey(e)
+      if not seen[key] then
+        seen[key] = true
+        items[#items + 1] = { id = e.id, suffix = suffix, key = key, max = 0 }
+      end
+    end
   end
-  if #ids == 0 then ns:Print("Nothing to check: everything you listed has sold."); return end
-  if ns.Scan.active then
-    if ns.Scan.quiet then ns.Scan:Stop("Paused the flip watch's checks to check your auctions.")
-    else ns:Print("A scan is running: check your auctions when it's done."); return end
-  end
-  ns.Scan:StartList(ids, "your auctions")
+  if #items == 0 then ns:Print("Nothing to check: everything you listed has sold."); return end
+  ns.myAuctionCheck = { name = "your auctions", items = items, on = false }
+  ns:SearchAllList(ns.myAuctionCheck)
 end
+
+-- Gear results from that look-up (ShoppingLists.lua keeps them on the entries).
+ns:OnReady(function()
+  C_Timer.NewTicker(1, function()
+    local c = ns.myAuctionCheck
+    if not c then return end
+    for _, it in ipairs(c.items) do
+      if it.found and (not gearChecked[it.key] or gearChecked[it.key].t < it.found.t) then
+        gearChecked[it.key] = { t = it.found.t, min = it.found.min }
+        if refresh then refresh() end
+        checkAlerts()
+      end
+    end
+  end)
+end)
 
 ---------------------------------------------------------------------------
 -- The tab
 ---------------------------------------------------------------------------
 local ROW = 22
-local X = { name = 24, q = 200, each = 262, now = 324 }
+local X = { name = 24, q = 182, each = 238, now = 292 }   -- the status gets the rest (it was cut off)
 local VIEWS = { { "all", "All" }, { "up", "Up" }, { "undercut", "Undercut" }, { "sold", "Sold" } }
 local view = "all"
 local cancelState     -- nil, "asking" (first click, until asked = time), or "on" (each click cancels one)
@@ -269,7 +301,6 @@ local function getRow(i)
   r.now:SetPoint("RIGHT", r, "LEFT", X.now, 0)
   r.status = T:Text(r, 11)
   r.status:SetPoint("LEFT", X.now + 8, 0)
-  r.status:SetPoint("RIGHT", r, "RIGHT", -60, 0)
   r.status:SetJustifyH("LEFT")
   r.status:SetWordWrap(false)
   -- One auction: two clicks (the deposit is lost).
@@ -381,7 +412,10 @@ refresh = function()
       elseif now then r.status:SetText("|cff7fd39ccheapest|r")
       else r.status:SetText("|cff888888not priced|r") end
     end
-    r.cancel:SetShown(by ~= nil and e.a ~= nil and not pending[e.a])
+    local canCancel = by ~= nil and e.a ~= nil and not pending[e.a]
+    r.cancel:SetShown(canCancel)
+    -- The status runs to the edge, or up to the Cancel button.
+    r.status:SetPoint("RIGHT", r, "RIGHT", canCancel and -60 or -4, 0)
     r.cancel:SetText((e.a and armed[e.a] and GetTime() - armed[e.a] < 4) and "Sure?" or "Cancel")
     r:Show()
   end
