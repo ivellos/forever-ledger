@@ -96,31 +96,41 @@ end
 -- Ledger entries older than LOG_DAYS become one line per item, character and month:
 -- ledgerMonths = { { t = month start, c, k = "sale" | "buy" | "vsell" | "vbuy", id or n,
 -- q = quantity, a = copper, cnt = trades, mx = biggest single trade } }, kept a year.
+local function monthKey(e) return table.concat({ e.t, e.c or "?", e.k, e.id or e.n or "?" }, "|") end
+
+-- Add one ledger entry to its month's total (index: monthKey -> total, optional).
+local function foldEntry(e, kind, index)
+  local months = ns.db.ledgerMonths
+  local d = date("*t", e.t or 0)
+  local m = { t = time({ year = d.year, month = d.month, day = 1, hour = 12 }), c = e.c, k = kind,
+    id = e.id, n = (not e.id) and e.n or nil }
+  local k = monthKey(m)
+  local x = index and index[k]
+  if not index then
+    for _, y in ipairs(months) do if monthKey(y) == k then x = y; break end end
+  end
+  if not x then
+    x = m
+    x.q, x.a, x.cnt, x.mx = 0, 0, 0, 0
+    months[#months + 1] = x
+    if index then index[k] = x end
+  end
+  local amount = e.a or 0
+  x.q, x.a, x.cnt = x.q + (e.q or 1), x.a + amount, x.cnt + 1
+  if amount > x.mx then x.mx = amount end
+end
+
 local function foldLedger()
   local months = ns.db.ledgerMonths
   local index = {}
-  local function key(e) return table.concat({ e.t, e.c or "?", e.k, e.id or e.n or "?" }, "|") end
-  for _, m in ipairs(months) do index[key(m)] = m end
+  for _, m in ipairs(months) do index[monthKey(m)] = m end
   local cutoff = time() - LOG_DAYS * 86400
   local function fold(list, kindOf)
     local drop = 0
     while list[drop + 1] and (list[drop + 1].t or 0) < cutoff do
       drop = drop + 1
       local e = list[drop]
-      local d = date("*t", e.t or 0)
-      local m = { t = time({ year = d.year, month = d.month, day = 1, hour = 12 }), c = e.c, k = kindOf(e),
-        id = e.id, n = (not e.id) and e.n or nil }
-      local k = key(m)
-      local x = index[k]
-      if not x then
-        x = m
-        x.q, x.a, x.cnt, x.mx = 0, 0, 0, 0
-        months[#months + 1] = x
-        index[k] = x
-      end
-      local amount = e.a or 0
-      x.q, x.a, x.cnt = x.q + (e.q or 1), x.a + amount, x.cnt + 1
-      if amount > x.mx then x.mx = amount end
+      foldEntry(e, kindOf(e), index)
     end
     if drop > 0 then
       for i = 1, #list - drop do list[i] = list[i + drop] end
@@ -232,7 +242,14 @@ local function addLog(list, entry)
     return
   end
   list[#list + 1] = entry
-  while #list > LOG_SIZE do table.remove(list, 1) end
+  -- Over the cap, the oldest goes into its month's total rather than away (the tests
+  -- found it was dropped, losing its copper from the Ledger, PR #8, October 4).
+  while #list > LOG_SIZE do
+    local old = table.remove(list, 1)
+    local kind = (list == ns.db.sales and "sale") or (list == ns.db.purchases and "buy")
+      or (old.s == "sell" and "vsell" or "vbuy")
+    foldEntry(old, kind)
+  end
 end
 
 local function onMoney()

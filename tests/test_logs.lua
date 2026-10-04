@@ -57,11 +57,9 @@ T.test("A different price each: two entries", function()
   T.eq(#ns.db.vendorLog, 2)
 end)
 
--- History.lua:235 (addLog): past LOG_SIZE (10,000) entries the oldest goes, even when
--- it's inside the 30 days that are meant to be kept one by one, and it isn't folded into
--- the monthly totals: its copper is lost from the Ledger. A busy month (a vendor-flip
--- day can log hundreds of trades) could reach it.
-T.xfail("A full log doesn't lose an entry from the last 30 days", "LOG_SIZE drops it unfolded", function()
+-- Past LOG_SIZE (10,000) entries the oldest goes into its month's total (History.lua
+-- addLog; found by this test as a copper loss, fixed October 4).
+T.test("A full log doesn't lose an entry from the last 30 days", function()
   atVendor(159)
   local log = ns.db.vendorLog
   for i = 1, 10000 do log[i] = { t = NOW - 20 * 86400 + i * 60, c = ME, id = 100000 + i, q = 1, a = 1, s = "buy" } end
