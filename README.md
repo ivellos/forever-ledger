@@ -61,6 +61,12 @@
 
 ![The Forever Ledger window, Dashboard tab](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/dashboard.png)
 
+## What's coming
+
+![Forever Ledger roadmap, autumn 2026](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/branding/roadmap-autumn-2026.png)
+
+Plans, not promises: the full list is in the [roadmap](https://github.com/ivellos/forever-ledger/blob/main/ROADMAP.md), and ideas are welcome on our [Discord](https://discord.gg/WKsCtvupeC).
+
 ## Your data
 
 Forever Ledger keeps everything in its saved file on your own PC (`WTF\Account\...\SavedVariables\ForeverLedger.lua`). Nothing is sent to the author or anyone else.
