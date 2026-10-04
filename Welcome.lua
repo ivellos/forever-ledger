@@ -15,15 +15,33 @@ local STEPS = {
   { "Plan your shopping", "Shopping lists hold what you want to buy and the most you'd pay. Plan anywhere; they show beside the auction house when you get there.", "Open shopping lists", "lists" },
 }
 
-local card
+local card, shade
+
+-- Every button closes it (Magic, October 3: "Open shopping lists" opened behind it).
+local function close()
+  ns.db.settings.welcomeSeen = true
+  shade:Hide()   -- (the card is inside it)
+end
 
 local function build()
   local body = ns:MainBody()
   if not body then return end
-  card = CreateFrame("Frame", nil, body)
-  card:SetAllPoints()
+  -- A shade over the whole window under the title bar, tabs and bottom buttons too, so
+  -- nothing behind can be clicked until a button is (Magic, October 3). The title bar
+  -- stays usable: drag the window, or close it with x.
+  local win = body:GetParent()
+  shade = CreateFrame("Frame", nil, win)
+  shade:SetPoint("TOPLEFT", win, "TOPLEFT", 1, -30)
+  shade:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -1, 1)
+  shade:SetFrameLevel(body:GetFrameLevel() + 19)
+  shade:EnableMouse(true)
+  shade:EnableMouseWheel(true)
+  shade:SetScript("OnMouseWheel", function() end)
+  T:Fill(shade, { 0, 0, 0, 0.55 })
+  card = CreateFrame("Frame", nil, shade)
+  card:SetAllPoints(body)
   card:SetFrameLevel(body:GetFrameLevel() + 20)
-  card:EnableMouse(true)   -- the tab underneath can't be clicked through it
+  card:EnableMouse(true)
   T:Fill(card, { 0.06, 0.06, 0.07, 0.97 })
   T:Border(card)
 
@@ -54,10 +72,8 @@ local function build()
     if s[3] then
       local key = s[4]
       local b = T:Button(card, s[3], 140, function()
-        if key == "lists" then ns:ShowSidePanel("lists"); return end
-        ns.db.settings.welcomeSeen = true
-        card:Hide()
-        ns:ShowTab(key)
+        close()
+        if key == "lists" then ns:ShowSidePanel("lists") else ns:ShowTab(key) end
       end, 22)
       -- Right of the step's text (which stops 170 short of the edge), level with its heading.
       b:SetPoint("TOPLEFT", text, "TOPRIGHT", 12, 8)   -- a little below the heading (owner, October 3)
@@ -70,14 +86,14 @@ local function build()
     prev = anchor
   end
 
-  local got = T:Button(card, "Got it", 110, function()
-    ns.db.settings.welcomeSeen = true
-    card:Hide()
-  end, 26)
+  local got = T:Button(card, "Got it", 110, close, 26)
   got:SetPoint("BOTTOMRIGHT", -18, 16)
+  -- The main way out stands out (Magic, October 3), in the addon's accent colour like a
+  -- chosen tab, rather than teal, which means "scroll here" on the Buy queue.
+  got:SetSelected(true)
+  got:HookScript("OnLeave", function(self) self:SetSelected(true) end)
   local help = T:Button(card, "Open Help", 110, function()
-    ns.db.settings.welcomeSeen = true
-    card:Hide()
+    close()
     ns:ShowTab("help")
   end, 26)
   help:SetPoint("RIGHT", got, "LEFT", -8, 0)
@@ -90,7 +106,7 @@ end
 
 function ns:ShowWelcome()
   if not card then build() end
-  if card then card:Show() end
+  if card then shade:Show(); card:Show() end
 end
 
 ---------------------------------------------------------------------------

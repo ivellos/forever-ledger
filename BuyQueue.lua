@@ -186,6 +186,7 @@ local function throttled()
 end
 
 local search, prepare, updateBinding, rebuildNow
+local spendable, sortFlips
 
 -- The auction house keeps one item search at a time: when the queue looks up the next
 -- item, a page still showing the last one spins on "Searching..." for good (owner,
@@ -289,7 +290,7 @@ local function visitLeft()
   local lim = S().limit
   if lim and lim > 0 then return math.max(lim - Q.spent, 0) end
 end
-local function spendable()
+spendable = function()
   local cash = GetMoney() - (ns.db.settings.keepGold or 0)
   local left = visitLeft()
   if left then cash = math.min(cash, left) end
@@ -306,6 +307,24 @@ end
 local function heldWord(price)
   local by = heldBy(price)
   return by == "gold" and "can't afford" or "over limit"   -- short: the Profit column
+end
+
+-- Flips best first by the profit you can make with what you can spend right now, so
+-- buying always goes down the list from the best you can afford (Magic, October 3:
+-- after four buys, one said 8c and the next 10c but stayed below it). Re-sorted each
+-- time the queue picks its next item.
+sortFlips = function()
+  local list = Q.lanes and Q.lanes.flips
+  if not list or #list < 2 then return end
+  local cash = spendable()
+  for _, e in ipairs(list) do
+    local cost = math.max(e.cost or e.limit or 1, 1)
+    e.sortValue = ((e.worth or 0) - cost) * math.min(e.n or 1, math.floor(cash / cost))
+  end
+  table.sort(list, function(a, b)
+    if a.sortValue ~= b.sortValue then return a.sortValue > b.sortValue end
+    return (a.profit or 0) > (b.profit or 0)
+  end)
 end
 
 local function cantAfford(e)
@@ -337,6 +356,7 @@ function prepare()
   if GetTime() - (Q.built or 0) > REBUILD_EVERY then
     Q.lanes, Q.built = buildQueue(), GetTime()
   end
+  sortFlips()
   -- The first one that's cheap enough; waiting list items are only looked up when clicked.
   -- An empty section just waits: scrolling over it does nothing until something turns
   -- up (owner, October 2: "scroll there endlessly" while flips come and go).
@@ -2017,7 +2037,10 @@ local function listRow(i)
     GameTooltip:AddDoubleLine("Bags", tostring(bags), 0.8, 0.8, 0.8, 1, 1, 1)
     GameTooltip:AddDoubleLine("Bank", tostring(bank), 0.8, 0.8, 0.8, 1, 1, 1)
     local mail = ns:InTheMail(id)
-    if mail > 0 then GameTooltip:AddDoubleLine("In the mail (bought)", tostring(mail), 0.8, 0.8, 0.8, 1, 1, 1) end
+    if mail > 0 then
+      GameTooltip:AddDoubleLine("In the mail (bought)", tostring(mail), 0.8, 0.8, 0.8, 1, 1, 1)
+      GameTooltip:AddLine("Opening your mailbox checks this.", 0.6, 0.6, 0.6)
+    end
     for name, n in pairs(byAlt) do GameTooltip:AddDoubleLine(name, tostring(n), 0.8, 0.8, 0.8, 1, 1, 1) end
     if ns:BuyMode(currentList()) then
       GameTooltip:AddLine("This list is set to Buy this many: the column counts what's been bought since Buy again (auction house purchases, from the queue or by hand). Where you have them is shown above.", 0.6, 0.6, 0.6, true)
@@ -2528,6 +2551,7 @@ function rebuildNow()
   if not shown() then return end
   local before = Q.lanes
   Q.lanes, Q.built = buildQueue(), GetTime()
+  sortFlips()
   -- For checking (/fl debug): flips that left the list, and why (their saved price now).
   if ns.db.settings.debug and before and before.flips then
     local still = {}

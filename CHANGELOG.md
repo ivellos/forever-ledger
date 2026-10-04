@@ -16,12 +16,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Settings: tick boxes sit left of their name so the text uses the width; other controls line up on the right. Long sections have small headings (Buying, Selling, What tooltips show...), every tooltip part says what it shows, and choices and numbers say their default. It follows the window's size.
 - Sessions: Start a session is at the top of the Dashboard, and Ctrl-click on the minimap button starts or stops one. The tracker is smaller and cleaner: gold an hour in larger text, gold and loot under it; right-click folds it to one line.
 - Buy queue: the Shopping lists view glows purple and Vendor flips teal, so you can tell them apart at a glance. A flip's profit shows just what you can make with your gold and limit; the hover has the full amount. The new-flips count sits on the button's corner.
+- Buy queue: vendor flips are re-sorted each time it picks the next one, best first by the profit you can make with what you can spend now.
+- Welcome: it shades the whole window until you pick a button, every button closes it (Open shopping lists no longer opens behind it), and Got it stands out.
 - Tooltips: "avg of all 7" instead of "avg of cheapest 20" when 20 or fewer are listed.
 - Settings: small headings have a faint band; dropdown lists mark the default option. Help topics with long names are shorter (Auction house scans, Buy queue and lists, Two accounts).
 - Sessions: a session that loses gold shows a negative rate in red, not 0c an hour.
 - Dungeon runs: walking in and straight back out (under 2 minutes, nothing looted) isn't counted as a run; short times read "under a minute".
 
 ### Fixed
+- Shopping lists: Have could count items bought on the auction house as still in the mail long after you'd taken and used them (Have 20 with none). The count is per character now, follows your bags as they change, and opening the mailbox sets it to what's really there.
 - Search lists: the Checked, Listed and Cheapest headings ran into each other.
 - Shopping lists: a typed version ("of the boar") is saved as the game writes it ("of the Boar"), with a note if no full scan has seen that version; hovering it shows that version first and the others greyed.
 - Buy queue: a new flip of an item the queue had just finished with could take up to two minutes to show up.

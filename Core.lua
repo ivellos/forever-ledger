@@ -491,7 +491,7 @@ function ns:ApiReport()
     "C_AuctionHouse.SendSearchQuery", "C_AuctionHouse.ReplicateItems", "C_AuctionHouse.GetReplicateItemTimeLeft","C_AuctionHouse.GetCommoditySearchResultInfo",
     "C_AuctionHouse.GetItemSearchResultInfo", "C_MerchantFrame.GetItemInfo", "GetMerchantItemInfo",
     "TooltipDataProcessor.AddTooltipPostCall", "C_Item.GetItemInfo",
-    "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
+    "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "GetInboxItem", "GetInboxNumItems", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
     "BuyMerchantItem", "GetMerchantItemID", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
     "C_TradeSkillUI.CraftRecipe", "C_TradeSkillUI.OpenTradeSkill", "LOOT_ITEM_CREATED_SELF",
     "GetNumLootItems", "GetLootSlotInfo", "GetLootSlotLink", "GetLootSourceInfo", "C_Container.GetContainerNumSlots",

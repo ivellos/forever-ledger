@@ -338,33 +338,89 @@ end
 -- Crafted Light Shot bought, Have still 0). Each purchase is noted with what bags and
 -- bank held then; as they fill up (mail taken), the count goes down. Gone after 31 days
 -- (mail expires after 30).
--- ns.db.onTheWay[itemID] = { n = count, base = bags and bank when noted, t = time }
+-- Per character (Magic's test, October 3: "Have 20" with none; the count was shared by
+-- the whole account, and only went down if bags were seen going up, so potions taken
+-- and drunk before the list was looked at stayed "in the mail"). Now bag changes are
+-- checked as they happen, and opening the mailbox sets it to what's really there.
+-- ns.db.onTheWay[charKey][itemID] = { n = count, base = bags and bank when noted, t = time }
 local function bagsAndBank(id)
   local n = GetItemCount and GetItemCount(id, true)
   return n or 0
 end
 
+local function wayTable(create)
+  if not ns.db then return end
+  if not ns.db.onTheWay then
+    if not create then return end
+    ns.db.onTheWay = {}
+  end
+  local key = ns.CharKey()
+  local t = ns.db.onTheWay[key]
+  if not t and create then t = {}; ns.db.onTheWay[key] = t end
+  return t
+end
+
 function ns:NoteBoughtToMail(id, qty)
   if not (id and qty and qty > 0 and ns.db) then return end
-  ns.db.onTheWay = ns.db.onTheWay or {}
-  local w = ns.db.onTheWay[id] or { n = 0 }
+  local way = wayTable(true)
+  local w = way[id] or { n = 0 }
   local now = bagsAndBank(id)
   w.n, w.base, w.t = w.n + qty, w.base and math.min(w.base, now) or now, time()
-  ns.db.onTheWay[id] = w
+  way[id] = w
   ns:NoteListPurchase(id, qty)
 end
 
 function ns:InTheMail(id)
-  local all = ns.db and ns.db.onTheWay
-  local w = all and all[id]
+  local way = wayTable(false)
+  local w = way and way[id]
   if not w then return 0 end
-  if time() - (w.t or 0) > 31 * 86400 then all[id] = nil; return 0 end
+  if time() - (w.t or 0) > 31 * 86400 then way[id] = nil; return 0 end
   local now = bagsAndBank(id)
   if now > w.base then w.n = math.max(0, w.n - (now - w.base)) end
   w.base = now
-  if w.n <= 0 then all[id] = nil; return 0 end
+  if w.n <= 0 then way[id] = nil; return 0 end
   return w.n
 end
+
+-- Bags changed: take what came out of the mail off at once.
+ns:On("BAG_UPDATE_DELAYED", function()
+  local way = wayTable(false)
+  if not way then return end
+  for id in pairs(way) do ns:InTheMail(id) end
+end)
+
+-- The mailbox is open: what's really in it replaces the estimate.
+ns:On("MAIL_INBOX_UPDATE", function()
+  local way = wayTable(false)
+  if not (way and next(way) and GetInboxNumItems and GetInboxItem) then return end
+  local inbox = {}
+  local n = GetInboxNumItems() or 0
+  for i = 1, n do
+    for j = 1, (ATTACHMENTS_MAX_RECEIVE or 16) do
+      local ok, _, itemID, _, count = pcall(GetInboxItem, i, j)
+      if ok and itemID then inbox[itemID] = (inbox[itemID] or 0) + (count or 1) end
+    end
+  end
+  for id, w in pairs(way) do
+    w.n, w.base = inbox[id] or 0, bagsAndBank(id)
+    if w.n <= 0 then way[id] = nil end
+  end
+end)
+
+-- Saved before this: { [itemID] = ... } for the whole account. Moved to whoever logs in
+-- first; their next mailbox visit corrects it.
+ns:OnReady(function()
+  local all = ns.db.onTheWay
+  if not all then return end
+  local old
+  for k, v in pairs(all) do
+    if type(k) == "number" then old = old or {}; old[k] = v; all[k] = nil end
+  end
+  if old then
+    local way = wayTable(true)
+    for id, w in pairs(old) do if not way[id] then way[id] = w end end
+  end
+end)
 
 -- How many you have of an item on this character: bags, bank, and bought on the
 -- auction house but still in the mail.
