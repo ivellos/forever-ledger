@@ -5,64 +5,51 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-### Changed
-- Buy queue: Vendor flips and Shopping lists are two views you switch between at the top, one at a time, instead of sections stacked on each other; the view you're on is the one that buys. Each has its own buttons at the bottom (Watch flips, Full scan and Scan materials; or Search lists and Full scan). With Scroll to buy ticked, the area to scroll glows teal and a mouse-wheel sign lights up; the big button only shows when there's something to buy (Buy, Confirm), since the bottom row already has Watch flips. From Magic's suggestions.
-- Buy queue: a flip's profit is for what you can afford right now ("21c of 48c" when your gold only covers some of them), following your gold as you buy.
-- Flip alerts: a new flip you can't afford even one of doesn't chime or show on screen; chat says "Found a vendor flip: X, but you can't afford it yet".
-- Buy queue: the mouse sign is a proper mouse with a wheel and an up-and-down arrow, and the strip has a soft teal glow while Scroll to buy is on. New flips found while you're on another tab or the Shopping lists view show a teal count on the Buy queue tab and the Vendor flips button.
-- Disenchant finder: the bad and good roll are shown by default (Settings can hide them); "Worth per item, on average" says what the number is.
-- Price history (Ctrl): the range is of the typical price, so one odd cheap listing doesn't stretch it.
-- The import and export window: the text sits in a framed box under the instructions, with the addon's own scroll bar and a "Paste here" hint.
-- Settings: tick boxes sit left of their name so the text uses the width; other controls line up on the right. Long sections have small headings (Buying, Selling, What tooltips show...), every tooltip part says what it shows, and choices and numbers say their default. It follows the window's size.
-- Sessions: Start a session is at the top of the Dashboard, and Ctrl-click on the minimap button starts or stops one. The tracker is smaller and cleaner: gold an hour in larger text, gold and loot under it; right-click folds it to one line.
-- Buy queue: the Shopping lists view glows purple and Vendor flips teal, so you can tell them apart at a glance. A flip's profit shows just what you can make with your gold and limit; the hover has the full amount. The new-flips count sits on the button's corner.
-- Buy queue: vendor flips are re-sorted each time it picks the next one, best first by the profit you can make with what you can spend now.
-- Welcome: it shades the whole window until you pick a button, every button closes it (Open shopping lists no longer opens behind it), and Got it stands out.
-- Prices can be typed as 2 50 25 or 2.50.25 (gold silver copper) and 2 50 or 2.50 (gold silver), as well as 2g 50s 25c; a lone number is gold in every price box.
-- Sessions: gold an hour shows from 2 minutes in (one purchase swung it wildly before that); the tracker's hover and the end-of-session summary list gold by where it came from (auction sales, vendors, mail...); a session stopped with nothing in it isn't kept; short ones read "under a minute".
-- Search all: each row says "checking..." while it's looked up and "in line" until its turn, then when it was checked.
-- Have's hover lists only your characters on the same ruleset and faction (the same auction house).
-- Buy queue: the new-flips count has a dark ring so it sits on top of the button.
-- Tooltips: "avg of all 7" instead of "avg of cheapest 20" when 20 or fewer are listed.
-- Settings: small headings have a faint band; dropdown lists mark the default option. Help topics with long names are shorter (Auction house scans, Buy queue and lists, Two accounts).
-- Sessions: a session that loses gold shows a negative rate in red, not 0c an hour.
-- Dungeon runs: walking in and straight back out (under 2 minutes, nothing looted) isn't counted as a run; short times read "under a minute".
+## [0.11.0] - 2026-10-04
 
-### Fixed
-- Shopping lists: the Want box was too narrow to show more than about one digit, so a Want of 9999 (or 601) looked like 9 (or 2) while the Buy queue rightly bought for the real number. It now shows all four digits (Want goes up to 9999); the side panel is a little wider to make room. Up to set to off yourself stays off when you tick Buy from this list again.
-- Shopping lists: a big Up to price shows short in its box (12g 40s, 123g) and in full when you click in or hover, so it doesn't run out of the box.
-- Tooltips: price history's lowest ever seen counts today and what's listed now (it only counted finished days, so it could be higher than the current cheapest).
-- Buy queue: it could buy far more of a shopping list item than its Want (601 Strange Dust for a Want of 2). Before every purchase from a list it now checks how many the list itself still wants and never buys more. The Want box takes whole numbers only, and clicking in it selects what's there, so typing replaces it.
-- Shopping lists: adding an item that's already on a list with the price box empty no longer clears its Up to.
-- Shopping lists: the list menu drew under the Search/Buy buttons and the add box; dropdown menus and name suggestions stay on top now. Opened away from the auction house (from the welcome or the main window), the lists panel opens in front of the main window, not behind it.
-- Shopping lists: Have could count items bought on the auction house as still in the mail long after you'd taken and used them (Have 20 with none). The count is per character now, follows your bags as they change, and opening the mailbox sets it to what's really there.
-- Search lists: the Checked, Listed and Cheapest headings ran into each other.
-- Shopping lists: a typed version ("of the boar") is saved as the game writes it ("of the Boar"), with a note if no full scan has seen that version; hovering it shows that version first and the others greyed.
-- Buy queue: a new flip of an item the queue had just finished with could take up to two minutes to show up.
+### Highlights
+- **Shopping lists, simpler**: one kind of list with Search all and what you own; tick one box to buy from it
+- **Buy queue, clearer**: Vendor flips and Shopping lists views, a glow and mouse sign where to scroll, profit you can afford
+- **Spend at most**: cap what the Buy queue spends each auction house visit, or always keep some gold back
+- **Ledger, All in one**: every transaction in one list; select rows to see their total
+- **Sessions and dungeon runs**: a small tracker for gold an hour, and your runs and drops counted as you go
+- **Price history on Ctrl**: hold Ctrl over an item for its recent range, trend and lowest price
+- **Search Settings and Help**: type a word to find any setting or help entry
 
 ### Added
-- Ledger: an All view (now the first) with every transaction in one list: auction and vendor sales and purchases and other money (repairs, mail, loot, quests...), money in green and out in red, with a Type column. In every view, select rows (click, Shift-click, Ctrl-click or drag) to see their money in, out and net on the bottom line; hover a row for its details. Each view says what fills it when it's empty.
-- The Buy queue panel comes in front of other windows (a profession window over the auction house) when you click it; with a profession window open it joins that window's layer, so clicking either brings it to the front.
-- Ledger: opens on All each time you open the tab.
-- Customers window: a Silence button quiets customer alerts until you're next in a capital city, until you reload, until you log out, or always (turns the finder off; Turn alerts back on or /fl customers on brings it back). Requests are still listed while it's quiet. /fl customers on and off.
-- Search boxes for Settings and Help: type two letters or more to see every setting or help entry that mentions it.
-- Buy queue: Spend at most, a box at the bottom of the panel that caps what the queue spends each auction house visit (no limit until you type one), with what's left beside it. Settings, Auction house: Buy queue: always keep, to never spend below a set amount of gold.
-- Tooltips: hold Ctrl over an item for its price history: the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen.
-- A coin sound when one of your auctions sells (Settings, Auction house).
-- Disenchant finder: an optional bad roll and good roll next to the average when you hover a band (Settings, Auction house).
-- ForeverForge counts as an overlapping addon: with it installed, the auction price lines in tooltips and the sale sound are switched off once, with a message.
-- Sessions: /fl session start (or Start a session on the Dashboard) shows a small tracker that counts what your time is worth: gold in and out, what you loot (at the better of auction and vendor price, or vendor only) and gold per hour. Stopping it prints a summary and adds it to the Dashboard's sessions.
+- Shopping lists, simpler: every list has Search all, which looks for every item at once ("checking..." and "in line" while it runs), and shows when each was checked, how many are listed, the cheapest and what you own (Have: this character and your characters on the same ruleset and faction; hover for where). Click an item to look at it on the auction house.
+- Shopping lists: tick Buy from this list in the Buy queue to buy from a list. It adds Buy/Craft (a button only on items one of your recipes makes), Up to (the most you'll pay for one, filled with your usual price; off means don't buy) and Want (how many to buy, up to 9999); Have then reads 3 (20): bought for the list, then owned. Share / import is one button with two tabs; Buy again sits bottom right. The bottom line says about what buying the rest would cost.
+- Shopping lists: one version of a piece of gear ("Soldier's Armor of the Monkey", typed or shift-clicked) can go on a list; Search all looks up every version, and hovering an item lists each version's price, yours first.
+- Shopping lists: craft or buy. Hovering an item one of your recipes makes compares buying it with buying the materials to craft it, and says which is cheaper.
+- Buy queue: Spend at most, a box at the bottom of the panel that caps what the queue spends each auction house visit, with what's left beside it. Settings, Auction house: Buy queue: always keep, to never spend below a set amount of gold.
+- Ledger: an All view (opens first) with every transaction in one list: auction and vendor sales and purchases and other money (repairs, mail, loot, quests...), money in green and out in red. In every view, select rows (click, Shift-click, Ctrl-click or drag) to see their money in, out and net; hover a row for its details.
+- Sessions: Start a session (top of the Dashboard, Ctrl-click on the minimap button, or /fl session start) shows a small tracker: gold an hour, gold in and out, and what you loot. Right-click folds it to one line; hover or the end summary lists gold by where it came from. Sessions show on the Dashboard.
 - Dungeon runs: counted as you go (runs, time, coin and what dropped for you, per dungeon). /fl runs lists them, and item tooltips say how often something dropped for you.
-- Shopping lists, simpler: every list has Search all, which looks for every item at once, and shows when each was checked, how many are listed, the cheapest and what you own (Have: this character and your characters on the same ruleset and faction; hover for where). Click an item to look at it on the auction house. Tick **Buy from this list in the Buy queue** to add Want and Most each and let the Buy queue buy from it; the bottom line says about what buying the rest would cost.
-- Shopping lists, layout: Buy/Craft (a button only on items one of your recipes makes), Up to (the most you'll pay for one, the Buy queue's word for it; filled with your usual price when you tick Buy from this list or add an item, off means don't buy), Want, Have as 3 (20): bought for the list, then owned. Share and Import are one Share / import button at the top with two tabs; Buy again sits bottom right and Any price beside Search all. The hovers on Have and on Buy from this list are laid out in short sections.
-- Shopping lists: Want is always how many to buy, with 3/10 showing how many are bought; Keep this many is gone (Have shows what you own, so you can set Want yourself). On updating, what you already had counts as bought, so nothing extra gets bought; lists that craft things have buying paused once, with a message. Crate lists still count what you have. Imports never switch buying on.
-- Shopping lists: one version of a piece of gear ("Soldier's Armor of the Monkey", typed or shift-clicked) can go on a list; Search all looks up every version, and hovering an item lists each version's price.
-- Shopping lists: clicking an item searches for it on the auction house.
-- Shopping lists: craft or buy. On a Buy list, hovering an item one of your recipes makes compares buying the ones you're short of with buying the materials to craft them, and says which is cheaper.
+- Tooltips: hold Ctrl over an item for its price history: the range of its typical price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen.
+- Search boxes for Settings and Help: type two letters or more to see everything that mentions it.
+- Customers window: a Silence button quiets customer alerts until you're next in a capital city, until you reload, until you log out, or always. Requests are still listed while it's quiet. /fl customers on and off.
+- A coin sound when one of your auctions sells (Settings, Auction house).
+- Disenchant finder: the bad and the good roll beside the average when you hover a band ("Worth per item, on average").
+- ForeverForge counts as an overlapping addon: with it installed, the auction price lines in tooltips and the sale sound are switched off once, with a message.
 
 ### Changed
-- Tooltips: the ways under Worth to you start with what you'd do: "Sell on the auction house, after 5% cut" (was "Auction house, after 5% cut", which read like a price to buy at).
-- Settings: sections listed on the left, the chosen one's settings on the right, like the Help tab; choices with many options are dropdowns. Settings and Help open on their first section each time.
+- Buy queue: Vendor flips and Shopping lists are two views you switch between at the top; the one you're on is the one that buys, and each has its own buttons at the bottom (Watch flips, Full scan and Scan materials; or Search my lists and Full scan). With Scroll to buy ticked, the area to scroll glows (teal for flips, purple for lists) with a mouse sign. From Magic's suggestions.
+- Buy queue: a flip's profit is what you can make with your gold and limit right now, and flips are re-sorted best first each time it picks the next one. New flips you can't afford don't chime. New flips found while you look elsewhere show a count on the Buy queue tab and the Vendor flips button.
+- Buy queue: the panel is a little wider, and clicking it brings it (with the auction house) in front of other windows.
+- Settings: sections on the left, like Help; tick boxes left of their name, small headings in long sections, a line on every tooltip part, and defaults shown. Settings, Help and the Ledger open on their first view each time.
+- Welcome: shades the whole window until you pick a button, and every button closes it.
+- Tooltips: "Sell on the auction house, after 5% cut" (was "Auction house, after 5% cut"), and "avg of all 7" when 20 or fewer are listed.
+- Prices can be typed as 2 50 25 or 2.50.25 (gold silver copper) and 2 50 (gold silver) as well as 2g 50s 25c; a lone number is gold in every price box. Big prices show short in narrow boxes and in full when you click in or hover.
+- The import and export window: the text in a framed box under the instructions, with a "Paste here" hint.
+- Dungeon runs: walking in and straight back out isn't counted as a run.
+
+### Fixed
+- Buy queue: it could buy far more of a shopping list item than you meant (601 Strange Dust for what looked like a Want of 2): the Want box was too narrow to show more than one digit. It shows all four now, and before every purchase from a list the queue checks how many the list still wants and never buys more.
+- Shopping lists: Have could count purchases as still in the mail long after you'd used them. The count is per character, follows your bags, and opening the mailbox sets it to what's really there.
+- Shopping lists: the list menu and name suggestions drew under other buttons; the lists panel could open behind the main window.
+- Shopping lists: a typed version ("of the boar") is saved as the game writes it ("of the Boar"); adding an item already on a list with the price box empty no longer clears its price.
+- Buy queue: a new flip of an item the queue had just finished with could take up to two minutes to show up.
+- Price history's lowest ever seen could be above the current cheapest (it skipped today).
 
 ## [0.10.0] - 2026-10-03
 

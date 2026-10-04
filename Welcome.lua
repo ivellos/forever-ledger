@@ -115,15 +115,15 @@ end
 -- Highlights here and set the version (docs/RELEASING.md). /fl new shows them again.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.10.0",
+  version = "0.11.0",
   lines = {
-    "Welcome and Help: a short guide the first time, and Help by topic with common questions.",
-    "Sell protection: a warning before you post something for less than a vendor pays.",
-    "Quest items: tooltips list the quests that need an item, and say keep it if you'll need it.",
-    "Buy queue: scan buttons in the panel, the flip watch resumes, and what you can't afford stays listed.",
-    "Crates: send a crate's fill to a shopping list, for one crate or several.",
-    "Clearer screens: Auction, cheapest in tooltips, and characters picked from a dropdown.",
-    "Saved data stays small: old sales and prices are summed up by month and week.",
+    "Shopping lists, simpler: one kind of list with Search all and what you own; tick one box to buy from it.",
+    "Buy queue, clearer: Vendor flips and Shopping lists views, a glow where to scroll, profit you can afford.",
+    "Spend at most: cap what the Buy queue spends each visit, or always keep some gold back.",
+    "Ledger: every transaction in one list (All); select rows to see their total.",
+    "Sessions and dungeon runs: a small tracker for gold an hour, and your runs and drops counted.",
+    "Price history: hold Ctrl over an item for its recent range, trend and lowest price.",
+    "Search Settings and Help: type a word to find any setting or help entry.",
   },
 }
 
