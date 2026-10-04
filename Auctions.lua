@@ -87,6 +87,7 @@ local function eachPrice(info)
   return buy
 end
 
+local readOwnedSold = {}   -- what the last read found newly sold
 local function readOwned()
   if not (AH and AH.GetNumOwnedAuctions and AH.GetOwnedAuctionInfo) then return end
   local n = AH.GetNumOwnedAuctions() or 0
@@ -113,12 +114,25 @@ local function readOwned()
     end
   end
   -- Sold before and gone from the list now: its gold was sent to the mailbox.
+  -- Not sold before, gone now, with time still left on it when last seen: it sold while
+  -- you were away and its gold has gone to the mail already (it can't have expired yet,
+  -- and cancelling needs the auction house open, which updates this list).
+  local last = (mine() or {}).t or now
+  local newlySold = {}
+  for _, e in ipairs(list) do
+    if e.sold and not (before[e.a] and before[e.a].sold) then newlySold[#newlySold + 1] = e end
+  end
   for a, e in pairs(before) do
+    if not seen[a] and not e.sold and (e.left or 0) > (now - last) + 300 then
+      e.sold, e.mailed, e.soldAt = true, true, now
+      newlySold[#newlySold + 1] = e
+    end
     if not seen[a] and e.sold and now - (e.soldAt or now) < KEEP_SOLD_SECONDS then
       e.mailed = true
       list[#list + 1] = e
     end
   end
+  readOwnedSold = mine() and newlySold or {}   -- (nothing to compare with on the very first read)
   store()[ns.CharKey()] = { t = now, list = list, alerts = (mine() or {}).alerts }
 end
 
@@ -217,11 +231,31 @@ end
 
 local refresh   -- the tab's redraw
 
+-- Sold while you were away: one line the first time the list is read after opening the
+-- auction house (sales while you're there get the game's own message and the sale sound).
+local firstRead = false
+local function soldSummary(list)
+  if #list == 0 or ns.db.settings.soldSummary == false then return end
+  local names, total = {}, 0
+  for i, e in ipairs(list) do
+    if i <= 4 then names[#names + 1] = ("%s x%d"):format(ns.ItemName(e.id) or "?", e.q or 1) end
+    total = total + proceeds(e)
+  end
+  if #list > 4 then names[#names + 1] = ("and %d more"):format(#list - 4) end
+  ns:Print(("Sold since you were last here: %s. About %s with deposits back, in your mail or on the way (the Auctions tab, Sold)."):format(
+    table.concat(names, ", "), ns.Money(total)))
+end
+
 ns:On("OWNED_AUCTIONS_UPDATED", function()
   readOwned()
+  if firstRead then
+    firstRead = false
+    soldSummary(readOwnedSold)
+  end
   checkAlerts()
   if refresh then refresh() end
 end)
+ns:On("AUCTION_HOUSE_SHOW", function() firstRead = true end)
 -- A sale or a cancel changes the list: ask again.
 ns:On("AUCTION_CANCELED", function() C_Timer.After(0.5, query) end)
 ns:On("AUCTION_HOUSE_AUCTION_CREATED", function() C_Timer.After(0.5, query) end)

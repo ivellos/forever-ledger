@@ -407,6 +407,8 @@ local SETTINGS = {
     help = "A short alarm sound with each undercut alert." },
   { key = "saleSound", label = "Sound when an auction sells", kind = "check",
     help = "A coin sound when the game says a buyer was found for one of your auctions." },
+  { key = "soldSummary", label = "What sold while you were away", kind = "check",
+    help = "Opening the auction house: one line in chat with what sold since you were last there, and the gold it brings." },
   { sub = "Disenchant finder" },
   { key = "deRolls", label = "Show a bad and a good roll", kind = "check",
     help = "Besides the average, what a band's greens are worth on a bad roll and a good one (the least and the most a disenchant can give)." },

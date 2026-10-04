@@ -489,7 +489,18 @@ end
 ---------------------------------------------------------------------------
 local DEAL_RECENT = 600       -- only prices from the last 10 minutes
 local MIN_POINTS = 3          -- days of history needed for a usual price
-local alerted = {}            -- [kind .. itemID] = price already alerted this session
+-- What was already announced, kept until you log out (a /reload used to forget it,
+-- so every deal and flip chimed again: owner's test, October 4). Per auction house:
+-- ns.db.alertsSeen[marketKey] = { deals = { [kind .. itemID] = price }, flips = { [itemID] = cost } }.
+local function seen(kind)
+  ns.db.alertsSeen = ns.db.alertsSeen or {}
+  local m = ns.MarketKey()
+  ns.db.alertsSeen[m] = ns.db.alertsSeen[m] or { deals = {}, flips = {} }
+  return ns.db.alertsSeen[m][kind]
+end
+ns:On("PLAYER_ENTERING_WORLD", function(isLogin, isReload)
+  if isLogin == true and not isReload and ns.db then ns.db.alertsSeen = nil end
+end)
 
 ns.WINDOW_NAMES = {
   week = "the last week", month = "the last month", ["3months"] = "the last 3 months",
@@ -810,7 +821,6 @@ end
 -- as an item's price is saved (ns:CheckFlip, not only at the end of a 2-minute watch
 -- pass), and an item that stops being a flip is forgotten, so it alerts again if it
 -- comes back.
-local flipAlerted = {}          -- [itemID] = cost alerted, while it stays a flip
 local pendingFlips, flipTimer = {}, false
 
 -- Chime, screen message and chat for new vendor flips and below-usual-price deals.
@@ -863,6 +873,7 @@ end
 -- One item's price was just saved (watch pass or your own search): alert at once if
 -- it's a new vendor flip. Flips found within a second are announced together.
 function ns:CheckFlip(id)
+  local flipAlerted = seen("flips")
   local f = ns:VendorFlip(id)
   if not f then flipAlerted[id] = nil; return end
   if flipAlerted[id] and f.cost >= flipAlerted[id] then return end
@@ -884,6 +895,7 @@ end
 function ns:CheckDeals()
   ns:InvalidateValues(true)   -- the scan just changed prices
   if ns.RefreshDealsIfShown then ns:RefreshDealsIfShown() end
+  local flipAlerted, alerted = seen("flips"), seen("deals")
   local now, flips = time(), {}
   for id in pairs(ns.db.prices[ns.MarketKey()] or {}) do
     local f = ns:VendorFlip(id)

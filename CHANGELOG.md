@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- What sold while you were away: opening the auction house says in chat what sold since you were last there and the gold it brings with deposits back (Settings, Auction house). Auctions that sold and were mailed while you were away now show under Sold too.
+
+### Changed
+- Deal and vendor flip alerts are remembered until you log out, so a `/reload` no longer announces them all again.
+
 ## [0.13.0] - 2026-10-04
 
 ### Highlights
