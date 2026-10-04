@@ -13,3 +13,4 @@ All coins come from one drawing, so the three logos, the icon, the banner and th
 | `header-banner.png` | 600x120, transparent | Window header: the FL coin, "FOREVER LEDGER" in a gold serif, small-caps tagline "Gold-making for WoW Forever". Gold and parchment only, so it sits beside any accent colour. |
 | `header-banner-preview.png` | 680x600 | Preview only: the banner on near-black panels with 1px edges, next to teal, purple, red and blue accents. |
 | `roadmap-autumn-2026-dark.png` | 1920x1080 | The autumn roadmap with the same content and layout, restyled dark: flat near-black panels, gold dates, a bronze phase band, the parchment launch card framed in bronze. |
+| `roadmap-autumn-2026-new-coins.png` | 1920x1080 | The original autumn roadmap, unchanged except for the coins: logo A in place of the old trio. |
