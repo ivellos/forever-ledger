@@ -22,6 +22,7 @@ local PAGES = {
     desc = "The same for every character and profile: they decide what items are worth and what counts as a flip or a deal.",
     tabs = {
       { name = "Prices", rows = {
+        { sub = "How items are valued" },
         { key = "ahCut", label = "Auction house cut", kind = "number", suffix = "%", min = 0, max = 99, after = recalc,
           help = "Taken off every auction house sale in values and shuffles." },
         { key = "margin", label = "Safety margin", kind = "number", suffix = "%", min = 0, max = 99,
@@ -50,6 +51,7 @@ local PAGES = {
           help = "Deals tab: profit after the auction house cut, reselling at the usual price or under the next listing. \"off\" for no minimum." },
       } },
       { name = "Advanced", rows = {
+        { sub = "Testing" },
         { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
       } },
     } },
@@ -60,6 +62,7 @@ local PAGES = {
   { key = "appearance", title = "Appearance", icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
     desc = "How Forever Ledger's windows look. A change shows after a reload.",
     rows = {
+      { sub = "Theme and colour" },
       { key = "theme", label = "Theme", kind = "choice", after = function() ns:OfferReload() end, options = {
           { "clean", "FL Clean" }, { "default", "FL Default" }, { "gilded", "FL Gilded" } },
         help = "FL Clean: flat and quiet. FL Default: a bronze edge, gold titles, sections as cards, switches. FL Gilded: a bronze frame and gold serif titles. Looks based on WoW Forever's and Blizzard's own windows are coming." },
@@ -72,8 +75,10 @@ local PAGES = {
     desc = "Buying, selling and alerts at the auction house.",
     tabs = {
       { name = "Buying", rows = {
+        { sub = "Auction house window" },
         { key = "ahHighlight", label = "Mark good buys", kind = "check",
           help = "Listings at or below an item's buy limit get a green tint, bar and BUY badge." },
+        { sub = "Buy queue" },
         { key = "openFlips", label = "Open the Buy queue after a full scan", kind = "check",
           help = "When a full scan finds vendor flips and the Buy queue beside the auction house is closed, open it. The flip watch's quick checks only chime." },
         { key = "watchResume", label = "Resume the flip watch", kind = "check",
@@ -82,10 +87,12 @@ local PAGES = {
           help = "The Buy queue never takes your gold below this, so there's always enough for repairs, training or a mount. Type 100 for 100g. \"off\": it may spend all of it. (The most to spend each visit is on the Buy queue itself.)" },
       } },
       { name = "Selling", rows = {
+        { sub = "Sell tab" },
         { key = "priceHelper", label = "Price helper on the Sell tab", kind = "check",
           help = "Under the Create Auction button: the usual price and the cheapest now, and buttons to fill in 1 copper under the cheapest or the usual price. Says when the cheapest is well below usual." },
         { key = "sellGuard", label = "Stop posts below vendor price", kind = "check",
           help = "On the Sell tab, when a vendor would pay more than the auction house after its cut, Post is greyed out until you click Post anyway. Off: just the warning." },
+        { sub = "Your auctions" },
         { key = "undercutAlerts", label = "Undercut alerts", kind = "check",
           help = "When a scan finds one of your auctions undercut: a line in chat, once per price. The Auctions tab beside the auction house lists them all." },
         { key = "undercutSound", label = "  Sound with undercut alerts", kind = "check",
@@ -96,10 +103,12 @@ local PAGES = {
           help = "Opening the auction house: one line in chat with what sold since you were last there, and the gold it brings." },
       } },
       { name = "Alerts", rows = {
+        { sub = "New flips and deals" },
         { key = "dealSound", label = "Chime for new flips and deals", kind = "check", help = "Plays the raid warning sound when a scan finds new vendor flips or deals." },
         { key = "dealScreen", label = "Big message on screen", kind = "check", help = "Shows new flips and deals in large text at the top of the screen, where raid warnings go. Turn it off if it covers your windows; chat still lists them." },
       } },
       { name = "Disenchant finder", rows = {
+        { sub = "Rolls" },
         { key = "deRolls", label = "Show a bad and a good roll", kind = "check",
           help = "Besides the average, what a band's greens are worth on a bad roll and a good one (the least and the most a disenchant can give)." },
       } },
@@ -108,6 +117,7 @@ local PAGES = {
     desc = "What Forever Ledger adds to item tooltips.",
     tabs = {
       { name = "General", rows = {
+        { sub = "Size and detail" },
         { key = "tooltip", label = "Tooltip lines", kind = "check", help = "Forever Ledger's lines on item tooltips." },
         { key = "tipMode", label = "Tooltip size", kind = "choice", options = {
             { "full", "Everything" }, { "compact", "One line, Shift for more" } },
@@ -116,22 +126,24 @@ local PAGES = {
           help = "How many ways to use an item to list, best first." },
       } },
       { name = "What they show", rows = {
+        { sub = "Prices and worth" },
         { key = "tipPrice", label = "Auction and vendor prices", kind = "check",
           help = "The cheapest on the auction house (how many listed, how long ago), the average of the cheapest 20, and what a vendor sells it for." },
         { key = "tipHistory", label = "Price history while Ctrl is held", kind = "check",
           help = "Hold Ctrl over an item for the cheapest price over the last 14 days, which way it's heading, the usual price this month, how many are usually listed and the lowest price ever seen." },
         { key = "tipSpeed", label = "How fast it sells", kind = "check",
           help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by (and, in the first day, at least 3 sales)." },
+        { key = "tipWorth", label = "Worth to you", kind = "check",
+          help = "The best way to use the item (auction house, vendor, disenchanting or crafting it into something) and the next best few." },
+        { key = "tipBuy", label = "Buy at or below", kind = "check",
+          help = "The most worth paying for it, after your safety margin. Green when it's already cheaper." },
+        { sub = "Uses and quests" },
         { key = "tipQuest", label = "Quests that need it", kind = "check",
           help = "Quests that ask for the item (original Classic quests; Forever may have changed some), and \"keep it\" when this character will want it later." },
         { key = "tipQuestMine", label = "  Only quests this character still needs", kind = "check",
           help = "Leaves out quests this character has done, ones grey for its level, and other classes' quests. Off: all of them, marked (done), (too low) or (other class), handy when selling to others." },
         { key = "tipDrops", label = "Dungeon drops you've had", kind = "check",
           help = "\"Dropped for you: Deadmines, 2 in 14 runs\", from the dungeon runs Forever Ledger counts (/fl runs)." },
-        { key = "tipWorth", label = "Worth to you", kind = "check",
-          help = "The best way to use the item (auction house, vendor, disenchanting or crafting it into something) and the next best few." },
-        { key = "tipBuy", label = "Buy at or below", kind = "check",
-          help = "The most worth paying for it, after your safety margin. Green when it's already cheaper." },
         { key = "tipDisenchant", label = "Disenchants to", kind = "check",
           help = "What a green disenchants into, on average." },
         { key = "tipUsedBy", label = "Used by (your recipes)", kind = "check",
@@ -148,6 +160,7 @@ local PAGES = {
     desc = "Spotting people in chat who want what this character can do.",
     tabs = {
       { name = "General", rows = {
+        { sub = "Customer finder" },
         { key = "customers", label = "Customer finder", kind = "check",
           help = "Spot people in chat asking for what this character can do (LF enchanter, WTB an item you craft, Mage water)." },
         { key = "customerWindow", label = "Open the Customers window", kind = "check",
@@ -156,6 +169,7 @@ local PAGES = {
         { key = "customerChat", label = "Requests in chat too", kind = "check", help = "Also print each request in chat." },
       } },
       { name = "What to look for", rows = {
+        { sub = "Services" },
         { key = "svcCrafting", label = "Crafting", kind = "check", after = ads,
           help = "Requests for your professions and for items you craft, and the Advertise crafting button." },
         { key = "svcFood", label = "Mage food and water", kind = "check", after = ads,
@@ -171,6 +185,7 @@ local PAGES = {
   { key = "crates", title = "Waylaid Crates", icon = "Interface\\Icons\\INV_Crate_01",
     desc = "The Crates tab and the cheapest way to fill each crate.",
     rows = {
+      { sub = "Crates" },
       { key = "crates", label = "Waylaid Crates", kind = "check", after = function() ns:LayoutTabs() end,
         help = "The Crates tab and the \"cheapest fill\" tooltip line." },
     } },
@@ -179,6 +194,7 @@ local PAGES = {
   { key = "sessions", title = "Sessions", icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
     desc = "Counting what your play time earns.",
     rows = {
+      { sub = "Loot" },
       { key = "sessionValue", label = "Count loot at", kind = "choice", options = {
           { "best", "Best of auction and vendor" }, { "vendor", "Vendor only" } },
         help = "What a session counts each looted item as worth. Auction house prices are after the cut; items that bind when picked up always count at vendor price. Start a session with /fl session start or on the Dashboard." },
@@ -188,8 +204,10 @@ local PAGES = {
   { key = "other", title = "Minimap and updates", icon = "Interface\\Icons\\INV_Misc_Map_01",
     desc = "The minimap button and new version notices.",
     rows = {
+      { sub = "Minimap" },
       { key = "minimap", label = "Minimap button", kind = "check", after = function() ns:UpdateMinimapButton() end,
         help = "The Forever Ledger button on the minimap. /fl opens the window either way." },
+      { sub = "New versions" },
       { key = "updateNotice", label = "Tell me when a new version is out", kind = "check",
         help = "Forever Ledger hears it from guildmates and group members who have a newer version, and says so in chat once a session. It only shares the version number." },
     } },
@@ -508,20 +526,19 @@ local function makeSub(box, text)
   local r = { head = true }
   r.text = T:Text(box, 11)
   T:StyleHeading(r.text, text)
-  -- A faint band behind it; on Gilded a gold rule under it instead.
+  -- Plain, like the mockup (no band behind it); on Gilded a gold rule under it. The
+  -- band is an invisible frame to lay it out by.
   r.band = box:CreateTexture(nil, "BACKGROUND")
-  local c = T.theme.heading or T.accent
-  if T.theme.serif then
-    r.band:SetColorTexture(c[1], c[2], c[3], 0)
-    r.rule = box:CreateTexture(nil, "BORDER")
-    r.rule:SetColorTexture(c[1], c[2], c[3], 0.5)
-    r.rule:SetHeight(1)
-    r.rule:SetPoint("BOTTOMLEFT", r.band, "BOTTOMLEFT", 0, 0)
-    r.rule:SetPoint("BOTTOMRIGHT", r.band, "BOTTOMRIGHT", 0, 0)
-  else
-    r.band:SetColorTexture(c[1], c[2], c[3], 0.07)
-  end
+  r.band:SetColorTexture(0, 0, 0, 0)
   r.band:SetHeight(20)
+  if T.theme.serif then
+    local c = T.theme.heading or T.accent
+    r.rule = box:CreateTexture(nil, "BORDER")
+    r.rule:SetColorTexture(c[1], c[2], c[3], 0.45)
+    r.rule:SetHeight(1)
+    r.rule:SetPoint("BOTTOMLEFT", r.band, "BOTTOMLEFT", 8, -2)
+    r.rule:SetPoint("BOTTOMRIGHT", r.band, "BOTTOMRIGHT", -8, -2)
+  end
   return r
 end
 
@@ -536,10 +553,51 @@ local function rowMatches(r, q)
   return d and ((d.label or ""):lower():find(q, 1, true) or (d.help or ""):lower():find(q, 1, true)) and true or false
 end
 
+-- Cards (Default and Gilded): each group of settings, from its heading to the next, on a
+-- faint panel with an edge, drawn as textures on the page itself (a frame on top would
+-- cover the text).
+local function card(box, i)
+  box.cards = box.cards or {}
+  local c = box.cards[i]
+  if not c then
+    local e = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.07 }
+    c = { bg = box:CreateTexture(nil, "BACKGROUND", nil, -8) }
+    c.bg:SetColorTexture(1, 1, 1, 0.025)
+    for k = 1, 4 do
+      c[k] = box:CreateTexture(nil, "BORDER")
+      c[k]:SetColorTexture(e[1], e[2], e[3], e[4])
+    end
+    box.cards[i] = c
+  end
+  return c
+end
+
+local function placeCard(box, c, top, bottom, width)
+  local h, w = bottom - top, width - 4
+  c.bg:ClearAllPoints(); c.bg:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -top); c.bg:SetSize(w, h)
+  c[1]:ClearAllPoints(); c[1]:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -top); c[1]:SetSize(w, 1)
+  c[2]:ClearAllPoints(); c[2]:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -(bottom - 1)); c[2]:SetSize(w, 1)
+  c[3]:ClearAllPoints(); c[3]:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -top); c[3]:SetSize(1, h)
+  c[4]:ClearAllPoints(); c[4]:SetPoint("TOPLEFT", box, "TOPLEFT", width - 3, -top); c[4]:SetSize(1, h)
+  c.bg:Show(); for k = 1, 4 do c[k]:Show() end
+end
+
 -- Lay out one tab's rows from y; returns where it ended. Tick boxes sit left of their
--- name so the text has the width; other controls line up on the right.
-local function layoutRows(box, rows, width, y)
+-- name so the text has the width; other controls line up on the right. withCards: a
+-- card for each group (from a heading to the next).
+local function layoutRows(box, rows, width, y, withCards)
+  local used, groupTop, any = 0, nil, false
+  local function close()
+    if withCards and groupTop and any then
+      used = used + 1
+      placeCard(box, card(box, used), groupTop, y + 2, width)
+      y = y + 12
+    end
+    groupTop, any = nil, false
+  end
   for _, r in ipairs(rows) do
+    if r.head then close(); groupTop = y elseif not groupTop then groupTop = y end
+    if not r.head then any = true end
     if r.head then
       r.band:ClearAllPoints()
       r.band:SetPoint("TOPLEFT", box, "TOPLEFT", 4, -(y + 4))
@@ -572,6 +630,11 @@ local function layoutRows(box, rows, width, y)
       r.line:SetPoint("TOPLEFT", box, "TOPLEFT", 8, -(y - 4))
       r.line:SetWidth(width - 16)
     end
+  end
+  close()
+  for i = used + 1, #(box.cards or {}) do
+    local c = box.cards[i]
+    c.bg:Hide(); for k = 1, 4 do c[k]:Hide() end
   end
   return y
 end
@@ -781,9 +844,11 @@ function ns:BuildSettings(parent)
   f.nav:SetPoint("TOPLEFT")
   f.nav:SetPoint("BOTTOMLEFT")
   f.nav:SetWidth(NAV_W)
-  T:Fill(f.nav, { 1, 1, 1, 0.02 })
+  -- Gilded: a warm gold tint and a bronze edge, like the mockup.
+  local fr = T.theme.frame
+  T:Fill(f.nav, fr and { 0.91, 0.76, 0.48, 0.04 } or { 1, 1, 1, 0.02 })
   local edge = f.nav:CreateTexture(nil, "BORDER")
-  edge:SetColorTexture(1, 1, 1, 0.06)
+  if fr then edge:SetColorTexture(fr[1], fr[2], fr[3], 0.5) else edge:SetColorTexture(1, 1, 1, 0.06) end
   edge:SetPoint("TOPRIGHT")
   edge:SetPoint("BOTTOMRIGHT")
   edge:SetWidth(1)
@@ -866,7 +931,6 @@ function ns:BuildSettings(parent)
         end
         local box = CreateFrame("Frame", nil, content)
         box:Hide()
-        T:Card(box)   -- (Default and Gilded: each part of a page as a card)
         box.page, box.tabIndex, box.rows = p, i, {}
         box.headBand = box:CreateTexture(nil, "BACKGROUND")
         box.headBand:SetColorTexture(1, 1, 1, 0.05)
@@ -969,7 +1033,7 @@ function ns:RefreshSettings()
           by = by + box.rules:GetStringHeight() + 14
         end
       end
-      by = layoutRows(box, rows, width, by) + 10
+      by = layoutRows(box, rows, width, by, T.theme.cards) + 10
       box:SetHeight(by)
       y = y + by
     end

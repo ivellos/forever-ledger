@@ -160,7 +160,7 @@ function T:DecorateWindow(f, footerY, bar)
     under:SetPoint("BOTTOMRIGHT")
     under:SetHeight(1)
     local c = t.frame or T.accent
-    under:SetColorTexture(c[1], c[2], c[3], 0.35)
+    under:SetColorTexture(c[1], c[2], c[3], t.frame and 0.75 or 0.55)
   end
   if t.frame then
     for _, e in ipairs(f.borders or {}) do e:SetColorTexture(t.frame[1], t.frame[2], t.frame[3], 0.9) end
@@ -238,6 +238,12 @@ end
 local function buttonLook(b, hover)
   local c, a = T.button, T.accent
   local borderAlpha
+  if b.primary and not b.selected and not hover then
+    -- The main action (Full scan): accent edge and a faint accent tint, like the mockup.
+    b.bg:SetColorTexture(a[1] * 0.25 + c[1] * 0.75, a[2] * 0.25 + c[2] * 0.75, a[3] * 0.25 + c[3] * 0.75, 0.95)
+    for _, e in ipairs(b.borders) do e:SetColorTexture(a[1], a[2], a[3], 0.75) end
+    return
+  end
   if b.selected then
     b.bg:SetColorTexture(a[1] * 0.3, a[2] * 0.3, a[3] * 0.3, 0.95)
     borderAlpha = 1
@@ -265,6 +271,8 @@ function T:Button(parent, label, width, onClick, height, name)
   b:SetFontString(fs)
   b:SetText(label)
   function b:SetSelected(on) self.selected = on; buttonLook(self, false) end
+  -- The main action on a screen: accent edge and tint.
+  function b:SetPrimary(on) self.primary = on; buttonLook(self, false) end
   b:SetScript("OnEnter", function(self) if self:IsEnabled() then buttonLook(self, true) end end)
   b:SetScript("OnLeave", function(self) buttonLook(self, false) end)
   b:SetScript("OnDisable", function(self) self:GetFontString():SetAlpha(0.35) end)
@@ -419,7 +427,7 @@ end
 -- A tab: plain text, with an accent underline when selected.
 function T:Tab(parent, label, onClick)
   local b = CreateFrame("Button", nil, parent)
-  local fs = T:Text(b, 13, T.dim)
+  local fs = T:Text(b, 12, T.dim)   -- (12, lighter, like the mockup)
   fs:SetPoint("CENTER")
   b:SetFontString(fs)
   b:SetText(label)

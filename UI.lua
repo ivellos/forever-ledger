@@ -175,6 +175,7 @@ local function buildMain()
   -- Footer buttons. Scan buttons show on Dashboard and Characters.
   local full = T:Button(main, "Full scan", 140, function() ns.Scan:Start("full") end)
   full:SetPoint("BOTTOMLEFT", 12, 12)
+  full:SetPrimary(true)
   local scan = T:Button(main, "Scan materials", 120, function() ns.Scan:Start("watch") end)
   scan:SetPoint("LEFT", full, "RIGHT", 6, 0)
   -- One button for copying data across (owner's test, October 4: like the shopping
