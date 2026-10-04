@@ -202,6 +202,19 @@ function ns.CharKey()
   return key
 end
 
+-- Is a saved character on the same ruleset (realm name) and faction as the one you're
+-- playing: one who could mail you items or craft for you (owner, October 3: other
+-- rulesets' characters counted in Have, recipes and values). True when either side
+-- isn't known yet (old saved data, or the very start of a login).
+function ns:SameMarketChar(key)
+  local c = ns.db and ns.db.chars[key]
+  if not c then return true end
+  local realm, faction = GetRealmName and GetRealmName(), UnitFactionGroup and UnitFactionGroup("player")
+  if c.realm and realm and c.realm ~= realm then return false end
+  if c.faction and faction and c.faction ~= faction then return false end
+  return true
+end
+
 -- Forever is realmless: the "realm" is the ruleset, and each ruleset + faction is one auction house.
 -- While a neutral (goblin) auction house is open, its prices are kept apart, since in
 -- Classic it's a separate market shared with the other faction, with a 15% cut.

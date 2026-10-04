@@ -161,7 +161,7 @@ end
 
 -- Characters unticked in the Shuffles tab don't count for recipes or disenchanting.
 local function counts(charKey)
-  return not ns.db.settings.skipChars[charKey]
+  return not ns.db.settings.skipChars[charKey] and ns:SameMarketChar(charKey)
 end
 
 -- The highest Enchanting skill among counted characters, or nil if none enchant.

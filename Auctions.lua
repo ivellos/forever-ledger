@@ -34,14 +34,22 @@ local function mine() return store()[ns.CharKey()] end
 
 -- The game's own auctions list needs the auction house open; it answers with
 -- OWNED_AUCTIONS_UPDATED.
-local function query()
+-- The auction house answers one request at a time and can drop one sent while it's busy
+-- (opening it starts scans too): with no answer in 3 seconds, ask once more.
+local answered = 0
+local function query(retry)
   if not (AH and AH.QueryOwnedAuctions and ns:IsAHOpen()) then return end
   local sorts = {}
   if Enum and Enum.AuctionHouseSortOrder then
     sorts = { { sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false } }
   end
+  local asked = GetTime()
   pcall(AH.QueryOwnedAuctions, sorts)
+  if not retry then
+    C_Timer.After(3, function() if answered < asked then query(true) end end)
+  end
 end
+ns:On("OWNED_AUCTIONS_UPDATED", function() answered = GetTime() end)
 
 -- What the cheapest one of this item costs now, from your scans: for gear, the same
 -- version when the scan knows it. nil if not priced.

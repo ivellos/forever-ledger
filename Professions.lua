@@ -180,8 +180,9 @@ ns:On("TRADE_SKILL_DATA_SOURCE_CHANGED", queueCapture)
 ---------------------------------------------------------------------------
 function ns:BuildUsageIndex()
   local usage, byReagent = {}, {}
+  -- Only characters who could craft for you: same ruleset and faction (Core.lua).
   for key, c in pairs(ns.db.chars) do
-    for prof, p in pairs(c.profs or {}) do
+    for prof, p in pairs(ns:SameMarketChar(key) and c.profs or {}) do
       for recipeID, rec in pairs(p.recipes or {}) do
         for _, r in ipairs(rec.r or {}) do
           local id = r[1]
@@ -200,5 +201,7 @@ function ns:BuildUsageIndex()
 end
 
 ns:OnReady(function() ns:BuildUsageIndex() end)
+-- Again once the character's realm and faction are surely known (the index is per ruleset).
+ns:On("PLAYER_ENTERING_WORLD", function() ns:BuildUsageIndex() end)
 ns:On("PLAYER_ENTERING_WORLD", function() C_Timer.After(3, function() ns:ScanSkillLines() end) end)
 ns:On("SKILL_LINES_CHANGED", function() C_Timer.After(0.5, function() ns:ScanSkillLines() end) end)

@@ -480,8 +480,10 @@ local recipeCache, recipeCacheTime = nil, 0
 local function recipeIndex()
   if recipeCache and GetTime() - recipeCacheTime < 30 then return recipeCache end
   local idx = {}
-  for _, c in pairs(ns.db.chars or {}) do
-    for prof, p in pairs(c.profs or {}) do
+  -- Your characters who could craft it for you (same ruleset and faction) first; the
+  -- recipe book below still knows the rest.
+  for key, c in pairs(ns.db.chars or {}) do
+    for prof, p in pairs(ns:SameMarketChar(key) and c.profs or {}) do
       for _, rec in pairs(p.recipes or {}) do
         if rec.out and rec.r and #rec.r > 0 and not idx[rec.out] then
           idx[rec.out] = { r = rec.r, oq = rec.oq or 1, name = rec.n, prof = prof, who = c.name }

@@ -251,8 +251,9 @@ function ns:WatchList()
   end
   for _, id in ipairs(DEFAULT_WATCH) do add(id) end
   for id in pairs(ns.db.settings.watch) do add(id) end
-  for _, c in pairs(ns.db.chars) do
-    for _, p in pairs(c.profs or {}) do
+  -- (Recipes of characters on this ruleset and faction: their auction house is this one.)
+  for key, c in pairs(ns.db.chars) do
+    for _, p in pairs(ns:SameMarketChar(key) and c.profs or {}) do
       for _, rec in pairs(p.recipes or {}) do
         add(rec.out)
         for _, r in ipairs(rec.r or {}) do add(r[1]) end

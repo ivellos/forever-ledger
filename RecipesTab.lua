@@ -515,8 +515,9 @@ end
 
 local function knownBy(prof, recipeID)
   local names = {}
+  -- Characters who could craft it for you: same ruleset and faction (Core.lua).
   for key, c in pairs(ns.db.chars) do
-    local p = c.profs and c.profs[prof]
+    local p = ns:SameMarketChar(key) and c.profs and c.profs[prof]
     if p and p.recipes and p.recipes[recipeID] then names[#names + 1] = c.name or key end
   end
   table.sort(names)
@@ -536,8 +537,8 @@ end
 -- Highest skill any of your characters has in a profession.
 local function bestRank(prof)
   local best
-  for _, c in pairs(ns.db.chars) do
-    local p = c.profs and c.profs[prof]
+  for key, c in pairs(ns.db.chars) do
+    local p = ns:SameMarketChar(key) and c.profs and c.profs[prof]
     if p and p.rank then best = math.max(best or 0, p.rank) end
   end
   return best
