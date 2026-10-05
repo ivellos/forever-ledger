@@ -163,10 +163,10 @@ function ns:ShuffleToShoppingList(s, list, runs)
     local qty = (old and (old.qty or 1) or 0) + b.qty
     local completed = old and old.done and math.max(old.bought or 0, old.qty or 1)
     local e = ns:AddToShoppingList(list, b.id, nil, qty)
+    e.shuffles = e.shuffles or {}
+    e.shuffles[source.key] = { id = source.id, route = source.route, name = source.name, cap = b.max }
     if sourceOf(e) ~= "you" then
       e.src = "shuffle"
-      e.shuffles = e.shuffles or {}
-      e.shuffles[source.key] = { id = source.id, route = source.route, name = source.name, cap = b.max }
       shuffleLimit(e)
     end
     if completed then e.bought = completed end
@@ -632,7 +632,20 @@ end
 -- The most to pay for a material by default: its usual (typical) price from your scans,
 -- else the average of the cheapest listings. You can type your own on the list.
 -- Second value: true if you typed it, "any" for any price.
+-- The same unlimited-stock policy for explicit entries and generated materials.
+function ns:ListVendorPrice(id)
+  local price, rec = ns:GetVendorBuyPrice(id)
+  if rec and not rec.lim and price and price > 0 then return price end
+end
+
 function ns:MaterialLimit(list, id)
+  local vendor = ns:ListVendorPrice(id)
+  if vendor and ns.db.settings.vendorItemsAH then
+    -- Keep a deliberately typed off or lower ceiling; never overwrite stored prices.
+    local own = list.matMax and list.matMax[id]
+    if own == 0 then return nil, true end
+    return own and own > 0 and math.min(own, vendor) or vendor, "vendor"
+  end
   if list.anyPrice or (list.matMax and list.matMax[id] == -1) then return ns:AnyPriceLimit(id), "any" end
   if list.matMax and list.matMax[id] ~= nil then
     return list.matMax[id] > 0 and list.matMax[id] or nil, true
@@ -653,6 +666,12 @@ end
 -- The most to pay for an item on a list: what's in Up to, or the "any" cap. nil when
 -- it's "off": not bought. Second value "any" for any price.
 function ns:ItemLimit(list, e)
+  local vendor = ns:ListVendorPrice(e.id)
+  if vendor then
+    if not ns.db.settings.vendorItemsAH then return nil, "vendor" end
+    if sourceOf(e) == "you" and e.max == 0 then return nil, "vendor" end
+    return sourceOf(e) == "you" and (e.max or 0) > 0 and math.min(e.max, vendor) or vendor, "vendor"
+  end
   if list.anyPrice or e.max == -1 then return ns:AnyPriceLimit(e.id), "any" end
   if (e.max or 0) > 0 then return e.max end
 end
@@ -714,22 +733,49 @@ function ns:RefreshListPrices(list)
   local refreshed = {}
   if ns.InvalidateValues then ns:InvalidateValues(true) end
   for _, e in ipairs(list.items) do
-    if sourceOf(e) == "shuffle" then
+    if next(e.shuffles or {}) then
       for key, s in pairs(e.shuffles or {}) do
         if not refreshed[key] then refreshed[key] = ns:RefreshShuffleShoppingSource(s) end
-        s.cap = refreshed[key][e.id] or 0
+        local cap = refreshed[key][e.id] or 0
+        s.cap = cap
       end
-      shuffleLimit(e)
+      if sourceOf(e) == "shuffle" then shuffleLimit(e) end
     end
   end
   return n
 end
 
+-- The underlying automatic source remains available while a typed override wins.
+function ns:AutomaticListItemPrice(list, e)
+  local cap
+  for _, source in pairs(e.shuffles or {}) do cap = math.min(cap or math.huge, source.cap or 0) end
+  if cap ~= nil then return cap, "shuffle" end
+  return ns:UsualListPrice(list, e.id) or 0, "usual"
+end
+function ns:UseAutomaticListItemPrice(list, e)
+  -- Refresh retained routes first; a vanished route becomes off rather than another route.
+  ns:RefreshListPrices({ items = { e }, allowance = list.allowance, countHave = list.countHave, temp = list.temp, crateID = list.crateID })
+  e.max, e.src = ns:AutomaticListItemPrice(list, e)
+  e.offSet = nil
+  if e.src == "shuffle" then shuffleLimit(e) else e.usualAllowance = ns:ListAllowance(list) end
+end
+function ns:AutomaticListItemPriceText(list, e)
+  local value, source = ns:AutomaticListItemPrice(list, e)
+  return source == "shuffle" and ("shuffle " .. ns.Money(value))
+    or ("usual + %g%%: %s"):format(ns:ListAllowance(list), ns.Money(value))
+end
+
 function ns:ListPriceSourceText(list, e)
   local src = sourceOf(e)
-  if src == "you" then return "Set by you. This price is never changed automatically." end
+  if src == "you" then return "Set by you. This price is never changed automatically. Automatic: " .. ns:AutomaticListItemPriceText(list, e) .. ". Right-click Up to to use the automatic price." end
   if src == "shuffle" then
-    return "From shuffle: " .. (e.shuffleName or "unknown") .. ". Uses the route's buying cap; the lower cap when two shuffles use this item. Refreshed when added again or on Buy again."
+    local details = {}
+    for _, s in pairs(e.shuffles or {}) do
+      details[#details + 1] = ("%s: %s each (%s; main input %s)"):format(s.name or "shuffle", ns.Money(s.cap or 0),
+        s.id == e.id and "route cap" or "extra material cost", ns.ItemName(s.id))
+    end
+    table.sort(details)
+    return table.concat(details, "; ") .. ". From shuffle: " .. (e.shuffleName or "unknown") .. ". Uses the route's buying cap; the lower cap when two shuffles use this item. Refreshed when added again or on Buy again."
   end
   return ("Usual price + %g%% (this list's allowance). Refreshed when buying is switched on or on Buy again."):format(e.usualAllowance or ns:ListAllowance(list))
 end
@@ -836,7 +882,6 @@ function ns:ListMaterials(list)
   for _, mat in ipairs(order) do
     if need[mat] > 0 then
       local have = ns:HaveCount(mat)
-      local _, vrec = ns:GetVendorBuyPrice(mat)
       local limit, own = ns:MaterialLimit(list, mat)
       local bought = list.matBought and list.matBought[mat] or 0
       local buy = math.max(0, need[mat] - (buyMode and bought or have))
@@ -845,7 +890,7 @@ function ns:ListMaterials(list)
       if buy == 0 then list.matDone[mat] = true end
       if list.matDone[mat] then buy = 0 end
       out[#out + 1] = { id = mat, need = need[mat], have = have, bought = bought, buy = buy, done = list.matDone[mat],
-        vendor = vrec and not vrec.lim and vrec.p or nil, limit = limit, own = own }
+        vendor = ns:ListVendorPrice(mat), vendorAH = ns.db.settings.vendorItemsAH, limit = limit, own = own }
     end
   end
   return out, missing
@@ -875,7 +920,7 @@ function ns:ShoppingTargets()
         end
       end
       for _, m in ipairs((ns:ListMaterials(list))) do
-        if m.buy > 0 and not m.vendor and m.limit and not seen[m.id] then
+        if m.buy > 0 and (not m.vendor or m.vendorAH) and m.limit and not seen[m.id] then
           seen[m.id] = true
           out[#out + 1] = { id = m.id, limit = m.limit, any = m.own == "any", want = m.buy, list = list.name }
         end
@@ -1045,6 +1090,8 @@ function ns:SearchAllList(list)
   for _, e in ipairs(list.items) do
     if buying and e.mode == "craft" then
       -- (materials below)
+    elseif ns:ListVendorPrice(e.id) and not ns.db.settings.vendorItemsAH then
+      -- Buy unlimited-stock supplies from the vendor instead.
     elseif isGear(e.id) then
       r.gear[#r.gear + 1] = e
     elseif not seen[e.id] then
@@ -1054,7 +1101,7 @@ function ns:SearchAllList(list)
   end
   if buying then
     for _, m in ipairs((ns:ListMaterials(list))) do
-      if not m.vendor and not seen[m.id] then seen[m.id] = true; r.rest[#r.rest + 1] = m.id end
+      if (not m.vendor or m.vendorAH) and not seen[m.id] then seen[m.id] = true; r.rest[#r.rest + 1] = m.id end
     end
   end
   if #r.gear == 0 and #r.rest == 0 then ns:Print("Nothing on that list to look up."); return end
