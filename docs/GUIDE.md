@@ -57,6 +57,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 ## Shuffles and vendor flips
 
 - **Shuffles**: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step.
+- **Add to shopping list**: open a shuffle or vendor flip, pick a regular list or **New list**, choose how many crafts (or items), then **Add to shopping list**. Its purchases and price limits are added. Existing quantities increase, bought counts stay, and a lower limit you set is kept. A disenchant group uses its cheapest item. Crate lists and lists with **Any price** are left out. New lists start with buying off: check **Want** and **Up to** and tick **Buy from this list in the Buy queue** when ready.
 - **Vendor flips**: things on the auction house for less than a vendor pays. They're bought from the **Buy queue** beside the auction house (below): a full scan that finds some opens it if it's closed, and the flip watch chimes when a new one turns up. Settings, **Vendor flips** sets the least profit worth your time: a share of the vendor price (0% counts anything below it) and an amount each (say 10c). On the auction house, listings worth buying get a green bar and a **BUY** badge, and the line above the list says how many are still there (red "None left" once they've been bought).
 
 ## Buy queue and shopping lists

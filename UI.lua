@@ -826,7 +826,8 @@ local function fillDetail(d, s, width, noSteps)
   d.profit:SetPoint("TOPLEFT", 14, -h)
   d.profit:SetWidth(width - 28)
   d.profit:SetText(ns:ShuffleProfitLine(s))
-  d:SetHeight(h + 22)
+  local shoppingHeight = ns:ShuffleShoppingControls(d, s, width, h + 24)
+  d:SetHeight(h + 24 + shoppingHeight)
 end
 
 layoutShuffles = function()

@@ -51,6 +51,7 @@ ns.HELP = {
   } },
   { "Shuffles and vendor flips", {
     { "Shuffles", "Buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step." },
+    { "Add to shopping list", "Open a shuffle or vendor flip, pick a regular list or New list, choose how many crafts (or items), then Add to shopping list. Its purchases and price limits are added; an existing item keeps its bought count and any lower limit. A disenchant group uses its cheapest item. Crate lists and lists with Any price are left out. New lists start with buying off: check Want and Up to and tick Buy from this list when ready." },
     { "Vendor flips", "Things on the auction house for less than a vendor pays. They're in the Buy queue beside the auction house (its Vendor flips view); a full scan that finds some opens it if it's closed, and the flip watch chimes. Settings, Global settings, Flips and deals sets the least profit worth your time, as a share of the vendor price and as an amount." },
     { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },

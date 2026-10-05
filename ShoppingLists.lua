@@ -106,6 +106,49 @@ function ns:AddToShoppingList(list, id, max, qty, suffix)
   return e
 end
 
+-- Add a shuffle's planned purchases without resetting a list's progress or raising
+-- a price the player already set. Crate lists have different quantity rules.
+function ns:ShuffleToShoppingList(s, list, runs)
+  runs = tonumber(runs) or 1
+  if not s or runs ~= runs or runs == math.huge or runs < 1 or runs > 10000 or runs ~= math.floor(runs) then
+    return nil, "Choose a whole amount from 1 to 10000."
+  end
+  if list then
+    local exists = false
+    for _, l in ipairs(ns:ShoppingLists()) do if l == list then exists = true end end
+    if not exists then return nil, "That list was removed. Choose another one." end
+    if list.countHave or list.temp or list.crateID then return nil, "Choose a regular shopping list, or make a new one." end
+    if list.anyPrice then return nil, "Turn off Any price on that list, or make a new one, to keep the shuffle's limits." end
+  end
+  local buys = ns:ShuffleShoppingItems(s, runs)
+  if #buys == 0 then return nil, "No purchases found for this shuffle." end
+  -- Validate before creating or changing anything.
+  for _, b in ipairs(buys) do
+    if not b.max or b.max < 1 then return nil, "A buying limit is missing. Refresh shuffles, then try again." end
+    for _, e in ipairs(list and list.items or {}) do
+      if e.id == b.id and not e.suffix and e.mode == "craft" then
+        return nil, "This list crafts one of these materials. Choose another list, or make a new one."
+      end
+    end
+  end
+  list = list or ns:NewShoppingList(ns:ShuffleName(s))
+  for _, b in ipairs(buys) do
+    local old
+    for _, e in ipairs(list.items) do if e.id == b.id and not e.suffix then old = e; break end end
+    local max = old and old.max and old.max > 0 and math.min(old.max, b.max) or b.max
+    local qty = (old and (old.qty or 1) or 0) + b.qty
+    local completed = old and old.done and math.max(old.bought or 0, old.qty or 1)
+    local e = ns:AddToShoppingList(list, b.id, max, qty)
+    if completed then e.bought = completed end
+    e.done, e.offSet = nil, nil   -- explicit additional purchases; bought stays
+  end
+  for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i); break end end
+  ns:Print(("Added %d %s for %s to shopping list \"%s\". Check Want and Up to there; tick Buy from this list in the Buy queue when ready (/fl lists)."):format(
+    #buys, #buys == 1 and "item" or "items", ns:ShuffleName(s), list.name))
+  if ns.RefreshListsView then ns:RefreshListsView() end
+  return list
+end
+
 -- An entry's name, with its version if it has one.
 function ns:ListEntryName(e)
   local name = ns.ItemName(e.id) or ("item " .. e.id)
