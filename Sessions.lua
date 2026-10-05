@@ -32,7 +32,7 @@ function ns:LootValue(id)
   local vendor = ns:GetSellPrice(id) or 0
   if ns.db.settings.sessionValue == "vendor" or (ns.IsClassicBound and ns:IsClassicBound(id)) then return vendor end
   local price = ns:GetPrice(id)
-  local ah = price and math.floor(price * (1 - (ns.db.settings.ahCut or 5) / 100)) or 0
+  local ah = price and math.floor(price * (1 - ns:AHCut())) or 0
   return math.max(ah, vendor)
 end
 

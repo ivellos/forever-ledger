@@ -8,7 +8,13 @@ local _, ns = ...
 local MAX_STEPS = 4     -- crafts, disenchants and conversions in one chain
 local MIN_LISTED = 5    -- inside a chain, ignore auction house prices with fewer listings
 
-function ns:AHCut()
+-- The cut as a fraction: the setting at your faction's auction house, and 15% at a
+-- neutral one (owner's mail from Booty Bay, October 5: 4s 33c sold, cut 64c, 15% rounded
+-- down). neutral: true / false to ask about one; nil = the one open now.
+ns.NEUTRAL_CUT = 15
+function ns:AHCut(neutral)
+  if neutral == nil then neutral = ns.neutralAH end
+  if neutral then return ns.NEUTRAL_CUT / 100 end
   return (ns.db.settings.ahCut or 5) / 100
 end
 
@@ -391,7 +397,7 @@ end
 -- reads like a price to buy at (Magic, October 3: "Auction house, after 5% cut" in green
 -- looked like the buying price, next to "Auction, cheapest").
 function ns:OptionLabel(o)
-  if o.kind == "ah" then return ("Sell on the auction house, after %g%% cut"):format(ns.db.settings.ahCut or 5) end
+  if o.kind == "ah" then return ("Sell on the auction house, after %g%% cut"):format(ns:AHCut() * 100) end
   if o.kind == "vendor" then return "Sell to vendor" end
   if o.kind == "disenchant" then return "Disenchant" end
   local label = o.step .. ", " .. rest(o.next)

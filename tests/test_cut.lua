@@ -21,6 +21,16 @@ T.test("AHCut follows the setting", function()
   T.eq(ns:AHCut(), 0.05, "missing setting: 5%")
 end)
 
+T.test("A neutral auction house takes 15%, whatever the setting", function()
+  ns.db.settings.ahCut = 5
+  ns.neutralAH = true
+  T.eq(ns:AHCut(), 0.15, "at a neutral one")
+  ns.neutralAH = nil
+  T.eq(ns:AHCut(), 0.05, "back at your faction's")
+  T.eq(ns:AHCut(true), 0.15, "asked about a neutral one")
+  T.eq(math.floor(433 * (1 - ns:AHCut(true))), 433 - 64, "Booty Bay mail: 4s 33c, cut 64c")
+end)
+
 T.test("LootValue: the auction house after the cut", function()
   setup(1000, nil)
   T.eq(ns:LootValue(ID), 950)

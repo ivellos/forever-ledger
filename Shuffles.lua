@@ -602,7 +602,7 @@ local function judgeUsual(id, rec)
   local limit = ref * (1 - pct)
   if rec.m > limit then return end
 
-  local cut = (s.ahCut or 5) / 100
+  local cut = ns:AHCut()
   local resell = ref
   -- The next listing above the cheap ones: reselling today means pricing under it.
   local nextUp
@@ -778,7 +778,7 @@ function ns:DealExplain(d)
 
   L[#L + 1] = { head = "If you resell" }
   pair(d.nextUp and d.nextUp < d.worth and "Resell at (under the next listing)" or "Resell at (usual cheapest)", ns.Money(d.resell))
-  pair(("Profit each, after %g%% cut"):format(s.ahCut or 5), green(d.each))
+  pair(("Profit each, after %g%% cut"):format(ns:AHCut() * 100), green(d.each))
   if d.listed > 1 then pair(("Profit for all %d"):format(d.listed), green(d.total)) end
 
   L[#L + 1] = { head = "How sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) }

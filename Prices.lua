@@ -1084,7 +1084,10 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       end
       ns.db.lastFullScan = time()
       readingFull = false
-      if not ahOpen then ns.neutralAH = nil end
+      if not ahOpen and ns.neutralAH then
+        ns.neutralAH = nil
+        if ns.InvalidateValues then ns:InvalidateValues(true) end
+      end
       if mine then Scan.active = false end
       ns:UpdateScanStatus(n, n)
       local secs = math.floor(GetTime() - started + 0.5)
@@ -1112,7 +1115,10 @@ end)
 ns:On("AUCTION_HOUSE_SHOW", function()
   ahOpen = true
   local ok, neutral = pcall(ns.IsNeutralAuctioneer)
+  local was = ns.neutralAH
   ns.neutralAH = ok and neutral or nil
+  -- Another market and another cut (15% at a neutral one): work values out again.
+  if (was and true or false) ~= (ns.neutralAH and true or false) and ns.InvalidateValues then ns:InvalidateValues(true) end
   -- For checking which auction houses are neutral (/fl debug).
   ns:Debug("Auction house:", GetSubZoneText() or "?", "/", GetZoneText() or "?", "auctioneer faction:",
     tostring(UnitFactionGroup("npc")), ns.neutralAH and "neutral" or "faction")
@@ -1124,7 +1130,10 @@ end)
 ns:On("AUCTION_HOUSE_CLOSED", function()
   ahOpen = false
   -- A full scan still being read keeps its market until it's saved.
-  if not readingFull then ns.neutralAH = nil end
+  if not readingFull and ns.neutralAH then
+    ns.neutralAH = nil
+    if ns.InvalidateValues then ns:InvalidateValues(true) end
+  end
   if Scan.active then Scan:Stop("Auction house closed, so the scan stopped.") end
   ns:RefreshUI()   -- grey out the scan buttons
 end)

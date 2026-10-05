@@ -24,7 +24,7 @@ local PAGES = {
       { name = "Prices", rows = {
         { sub = "How items are valued" },
         { key = "ahCut", label = "Auction house cut", kind = "number", suffix = "%", min = 0, max = 99, after = recalc,
-          help = "Taken off every auction house sale in values and shuffles." },
+          help = "Taken off every auction house sale in values and shuffles, at your faction's auction house. Neutral ones (Booty Bay, Gadgetzan, Everlook) take 15%, counted by themselves." },
         { key = "margin", label = "Safety margin", kind = "number", suffix = "%", min = 0, max = 99,
           help = "Shuffles and \"buy at or below\" keep this much below an item's worth." },
         { key = "actionSeconds", label = "Seconds per craft", kind = "number", suffix = "seconds", min = 1, max = 60,
