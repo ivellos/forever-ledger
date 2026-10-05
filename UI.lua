@@ -524,8 +524,35 @@ buildTable = function()
     prev = b
   end
 
+  -- A line under the sub-tabs, setting them apart from the rest (owner's test, October 4).
+  f.subLine = f:CreateTexture(nil, "BORDER")
+  f.subLine:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4])
+  f.subLine:SetHeight(1)
+  f.subLine:SetPoint("TOPLEFT", 0, -30)
+  f.subLine:SetPoint("TOPRIGHT", 0, -30)
+
+  -- Whose recipes count: one dropdown with a tick box per character on this realm and
+  -- faction (owner's test, October 4: a row of boxes grows with every alt, and it listed
+  -- a character from another realm, whose recipes don't count anyway).
   f.charLabel = T:Text(f, 12, T.dim)
-  f.charLabel:SetText("Use recipes from:")
+  f.charLabel:SetText("Recipes from")
+  f.charBtn = T:Button(f, "", 220, function() f.charMenu:SetShown(not f.charMenu:IsShown()) end, 22)
+  f.charBtn:GetFontString():ClearAllPoints()
+  f.charBtn:GetFontString():SetPoint("LEFT", 8, 0)
+  f.charBtn:GetFontString():SetPoint("RIGHT", -18, 0)
+  f.charBtn:GetFontString():SetJustifyH("LEFT")
+  f.charBtn:GetFontString():SetWordWrap(false)
+  local arrow = T:Text(f.charBtn, 11, T.dim)
+  arrow:SetPoint("RIGHT", -6, 0)
+  arrow:SetText("v")
+  f.charMenu = CreateFrame("Frame", nil, f.charBtn)
+  f.charMenu:SetPoint("TOPLEFT", f.charBtn, "BOTTOMLEFT", 0, -2)
+  f.charMenu:SetFrameStrata("FULLSCREEN_DIALOG")
+  f.charMenu:EnableMouse(true)
+  T:Fill(f.charMenu, { 0.05, 0.05, 0.05, 0.98 })
+  T:Border(f.charMenu)
+  f.charMenu:Hide()
+  f.charBtn:HookScript("OnHide", function() f.charMenu:Hide() end)
 
   f.header = CreateFrame("Frame", nil, f)
   f.header:SetHeight(22)
@@ -540,11 +567,12 @@ end
 
 local function getBox(i)
   if not boxes[i] then
-    boxes[i] = T:Check(main.table, function(self)
+    boxes[i] = T:Check(main.table.charMenu, function(self)
       ns.db.settings.skipChars[self.charKey] = (not self:GetChecked()) or nil
       ns:InvalidateValues(true)
       ns:RefreshShuffles()
     end)
+    boxes[i]:SetHitRectInsets(0, -170, -3, -3)   -- the name ticks it too
   end
   return boxes[i]
 end
@@ -808,28 +836,34 @@ layoutShuffles = function()
     b:SetSelected(key == subtab)
   end
   f.charLabel:SetShown(not flips)
-  if flips then
-    for _, cb in ipairs(boxes) do cb:Hide() end
-  else
-    top = 34
+  f.charBtn:SetShown(not flips)
+  f.subLine:SetShown(not flips)
+  if not flips then
+    top = 38
     f.charLabel:ClearAllPoints()
-    f.charLabel:SetPoint("TOPLEFT", 4, -(top + 1))
-    local keys = sortedCharKeys()
-    local x, y = f.charLabel:GetStringWidth() + 16, top
+    f.charLabel:SetPoint("TOPLEFT", 4, -(top + 4))
+    f.charBtn:ClearAllPoints()
+    f.charBtn:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
+    -- This realm and faction only, you first.
+    local keys, on = {}, 0
+    for _, key in ipairs(sortedCharKeys()) do
+      if ns:SameMarketChar(key) then keys[#keys + 1] = key end
+    end
     for i, key in ipairs(keys) do
       local cb = getBox(i)
       cb.label:SetText(classColored(ns.db.chars[key]))
-      local w = 20 + cb.label:GetStringWidth() + 18
-      if x + w > width then x, y = 4, y + 22 end
       cb:ClearAllPoints()
-      cb:SetPoint("TOPLEFT", f, "TOPLEFT", x, -y)
+      cb:SetPoint("TOPLEFT", f.charMenu, "TOPLEFT", 10, -(8 + (i - 1) * 22))
       cb:SetChecked(not ns.db.settings.skipChars[key])
       cb.charKey = key
       cb:Show()
-      x = x + w
+      if cb:GetChecked() then on = on + 1 end
     end
     for i = #keys + 1, #boxes do boxes[i]:Hide() end
-    top = y + 26
+    f.charMenu:SetSize(220, 12 + #keys * 22)
+    f.charBtn:SetText(on == #keys and ("All %d characters"):format(#keys)
+      or (on == 0 and "|cffee8597No characters|r" or ("%d of %d characters"):format(on, #keys)))
+    top = top + 32
   end
 
   -- Header

@@ -15,6 +15,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Ledger: once a log holds 10,000 entries, the oldest one now goes into its month's total instead of being dropped, so no copper goes missing.
 
 ### Changed
+- Recipes tab: tabs for this character's professions only, each with a coin for its rank (gold Artisan, silver Expert, copper Journeyman), then Trainers; the rest under Other professions, starred when another of your characters on this realm has it.
+- Shuffles tab: Recipes from is a dropdown with a tick box per character (this realm and faction only), instead of a row of boxes; a line sets the sub-tabs apart.
 - Settings has a sidebar like EllesmereUI's options: Global settings (the same for every character: auction house cut, safety margin, price source, flip and deal rules), Profiles, then a page per part of the addon, with tabs across the top. Search still finds any setting.
 - Deal and vendor flip alerts are remembered until you log out, so a `/reload` no longer announces them all again.
 
@@ -44,6 +46,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The Work it window and its shuffle sessions: shopping lists and the Buy queue do its job now. Shuffles still list every step; finished shuffle sessions still show on the Dashboard. `/fl session` now just says how to start a session.
 
 ### Fixed
+- Settings: controls on the right no longer run past the edge of their card.
+- Crates tab: the text at the top no longer runs into the column headings.
+- Dashboard: the Characters dropdown stays on one line with wider fonts.
 - Undercut reminders no longer chime again after a `/reload` (only after logging in, as meant).
 - Session tracker: "an hour: after 2 min" fits in the tracker.
 - Starting a session on another character says in one line what happened to the one left running.

@@ -610,7 +610,9 @@ local function layoutRows(box, rows, width, y, withCards)
       local check = r.def.kind == "check"
       local cw = check and 0 or r.control:GetWidth()
       local textX = (check and (20 + r.control:GetWidth()) or 12) + (r.indent or 0)   -- (a switch is wider than a tick box)
-      local textW = math.max(120, check and (width - textX - 12) or (width - cw - 36 - (r.indent or 0)))
+      -- (Right-hand controls end 12 pixels inside the edge; they ran past the card's edge:
+      -- owner's screenshots, October 4.)
+      local textW = math.max(120, check and (width - textX - 12) or (width - cw - 48 - (r.indent or 0)))
       r.label:ClearAllPoints()
       r.label:SetPoint("TOPLEFT", box, "TOPLEFT", textX, -(y + 5))
       r.label:SetWidth(textW)

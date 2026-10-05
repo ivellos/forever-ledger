@@ -333,17 +333,47 @@ local COLS = {
 local NUMERIC = {}   -- [key] = true for numbers, false for text; columns with a label only
 for _, c in ipairs(COLS) do if c.label ~= "" then NUMERIC[c.key] = c.num or false end end
 
+-- The tabs: this character's professions (main ones first, then secondary), then
+-- Trainers; every other profession with a recipe book goes in the "Other professions"
+-- dropdown, starred when another character on this realm and faction has it (owner's
+-- test, October 4: all professions as tabs was too many).
 local function professions()
-  local set = {}
-  for _, c in pairs(ns.db.chars) do
-    for p in pairs(c.profs or {}) do if ns.db.recipeBook[p] then set[p] = true end end
+  local me = ns.db.chars[ns.CharKey()]
+  local mine, others, seen = {}, {}, {}
+  for p in pairs((me and me.profs) or {}) do
+    if ns.db.recipeBook[p] then mine[#mine + 1] = p; seen[p] = true end
   end
-  for p in pairs(SECONDARY) do if ns.db.recipeBook[p] then set[p] = true end end
-  local list = {}
-  for p in pairs(set) do list[#list + 1] = p end
-  table.sort(list)
-  return list
+  table.sort(mine, function(a, b)
+    if (SECONDARY[a] or false) ~= (SECONDARY[b] or false) then return not SECONDARY[a] end
+    return a < b
+  end)
+  for p in pairs(ns.db.recipeBook) do
+    if not seen[p] then others[#others + 1] = p end
+  end
+  table.sort(others)
+  return mine, others
 end
+
+-- The rank of a profession by its skill cap, as a coin: gold Artisan (300), silver Expert
+-- (225), copper Journeyman (150), none for Apprentice (owner, October 4).
+local RANKS = { { 300, "Artisan", "Interface\\MoneyFrame\\UI-GoldIcon" }, { 225, "Expert", "Interface\\MoneyFrame\\UI-SilverIcon" },
+  { 150, "Journeyman", "Interface\\MoneyFrame\\UI-CopperIcon" }, { 0, "Apprentice" } }
+local function rankOf(max)
+  for _, r in ipairs(RANKS) do if (max or 0) >= r[1] then return r[2], r[3] end end
+end
+
+-- Who else on this realm and faction has a profession (first names), or nil.
+local function othersWith(prof)
+  local names = {}
+  for key, c in pairs(ns.db.chars) do
+    if key ~= ns.CharKey() and ns:SameMarketChar(key) and c.profs and c.profs[prof] then
+      names[#names + 1] = (c.name or key):match("^(%S+)") or c.name
+    end
+  end
+  table.sort(names)
+  return #names > 0 and table.concat(names, ", ") or nil
+end
+local STAR = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:12:12:0:0|t "
 
 StaticPopupDialogs["FOREVER_LEDGER_CLEAR_TYPES"] = {
   text = "Clear the types you set on %d recipes? They go back to automatic. This can't be undone.",
@@ -416,25 +446,65 @@ function ns:BuildRecipes(parent)
   return f
 end
 
--- Profession sub-tabs, plus a Trainers view per profession.
-local function layoutTabs(list)
-  local sig = table.concat(list, ",")
+-- Profession sub-tabs (with their rank coin), Trainers, and the Other professions dropdown.
+local function layoutTabs(list, others)
+  local me = ns.db.chars[ns.CharKey()] or { profs = {} }
+  me.profs = me.profs or {}
+  local sig = table.concat(list, ",") .. "|" .. table.concat(others, ",")
+  for _, p in ipairs(list) do sig = sig .. ":" .. tostring(me.profs[p] and me.profs[p].max) end
   if f.tabSig ~= sig then
     for _, b in pairs(f.tabs) do b:Hide() end
     f.tabs = {}
     local prev
-    local function add(key, label)
+    local function add(key, label, tip)
       local b = T:Tab(f, label, function() current = key; ns:RefreshRecipes() end)
       if prev then b:SetPoint("LEFT", prev, "RIGHT", 0, 0) else b:SetPoint("TOPLEFT", -6, 4) end
+      if tip then
+        b:HookScript("OnEnter", function(self)
+          GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+          GameTooltip:AddLine(tip, 1, 1, 1)
+          GameTooltip:Show()
+        end)
+        b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+      end
       f.tabs[key] = b
       prev = b
     end
-    for _, p in ipairs(list) do add(p, p) end
+    for _, p in ipairs(list) do
+      local info = me.profs[p]
+      local rank, icon = rankOf(info and info.max)
+      add(p, (icon and ("|T" .. icon .. ":12:12:0:0|t ") or "") .. p,
+        ("%s %s/%s, %s"):format(p, tostring(info and info.rank or "?"), tostring(info and info.max or "?"), rank))
+    end
     add("trainers", "Trainers")
+    -- Other professions: a dropdown after the tabs.
+    if not f.other then
+      f.other = T:Dropdown(f, 170, function(v) if v ~= "" then current = v; ns:RefreshRecipes() end end)
+      f.other:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine("Other professions", 1, 1, 1)
+        GameTooltip:AddLine("Professions this character doesn't have. A star: another of your characters on this realm and faction has it.", nil, nil, nil, true)
+        GameTooltip:Show()
+      end)
+      f.other:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    end
+    local opts = { { value = "", label = "Other professions" } }
+    for _, p in ipairs(others) do
+      local who = othersWith(p)
+      opts[#opts + 1] = { value = p, label = who and (STAR .. p .. "  |cff888888" .. who .. "|r") or p }
+    end
+    f.other:SetOptions(opts)
+    f.other:ClearAllPoints()
+    f.other:SetPoint("LEFT", prev, "RIGHT", 10, 0)
+    f.other:SetShown(#others > 0)
     f.tabSig = sig
   end
-  if not current or not f.tabs[current] then current = list[1] or "trainers" end
+  local isOther = false
+  for _, p in ipairs(others) do if p == current then isOther = true end end
+  if not current or not (f.tabs[current] or isOther) then current = list[1] or "trainers" end
   for key, b in pairs(f.tabs) do b:SetSelected(key == current) end
+  f.other:SetValue(isOther and current or "")
+  f.other:SetSelected(isOther)
 end
 
 local function layout(cols, width)
@@ -817,7 +887,7 @@ function ns:RefreshRecipes()
   f.show:SetValue(s.view)
   f.custom:SetChecked(s.custom)
   f.type:SetValue(s.type)
-  layoutTabs(professions())
+  layoutTabs(professions())   -- (mine, others)
   local trainers = current == "trainers"
   f.second:SetShown(not trainers)
 

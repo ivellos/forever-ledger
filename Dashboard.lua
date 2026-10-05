@@ -422,7 +422,7 @@ end
 
 local function charChoice(f)
   if not f.charChoice then
-    f.charChoice = T:Dropdown(f, 200, function(v) settings().char = v; ns:RefreshDashboard(f) end)
+    f.charChoice = T:Dropdown(f, 230, function(v) settings().char = v; ns:RefreshDashboard(f) end)
     f.charChoice:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
   end
   f.charChoice:SetOptions(ns:CharacterOptions())
@@ -471,7 +471,7 @@ function ns:RefreshDashboard(f)
   -- overlapped at the smallest window size).
   local room = f:GetWidth() - f.rangeChoice:GetWidth() - 12 - f.sessionBtn:GetWidth() - 12
     - (f.charLabel:GetStringWidth() + 2 + 10)
-  f.charChoice:SetWidth(math.max(110, math.min(200, room)))
+  f.charChoice:SetWidth(math.max(110, math.min(230, room)))
   f.sessionBtn:SetText(running and "Stop the session" or "Start a session")
   f.sessionBtn:SetSelected(running)
 
