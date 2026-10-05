@@ -629,6 +629,20 @@ local function navButton(p, indent)
   hl:SetColorTexture(1, 1, 1, 0.05)
   -- No icons (owner, October 4: the game's icons looked busy, and there will be many
   -- pages); the bar and the tint show the chosen one.
+  -- Global settings, Profiles and Appearance (above the groups) get a small icon so they
+  -- stand out (owner, October 4): greyed and tinted in the heading colour, a mark more
+  -- than a picture.
+  if p.icon and (indent or 14) < 20 then
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetSize(14, 14)
+    b.icon:SetPoint("LEFT", 12, 0)
+    b.icon:SetTexture(p.icon)
+    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    if b.icon.SetDesaturated then b.icon:SetDesaturated(true) end
+    local c = T.theme.heading or T.accent
+    b.icon:SetVertexColor(c[1], c[2], c[3], 0.9)
+    indent = 32
+  end
   b.text = T:Text(b, 12)
   b.text:SetPoint("LEFT", indent or 14, 0)
   b.text:SetJustifyH("LEFT")

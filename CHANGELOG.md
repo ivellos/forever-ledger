@@ -20,7 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Dashboard and Ledger: the character dropdown lists this realm only: all of your faction and its characters, then the other faction and its characters, then the whole realm.
 - Help: topics grouped in the sidebar like Settings (Gold making, Professions, Your gold, Other), and the longer topics split into named groups, each in a card.
 - Characters tab: professions in a card of their own, with the rank coin.
-- Recipes tab: the type filter is a dropdown, so the row fits with every font.
+- Recipes tab: the type filter is a dropdown, so the row fits with every font; a wider window widens Where from as well as the recipe names.
 - Settings: pages under a group heading are indented; Global settings, Profiles and Appearance have a small icon.
 - The main window is at least 880 wide (was 760), so every table fits, Recipes' Per craft column included.
 - Professions show a grey dot for Apprentice, next to the coins for the higher ranks.

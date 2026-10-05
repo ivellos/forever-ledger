@@ -322,10 +322,10 @@ local current     -- profession shown, or "Trainers:<profession>"
 
 -- num: sorts high to low first (text sorts A to Z first; Type in the usual group order).
 local COLS = {
-  { key = "name", label = "Recipe" },
+  { key = "name", label = "Recipe", w = 150, grow = 1 },
   { key = "skill", label = "Skill", w = 36, num = true },
   { key = "known", label = "Known by", w = 110 },
-  { key = "source", label = "Where from (hover for all)", w = 250 },
+  { key = "source", label = "Where from (hover for all)", w = 250, grow = 1 },
   { key = "type", label = "Type", w = 104 },
   { key = "profit", label = "Per craft", w = 80, num = true },
   { key = "pin", label = "", w = 36 },
@@ -510,12 +510,15 @@ local function layoutTabs(list, others)
   f.other:SetSelected(isOther)
 end
 
+-- Columns with grow share the room left over, so a wider window gives the recipe name
+-- and Where from more space (owner's test, October 4: only the names got wider).
 local function layout(cols, width)
-  local fixed = 0
-  for _, c in ipairs(cols) do fixed = fixed + (c.w or 0) + 8 end
+  local fixed, grow = 0, 0
+  for _, c in ipairs(cols) do fixed = fixed + (c.w or 150) + 8; grow = grow + (c.grow or 0) end
+  local extra = math.max(0, width - fixed - 4)
   local x, out = 4, {}
   for _, c in ipairs(cols) do
-    local w = c.w or math.max(150, width - fixed - 4)
+    local w = (c.w or 150) + (grow > 0 and c.grow and math.floor(extra * c.grow / grow) or 0)
     out[c.key] = { x = x, w = w }
     x = x + w + 8
   end
@@ -735,10 +738,10 @@ end
 
 -- The Trainers view has its own column widths (same keys, so rows can be shared).
 local TRAINER_COLS = {
-  { key = "name", label = "Trainer" },
+  { key = "name", label = "Trainer", w = 150, grow = 1 },
   { key = "skill", label = "", w = 0 },
   { key = "known", label = "Profession", w = 110 },
-  { key = "source", label = "Where", w = 240 },
+  { key = "source", label = "Where", w = 240, grow = 1 },
   { key = "type", label = "Tier", w = 90 },
   { key = "profit", label = "Title or note", w = 140 },   -- (330 + 230 ran off the window at its smallest: October 4)
   { key = "pin", label = "", w = 36 },
