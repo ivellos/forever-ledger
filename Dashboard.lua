@@ -247,21 +247,28 @@ local function drawGraph(g, pts, from, to, rangeKey)
       label:SetText(short(v))
     end
 
-    -- Filled columns and the line
-    local colW = math.max(1, plotW / #pts)
+    -- The fill and the line. One soft gold fill under the line (the mockup); the line
+    -- keeps the direction colours (owner, October 3). The fill is drawn strip by strip
+    -- between neighbouring points, so it starts and ends where the line does (owner's
+    -- test, October 4: it overhung both ends), in a solid colour (gold blended into the
+    -- background) so strips can overlap a pixel without seams.
+    local gold = T.theme.title or T.accent
+    local bg = T.bg
+    local fr, fgc, fb = bg[1] * 0.88 + gold[1] * 0.12, bg[2] * 0.88 + gold[2] * 0.12, bg[3] * 0.88 + gold[3] * 0.12
+    local lastI = 0
+    for i, p in ipairs(pts) do if p.v then lastI = i end end
     local prevX, prevY, prevV
     for i, p in ipairs(pts) do
       if p.v then
         local c = (prevV and p.v > prevV and UP) or (prevV and p.v < prevV and DOWN) or FLAT
         prevV = p.v
-        local col = nextCol()
-        -- One soft gold fill under the line (the mockup); the line keeps the direction
-        -- colours (owner, October 3).
-        local fill = T.theme.title or T.accent
-        col:SetColorTexture(fill[1], fill[2], fill[3], 0.10)
-        col:ClearAllPoints()
-        col:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x(i) - colW / 2, PAD_BOTTOM)
-        col:SetSize(colW, math.max(1, y(p.v) - PAD_BOTTOM))
+        if prevX then
+          local col = nextCol()
+          col:SetColorTexture(fr, fgc, fb, 1)
+          col:ClearAllPoints()
+          col:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", prevX, PAD_BOTTOM)
+          col:SetSize(math.max(1, x(i) - prevX + (i < lastI and 1 or 0)), math.max(1, math.min(prevY, y(p.v)) - PAD_BOTTOM))
+        end
         if prevX and g.CreateLine then
           local l = nextLine()
           l:SetColorTexture(c[1], c[2], c[3], 1)
