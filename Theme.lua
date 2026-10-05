@@ -176,15 +176,18 @@ local function cardTextures(page, i)
   return c
 end
 
-function T:PlaceCard(page, i, top, bottom, width)
-  if not T.theme.cards then return end
+-- left: pixels from the page's left edge (2 by default); always: draw it on Clean too
+-- (the Dashboard's tiles need their edges on every theme).
+function T:PlaceCard(page, i, top, bottom, width, left, always)
+  if not (T.theme.cards or always) then return end
   local c = cardTextures(page, i)
+  local x = left or 2
   local h, w = bottom - top, width - 4
-  c.bg:ClearAllPoints(); c.bg:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -top); c.bg:SetSize(w, h)
-  c[1]:ClearAllPoints(); c[1]:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -top); c[1]:SetSize(w, 1)
-  c[2]:ClearAllPoints(); c[2]:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -(bottom - 1)); c[2]:SetSize(w, 1)
-  c[3]:ClearAllPoints(); c[3]:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -top); c[3]:SetSize(1, h)
-  c[4]:ClearAllPoints(); c[4]:SetPoint("TOPLEFT", page, "TOPLEFT", width - 3, -top); c[4]:SetSize(1, h)
+  c.bg:ClearAllPoints(); c.bg:SetPoint("TOPLEFT", page, "TOPLEFT", x, -top); c.bg:SetSize(w, h)
+  c[1]:ClearAllPoints(); c[1]:SetPoint("TOPLEFT", page, "TOPLEFT", x, -top); c[1]:SetSize(w, 1)
+  c[2]:ClearAllPoints(); c[2]:SetPoint("TOPLEFT", page, "TOPLEFT", x, -(bottom - 1)); c[2]:SetSize(w, 1)
+  c[3]:ClearAllPoints(); c[3]:SetPoint("TOPLEFT", page, "TOPLEFT", x, -top); c[3]:SetSize(1, h)
+  c[4]:ClearAllPoints(); c[4]:SetPoint("TOPLEFT", page, "TOPLEFT", x + w - 1, -top); c[4]:SetSize(1, h)
   c.bg:Show(); for k = 1, 4 do c[k]:Show() end
 end
 

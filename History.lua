@@ -849,14 +849,6 @@ function ns:MoneyToday()
   return lines, net
 end
 
--- The first day anything was recorded, as text, or nil.
-function ns:RecordingSince()
-  local first
-  for _, hours in pairs(ns.db.gold) do
-    for h in pairs(hours) do if not first or h < first then first = h end end
-  end
-  return first and date("%B %d", first * 3600)
-end
 
 function ns:PrintMoney()
   local lines, net = ns:MoneyToday()
