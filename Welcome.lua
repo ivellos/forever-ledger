@@ -164,14 +164,19 @@ end
 ---------------------------------------------------------------------------
 -- What's new: after an update, chat lists the new version's highlights once (not on a
 -- first install, which gets the welcome). At each release, copy the changelog's
--- Highlights here and set the version (docs/RELEASING.md). /fl new shows them again.
+-- Highlights here and set the version (docs/RELEASING.md). /fl new and the What's new
+-- button show them as a card.
+-- Each line is "Name: text". Big ones are { "Name: text", icon = itemID }: their own
+-- card with the item's icon (owner, October 5: icons for the major things, something
+-- lesser for the rest). Plain lines go together in an "Also new" card, and
+-- { "Name: text", fix = true } in a "Fixes" card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
   version = "0.14.0",
   lines = {
-    "A new look: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. Settings, Appearance.",
-    "New Settings: a sidebar, Global settings for every character, and profiles your characters can share.",
-    "Dashboard redone: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.",
+    { "A new look: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. Settings, Appearance.", icon = 7971 },   -- Black Pearl
+    { "New Settings: a sidebar, Global settings for every character, and profiles your characters can share.", icon = 6219 },   -- Arclight Spanner
+    { "Dashboard redone: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.", icon = 3577 },   -- Gold Bar
     "Sessions list: every session in the Ledger, with where its gold came from.",
     "Sold while you were away: one chat line when you open the auction house.",
     "Auction house panel: the Buy queue lights up when there's something to buy, and the Disenchant finder picks item levels from a dropdown.",
@@ -179,9 +184,79 @@ ns.WHATS_NEW = {
   },
 }
 
+local function lineText(l) return type(l) == "table" and l[1] or l end
+local function split(l)
+  local s = lineText(l)
+  local name, text = s:match("^([^:]+):%s*(.+)$")
+  if not name then return s, "" end
+  return name, text
+end
+
+-- A major item: its own card, the item's icon in a thin frame, the name a little bigger.
+local function majorCard(c, y, W, l)
+  local name, text = split(l)
+  local edge = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.08 }
+  local row = CreateFrame("Frame", nil, c)
+  row:SetPoint("TOPLEFT", 18, -y)
+  row:SetWidth(W - 36)
+  T:Fill(row, { 1, 1, 1, 0.03 })
+  T:Border(row, edge)
+  local frame = CreateFrame("Frame", nil, row)
+  frame:SetSize(34, 34)
+  frame:SetPoint("TOPLEFT", 9, -8)
+  T:Border(frame, T.theme.frame and { T.theme.frame[1], T.theme.frame[2], T.theme.frame[3], 0.8 } or { 1, 1, 1, 0.18 })
+  local icon = frame:CreateTexture(nil, "ARTWORK")
+  icon:SetPoint("TOPLEFT", 1, -1)
+  icon:SetPoint("BOTTOMRIGHT", -1, 1)
+  icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  icon:SetTexture(ns.ItemIcon and ns:ItemIcon(l.icon) or "Interface\\Icons\\INV_Misc_QuestionMark")
+  local head = T:Text(row, 14)
+  head:SetPoint("TOPLEFT", 54, -8)
+  head:SetText(name)
+  local fs = T:Text(row, 12, T.dim)
+  fs:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -3)
+  fs:SetWidth(W - 36 - 54 - 14)
+  fs:SetJustifyH("LEFT")
+  fs:SetText(text)
+  local h = math.max(50, 8 + head:GetStringHeight() + 3 + fs:GetStringHeight() + 9)
+  row:SetHeight(h)
+  return h
+end
+
+-- The smaller ones together in one card under a small heading: a dot, the name, then
+-- its text on the same line.
+local function groupCard(c, y, W, title, list, dim)
+  local edge = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.08 }
+  local row = CreateFrame("Frame", nil, c)
+  row:SetPoint("TOPLEFT", 18, -y)
+  row:SetWidth(W - 36)
+  T:Fill(row, { 1, 1, 1, 0.025 })
+  T:Border(row, edge)
+  local head = T:Text(row, 11)
+  T:StyleHeading(head, title)
+  head:SetPoint("TOPLEFT", 12, -9)
+  local dotC = dim and { 0.6, 0.6, 0.6 } or (T.theme.heading or T.accent)
+  local top = 9 + head:GetStringHeight() + 7
+  for _, l in ipairs(list) do
+    local name, text = split(l)
+    local dot = row:CreateTexture(nil, "ARTWORK")
+    dot:SetSize(5, 5)
+    dot:SetPoint("TOPLEFT", 14, -(top + 5))
+    dot:SetColorTexture(dotC[1], dotC[2], dotC[3], 0.9)
+    local fs = T:Text(row, 12, T.dim)
+    fs:SetPoint("TOPLEFT", 28, -top)
+    fs:SetWidth(W - 36 - 28 - 14)
+    fs:SetJustifyH("LEFT")
+    fs:SetText(text ~= "" and ("|cffffffff" .. name .. "|r  " .. text) or name)
+    top = top + fs:GetStringHeight() + 5
+  end
+  local h = top + 4
+  row:SetHeight(h)
+  return h
+end
+
 -- What's new as a card over the main window, like the welcome (owner, October 5: a
 -- release notes button on Help and the Dashboard, then the same look as the welcome).
--- Each line's name (before the colon) over its text, in its own card.
 local news, newsShade
 local function buildNews()
   local body = ns:MainBody()
@@ -191,11 +266,18 @@ local function buildNews()
   local w = ns.WHATS_NEW
   local y = header(news, "What's new in " .. w.version,
     "The highlights of this version. Every change is in the changelog on CurseForge and Wago.")
+  local minor, fixes = {}, {}
   for _, l in ipairs(w.lines) do
-    local name, text = l:match("^([^:]+):%s*(.+)$")
-    if not name then name, text = l, "" end
-    y = y + itemCard(news, y, W, "+", name, text, nil, true) + 4
+    if type(l) == "table" and l.icon then
+      y = y + majorCard(news, y, W, l) + 6
+    elseif type(l) == "table" and l.fix then
+      fixes[#fixes + 1] = l
+    else
+      minor[#minor + 1] = l
+    end
   end
+  if #minor > 0 then y = y + groupCard(news, y, W, "Also new", minor) + 6 end
+  if #fixes > 0 then y = y + groupCard(news, y, W, "Fixes", fixes, true) + 6 end
   footer(news, "The Help tab explains every feature. /fl new shows this again.", {
     { "Open Help", function() newsShade:Hide(); ns:ShowTab("help") end },
     { "Close", function() newsShade:Hide() end },
@@ -213,7 +295,7 @@ end
 function ns:ShowWhatsNew()
   local w = ns.WHATS_NEW
   ns:Print(("What's new in %s:"):format(w.version))
-  for _, line in ipairs(w.lines) do print("  - " .. line) end
+  for _, line in ipairs(w.lines) do print("  - " .. lineText(line)) end
   print("  The Help tab explains everything; What's new there (or /fl new) shows this again.")
 end
 
