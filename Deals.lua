@@ -38,6 +38,10 @@ local NEUTRAL_COLUMNS = {
   { key = "lhere", label = "Here", width = 50, right = true },
 }
 local NEUTRAL_MIN = 0.10   -- at least 10% better after both cuts
+-- Listings needed on the side you'd sell to, unless "Show thin data too" (owner's
+-- screenshot, October 5: one Bauxite listed at 55g at Booty Bay read as 44,637% better;
+-- one listing is someone's asking price, not what it sells for).
+local NEUTRAL_LISTED = 3
 
 local LEVEL_ORDER = { thin = 1, fair = 2, good = 3 }
 
@@ -264,7 +268,11 @@ local function show(d, key)
   if key == "item" then return ns.ItemName(d.id) or ("item " .. d.id) end
   if key == "there" or key == "here" then return ns.Money(d[key]) end
   if key == "better" then return "|cff7fd39c" .. ns.Money(d.better) .. "|r" end
-  if key == "npct" then return ("%d%%"):format(math.floor(d.npct * 100 + 0.5)) end
+  -- Ten times or more as "x12" (owner's screenshot: "44637..." was cut off).
+  if key == "npct" then
+    if d.npct >= 9 then return ("x%d"):format(math.floor(d.npct + 1)) end
+    return ("%d%%"):format(math.floor(d.npct * 100 + 0.5))
+  end
   if key == "lthere" then return tostring(d.listedThere) end
   if key == "lhere" then return tostring(d.listedHere) end
   if key == "price" or key == "worth" then return ns.Money(d[key]) end
@@ -298,9 +306,9 @@ local function sortValue(d, key)
 end
 
 -- The Booty Bay rows: items at least NEUTRAL_MIN better one way round, after both cuts.
-local function neutralList(dir, kind, search)
+local function neutralList(dir, kind, search, thin)
   local realm = GetRealmName() or "?"
-  local list, filtered, newest, any = {}, 0, nil, false
+  local list, filtered, newest, any, hidden = {}, 0, nil, false, 0
   for id in pairs(ns.db.prices[realm .. "|Neutral"] or {}) do
     any = true
     local c = ns:NeutralCompare(id)
@@ -308,7 +316,12 @@ local function neutralList(dir, kind, search)
       newest = math.max(newest or 0, c.t or 0)
       local better = dir == "buy" and c.buyProfit or c.gain
       local base = dir == "buy" and c.there or c.netHere
-      if better > 0 and base > 0 and better / base >= NEUTRAL_MIN then
+      -- Selling there: enough listed there to trust its price; buying there to sell
+      -- here: enough listed here.
+      local listed = dir == "buy" and c.listedHere or c.listedThere
+      if better > 0 and base > 0 and better / base >= NEUTRAL_MIN and not thin and listed < NEUTRAL_LISTED then
+        hidden = hidden + 1
+      elseif better > 0 and base > 0 and better / base >= NEUTRAL_MIN then
         if (kind == "all" or ns:ItemKind(id) == kind)
           and (search == "" or (ns.ItemName(id) or ""):lower():find(search, 1, true)) then
           c.id, c.neutral, c.dir, c.better, c.npct = id, true, dir, better, better / base
@@ -319,7 +332,7 @@ local function neutralList(dir, kind, search)
       end
     end
   end
-  return list, filtered, newest, any
+  return list, filtered, newest, any, hidden
 end
 
 function ns:RefreshDeals()
@@ -328,7 +341,9 @@ function ns:RefreshDeals()
   local neutral = neutralMode()
   f.thin:SetChecked(set.dealShowThin)
   f.mode:SetValue(neutral and "neutral" or "deals")
-  f.thin:SetShown(not neutral)
+  -- Booty Bay: "Show thin data too" sits left of the two direction buttons.
+  f.thin:ClearAllPoints()
+  f.thin:SetPoint("TOPRIGHT", neutral and -(math.max(f.mode:GetWidth(), 180) + 150) or -150, neutral and -44 or -4)
   f.dir:SetShown(neutral)
   f.dir:SetValue(set.neutralDir or "sell")
   f.intro:SetPoint("RIGHT", f, "RIGHT", neutral and -(math.max(f.dir:GetWidth(), 250) + 16) or -220, 0)
@@ -343,7 +358,7 @@ function ns:RefreshDeals()
   local list, hidden, filtered, newest = {}, 0, 0, nil
   local anyNeutral
   if neutral then
-    list, filtered, newest, anyNeutral = neutralList(set.neutralDir or "sell", kind, search)
+    list, filtered, newest, anyNeutral, hidden = neutralList(set.neutralDir or "sell", kind, search, set.dealShowThin)
   end
   for _, d in ipairs(neutral and {} or ns:FindDeals(MAX_AGE)) do
     if d.kind == "usual" then
@@ -440,6 +455,7 @@ function ns:RefreshDeals()
 
   if neutral then
     local parts = { ("%d %s"):format(#list, #list == 1 and "item" or "items") }
+    if hidden > 0 then parts[#parts + 1] = ("%d hidden (under %d listed)"):format(hidden, NEUTRAL_LISTED) end
     if filtered > 0 then parts[#parts + 1] = ("%d filtered out"):format(filtered) end
     if newest then parts[#parts + 1] = "Booty Bay prices from " .. ns.Age(newest) end
     if #list > MAX_ROWS then parts[#parts + 1] = ("showing the first %d"):format(MAX_ROWS) end

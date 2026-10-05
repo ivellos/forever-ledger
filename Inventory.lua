@@ -33,16 +33,28 @@ local function bankIDs()
   return ids
 end
 
+-- Played here, so it's this account's: it stops being a sync partner's (Codex review,
+-- October 5: a partner's character you then played kept its mark, and /fl unpair
+-- deleted it).
 local function mine()
   local key = ns.CharKey()
   ns.db.inventory[key] = ns.db.inventory[key] or { bags = {}, bank = {} }
-  return ns.db.inventory[key]
+  local inv = ns.db.inventory[key]
+  inv.via = nil
+  if ns.db.chars[key] then ns.db.chars[key].via = nil end
+  return inv
+end
+
+-- With "Share bags and bank" on, a change goes to the sync partner (a few seconds later).
+local function shareSoon()
+  if ns.db.settings.syncBags and ns.SyncSoon then ns:SyncSoon() end
 end
 
 local function saveBags()
   if not ns.db then return end
   local inv = mine()
   inv.bags, inv.t = scan(bagIDs()), time()
+  shareSoon()
 end
 
 local bankOpen = false
@@ -50,6 +62,7 @@ local function saveBank()
   if not ns.db or not bankOpen then return end
   local inv = mine()
   inv.bank, inv.bankT = scan(bankIDs()), time()
+  shareSoon()
 end
 
 -- Bags change often; save a moment after the last change.

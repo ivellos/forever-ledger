@@ -616,14 +616,20 @@ function ns:MergeData(data, via)
       mine.via = via   -- came before sync marked characters (October 5)
     end
   end
+  -- Bags and bank each by their own time (Codex review, October 5: newer bags with an
+  -- unchanged bank were ignored, and newer bags could carry an older bank over a newer).
   for key, inv in pairs(via and data.inventory or {}) do
-    local mine = db.inventory[key]
-    local newer = type(inv) == "table"
-      and (not mine or math.max(inv.t or 0, inv.bankT or 0) > math.max(mine.t or 0, mine.bankT or 0))
-    if newer and not ns:IsOwnChar(key) then
-      inv.bags, inv.bank, inv.via = inv.bags or {}, inv.bank or {}, via
-      db.inventory[key] = inv
-      nBags = nBags + 1
+    if type(inv) == "table" and not ns:IsOwnChar(key) then
+      local mine = db.inventory[key]
+      if not mine then
+        mine = { bags = {}, bank = {} }
+        db.inventory[key] = mine
+      end
+      local changed = false
+      if inv.bags and (inv.t or 0) > (mine.t or 0) then mine.bags, mine.t, changed = inv.bags, inv.t, true end
+      if inv.bank and (inv.bankT or 0) > (mine.bankT or 0) then mine.bank, mine.bankT, changed = inv.bank, inv.bankT, true end
+      mine.via = via
+      if changed then nBags = nBags + 1 end
     end
   end
   for market, items in pairs(data.prices or {}) do
@@ -659,11 +665,12 @@ end
 -- Everything that came from a sync partner (/fl unpair): their characters and their bags.
 function ns:RemoveSyncedFrom(name)
   local who, n = (name or ""):lower(), 0
+  -- Never one played on this account, whatever its mark says.
   for key, c in pairs(ns.db.chars) do
-    if c.via and c.via:lower() == who and ns:RemoveCharacter(key) then n = n + 1 end
+    if c.via and c.via:lower() == who and not ns:IsOwnChar(key) and ns:RemoveCharacter(key) then n = n + 1 end
   end
   for key, inv in pairs(ns.db.inventory) do
-    if inv.via and inv.via:lower() == who then ns.db.inventory[key] = nil end
+    if inv.via and inv.via:lower() == who and key ~= ns.CharKey() then ns.db.inventory[key] = nil end
   end
   if ns.BuildUsageIndex then ns:BuildUsageIndex() end
   if ns.InvalidateValues then ns:InvalidateValues() end
