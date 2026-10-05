@@ -859,6 +859,9 @@ local function buildChars(box)
   C.intro = T:Text(C, 12, T.dim)
   C.intro:SetJustifyH("LEFT")
   C.intro:SetText("Addons can't see a character being deleted or renamed, so it stays here (and on the Characters tab, in Have and in recipes) until you remove it. Remove forgets its level, professions, recipes, bags and bank; prices and gold history stay. One of yours comes back when you log in on it.")
+  -- A heading between the explanation and the list (owner's screenshot, October 5: the
+  -- top ran straight into the rows), as on the Profiles page.
+  C.head = makeSub(C, "Saved characters")
   C.rows = {}
   return C
 end
@@ -903,6 +906,7 @@ local function layoutChars(C, width)
   C.intro:SetPoint("TOPLEFT", 12, -y)
   C.intro:SetWidth(width - 24)
   y = y + C.intro:GetStringHeight() + 12
+  y = layoutRows(C, { C.head }, width, y) + 2
   -- The one you're on first, then the most recently seen.
   local keys = {}
   for key in pairs(ns.db.chars) do keys[#keys + 1] = key end
