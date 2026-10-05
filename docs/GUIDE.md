@@ -163,7 +163,8 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 ## Sharing between accounts
 
-- **Live sync** (`/fl pair First Last`) sends prices and recipes between your two accounts while both are online. Export and import work too.
+- **Live sync** (`/fl pair First Last`) sends prices and recipes between your two accounts while both are online: your characters first, then the prices (those can take several minutes). Bags and bank go too only if you switch on **Share bags and bank** (Settings, Global settings, Advanced). `/fl unpair` stops it and removes the other side's characters; the prices stay. Export and import work too.
+- **Removing a character**: on the Characters tab, pick it and click **Remove** twice. Its level, professions, recipes, bags and bank are forgotten; prices and gold history stay. Not the character you're on.
 
 ## Common questions
 

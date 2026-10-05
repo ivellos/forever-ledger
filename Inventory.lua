@@ -2,8 +2,9 @@ local _, ns = ...
 
 ---------------------------------------------------------------------------
 -- What each character on this account owns: bags (saved as they change) and bank
--- (saved when the bank is open). Not synced to other accounts.
--- inventory[charKey] = { bags = { [itemID] = count }, bank = { ... }, t, bankT }
+-- (saved when the bank is open). Sent to a sync partner only with "Share bags and bank"
+-- on (Settings, Global settings, Advanced; Sync.lua); theirs arrive marked via = name.
+-- inventory[charKey] = { bags = { [itemID] = count }, bank = { ... }, t, bankT, via }
 ---------------------------------------------------------------------------
 local function scan(bagIDs)
   local counts = {}

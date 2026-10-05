@@ -113,7 +113,8 @@ ns.HELP = {
     { "How long it's kept", "Sales and purchases one by one for 30 days, then as one line per item per month for a year. Gold and money in and out per day for a year, then per month. Prices per day for 14 days, then weekly averages for a year. Recipes, vendors, items and your characters are kept for good. Nothing is lost at a reload: only data past these ages is summed up or dropped." },
   } },
   { "Two accounts", {
-    { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online." },
+    { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online: your characters first, then the prices (those can take several minutes). Bags and bank only if you switch on \"Share bags and bank\" (Global settings, Advanced). /fl unpair stops it and removes the other side's characters; the prices stay." },
+    { "Removing a character", "Characters tab: pick the character and click Remove twice. It forgets its level, professions, recipes, bags and bank; prices and gold history stay. Not the one you're on." },
     { "Export and import", "Export / import on the Characters tab, to copy everything across by hand (and Prices as text)." },
   } },
   { "Help and community", {

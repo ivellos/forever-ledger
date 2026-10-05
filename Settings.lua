@@ -51,6 +51,10 @@ local PAGES = {
           help = "Deals tab: profit after the auction house cut, reselling at the usual price or under the next listing. \"off\" for no minimum." },
       } },
       { name = "Advanced", rows = {
+        { sub = "Sync with your other account" },
+        { key = "syncBags", label = "Share bags and bank with your sync partner", kind = "check",
+          after = function() if ns.SyncSend then ns:SyncSend(true) end end,
+          help = "Sends what your characters carry and keep in the bank to the character you paired with (/fl pair), so it counts in Have, shopping lists and the Characters tab there. Only for your own second account: off by default. /fl unpair removes what you got from them." },
         { sub = "Testing" },
         { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
       } },

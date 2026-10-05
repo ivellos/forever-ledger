@@ -128,7 +128,7 @@ Most things have a button; these are for when you'd rather type. The main ones:
 | `/fl money` | Today's money in and out for this character |
 | `/fl de` | Disenchant results so far, against what the addon expects (`/fl de reset` to start over) |
 | `/fl new`, `/fl welcome` | What's new in this version; the welcome again |
-| `/fl pair First Last` | Pair with your character on another account for live sync (do it on both) |
+| `/fl pair First Last` | Pair with your character on another account for live sync (do it on both); `/fl unpair` stops it and removes their characters |
 | `/fl sync` | Sync status; `/fl sync now` sends everything, `/fl sync ping First Last` checks whispers reach someone |
 | `/fl minimap` | Hide or show the minimap button |
 | `/fl pull` | Copy prices from Auctionator, TSM or Auctioneer |

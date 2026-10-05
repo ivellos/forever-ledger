@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Characters tab: Remove forgets a character (two clicks): its level, professions, recipes, bags and bank. Prices and gold history stay.
+- Live sync: Share bags and bank (Settings, Global settings, Advanced; off by default) sends your characters' bags and bank to your paired character on your other account, so they count in Have, shopping lists and the Characters tab there.
+
+### Changed
+- Live sync sends your characters first, in a small message of their own, then the prices, so the other side sees them within seconds instead of after every price has arrived.
+- `/fl unpair` also removes the characters (and bags) that came from your partner; the auction prices stay. A partner's characters say so on the Characters tab and are never sent back.
+
 ### Fixed
 - Auctions tab: a neutral auction house (Booty Bay) keeps its own list of your auctions, so auctions at your faction's auction house no longer look sold while you're there; the tab says which auction house it shows.
 - Auctions tab: the Yours and Cheapest headings no longer run into each other (FL Gilded).

@@ -134,11 +134,21 @@ end)
 ---------------------------------------------------------------------------
 -- Everything the partner hasn't had yet: characters updated, prices scanned and
 -- vendor prices seen since the last send (prices only from the last PRICE_HOURS).
+-- Two parts: your characters (and, if shared, their bags and bank) first, in a small
+-- message of their own, then the prices, which can take minutes (owner's test, October
+-- 5: 1,451 messages, and nothing showed until the last one arrived). Characters that
+-- came from the partner (c.via) aren't sent back.
 local function changes(since)
-  local data = { k = "d", chars = {}, prices = {}, vendorBuy = {}, vendorSell = {} }
+  local who = { k = "d", chars = {}, inventory = {} }
+  local data = { k = "d", prices = {}, vendorBuy = {}, vendorSell = {} }
   local now = time()
   for key, c in pairs(ns.db.chars) do
-    if (c.updated or 0) > since then data.chars[key] = c end
+    if not c.via and (c.updated or 0) > since then who.chars[key] = c end
+  end
+  if ns.db.settings.syncBags then
+    for key, inv in pairs(ns.db.inventory or {}) do
+      if not inv.via and math.max(inv.t or 0, inv.bankT or 0) > since then who.inventory[key] = inv end
+    end
   end
   local watch = {}
   for _, id in ipairs(ns:WatchList()) do watch[id] = true end
@@ -158,7 +168,7 @@ local function changes(since)
   for id, rec in pairs(ns.db.vendorBuy) do
     if (rec.t or 0) > since then data.vendorBuy[id] = rec end
   end
-  return data, now
+  return who, data, now
 end
 
 local function count(t) local n = 0; for _ in pairs(t or {}) do n = n + 1 end; return n end
@@ -168,13 +178,15 @@ function ns:SyncSend(full)
   local to = partner()
   if not to or not partnerOnline then return end
   local st = state()
-  local data, now = changes(full and 0 or (st.sentUpTo or 0))
-  if count(data.chars) + countPrices(data.prices) + count(data.vendorBuy) + count(data.vendorSell) == 0 then return end
-  local n = send(data, to)
+  local who, data, now = changes(full and 0 or (st.sentUpTo or 0))
+  local nWho = count(who.chars) + count(who.inventory)
+  local nData = countPrices(data.prices) + count(data.vendorBuy) + count(data.vendorSell)
+  if nWho + nData == 0 then return end
+  local n = (nWho > 0 and send(who, to) or 0) + (nData > 0 and send(data, to) or 0)
   -- If the partner goes offline before it all arrives, send it again next time.
   st.previous, st.sentUpTo = st.sentUpTo, now
-  ns:Debug(("Sync: sending %d characters, %d prices, %d vendor prices to %s in %d messages."):format(
-    count(data.chars), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), to, n))
+  ns:Debug(("Sync: sending %d characters, %d with bags, %d prices, %d vendor prices to %s in %d messages."):format(
+    count(who.chars), count(who.inventory), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), to, n))
 end
 
 -- Send changes a few seconds after the last one (scans save many prices in a row).
@@ -212,9 +224,10 @@ local function handle(payload, sender)
     ns:SyncSend(false)
   elseif payload.k == "d" then
     partnerOnline = true
-    local c, p, v = ns:MergeData(payload)
-    ns:Debug(("Sync: received %d characters, %d prices, %d vendor prices from %s."):format(c, p, v, sender))
-    if c + p + v > 0 then ns:RefreshUI() end
+    -- Tagged with the partner's name, so /fl unpair can take it out again.
+    local c, p, v, b = ns:MergeData(payload, partner())
+    ns:Debug(("Sync: received %d characters, %d with bags, %d prices, %d vendor prices from %s."):format(c, b, p, v, sender))
+    if c + p + v + b > 0 then ns:RefreshUI() end
   end
 end
 
@@ -267,11 +280,18 @@ function ns:SyncCommand(args)
     ns:Print(("Paired with %s. Do /fl pair %s on that character too. Syncing starts when both are online."):format(name, me()))
     hello(false)
   elseif cmd == "unpair" then
+    local p = partner()
     ns.db.settings.syncPartner, partnerOnline = nil, false
-    ns:Print("Sync turned off.")
+    queue, sending = {}, false
+    if p then ns.db.sync[p:lower()] = nil end
+    -- What came from them goes (their characters, bags and bank); prices stay.
+    local n = p and ns:RemoveSyncedFrom(p) or 0
+    ns:Print(n > 0 and ("Sync turned off. Removed %d %s from %s; the auction prices stay."):format(n, n == 1 and "character" or "characters", p)
+      or "Sync turned off.")
   elseif cmd == "test" then
     test = { start = GetTime(), sent = 0, got = 0 }
-    local data = changes(0)
+    local who, data = changes(0)
+    data.chars = who.chars
     local n = send(data, me())
     ns:Print(("Sync test: sending %d characters, %d prices and %d vendor prices to yourself in %d messages. This takes about %d seconds."):format(
       count(data.chars), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), n, math.ceil(n * SEND_GAP)))

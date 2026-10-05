@@ -27,7 +27,7 @@ local DEFAULTS = {
   crates = {},      -- [crate itemID] = { name, level, bundles = { { { qty, name }, ... } } } read from tooltips
   vendorSellChanged = {}, -- [itemID] = local day its vendor sell price was seen to change (older price history is ignored)
   favor = {},       -- [charKey] = Merchant's Favor held
-  inventory = {},   -- [charKey] = { bags = { [itemID] = count }, bank = { ... }, t, bankT } (Inventory.lua, not synced)
+  inventory = {},   -- [charKey] = { bags = { [itemID] = count }, bank = { ... }, t, bankT, via = sync partner's name if theirs } (Inventory.lua)
   itemNames = {},   -- [itemID] = name, remembered so lists don't flicker (Prices.lua ns.ItemName)
   disenchants = {}, -- { t, id, ilvl, q, cls, mats = { [itemID] = count } } (Disenchant.lua, last 1000)
   sync = {},        -- [partner name lowercased] = { sentUpTo = time } (Sync.lua; partner in settings.syncPartner)
@@ -588,13 +588,43 @@ function ns:Import(text)
   return true, ("Imported %d characters and %d prices."):format(nChars, nPrices)
 end
 
+-- A character played on this account: the one you're on, or one whose bags were saved
+-- here (Inventory.lua saves them at every login). Characters from a sync partner or an
+-- import have no bags saved here, or bags marked as the partner's (inv.via).
+function ns:IsOwnChar(key)
+  if key == ns.CharKey() then return true end
+  local inv = ns.db.inventory and ns.db.inventory[key]
+  return inv ~= nil and not inv.via
+end
+
 -- Merge characters, prices and vendor prices from another account (Import and live
--- sync). Newer data wins. Returns how many characters, prices and vendor prices changed.
-function ns:MergeData(data)
-  local db, nChars, nPrices, nVendor = ns.db, 0, 0, 0
+-- sync). Newer data wins. via = the sync partner's name: what comes from them is marked
+-- with it (c.via, inv.via) so unpairing can remove it, and it never replaces a character
+-- of this account. Returns how many characters, prices, vendor prices and characters'
+-- bags changed.
+function ns:MergeData(data, via)
+  local db, nChars, nPrices, nVendor, nBags = ns.db, 0, 0, 0, 0
   for key, c in pairs(data.chars or {}) do
     local mine = db.chars[key]
-    if not mine or (c.updated or 0) > (mine.updated or 0) then db.chars[key] = c; nChars = nChars + 1 end
+    if via and ns:IsOwnChar(key) then
+      -- (yours: keep your own copy)
+    elseif not mine or (c.updated or 0) > (mine.updated or 0) then
+      c.via = via or c.via
+      db.chars[key] = c
+      nChars = nChars + 1
+    elseif via and not mine.via then
+      mine.via = via   -- came before sync marked characters (October 5)
+    end
+  end
+  for key, inv in pairs(via and data.inventory or {}) do
+    local mine = db.inventory[key]
+    local newer = type(inv) == "table"
+      and (not mine or math.max(inv.t or 0, inv.bankT or 0) > math.max(mine.t or 0, mine.bankT or 0))
+    if newer and not ns:IsOwnChar(key) then
+      inv.bags, inv.bank, inv.via = inv.bags or {}, inv.bank or {}, via
+      db.inventory[key] = inv
+      nBags = nBags + 1
+    end
   end
   for market, items in pairs(data.prices or {}) do
     db.prices[market] = db.prices[market] or {}
@@ -611,8 +641,34 @@ function ns:MergeData(data)
     if db.vendorSell[id] == nil then db.vendorSell[id] = v; nVendor = nVendor + 1 end
   end
   if nChars > 0 and ns.BuildUsageIndex then ns:BuildUsageIndex() end
-  if (nPrices > 0 or nVendor > 0) and ns.InvalidateValues then ns:InvalidateValues() end
-  return nChars, nPrices, nVendor
+  if (nPrices > 0 or nVendor > 0 or nBags > 0) and ns.InvalidateValues then ns:InvalidateValues() end
+  return nChars, nPrices, nVendor, nBags
+end
+
+-- Forget a character: its level, professions, recipes, bags and bank, and the profile it
+-- used. Its gold and money history stay (owner, October 3: history isn't dropped without
+-- asking). Not the character you're on. Prices are never touched.
+function ns:RemoveCharacter(key)
+  if not key or key == ns.CharKey() or not ns.db.chars[key] then return false end
+  ns.db.chars[key] = nil
+  ns.db.inventory[key] = nil
+  if ns.db.charProfile then ns.db.charProfile[key] = nil end
+  return true
+end
+
+-- Everything that came from a sync partner (/fl unpair): their characters and their bags.
+function ns:RemoveSyncedFrom(name)
+  local who, n = (name or ""):lower(), 0
+  for key, c in pairs(ns.db.chars) do
+    if c.via and c.via:lower() == who and ns:RemoveCharacter(key) then n = n + 1 end
+  end
+  for key, inv in pairs(ns.db.inventory) do
+    if inv.via and inv.via:lower() == who then ns.db.inventory[key] = nil end
+  end
+  if ns.BuildUsageIndex then ns:BuildUsageIndex() end
+  if ns.InvalidateValues then ns:InvalidateValues() end
+  if ns.RefreshUI then ns:RefreshUI() end
+  return n
 end
 
 ---------------------------------------------------------------------------

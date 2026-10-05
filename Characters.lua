@@ -362,7 +362,42 @@ function ns:BuildCharacters(parent)
   -- The chosen character: who, gold, professions.
   f.title = T:Text(f, 14)
   f.title:SetPoint("TOPLEFT", NAV_W + 12, -2)
-  f.title:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+  f.title:SetPoint("RIGHT", f, "RIGHT", -100, 0)
+  -- Forget a character (owner, October 5: a sync partner's characters stayed, and a
+  -- deleted character would too). Two clicks; never the one you're on.
+  f.remove = T:Button(f, "Remove", 86, function(self)
+    local key = state.char
+    if not key or key == "all" or key == ns.CharKey() then return end
+    if self.armed == key and GetTime() - (self.armedAt or 0) < 4 then
+      self.armed = nil
+      local name = (ns.db.chars[key] and ns.db.chars[key].name) or key
+      if ns:RemoveCharacter(key) then
+        if ns.BuildUsageIndex then ns:BuildUsageIndex() end
+        if ns.InvalidateValues then ns:InvalidateValues() end
+        ns:Print(("Removed %s from Forever Ledger. Prices and gold history are kept."):format(name))
+        state.char = "all"
+        ns:RefreshUI()
+      end
+    else
+      self.armed, self.armedAt = key, GetTime()
+      self:SetText("Sure?")
+      C_Timer.After(4, function() if self.armed == key then self.armed = nil; self:SetText("Remove") end end)
+    end
+  end, 20)
+  f.remove:SetPoint("TOPRIGHT", -6, 0)
+  f.remove:HookScript("OnEnter", function(self)
+    local c = ns.db.chars[state.char or ""]
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:AddLine("Remove this character", 1, 1, 1)
+    GameTooltip:AddLine("Forgets its level, professions, recipes, bags and bank. Click twice. Prices and gold history are kept.", nil, nil, nil, true)
+    if c and c.via then
+      GameTooltip:AddLine(("It came from your sync partner %s: while you're still paired it comes back with their next update. /fl unpair removes all of theirs."):format(c.via), 0.6, 0.6, 0.6, true)
+    else
+      GameTooltip:AddLine("If it's one of yours, logging in on it adds it back.", 0.6, 0.6, 0.6, true)
+    end
+    GameTooltip:Show()
+  end)
+  f.remove:HookScript("OnLeave", function() GameTooltip:Hide() end)
   f.title:SetJustifyH("LEFT")
   f.title:SetWordWrap(false)
   -- Professions in neat columns, three to a line (one wrapping line split "(7 recipes)"
@@ -514,6 +549,8 @@ function ns:RefreshCharacters()
 
   -- The chosen one: who, and their professions (where to open the window if not saved).
   local key = state.char
+  f.remove:SetShown(key ~= "all" and key ~= ns.CharKey())
+  if f.remove.armed ~= key then f.remove.armed = nil; f.remove:SetText("Remove") end
   for _, fs in ipairs(profCells) do fs:Hide() end
   f.profCard:Hide()
   if key == "all" then
@@ -522,7 +559,8 @@ function ns:RefreshCharacters()
     f.profs:Show()
   else
     local c = ns.db.chars[key]
-    f.title:SetText(("%s  %s"):format(className(c), dim(("level %s %s %s"):format(c.level or "?", classWord(c), c.faction or ""))))
+    f.title:SetText(("%s  %s"):format(className(c), dim(("level %s %s %s%s"):format(c.level or "?", classWord(c), c.faction or "",
+      c.via and (", from your sync partner " .. c.via) or ""))))
     local names = {}
     for p in pairs(c.profs or {}) do names[#names + 1] = p end
     table.sort(names, function(a, b)
