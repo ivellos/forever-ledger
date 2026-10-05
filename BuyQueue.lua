@@ -1045,25 +1045,25 @@ local function buildLane(v, d)
   function m:SetShownAll(on) self:SetShown(on) end
   L.mouse = m
 
-  -- Something to buy: a soft glow just outside the strip, fading outwards (pulses).
+  -- Something to buy: a soft glow inside the strip, all the way round, fading inwards
+  -- (pulses). Outside, only its bottom showed, as a bar over the list (owner's test,
+  -- October 5). Each ring is four 1-pixel lines that don't overlap, one pixel further in.
   L.glow = {}
-  for k = 1, 4 do
-    local a = ({ 0.45, 0.25, 0.12, 0.05 })[k]
-    for _, edge in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
-      local t = strip:CreateTexture(nil, "BACKGROUND")
-      local c = laneColor(d.key)
+  local c = laneColor(d.key)
+  for k, a in ipairs({ 0.5, 0.32, 0.2, 0.12, 0.06, 0.03 }) do
+    local i = k - 1
+    local function line(p1, x1, y1, p2, x2, y2, w, h)
+      local t = strip:CreateTexture(nil, "BORDER")
       t:SetColorTexture(c[1], c[2], c[3], a)
-      if edge == "TOP" or edge == "BOTTOM" then
-        t:SetHeight(1)
-        t:SetPoint(edge .. "LEFT", strip, edge .. "LEFT", -k, edge == "TOP" and k or -k)
-        t:SetPoint(edge .. "RIGHT", strip, edge .. "RIGHT", k, edge == "TOP" and k or -k)
-      else
-        t:SetWidth(1)
-        t:SetPoint("TOP" .. edge, strip, "TOP" .. edge, edge == "LEFT" and -k or k, k - 1)
-        t:SetPoint("BOTTOM" .. edge, strip, "BOTTOM" .. edge, edge == "LEFT" and -k or k, -(k - 1))
-      end
+      t:SetPoint(p1, strip, p1, x1, y1)
+      t:SetPoint(p2, strip, p2, x2, y2)
+      if w then t:SetWidth(w) else t:SetHeight(h) end
       L.glow[#L.glow + 1] = t
     end
+    line("TOPLEFT", i, -i, "TOPRIGHT", -i, -i, nil, 1)
+    line("BOTTOMLEFT", i, i, "BOTTOMRIGHT", -i, i, nil, 1)
+    line("TOPLEFT", i, -(i + 1), "BOTTOMLEFT", i, i + 1, 1)
+    line("TOPRIGHT", -i, -(i + 1), "BOTTOMRIGHT", -i, i + 1, 1)
   end
 
   local header = CreateFrame("Frame", nil, L)
