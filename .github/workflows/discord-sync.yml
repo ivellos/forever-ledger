@@ -36,8 +36,6 @@ jobs:
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_EMOJI_NEW: ${{ vars.DISCORD_EMOJI_NEW }}
-          DISCORD_EMOJI_FIXED: ${{ vars.DISCORD_EMOJI_FIXED }}
         run: |
           if [ -z "$DISCORD_BOT_TOKEN" ]; then echo "No DISCORD_BOT_TOKEN secret, skipping."; exit 0; fi
           if [ "${{ github.event_name }}" = "issues" ]; then

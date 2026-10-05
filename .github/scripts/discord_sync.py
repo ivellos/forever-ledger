@@ -22,14 +22,6 @@ REPO = os.environ["GITHUB_REPOSITORY"]
 GUILD = os.environ["GUILD_ID"]
 FORUMS = {os.environ["BUG_FORUM"]: "bug", os.environ["IDEA_FORUM"]: "idea"}
 LABELS = {"bug": "bug", "idea": "enhancement"}
-
-
-def mark(kind):
-    """The change mark before a thread message (owner, October 5, like the game's What's
-    new): the server's fl_fixed emoji for a bug, fl_new for an idea, when their codes are
-    in DISCORD_EMOJI_FIXED / DISCORD_EMOJI_NEW; nothing otherwise."""
-    emoji = os.environ.get("DISCORD_EMOJI_FIXED" if kind == "bug" else "DISCORD_EMOJI_NEW", "").strip()
-    return emoji + " " if emoji else ""
 MARKER = "Discord thread ID: "
 ON_GITHUB = "On GitHub"
 # Status tags set when an issue closes, by kind and close reason; and the opening tags
@@ -62,6 +54,25 @@ def discord(method, path, body=None):
         "Content-Type": "application/json",
         "User-Agent": f"DiscordBot (https://github.com/{REPO}, 1.0)",
     }, body)
+
+
+_emojis = None
+
+
+def mark(kind):
+    """The change mark before a thread message (owner, October 5, like the game's What's
+    new): the server's fl_fixed emoji for a bug, fl_new for an idea (looked up by name
+    once); nothing if the server doesn't have it."""
+    global _emojis
+    if _emojis is None:
+        try:
+            _emojis = {e["name"]: f"<{'a' if e.get('animated') else ''}:{e['name']}:{e['id']}>"
+                       for e in discord("GET", f"/guilds/{GUILD}/emojis")}
+        except RuntimeError as e:
+            print("Couldn't read the server's emojis:", e)
+            _emojis = {}
+    emoji = _emojis.get("fl_fixed" if kind == "bug" else "fl_new", "")
+    return emoji + " " if emoji else ""
 
 
 def github(method, path, body=None):

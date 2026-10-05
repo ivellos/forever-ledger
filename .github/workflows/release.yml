@@ -150,11 +150,9 @@ jobs:
         env:
           DISCORD_ANNOUNCE_WEBHOOK: ${{ secrets.DISCORD_ANNOUNCE_WEBHOOK }}
           UPDATES_ROLE: ${{ vars.DISCORD_UPDATES_ROLE }}
-          # The change marks as the server's emojis (discord_announce.py), when set.
-          DISCORD_EMOJI_MAJOR: ${{ vars.DISCORD_EMOJI_MAJOR }}
-          DISCORD_EMOJI_NEW: ${{ vars.DISCORD_EMOJI_NEW }}
-          DISCORD_EMOJI_CHANGED: ${{ vars.DISCORD_EMOJI_CHANGED }}
-          DISCORD_EMOJI_FIXED: ${{ vars.DISCORD_EMOJI_FIXED }}
+          # The bot looks up the server's change-mark emojis by name (discord_announce.py).
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          GUILD_ID: "1555189575650123776"
         run: |
           if [ -z "$DISCORD_ANNOUNCE_WEBHOOK" ]; then echo "No DISCORD_ANNOUNCE_WEBHOOK secret, skipping."; exit 0; fi
           VERSION="${{ steps.ver.outputs.version }}"
@@ -177,8 +175,6 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.ver.outputs.version }}
-          DISCORD_EMOJI_NEW: ${{ vars.DISCORD_EMOJI_NEW }}
-          DISCORD_EMOJI_FIXED: ${{ vars.DISCORD_EMOJI_FIXED }}
           GUILD_ID: "1555189575650123776"
           BUG_FORUM: "1555195887771451412"
           IDEA_FORUM: "1555196054658490388"

@@ -11,23 +11,46 @@
 # Change marks (owner, October 5, like the icons in the game's What's new): each
 # Highlights line starts with "Δ " (a big change), "+ " (new), "~ " (changed) or "✓ "
 # (fixed). On Discord the mark becomes the server's own emoji (docs/images/changes,
-# uploaded as fl_major, fl_new, fl_changed, fl_fixed) when its code ("<:fl_new:123...>")
-# is in the repository variable DISCORD_EMOJI_MAJOR / _NEW / _CHANGED / _FIXED;
-# otherwise the text mark stays.
+# uploaded as fl_major, fl_new, fl_changed, fl_fixed), looked up by name with the bot
+# (DISCORD_BOT_TOKEN, GUILD_ID); an emoji that isn't there keeps the text mark.
+# DISCORD_EMOJI_MAJOR / _NEW / _CHANGED / _FIXED ("<:fl_new:123...>") override the lookup
+# (the code check uses them).
 import json
 import os
 import re
 import sys
+import urllib.request
 
-MARKS = {"Δ": "DISCORD_EMOJI_MAJOR", "+": "DISCORD_EMOJI_NEW", "~": "DISCORD_EMOJI_CHANGED", "✓": "DISCORD_EMOJI_FIXED"}
+MARKS = {"Δ": "major", "+": "new", "~": "changed", "✓": "fixed"}
+
+
+def server_emojis():
+    """{ "fl_new": "<:fl_new:123>", ... } from the Discord server, or {} without the bot."""
+    token, guild = os.environ.get("DISCORD_BOT_TOKEN", ""), os.environ.get("GUILD_ID", "")
+    if not (token and guild):
+        return {}
+    try:
+        req = urllib.request.Request(f"https://discord.com/api/v10/guilds/{guild}/emojis", headers={
+            "Authorization": "Bot " + token, "User-Agent": "DiscordBot (https://github.com/ivellos/forever-ledger, 1.0)"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            found = json.load(r)
+    except Exception as e:   # (no emojis is fine: the text marks stay)
+        print("Couldn't read the server's emojis:", e, file=sys.stderr)
+        return {}
+    return {e["name"]: f"<{'a' if e.get('animated') else ''}:{e['name']}:{e['id']}>" for e in found}
+
+
+EMOJIS = server_emojis()
+print("Change-mark emojis on the server:", ", ".join(sorted(n for n in EMOJIS if n.startswith("fl_"))) or "none",
+      file=sys.stderr)
 
 
 def bullet(line):
     """A Highlights line as a Discord line: its mark as the emoji (no dash), or "- " before
     an unmarked one."""
-    for mark, var in MARKS.items():
+    for mark, kind in MARKS.items():
         if line.startswith(mark + " "):
-            emoji = os.environ.get(var, "").strip()
+            emoji = os.environ.get("DISCORD_EMOJI_" + kind.upper(), "").strip() or EMOJIS.get("fl_" + kind, "")
             return f"{emoji or mark} {line[len(mark) + 1:]}"
     return "- " + line
 
