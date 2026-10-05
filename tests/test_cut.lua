@@ -28,7 +28,7 @@ T.test("A neutral auction house takes 15%, whatever the setting", function()
   ns.neutralAH = nil
   T.eq(ns:AHCut(), 0.05, "back at your faction's")
   T.eq(ns:AHCut(true), 0.15, "asked about a neutral one")
-  T.eq(math.floor(433 * (1 - ns:AHCut(true))), 433 - 64, "Booty Bay mail: 4s 33c, cut 64c")
+  T.eq(ns:AfterCut(433, true), 369, "Booty Bay mail: 4s 33c, cut 64c, received 369c")
 end)
 
 T.test("LootValue: the auction house after the cut", function()
@@ -38,9 +38,9 @@ T.test("LootValue: the auction house after the cut", function()
   T.eq(ns:LootValue(ID), 850)
 end)
 
-T.test("LootValue rounds the cut down to whole copper", function()
+T.test("LootValue rounds the cut down to whole copper, as the game does", function()
   setup(999, nil)
-  T.eq(ns:LootValue(ID), 949, "999 * 0.95 = 949.05")
+  T.eq(ns:LootValue(ID), 950, "cut 999 * 0.05 = 49.95, taken as 49 (Booty Bay mail, October 5)")
 end)
 
 T.test("LootValue: a vendor when it pays more", function()

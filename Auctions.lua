@@ -177,7 +177,7 @@ end
 local function proceeds(e)
   if not e.each then return 0 end
   -- (The list on show is this auction house's, so its cut: 15% at a neutral one.)
-  return math.floor(e.each * (e.q or 1) * (1 - ns:AHCut())) + (e.dep or 0)
+  return ns:AfterCut(math.floor(e.each * (e.q or 1))) + (e.dep or 0)
 end
 
 -- The deposit of each new auction: the money it took when posting, given to the next

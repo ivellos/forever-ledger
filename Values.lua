@@ -18,6 +18,12 @@ function ns:AHCut(neutral)
   return (ns.db.settings.ahCut or 5) / 100
 end
 
+-- What a sale of this many copper brings: the game rounds the cut down, not what you get
+-- (Booty Bay mail: 433c at 15% = 64.95, cut 64c, received 369c).
+function ns:AfterCut(copper, neutral)
+  return copper - math.floor(copper * ns:AHCut(neutral))
+end
+
 -- What one unit fetches on the auction house after the cut. With needListings,
 -- thin markets (fewer than MIN_LISTED listed) don't count.
 -- What selling one on the auction house brings, after the cut. Selling means listing at

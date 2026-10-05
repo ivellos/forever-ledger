@@ -33,8 +33,7 @@ local function evaluate(g)
   local frame, post = g.frame, g.frame.PostButton
   local id, price = listing(frame)
   local sell = id and ns:GetSellPrice(id)
-  local cut = ns:AHCut()   -- (15% at a neutral auction house)
-  local net = price and math.floor(price * (1 - cut))
+  local net = price and ns:AfterCut(price)   -- (15% at a neutral auction house)
   local bad = sell and net and net < sell
   g.key = bad and (id .. ":" .. price) or nil
   if not bad then
