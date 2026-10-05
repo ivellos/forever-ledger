@@ -1000,13 +1000,13 @@ local function buildLane(v, d)
     elseif S().wheel then ns:BuyQueueAct() end
   end)
   L.title = T:Text(strip, 11, T.accent)
-  L.title:SetPoint("TOPLEFT", 6, -4)
+  L.title:SetPoint("TOPLEFT", 12, -4)   -- (12: room for the edge and the glow)
   L.title:SetPoint("RIGHT", strip, "RIGHT", -116, 0)
   L.title:SetJustifyH("LEFT")
   L.title:SetWordWrap(false)
   L.icon = strip:CreateTexture(nil, "ARTWORK")
   L.icon:SetSize(24, 24)
-  L.icon:SetPoint("TOPLEFT", 6, -18)
+  L.icon:SetPoint("TOPLEFT", 12, -18)
   L.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   L.line1 = T:Text(strip, 12)
   L.line1:SetPoint("TOPLEFT", L.icon, "TOPRIGHT", 6, 1)
@@ -1021,7 +1021,7 @@ local function buildLane(v, d)
   L.buy = T:Button(strip, "Buy", 72, function()
     if Q.armed ~= d.key then arm(d.key) else ns:BuyQueueAct(true) end
   end, 34)
-  L.buy:SetPoint("RIGHT", -6, 0)
+  L.buy:SetPoint("RIGHT", -10, 0)
   L.buy:GetFontString():SetFont(T.font, 14, "")
   -- A mouse with its wheel and arrows: "scroll here" (Magic, October 3). It stands in
   -- for the button when there's nothing to click, and lights up with Scroll to buy when there's something to buy.
@@ -1050,7 +1050,7 @@ local function buildLane(v, d)
   -- October 5). Each ring is four 1-pixel lines that don't overlap, one pixel further in.
   L.glow = {}
   local c = laneColor(d.key)
-  for k, a in ipairs({ 0.5, 0.32, 0.2, 0.12, 0.06, 0.03 }) do
+  for k, a in ipairs({ 0.65, 0.42, 0.26, 0.15, 0.08, 0.04 }) do
     local i = k - 1
     local function line(p1, x1, y1, p2, x2, y2, w, h)
       local t = strip:CreateTexture(nil, "BORDER")
@@ -1062,7 +1062,7 @@ local function buildLane(v, d)
     end
     line("TOPLEFT", i, -i, "TOPRIGHT", -i, -i, nil, 1)
     line("BOTTOMLEFT", i, i, "BOTTOMRIGHT", -i, i, nil, 1)
-    line("TOPLEFT", i, -(i + 1), "BOTTOMLEFT", i, i + 1, 1)
+    line("TOPLEFT", 3 + i, -(i + 1), "BOTTOMLEFT", 3 + i, i + 1, 1)   -- (after the 3-pixel edge)
     line("TOPRIGHT", -i, -(i + 1), "BOTTOMRIGHT", -i, i + 1, 1)
   end
 
