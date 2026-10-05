@@ -747,18 +747,30 @@ local function buildProfiles(box)
       P.partChecks[#P.partChecks + 1] = c
     end
   end
-  P.export = T:Button(P, "Export profile", 130, function()
+  -- One button and one window with Export and Import tabs, like Export / import on the
+  -- Characters tab (owner's test, October 5).
+  local showExport, showImport
+  local function tabs(current)
+    return { current = current, { "Export", function() showExport() end }, { "Import", function() showImport() end } }
+  end
+  showExport = function()
     local any = false
     for _, on in pairs(P.parts) do any = any or on end
-    if not any then return ns:Print("Tick at least one part to export.") end
-    ns:ShowTextWindow("Export profile: " .. ns:ProfileOf(),
-      "Press Ctrl+A, then Ctrl+C to copy. Whoever gets it pastes it into Settings, Profiles, Import profile.", exportProfile(P.parts))
-  end, 24)
-  P.import = T:Button(P, "Import profile", 130, function()
-    ns:ShowTextWindow("Import profile",
+    if not any then
+      ns:ShowTextWindow("Export / import profile",
+        "Tick at least one part under Share in Settings, Profiles, to export it.", "", nil, nil, tabs(1))
+      return
+    end
+    ns:ShowTextWindow("Export / import profile",
+      ("Profile %s. Press Ctrl+A, then Ctrl+C to copy. Whoever gets it pastes it into Settings, Profiles, Export / import, Import."):format(ns:ProfileOf()),
+      exportProfile(P.parts), nil, nil, tabs(1))
+  end
+  showImport = function()
+    ns:ShowTextWindow("Export / import profile",
       "Paste a profile with Ctrl+V, then click Import. It becomes a new profile and this character switches to it; your other profiles stay as they are.",
-      "", "Import", importProfile)
-  end, 24)
+      "", "Import", importProfile, tabs(2))
+  end
+  P.export = T:Button(P, "Export / import", 130, function() showExport() end, 24)
   return P
 end
 
@@ -807,8 +819,6 @@ local function layoutProfiles(P, width)
   y = y + math.ceil(#P.partChecks / 3) * 22 + 6
   P.export:ClearAllPoints()
   P.export:SetPoint("TOPLEFT", 12, -y)
-  P.import:ClearAllPoints()
-  P.import:SetPoint("LEFT", P.export, "RIGHT", 6, 0)
   return y + 40
 end
 

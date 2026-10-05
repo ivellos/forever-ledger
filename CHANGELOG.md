@@ -21,6 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Welcome card redone like the newer pages: each step in its own card with a numbered badge, a line under the header, the buttons in a footer band, Got it as the main button.
 - Help: Show the welcome again is in the bottom bar, bottom left, instead of under the topic list.
 - Export / import: one title for the window (the tabs say which part you're on), and a line under the tabs (also on a shopping list's Share / import).
+- Settings, Profiles: one Export / import button and one window with Export and Import tabs, instead of two buttons.
 - Buy queue: the sections are in the theme's plain colours until there's something to buy, then the strip lights up with a coloured edge and a slow pulsing glow all round its inside, whether Scroll to buy is on or not. Vendor flips glow gold instead of teal (teal is the accent colour and blended in), Shopping lists stay purple; the new-flips count is gold too.
 - Dashboard redesigned: headline tiles (gold now and its change, profit, sales, expenses), the gold graph in a card with its high and low, Best and biggest and Activity cards, and sessions as a table (when, length, gold, looted, an hour). Start a session sits next to the character list.
 - Recipes tab: tabs for this character's professions only, each with a coin for its rank (gold Artisan, silver Expert, copper Journeyman), then Trainers; the rest under Other professions, starred when another of your characters on this realm has it.
