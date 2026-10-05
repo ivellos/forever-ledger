@@ -199,11 +199,18 @@ local function buildMain()
     if ns.ShowWelcome then ns:ShowWelcome() end
   end)
   welcomeBtn:SetPoint("BOTTOMLEFT", 12, 12)
+  -- What's new (the release notes, Welcome.lua), bottom right on Help and the Dashboard
+  -- (owner, October 5).
+  local newsBtn = T:Button(main, "What's new", 100, function()
+    if ns.ShowWhatsNewCard then ns:ShowWhatsNewCard() end
+  end)
+  newsBtn:SetPoint("BOTTOMRIGHT", -12, 12)
+  main.newsBtn = newsBtn
   main.footer = {
-    dashboard = { full, scan },
+    dashboard = { full, scan, newsBtn },
     deals = { full, scan },
     characters = { full, scan, dataBtn },
-    help = { welcomeBtn },
+    help = { welcomeBtn, newsBtn },
   }
 
   main.refreshBtn = T:Button(main, "Refresh", 90, function() ns:RefreshShuffles() end)
@@ -260,6 +267,10 @@ setView = function(view)
   for _, list in pairs(main.footer) do
     for _, b in ipairs(list) do b:SetShown(wanted[b] or false) end
   end
+  -- The scan status sits left of What's new where that shows.
+  main.status:ClearAllPoints()
+  if wanted[main.newsBtn] then main.status:SetPoint("RIGHT", main.newsBtn, "LEFT", -12, 0)
+  else main.status:SetPoint("BOTTOMRIGHT", -26, 18) end
   main.shuffleInfo:SetShown(view == "shuffles" or view == "flips")
   if view == "shuffles" or view == "flips" then
     if main.shuffles then layoutShuffles() else ns:RefreshShuffles() end

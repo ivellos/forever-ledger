@@ -156,11 +156,100 @@ ns.WHATS_NEW = {
   },
 }
 
+-- What's new as a card over the main window, like the welcome (owner, October 5: a
+-- release notes button on Help and the Dashboard). Each line's name (before the colon)
+-- over its text.
+local news, newsShade
+local function buildNews()
+  local body = ns:MainBody()
+  if not body then return end
+  local win = body:GetParent()
+  newsShade = CreateFrame("Frame", nil, win)
+  newsShade:SetPoint("TOPLEFT", win, "TOPLEFT", 1, -30)
+  newsShade:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -1, 1)
+  newsShade:SetFrameLevel(body:GetFrameLevel() + 19)
+  newsShade:EnableMouse(true)
+  newsShade:EnableMouseWheel(true)
+  newsShade:SetScript("OnMouseWheel", function() end)
+  T:Fill(newsShade, { 0, 0, 0, 0.55 })
+  news = CreateFrame("Frame", nil, newsShade)
+  news:SetAllPoints(body)
+  news:SetFrameLevel(body:GetFrameLevel() + 20)
+  news:EnableMouse(true)
+  local FOOT = 52
+  T:Fill(news, { T.bg[1], T.bg[2], T.bg[3], 0.98 })
+  T:Border(news)
+  T:DecorateWindow(news, FOOT)
+  local function line(y, fromBottom)
+    local t = news:CreateTexture(nil, "BORDER")
+    t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+    t:SetHeight(1)
+    if fromBottom then
+      t:SetPoint("BOTTOMLEFT", 1, y)
+      t:SetPoint("BOTTOMRIGHT", -1, y)
+    else
+      t:SetPoint("TOPLEFT", 1, -y)
+      t:SetPoint("TOPRIGHT", -1, -y)
+    end
+  end
+  if not T.theme.footer then line(FOOT, true) end
+  local W = math.max(body:GetWidth(), 600)
+
+  local w = ns.WHATS_NEW
+  local title = T:Text(news, 16)
+  T:StyleTitle(title, 16)
+  title:SetPoint("TOPLEFT", 18, -16)
+  title:SetText("What's new in " .. w.version)
+  local sub = T:Text(news, 12, T.dim)
+  sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+  sub:SetPoint("RIGHT", news, "RIGHT", -18, 0)
+  sub:SetJustifyH("LEFT")
+  sub:SetText("The highlights of this version. Every change is in the changelog on CurseForge and Wago.")
+  line(66)
+
+  local accent = T.theme.heading or T.accent
+  local y = 80
+  for _, l in ipairs(w.lines) do
+    local name, text = l:match("^([^:]+):%s*(.+)$")
+    if not name then name, text = l, "" end
+    local dot = news:CreateTexture(nil, "ARTWORK")
+    dot:SetSize(6, 6)
+    dot:SetPoint("TOPLEFT", 20, -(y + 5))
+    dot:SetColorTexture(accent[1], accent[2], accent[3], 0.9)
+    local head = T:Text(news, 13)
+    head:SetPoint("TOPLEFT", 36, -y)
+    head:SetText(name)
+    local fs = T:Text(news, 12, T.dim)
+    fs:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -2)
+    fs:SetWidth(W - 36 - 24)
+    fs:SetJustifyH("LEFT")
+    fs:SetText(text)
+    y = y + head:GetStringHeight() + 2 + (text ~= "" and fs:GetStringHeight() or 0) + 12
+  end
+
+  local close = T:Button(news, "Close", 110, function() newsShade:Hide() end, 26)
+  close:SetPoint("BOTTOMRIGHT", -18, 13)
+  close:SetPrimary(true)
+  local note = T:Text(news, 11, T.dim)
+  note:SetPoint("LEFT", news, "BOTTOMLEFT", 18, 26)
+  note:SetPoint("RIGHT", close, "LEFT", -12, 0)
+  note:SetJustifyH("LEFT")
+  note:SetText("The Help tab explains every feature. /fl new shows this again.")
+end
+
+function ns:ShowWhatsNewCard()
+  local body = ns:MainBody()
+  if not (body and body:GetParent():IsShown()) then ns:ToggleUI("dashboard") end
+  if not news then buildNews() end
+  if not news then return ns:ShowWhatsNew() end   -- (no window: chat instead)
+  newsShade:Show()
+end
+
 function ns:ShowWhatsNew()
   local w = ns.WHATS_NEW
   ns:Print(("What's new in %s:"):format(w.version))
   for _, line in ipairs(w.lines) do print("  - " .. line) end
-  print("  The Help tab explains everything; /fl new shows this again.")
+  print("  The Help tab explains everything; What's new there (or /fl new) shows this again.")
 end
 
 ns:OnReady(function()

@@ -758,7 +758,7 @@ SlashCmdList.FOREVERLEDGER = function(msg)
   elseif msg == "lists" or msg == "list" then
     ns:ShowSidePanel("lists")
   elseif msg == "new" or msg == "whatsnew" then
-    if ns.ShowWhatsNew then ns:ShowWhatsNew() end
+    if ns.ShowWhatsNewCard then ns:ShowWhatsNewCard() elseif ns.ShowWhatsNew then ns:ShowWhatsNew() end
   elseif msg == "welcome" then
     ns:ToggleUI("dashboard")
     if ns.ShowWelcome then ns:ShowWelcome() end

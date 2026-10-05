@@ -11,7 +11,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 3. At the auction house, click **Full scan** (allowed about every 15 minutes) to price everything.
 4. Hover any item: the tooltip shows what it's worth to you.
 
-The first time you open the window, a short welcome walks through these and the Buy queue, Deals and Shopping lists. Show it again with the button under the Help tab's list of topics, or with `/fl welcome`. After an update, chat lists what's new in that version once; `/fl new` shows it again.
+The first time you open the window, a short welcome walks through these and the Buy queue, Deals and Shopping lists. Show it again with the button under the Help tab's list of topics, or with `/fl welcome`. After an update, chat lists what's new in that version once; the **What's new** button (bottom right of Help and the Dashboard) or `/fl new` shows it as a card.
 
 Settings and Help each have a **search box** above their list: type two letters or more to see everything that mentions it, from every section at once.
 
