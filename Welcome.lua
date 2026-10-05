@@ -15,6 +15,118 @@ local STEPS = {
   { "Plan your shopping", "Shopping lists hold what you want to buy and the most you'd pay. Plan anywhere; they show beside the auction house when you get there.", "Open shopping lists", "lists" },
 }
 
+---------------------------------------------------------------------------
+-- The cards over the main window (the welcome and What's new), in the theme like the
+-- newer pages (owner, October 4-5): its background, edge and frame, a gold title on
+-- Default and Gilded, a line under the header, each item in its own card with a badge,
+-- and the buttons in a footer band.
+---------------------------------------------------------------------------
+local FOOT = 52
+
+-- A shade over the whole window under the title bar, tabs and bottom buttons too, so
+-- nothing behind can be clicked until a button is (Magic, October 3). The title bar
+-- stays usable: drag the window, or close it with x. Returns the shade, the card and
+-- its width.
+local function overlay(body)
+  local win = body:GetParent()
+  local shade = CreateFrame("Frame", nil, win)
+  shade:SetPoint("TOPLEFT", win, "TOPLEFT", 1, -30)
+  shade:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -1, 1)
+  shade:SetFrameLevel(body:GetFrameLevel() + 19)
+  shade:EnableMouse(true)
+  shade:EnableMouseWheel(true)
+  shade:SetScript("OnMouseWheel", function() end)
+  T:Fill(shade, { 0, 0, 0, 0.55 })
+  local c = CreateFrame("Frame", nil, shade)
+  c:SetAllPoints(body)
+  c:SetFrameLevel(body:GetFrameLevel() + 20)
+  c:EnableMouse(true)
+  T:Fill(c, { T.bg[1], T.bg[2], T.bg[3], 0.98 })
+  T:Border(c)
+  T:DecorateWindow(c, FOOT)
+  if not T.theme.footer then   -- (Clean: just the line above the buttons)
+    local t = c:CreateTexture(nil, "BORDER")
+    t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+    t:SetHeight(1)
+    t:SetPoint("BOTTOMLEFT", 1, FOOT)
+    t:SetPoint("BOTTOMRIGHT", -1, FOOT)
+  end
+  return shade, c, math.max(body:GetWidth(), 600)
+end
+
+-- The title, a line under it, and a line across. Returns where the items start.
+local function header(c, titleText, subText)
+  local title = T:Text(c, 16)
+  T:StyleTitle(title, 16)
+  title:SetPoint("TOPLEFT", 18, -16)
+  title:SetText(titleText)
+  local sub = T:Text(c, 12, T.dim)
+  sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+  sub:SetPoint("RIGHT", c, "RIGHT", -18, 0)
+  sub:SetJustifyH("LEFT")
+  sub:SetText(subText)
+  local t = c:CreateTexture(nil, "BORDER")
+  t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+  t:SetHeight(1)
+  t:SetPoint("TOPLEFT", 1, -66)
+  t:SetPoint("TOPRIGHT", -1, -66)
+  return 76
+end
+
+-- One item as a card at y: a badge (its number, or a mark), its name, its text, and a
+-- button on the right if given ({ label, onClick }). compact: less padding (seven of
+-- What's new have to fit). Returns the card's height.
+local BTN_W = 150
+local function itemCard(c, y, W, badgeText, name, text, button, compact)
+  local pad = compact and 6 or 9
+  local edge = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.08 }
+  local badgeC = T.theme.heading or T.accent
+  local row = CreateFrame("Frame", nil, c)
+  row:SetPoint("TOPLEFT", 18, -y)
+  row:SetWidth(W - 36)
+  T:Fill(row, { 1, 1, 1, 0.025 })
+  T:Border(row, edge)
+  local badge = row:CreateTexture(nil, "ARTWORK")
+  badge:SetSize(24, 24)
+  badge:SetPoint("TOPLEFT", 10, -pad)
+  badge:SetColorTexture(badgeC[1], badgeC[2], badgeC[3], 0.16)
+  local mark = T:Text(row, 13, badgeC)
+  mark:SetPoint("CENTER", badge, "CENTER", 0, 0)
+  mark:SetText(badgeText)
+  local head = T:Text(row, 13)
+  head:SetPoint("TOPLEFT", 46, -pad)
+  head:SetText(name)
+  local fs = T:Text(row, 12, T.dim)
+  fs:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, compact and -2 or -3)
+  fs:SetWidth(W - 36 - 46 - (button and BTN_W + 28 or 14))
+  fs:SetJustifyH("LEFT")
+  fs:SetText(text or "")
+  local h = math.max(pad * 2 + 24, pad + head:GetStringHeight() + ((text or "") ~= "" and (compact and 2 or 3) + fs:GetStringHeight() or 0) + pad)
+  row:SetHeight(h)
+  if button then
+    local b = T:Button(row, button[1], BTN_W, button[2], 22)
+    b:SetPoint("RIGHT", -12, 0)
+  end
+  return h
+end
+
+-- The footer: a note on the left, the buttons on the right (the last is the main one:
+-- the way out stands out, Magic, October 3). buttons = { { label, onClick }, ... }.
+local function footer(c, noteText, buttons)
+  local right
+  for i = #buttons, 1, -1 do
+    local b = T:Button(c, buttons[i][1], 110, buttons[i][2], 26)
+    if right then b:SetPoint("RIGHT", right, "LEFT", -8, 0) else b:SetPoint("BOTTOMRIGHT", -18, 13) end
+    if i == #buttons then b:SetPrimary(true) end
+    right = b
+  end
+  local note = T:Text(c, 11, T.dim)
+  note:SetPoint("LEFT", c, "BOTTOMLEFT", 18, 26)
+  note:SetPoint("RIGHT", right, "LEFT", -12, 0)
+  note:SetJustifyH("LEFT")
+  note:SetText(noteText)
+end
+
 local card, shade
 
 -- Every button closes it (Magic, October 3: "Open shopping lists" opened behind it).
@@ -26,111 +138,22 @@ end
 local function build()
   local body = ns:MainBody()
   if not body then return end
-  -- A shade over the whole window under the title bar, tabs and bottom buttons too, so
-  -- nothing behind can be clicked until a button is (Magic, October 3). The title bar
-  -- stays usable: drag the window, or close it with x.
-  local win = body:GetParent()
-  shade = CreateFrame("Frame", nil, win)
-  shade:SetPoint("TOPLEFT", win, "TOPLEFT", 1, -30)
-  shade:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -1, 1)
-  shade:SetFrameLevel(body:GetFrameLevel() + 19)
-  shade:EnableMouse(true)
-  shade:EnableMouseWheel(true)
-  shade:SetScript("OnMouseWheel", function() end)
-  T:Fill(shade, { 0, 0, 0, 0.55 })
-  card = CreateFrame("Frame", nil, shade)
-  card:SetAllPoints(body)
-  card:SetFrameLevel(body:GetFrameLevel() + 20)
-  card:EnableMouse(true)
-  -- In the theme, like the newer pages (owner, October 4-5): its background, edge and
-  -- frame, a gold title on Default and Gilded, a line under the header, each step in its
-  -- own card with its number in a badge, and the buttons in a footer band.
-  local FOOT = 52
-  T:Fill(card, { T.bg[1], T.bg[2], T.bg[3], 0.98 })
-  T:Border(card)
-  T:DecorateWindow(card, FOOT)
-  if not T.theme.footer then   -- (Clean: just the line above the buttons)
-    local t = card:CreateTexture(nil, "BORDER")
-    t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
-    t:SetHeight(1)
-    t:SetPoint("BOTTOMLEFT", 1, FOOT)
-    t:SetPoint("BOTTOMRIGHT", -1, FOOT)
-  end
-  local W = math.max(body:GetWidth(), 600)
-  local function rule(y)
-    local t = card:CreateTexture(nil, "BORDER")
-    t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
-    t:SetHeight(1)
-    t:SetPoint("TOPLEFT", 1, -y)
-    t:SetPoint("TOPRIGHT", -1, -y)
-  end
-
-  local title = T:Text(card, 16)
-  T:StyleTitle(title, 16)
-  title:SetPoint("TOPLEFT", 18, -16)
-  title:SetText("Welcome to Forever Ledger")
-  local sub = T:Text(card, 12, T.dim)
-  sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-  sub:SetPoint("RIGHT", card, "RIGHT", -18, 0)
-  sub:SetJustifyH("LEFT")
-  sub:SetText("It finds gold for you: things to buy and sell on, and what your crafting is worth. Five things to start with:")
-  rule(66)
-
-  -- The steps, as cards from the top down; each as tall as its text needs.
-  local edge = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.08 }
-  local badgeC = T.theme.heading or T.accent
-  local y, BTN_W = 76, 150
+  local W
+  shade, card, W = overlay(body)
+  local y = header(card, "Welcome to Forever Ledger",
+    "It finds gold for you: things to buy and sell on, and what your crafting is worth. Five things to start with:")
   for i, s in ipairs(STEPS) do
-    local row = CreateFrame("Frame", nil, card)
-    row:SetPoint("TOPLEFT", 18, -y)
-    row:SetWidth(W - 36)
-    T:Fill(row, { 1, 1, 1, 0.025 })
-    T:Border(row, edge)
-
-    local badge = row:CreateTexture(nil, "ARTWORK")
-    badge:SetSize(24, 24)
-    badge:SetPoint("TOPLEFT", 10, -9)
-    badge:SetColorTexture(badgeC[1], badgeC[2], badgeC[3], 0.16)
-    local num = T:Text(row, 13, badgeC)
-    num:SetPoint("CENTER", badge, "CENTER", 0, 0)
-    num:SetText(tostring(i))
-
-    local head = T:Text(row, 13)
-    head:SetPoint("TOPLEFT", 46, -9)
-    head:SetText(s[1])
-    local text = T:Text(row, 12, T.dim)
-    text:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -3)
-    text:SetWidth(W - 36 - 46 - (s[3] and BTN_W + 28 or 14))
-    text:SetJustifyH("LEFT")
-    text:SetText(s[2])
-    local h = math.max(42, 9 + head:GetStringHeight() + 3 + text:GetStringHeight() + 9)
-    row:SetHeight(h)
-    if s[3] then
-      local key = s[4]
-      local b = T:Button(row, s[3], BTN_W, function()
-        close()
-        if key == "lists" then ns:ShowSidePanel("lists") else ns:ShowTab(key) end
-      end, 22)
-      b:SetPoint("RIGHT", -12, 0)
-    end
-    y = y + h + 6
+    local key = s[4]
+    local button = s[3] and { s[3], function()
+      close()
+      if key == "lists" then ns:ShowSidePanel("lists") else ns:ShowTab(key) end
+    end }
+    y = y + itemCard(card, y, W, tostring(i), s[1], s[2], button) + 6
   end
-
-  -- The footer: a note, Open Help, and Got it as the main button (Magic, October 3: the
-  -- way out stands out).
-  local got = T:Button(card, "Got it", 110, close, 26)
-  got:SetPoint("BOTTOMRIGHT", -18, 13)
-  got:SetPrimary(true)
-  local help = T:Button(card, "Open Help", 110, function()
-    close()
-    ns:ShowTab("help")
-  end, 26)
-  help:SetPoint("RIGHT", got, "LEFT", -8, 0)
-  local note = T:Text(card, 11, T.dim)
-  note:SetPoint("LEFT", card, "BOTTOMLEFT", 18, 26)
-  note:SetPoint("RIGHT", help, "LEFT", -12, 0)
-  note:SetJustifyH("LEFT")
-  note:SetText("The Help tab explains every feature, and can show this again.")
+  footer(card, "The Help tab explains every feature, and can show this again.", {
+    { "Open Help", function() close(); ns:ShowTab("help") end },
+    { "Got it", close },
+  })
 end
 
 function ns:ShowWelcome()
@@ -151,90 +174,32 @@ ns.WHATS_NEW = {
     "Dashboard redone: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.",
     "Sessions list: every session in the Ledger, with where its gold came from.",
     "Sold while you were away: one chat line when you open the auction house.",
-    "Buy queue lights up when there's something to buy; the Disenchant finder picks item levels from a dropdown.",
+    "Auction house panel: the Buy queue lights up when there's something to buy, and the Disenchant finder picks item levels from a dropdown.",
     "Bag value: bag tooltips show what a slot costs and the cheapest bag right now.",
   },
 }
 
 -- What's new as a card over the main window, like the welcome (owner, October 5: a
--- release notes button on Help and the Dashboard). Each line's name (before the colon)
--- over its text.
+-- release notes button on Help and the Dashboard, then the same look as the welcome).
+-- Each line's name (before the colon) over its text, in its own card.
 local news, newsShade
 local function buildNews()
   local body = ns:MainBody()
   if not body then return end
-  local win = body:GetParent()
-  newsShade = CreateFrame("Frame", nil, win)
-  newsShade:SetPoint("TOPLEFT", win, "TOPLEFT", 1, -30)
-  newsShade:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -1, 1)
-  newsShade:SetFrameLevel(body:GetFrameLevel() + 19)
-  newsShade:EnableMouse(true)
-  newsShade:EnableMouseWheel(true)
-  newsShade:SetScript("OnMouseWheel", function() end)
-  T:Fill(newsShade, { 0, 0, 0, 0.55 })
-  news = CreateFrame("Frame", nil, newsShade)
-  news:SetAllPoints(body)
-  news:SetFrameLevel(body:GetFrameLevel() + 20)
-  news:EnableMouse(true)
-  local FOOT = 52
-  T:Fill(news, { T.bg[1], T.bg[2], T.bg[3], 0.98 })
-  T:Border(news)
-  T:DecorateWindow(news, FOOT)
-  local function line(y, fromBottom)
-    local t = news:CreateTexture(nil, "BORDER")
-    t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
-    t:SetHeight(1)
-    if fromBottom then
-      t:SetPoint("BOTTOMLEFT", 1, y)
-      t:SetPoint("BOTTOMRIGHT", -1, y)
-    else
-      t:SetPoint("TOPLEFT", 1, -y)
-      t:SetPoint("TOPRIGHT", -1, -y)
-    end
-  end
-  if not T.theme.footer then line(FOOT, true) end
-  local W = math.max(body:GetWidth(), 600)
-
+  local W
+  newsShade, news, W = overlay(body)
   local w = ns.WHATS_NEW
-  local title = T:Text(news, 16)
-  T:StyleTitle(title, 16)
-  title:SetPoint("TOPLEFT", 18, -16)
-  title:SetText("What's new in " .. w.version)
-  local sub = T:Text(news, 12, T.dim)
-  sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-  sub:SetPoint("RIGHT", news, "RIGHT", -18, 0)
-  sub:SetJustifyH("LEFT")
-  sub:SetText("The highlights of this version. Every change is in the changelog on CurseForge and Wago.")
-  line(66)
-
-  local accent = T.theme.heading or T.accent
-  local y = 80
+  local y = header(news, "What's new in " .. w.version,
+    "The highlights of this version. Every change is in the changelog on CurseForge and Wago.")
   for _, l in ipairs(w.lines) do
     local name, text = l:match("^([^:]+):%s*(.+)$")
     if not name then name, text = l, "" end
-    local dot = news:CreateTexture(nil, "ARTWORK")
-    dot:SetSize(6, 6)
-    dot:SetPoint("TOPLEFT", 20, -(y + 5))
-    dot:SetColorTexture(accent[1], accent[2], accent[3], 0.9)
-    local head = T:Text(news, 13)
-    head:SetPoint("TOPLEFT", 36, -y)
-    head:SetText(name)
-    local fs = T:Text(news, 12, T.dim)
-    fs:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -2)
-    fs:SetWidth(W - 36 - 24)
-    fs:SetJustifyH("LEFT")
-    fs:SetText(text)
-    y = y + head:GetStringHeight() + 2 + (text ~= "" and fs:GetStringHeight() or 0) + 12
+    y = y + itemCard(news, y, W, "+", name, text, nil, true) + 4
   end
-
-  local close = T:Button(news, "Close", 110, function() newsShade:Hide() end, 26)
-  close:SetPoint("BOTTOMRIGHT", -18, 13)
-  close:SetPrimary(true)
-  local note = T:Text(news, 11, T.dim)
-  note:SetPoint("LEFT", news, "BOTTOMLEFT", 18, 26)
-  note:SetPoint("RIGHT", close, "LEFT", -12, 0)
-  note:SetJustifyH("LEFT")
-  note:SetText("The Help tab explains every feature. /fl new shows this again.")
+  footer(news, "The Help tab explains every feature. /fl new shows this again.", {
+    { "Open Help", function() newsShade:Hide(); ns:ShowTab("help") end },
+    { "Close", function() newsShade:Hide() end },
+  })
 end
 
 function ns:ShowWhatsNewCard()
