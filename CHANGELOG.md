@@ -21,7 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Help: topics grouped in the sidebar like Settings (Gold making, Professions, Your gold, Other), and the longer topics split into named groups, each in a card.
 - Characters tab: professions in a card of their own, with the rank coin.
 - Recipes tab: the type filter is a dropdown, so the row fits with every font; a wider window widens Where from as well as the recipe names.
-- Settings: pages under a group heading are indented; Global settings, Profiles and Appearance have a small icon.
+- Settings: pages under a group heading are indented; Global settings, Profiles and Appearance have a small outline icon (a gear, two people, a palette), tinted to the theme.
 - The main window is at least 880 wide (was 760), so every table fits, Recipes' Per craft column included.
 - Professions show a grey dot for Apprentice, next to the coins for the higher ranks.
 - Help tab laid out like Settings: a sidebar with search and the topics, each topic under its title with every entry as a name and its explanation, the topic and its questions in cards.

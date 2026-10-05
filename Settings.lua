@@ -18,7 +18,7 @@ local function ads() ns:UpdateCustomerAds() end
 -- A label starting with spaces is a sub-option of the one above it. { sub = "..." } is
 -- a small heading.
 local PAGES = {
-  { key = "global", title = "Global settings", icon = "Interface\\Icons\\Trade_Engineering",
+  { key = "global", title = "Global settings", icon = "Interface\\AddOns\\ForeverLedger\\media\\icons\\global",
     desc = "The same for every character and profile: they decide what items are worth and what counts as a flip or a deal.",
     tabs = {
       { name = "Prices", rows = {
@@ -56,10 +56,10 @@ local PAGES = {
       } },
     } },
 
-  { key = "profiles", title = "Profiles", icon = "Interface\\Icons\\INV_Misc_Book_09", custom = true,
+  { key = "profiles", title = "Profiles", icon = "Interface\\AddOns\\ForeverLedger\\media\\icons\\profiles", custom = true,
     desc = "Sets of settings your characters can share, switch between, export and import." },
 
-  { key = "appearance", title = "Appearance", icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
+  { key = "appearance", title = "Appearance", icon = "Interface\\AddOns\\ForeverLedger\\media\\icons\\appearance",
     desc = "How Forever Ledger's windows look. A change shows after a reload.",
     rows = {
       { sub = "Theme and colour" },
@@ -629,16 +629,14 @@ local function navButton(p, indent)
   hl:SetColorTexture(1, 1, 1, 0.05)
   -- No icons (owner, October 4: the game's icons looked busy, and there will be many
   -- pages); the bar and the tint show the chosen one.
-  -- Global settings, Profiles and Appearance (above the groups) get a small icon so they
-  -- stand out (owner, October 4): greyed and tinted in the heading colour, a mark more
-  -- than a picture.
+  -- Global settings, Profiles and Appearance (above the groups) get a small outline icon
+  -- so they stand out, like the mockup (owner, October 4): our own drawings (media/icons,
+  -- white, 64 px TGA), tinted in the heading colour.
   if p.icon and (indent or 14) < 20 then
     b.icon = b:CreateTexture(nil, "ARTWORK")
-    b.icon:SetSize(14, 14)
+    b.icon:SetSize(15, 15)
     b.icon:SetPoint("LEFT", 12, 0)
     b.icon:SetTexture(p.icon)
-    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    if b.icon.SetDesaturated then b.icon:SetDesaturated(true) end
     local c = T.theme.heading or T.accent
     b.icon:SetVertexColor(c[1], c[2], c[3], 0.9)
     indent = 32
