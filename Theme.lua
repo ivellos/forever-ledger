@@ -46,12 +46,12 @@ T.THEMES = {
   default = { name = "FL Default", accent = TEAL,
     bg = { 0.071, 0.065, 0.059, 0.97 }, header = { 0.094, 0.082, 0.071, 1 },
     button = { 0.118, 0.106, 0.094, 0.95 }, border = { 1, 0.92, 0.80, 0.10 },
-    font = "Fonts\\ARIALN.TTF", fontAdd = 1, labelAdd = 1, dimAlpha = 0.5,
+    font = "Fonts\\ARIALN.TTF", fontAdd = 1, labelAdd = 1, dimAlpha = 0.5, thick = true,
     topLine = BRONZE, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
   gilded = { name = "FL Gilded", accent = TEAL,
     bg = { 0.078, 0.069, 0.059, 0.97 }, header = { 0.118, 0.094, 0.071, 1 },
     button = { 0.125, 0.106, 0.086, 0.95 }, border = { BRONZE[1], BRONZE[2], BRONZE[3], 0.55 },
-    font = "Fonts\\FRIZQT__.TTF", dimAlpha = 0.5,
+    font = "Fonts\\FRIZQT__.TTF", dimAlpha = 0.5, thick = true,
     frame = BRONZE, topLine = BRONZE, title = GOLD, heading = GOLD, serif = true,
     cards = true, cardEdge = BRONZE, toggles = true, footer = true },
 }
@@ -86,9 +86,8 @@ function T:Apply()
   T.theme = T.THEMES[T.themeKey]
   T.bg, T.header = T.theme.bg, T.theme.header
   T.button, T.border = T.theme.button or T.button, T.theme.border or T.border
-  -- Fonts (owner, October 4): Clean keeps EllesmereUI's; Default and Gilded their own
-  -- (closer to the mockup), to be made fuller: /fl fonts shows the candidates, plain and
-  -- thickened, for the owner to pick.
+  -- Fonts (owner, October 4, picked with /fl fonts): Clean keeps EllesmereUI's; Default
+  -- Arial Narrow and Gilded Friz Quadrata, both thickened (thick: see T:Font).
   T.fontAdd = T.theme.fontAdd or 0
   if T.theme.font then T.font = T.theme.font end
   -- Grey text (descriptions, hints) a little dimmer on Default and Gilded, so the names
@@ -207,6 +206,22 @@ function T:AccentCode()
   return ("|cff%02x%02x%02x"):format(a[1] * 255, a[2] * 255, a[3] * 255)
 end
 
+-- Thickened text (Default and Gilded): WoW has no bold, so the shadow becomes a copy of
+-- the letters one pixel to the right, in the text's own colour. Text with colours mixed
+-- in (|c...: green money, class names) keeps the normal dark shadow, or the copy would
+-- leave a pale edge on the coloured letters. Kept right as the text or colour changes.
+local function thicken(fs)
+  local txt = fs:GetText()
+  if txt and txt:find("|c", 1, true) then
+    fs:SetShadowColor(0, 0, 0, 0.8)
+    fs:SetShadowOffset(1, -1)
+  else
+    local r, g, b, a = fs:GetTextColor()
+    fs:SetShadowColor(r or 1, g or 1, b or 1, (a or 1) * 0.6)
+    fs:SetShadowOffset(1, 0)
+  end
+end
+
 function T:Font(fs, size, color)
   local body = color == T.dim and T.theme.bodyFont
   fs:SetFont(body or T.font, (size or 12) + (body and (T.theme.bodyAdd or 0) or (T.fontAdd or 0)), "")
@@ -214,6 +229,15 @@ function T:Font(fs, size, color)
   fs:SetShadowOffset(1, -1)
   local c = color or T.text
   fs:SetTextColor(c[1], c[2], c[3], c[4] or 1)
+  if T.theme.thick then
+    if not fs.flThick then
+      fs.flThick = true
+      hooksecurefunc(fs, "SetTextColor", thicken)
+      hooksecurefunc(fs, "SetText", thicken)
+      if fs.SetFormattedText then hooksecurefunc(fs, "SetFormattedText", thicken) end
+    end
+    thicken(fs)
+  end
   return fs
 end
 

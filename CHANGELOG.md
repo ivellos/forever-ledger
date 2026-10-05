@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Themes (Settings, Appearance): FL Clean, FL Default (the new default: warm browns, a bronze edge, gold titles, sections as cards, rounded switches) and FL Gilded (a bronze frame, gold titles and headings in Friz Quadrata), each with an accent colour (Auto takes EllesmereUI's; presets or a custom colour). Part of your profile. Looks based on WoW Forever's and Blizzard's windows are coming.
+- Themes (Settings, Appearance): FL Clean, FL Default (the new default: warm browns, a bronze edge, gold titles, sections as cards, rounded switches, thickened Arial Narrow) and FL Gilded (a bronze frame, gold titles, thickened Friz Quadrata), each with an accent colour (Auto takes EllesmereUI's; presets or a custom colour). Part of your profile. Looks based on WoW Forever's and Blizzard's windows are coming.
 - Settings profiles: a set of settings characters can share (Settings, Profiles), for example no tooltips or no customer finder on one character. Each character uses one, Default to start. New, Rename, Reset to defaults and Delete; export a profile as text with the parts you tick, and import someone's. Global settings are never in a profile.
 - Bag value: a bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor) and the cheapest bag per slot right now (Settings, Tooltips).
 - What sold while you were away: opening the auction house says in chat what sold since you were last there and the gold it brings with deposits back (Settings, Auction house). Auctions that sold and were mailed while you were away now show under Sold too.
