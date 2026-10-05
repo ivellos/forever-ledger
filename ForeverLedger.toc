@@ -29,6 +29,7 @@ QuestItems.lua
 RecipesTab.lua
 Characters.lua
 Settings.lua
+FontSampler.lua
 UI.lua
 Help.lua
 Welcome.lua

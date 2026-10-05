@@ -830,6 +830,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:PrintRecipeBook()
   elseif msg == "probe" then
     ns:Probe()
+  elseif msg == "fonts" then
+    ns:ShowFonts()   -- FontSampler.lua
   elseif msg == "frame" then
     -- Which frame is under the mouse, and its parents (for finding the game's windows:
     -- the Sell page in Forever, October 4). Type it with the mouse over the thing.

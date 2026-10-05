@@ -46,12 +46,12 @@ T.THEMES = {
   default = { name = "FL Default", accent = TEAL,
     bg = { 0.071, 0.065, 0.059, 0.97 }, header = { 0.094, 0.082, 0.071, 1 },
     button = { 0.118, 0.106, 0.094, 0.95 }, border = { 1, 0.92, 0.80, 0.10 },
-    labelAdd = 1, dimAlpha = 0.5,
+    font = "Fonts\\ARIALN.TTF", fontAdd = 1, labelAdd = 1, dimAlpha = 0.5,
     topLine = BRONZE, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
   gilded = { name = "FL Gilded", accent = TEAL,
     bg = { 0.078, 0.069, 0.059, 0.97 }, header = { 0.118, 0.094, 0.071, 1 },
     button = { 0.125, 0.106, 0.086, 0.95 }, border = { BRONZE[1], BRONZE[2], BRONZE[3], 0.55 },
-    dimAlpha = 0.5,
+    font = "Fonts\\FRIZQT__.TTF", dimAlpha = 0.5,
     frame = BRONZE, topLine = BRONZE, title = GOLD, heading = GOLD, serif = true,
     cards = true, cardEdge = BRONZE, toggles = true, footer = true },
 }
@@ -86,10 +86,9 @@ function T:Apply()
   T.theme = T.THEMES[T.themeKey]
   T.bg, T.header = T.theme.bg, T.theme.header
   T.button, T.border = T.theme.button or T.button, T.theme.border or T.border
-  -- Fonts (owner's tests, October 4): WoW's own Arial Narrow and Friz looked thin at
-  -- small sizes, so every theme uses EllesmereUI's fuller font for text (the game's
-  -- standard font without it); Gilded keeps Friz for titles and headings. A theme can
-  -- still name its own font (font, fontAdd) or one for grey text (bodyFont, bodyAdd).
+  -- Fonts (owner, October 4): Clean keeps EllesmereUI's; Default and Gilded their own
+  -- (closer to the mockup), to be made fuller: /fl fonts shows the candidates, plain and
+  -- thickened, for the owner to pick.
   T.fontAdd = T.theme.fontAdd or 0
   if T.theme.font then T.font = T.theme.font end
   -- Grey text (descriptions, hints) a little dimmer on Default and Gilded, so the names
