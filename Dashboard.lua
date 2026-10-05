@@ -271,7 +271,18 @@ local function drawGraph(g, pts, from, to, rangeKey)
           col:SetColorTexture(fr, fgc, fb, 1)
           col:ClearAllPoints()
           col:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", prevX, PAD_BOTTOM)
-          col:SetSize(math.max(1, x(i) - prevX + (i < lastI and 2 or 0)), math.max(1, math.min(prevY, y(p.v)) - PAD_BOTTOM))
+          -- Its top follows the line: the strip reaches the higher point, and the corner
+          -- under the lower one is pulled down to it (vertex offsets), so slopes leave no
+          -- dark wedges (owner's test, October 4). Without vertex offsets: the lower height.
+          local cy = y(p.v)
+          local w = math.max(1, x(i) - prevX + (i < lastI and 2 or 0))
+          local skew = col.SetVertexOffset ~= nil
+          col:SetSize(w, math.max(1, (skew and math.max(prevY, cy) or math.min(prevY, cy)) - PAD_BOTTOM))
+          if skew then
+            -- 1 = upper left, 3 = upper right
+            col:SetVertexOffset(1, 0, prevY < cy and -(cy - prevY) or 0)
+            col:SetVertexOffset(3, 0, cy < prevY and -(prevY - cy) or 0)
+          end
         end
         if prevX and g.CreateLine then
           local l = nextLine()
