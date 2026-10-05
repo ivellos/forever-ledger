@@ -157,6 +157,45 @@ function T:Card(frame)
   T:Border(frame, T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.07 })
 end
 
+-- Cards drawn as textures on a page itself (a frame on top would cover its text): the
+-- i-th card from top to bottom (pixels down from the page's top) across width. Default
+-- and Gilded; nothing on Clean. Settings groups and Help topics.
+local function cardTextures(page, i)
+  page.cards = page.cards or {}
+  local c = page.cards[i]
+  if not c then
+    local e = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.07 }
+    c = { bg = page:CreateTexture(nil, "BACKGROUND", nil, -8) }
+    c.bg:SetColorTexture(1, 1, 1, 0.025)
+    for k = 1, 4 do
+      c[k] = page:CreateTexture(nil, "BORDER")
+      c[k]:SetColorTexture(e[1], e[2], e[3], e[4])
+    end
+    page.cards[i] = c
+  end
+  return c
+end
+
+function T:PlaceCard(page, i, top, bottom, width)
+  if not T.theme.cards then return end
+  local c = cardTextures(page, i)
+  local h, w = bottom - top, width - 4
+  c.bg:ClearAllPoints(); c.bg:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -top); c.bg:SetSize(w, h)
+  c[1]:ClearAllPoints(); c[1]:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -top); c[1]:SetSize(w, 1)
+  c[2]:ClearAllPoints(); c[2]:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -(bottom - 1)); c[2]:SetSize(w, 1)
+  c[3]:ClearAllPoints(); c[3]:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -top); c[3]:SetSize(1, h)
+  c[4]:ClearAllPoints(); c[4]:SetPoint("TOPLEFT", page, "TOPLEFT", width - 3, -top); c[4]:SetSize(1, h)
+  c.bg:Show(); for k = 1, 4 do c[k]:Show() end
+end
+
+-- Hides a page's cards from the from-th on.
+function T:HideCards(page, from)
+  for i = from or 1, #(page.cards or {}) do
+    local c = page.cards[i]
+    c.bg:Hide(); for k = 1, 4 do c[k]:Hide() end
+  end
+end
+
 -- The theme's dressing on a window: the bronze line along the top, a line under the
 -- title bar, the bronze frame, a tinted footer below footerY (pixels from the bottom;
 -- optional).

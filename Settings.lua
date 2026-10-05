@@ -554,34 +554,7 @@ local function rowMatches(r, q)
   return d and ((d.label or ""):lower():find(q, 1, true) or (d.help or ""):lower():find(q, 1, true)) and true or false
 end
 
--- Cards (Default and Gilded): each group of settings, from its heading to the next, on a
--- faint panel with an edge, drawn as textures on the page itself (a frame on top would
--- cover the text).
-local function card(box, i)
-  box.cards = box.cards or {}
-  local c = box.cards[i]
-  if not c then
-    local e = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.07 }
-    c = { bg = box:CreateTexture(nil, "BACKGROUND", nil, -8) }
-    c.bg:SetColorTexture(1, 1, 1, 0.025)
-    for k = 1, 4 do
-      c[k] = box:CreateTexture(nil, "BORDER")
-      c[k]:SetColorTexture(e[1], e[2], e[3], e[4])
-    end
-    box.cards[i] = c
-  end
-  return c
-end
-
-local function placeCard(box, c, top, bottom, width)
-  local h, w = bottom - top, width - 4
-  c.bg:ClearAllPoints(); c.bg:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -top); c.bg:SetSize(w, h)
-  c[1]:ClearAllPoints(); c[1]:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -top); c[1]:SetSize(w, 1)
-  c[2]:ClearAllPoints(); c[2]:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -(bottom - 1)); c[2]:SetSize(w, 1)
-  c[3]:ClearAllPoints(); c[3]:SetPoint("TOPLEFT", box, "TOPLEFT", 2, -top); c[3]:SetSize(1, h)
-  c[4]:ClearAllPoints(); c[4]:SetPoint("TOPLEFT", box, "TOPLEFT", width - 3, -top); c[4]:SetSize(1, h)
-  c.bg:Show(); for k = 1, 4 do c[k]:Show() end
-end
+-- (Cards: T:PlaceCard / T:HideCards in Theme.lua, shared with Help.)
 
 -- Lay out one tab's rows from y; returns where it ended. Tick boxes sit left of their
 -- name so the text has the width; other controls line up on the right. withCards: a
@@ -591,7 +564,7 @@ local function layoutRows(box, rows, width, y, withCards)
   local function close()
     if withCards and groupTop and any then
       used = used + 1
-      placeCard(box, card(box, used), groupTop, y + 2, width)
+      T:PlaceCard(box, used, groupTop, y + 2, width)
       y = y + 12
     end
     groupTop, any = nil, false
@@ -635,10 +608,7 @@ local function layoutRows(box, rows, width, y, withCards)
     end
   end
   close()
-  for i = used + 1, #(box.cards or {}) do
-    local c = box.cards[i]
-    c.bg:Hide(); for k = 1, 4 do c[k]:Hide() end
-  end
+  T:HideCards(box, used + 1)
   return y
 end
 

@@ -17,6 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - Recipes tab: tabs for this character's professions only, each with a coin for its rank (gold Artisan, silver Expert, copper Journeyman), then Trainers; the rest under Other professions, starred when another of your characters on this realm has it.
 - Shuffles tab: Recipes from is a dropdown with a tick box per character (this realm and faction only), instead of a row of boxes; a line sets the sub-tabs apart.
+- Help tab laid out like Settings: a sidebar with search and the topics, each topic under its title with every entry as a name and its explanation, the topic and its questions in cards.
 - Settings has a sidebar like EllesmereUI's options: Global settings (the same for every character: auction house cut, safety margin, price source, flip and deal rules), Profiles, then a page per part of the addon, with tabs across the top. Search still finds any setting.
 - Deal and vendor flip alerts are remembered until you log out, so a `/reload` no longer announces them all again.
 

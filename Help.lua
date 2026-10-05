@@ -154,12 +154,13 @@ ns.HELP_FAQ = {
 }
 
 ---------------------------------------------------------------------------
--- The Help tab: a list of topics on the left, the chosen topic on the right (its
--- entries, then its questions). Opens on the first topic each time (owner, October 3:
--- no need to remember the last one; ns.helpTopic, set back by UI.lua's setView).
+-- The Help tab, laid out like Settings (owner's test, October 4): a sidebar with search
+-- and the topics, the chosen topic on the right under its title, each entry as a name
+-- with its explanation under it, the topic and its questions each in a card with the
+-- heading inside (Default and Gilded). Opens on the first topic each time (ns.helpTopic,
+-- set back by UI.lua's setView).
 ---------------------------------------------------------------------------
-local TOPIC_W = 170
-local NAV_W = 170
+local NAV_W = 190
 local hv
 
 local function topicIndex()
@@ -172,12 +173,25 @@ function ns:BuildHelp(parent)
   local T = ns.Theme
   local f = CreateFrame("Frame", nil, parent)
   f:SetAllPoints()
-  hv = { frame = f, parts = {}, navButtons = {} }
+  hv = { frame = f, navButtons = {} }
+
+  -- The sidebar, like Settings': search, the topics, and the welcome again at the bottom.
+  local nav = CreateFrame("Frame", nil, f)
+  nav:SetPoint("TOPLEFT")
+  nav:SetPoint("BOTTOMLEFT")
+  nav:SetWidth(NAV_W)
+  local fr = T.theme.frame
+  T:Fill(nav, fr and { 0.91, 0.76, 0.48, 0.04 } or { 1, 1, 1, 0.02 })
+  local edge = nav:CreateTexture(nil, "BORDER")
+  if fr then edge:SetColorTexture(fr[1], fr[2], fr[3], 0.5) else edge:SetColorTexture(1, 1, 1, 0.06) end
+  edge:SetPoint("TOPRIGHT")
+  edge:SetPoint("BOTTOMRIGHT")
+  edge:SetWidth(1)
 
   -- Search, from 2 letters: every entry and question with it, from all topics at once
   -- (owner's test, October 3). Clicking a topic clears it.
-  local search = T:EditBox(f, NAV_W - 16, "LEFT")
-  search:SetPoint("TOPLEFT", 0, 0)
+  local search = T:EditBox(nav, NAV_W - 16, "LEFT")
+  search:SetPoint("TOPLEFT", 8, -6)
   local hint = T:Text(search, 11, T.section)
   hint:SetPoint("LEFT", 6, 0)
   hint:SetText("Search help")
@@ -197,37 +211,60 @@ function ns:BuildHelp(parent)
   hv.search = search
   f.search = search   -- (UI.lua clears it when the tab is opened)
 
-  -- Topics on the left (scrolls if the window is short).
-  local navSf, nav = T:Scroll(f)
-  navSf:SetPoint("TOPLEFT", 0, -30)
-  navSf:SetPoint("BOTTOMLEFT", 0, 30)
-  navSf:SetWidth(NAV_W)
-  hv.navSf, hv.nav = navSf, nav
+  -- Topics (scroll if the window is short): a name, with a bar and a tint on the chosen one.
+  local navSf, list = T:Scroll(nav)
+  navSf:SetPoint("TOPLEFT", 0, -38)
+  navSf:SetPoint("BOTTOMRIGHT", -1, 34)
+  hv.navSf, hv.list = navSf, list
   for i, section in ipairs(ns.HELP) do
-    local b = T:Button(nav, section[1], NAV_W - 16, function()
+    local b = CreateFrame("Button", nil, list)
+    b:SetHeight(24)
+    b:SetPoint("TOPLEFT", 0, -(i - 1) * 26)
+    b:SetPoint("RIGHT", list, "RIGHT", 0, 0)
+    b.sel = b:CreateTexture(nil, "BACKGROUND")
+    b.sel:SetAllPoints()
+    b.sel:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.15)
+    b.bar = b:CreateTexture(nil, "ARTWORK")
+    b.bar:SetPoint("TOPLEFT")
+    b.bar:SetPoint("BOTTOMLEFT")
+    b.bar:SetWidth(2)
+    b.bar:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 1)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.05)
+    b.text = T:Text(b, 12)
+    b.text:SetPoint("LEFT", 14, 0)
+    b.text:SetPoint("RIGHT", -6, 0)
+    b.text:SetJustifyH("LEFT")
+    b.text:SetWordWrap(false)   -- (Magic, October 3: names ran out)
+    b.text:SetText(section[1])
+    b:SetScript("OnClick", function()
       ns.helpTopic = section[1]
       hv.search:SetText("")
       hv.search:ClearFocus()
       ns:RefreshHelp()
       hv.sf:SetVerticalScroll(0)
-    end, 21)
-    b:SetPoint("TOPLEFT", 0, -(i - 1) * 23)
-    b:GetFontString():SetFont(T.font, 11, "")
-    -- Never wider than the button, whatever the font (Magic, October 3: names ran out).
-    b:GetFontString():SetWidth(NAV_W - 24)
-    b:GetFontString():SetWordWrap(false)
+    end)
     hv.navButtons[i] = b
   end
-  nav:SetHeight(#ns.HELP * 23)
+  list:SetHeight(#ns.HELP * 26)
   -- The first-run welcome again (Welcome.lua).
-  hv.welcome = T:Button(f, "Show the welcome again", NAV_W - 16, function()
+  hv.welcome = T:Button(nav, "Show the welcome again", NAV_W - 16, function()
     if ns.ShowWelcome then ns:ShowWelcome() end
   end, 22)
-  hv.welcome:SetPoint("BOTTOMLEFT", 0, 2)
+  hv.welcome:SetPoint("BOTTOMLEFT", 8, 6)
 
-  -- The chosen topic.
+  -- The chosen topic: its title, a line about it, then the entries.
+  hv.title = T:Text(f, 16)
+  T:StyleTitle(hv.title, 16)
+  hv.title:SetPoint("TOPLEFT", NAV_W + 14, -4)
+  hv.desc = T:Text(f, 11, T.dim)
+  hv.desc:SetPoint("TOPLEFT", NAV_W + 14, -26)
+  hv.desc:SetPoint("RIGHT", f, "RIGHT", -8, 0)
+  hv.desc:SetJustifyH("LEFT")
+  hv.desc:SetWordWrap(false)
   local sf, content = T:Scroll(f)
-  sf:SetPoint("TOPLEFT", NAV_W + 4, 0)
+  sf:SetPoint("TOPLEFT", NAV_W + 4, -50)
   sf:SetPoint("BOTTOMRIGHT")
   hv.sf, hv.content = sf, content
   return f
@@ -248,42 +285,64 @@ function ns:RefreshHelp()
   local T = ns.Theme
   local cur = topicIndex()
   local q = ns.helpQuery
-  for i, b in ipairs(hv.navButtons) do b:SetSelected(not q and i == cur) end
+  for i, b in ipairs(hv.navButtons) do
+    local on = not q and i == cur
+    b.sel:SetShown(on)
+    b.bar:SetShown(on)
+  end
   hv.navSf.UpdateScrollBar()
 
   local section = ns.HELP[cur]
+  if q then
+    hv.title:SetText("Search")
+    hv.desc:SetText(("Help that mentions \"%s\", from every topic."):format(q))
+  else
+    hv.title:SetText(section[1])
+    local faq = ns.HELP_FAQ[section[1]]
+    hv.desc:SetText(("%d things to know%s. Search finds anything in Help."):format(#section[2],
+      (faq and #faq > 0) and (", and common questions") or ""))
+  end
   local width = math.max(hv.sf:GetWidth() - 12, 280)
   hv.content:SetWidth(width)
   for _, list in pairs(hv.pool or {}) do for _, p in ipairs(list) do p:Hide() end end
 
-  local y, nBand, nTopic, nText, nLine = 0, 0, 0, 0, 0
-  local function band(title)
-    nBand = nBand + 1
-    local b = piece("band", nBand, function()
-      local fr = CreateFrame("Frame", nil, hv.content)
-      T:Fill(fr, { 1, 1, 1, 0.05 })
-      fr.text = T:Text(fr, 13, T.accent)
-      fr.text:SetPoint("LEFT", 8, 0)
-      return fr
-    end)
-    b:ClearAllPoints()
-    b:SetPoint("TOPLEFT", 0, -y)
-    b:SetPoint("RIGHT", hv.content, "RIGHT", -4, 0)
-    b:SetHeight(24)
-    b.text:SetText(title)
-    b:Show()
-    y = y + 30
+  local y, cards, groupTop = 0, 0, nil
+  local nHead, nName, nText, nLine = 0, 0, 0, 0
+  -- A group: its heading inside the top of a card; close() ends the card.
+  local function close()
+    if groupTop then
+      cards = cards + 1
+      T:PlaceCard(hv.content, cards, groupTop, y + 2, width)
+      y = y + 12
+      groupTop = nil
+    end
   end
-  local function entry(left, right, leftColor)
-    nTopic, nText, nLine = nTopic + 1, nText + 1, nLine + 1
-    local topic = piece("topic", nTopic, function()
-      local fs = T:Text(hv.content, 12)
+  local function heading(title)
+    close()
+    groupTop = y
+    nHead = nHead + 1
+    local h = piece("head", nHead, function()
+      local fs = T:Text(hv.content, 11)
       fs:SetJustifyH("LEFT")
       return fs
     end)
-    local text = piece("text", nText, function()
-      local fs = T:Text(hv.content, 12, T.dim)
+    T:StyleHeading(h, title)
+    h:ClearAllPoints()
+    h:SetPoint("TOPLEFT", 14, -(y + 8))
+    h:Show()
+    y = y + 30
+  end
+  local function entry(name, text, question)
+    nName, nText, nLine = nName + 1, nText + 1, nLine + 1
+    local n = piece("name", nName, function()
+      local fs = T:Text(hv.content, 12 + (T.theme.labelAdd or 0))
       fs:SetJustifyH("LEFT")
+      return fs
+    end)
+    local d = piece("text", nText, function()
+      local fs = T:Text(hv.content, 11, T.dim)
+      fs:SetJustifyH("LEFT")
+      fs:SetSpacing(2)
       return fs
     end)
     local line = piece("line", nLine, function()
@@ -292,21 +351,21 @@ function ns:RefreshHelp()
       tx:SetHeight(1)
       return tx
     end)
-    topic:SetText(left)
-    local c = leftColor or { 1, 1, 1, 1 }
-    topic:SetTextColor(c[1], c[2], c[3], c[4] or 1)
-    text:SetText(right)
-    topic:ClearAllPoints()
-    topic:SetPoint("TOPLEFT", 12, -y)
-    topic:SetWidth(TOPIC_W - 16)
-    text:ClearAllPoints()
-    text:SetPoint("TOPLEFT", TOPIC_W, -y)
-    text:SetWidth(width - TOPIC_W - 12)
-    topic:Show()
-    text:Show()
-    y = y + math.max(topic:GetStringHeight(), text:GetStringHeight()) + 10
+    n:SetText(name)
+    local c = question and T.accent or T.text
+    n:SetTextColor(c[1], c[2], c[3], 1)
+    n:ClearAllPoints()
+    n:SetPoint("TOPLEFT", 14, -(y + 4))
+    n:SetWidth(width - 28)
+    d:SetText(text)
+    d:ClearAllPoints()
+    d:SetPoint("TOPLEFT", n, "BOTTOMLEFT", 0, -3)
+    d:SetWidth(width - 28)
+    n:Show()
+    d:Show()
+    y = y + 4 + n:GetStringHeight() + 3 + d:GetStringHeight() + 10
     line:ClearAllPoints()
-    line:SetPoint("TOPLEFT", 8, -(y - 5))
+    line:SetPoint("TOPLEFT", 8, -(y - 4))
     line:SetPoint("RIGHT", hv.content, "RIGHT", -8, 0)
     line:Show()
   end
@@ -322,31 +381,30 @@ function ns:RefreshHelp()
         if hit(fq[1], fq[2]) then list[#list + 1] = { fq[1], fq[2], true } end
       end
       if #list > 0 then
-        if any then y = y + 6 end
         any = true
-        band(s[1])
-        for _, e in ipairs(list) do entry(e[1], e[2], e[3] and T.accent or nil) end
+        heading(s[1])
+        for _, e in ipairs(list) do entry(e[1], e[2], e[3]) end
       end
     end
     if not any then
-      band("Nothing found")
+      heading("Nothing found")
       entry("Try another word", "Like price, flip, list, scan or sound. Or pick a topic on the left.")
     end
   else
-    band(section[1])
+    heading(section[1])
     for _, e in ipairs(section[2]) do entry(e[1], e[2]) end
     local faq = ns.HELP_FAQ[section[1]]
     if faq and #faq > 0 then
-      y = y + 6
-      band("Questions")
-      for _, fq in ipairs(faq) do entry(fq[1], fq[2], T.accent) end
+      heading("Questions")
+      for _, fq in ipairs(faq) do entry(fq[1], fq[2], true) end
     end
     if cur == 1 then
-      y = y + 6
-      band("More")
+      heading("More")
       entry("Full guide", "docs/GUIDE.md on the addon's GitHub page, with pictures.")
     end
   end
+  close()
+  T:HideCards(hv.content, cards + 1)
   hv.content:SetHeight(y + 10)
   hv.sf.UpdateScrollBar()
 end
