@@ -18,6 +18,25 @@ function ns:AHCut(neutral)
   return (ns.db.settings.ahCut or 5) / 100
 end
 
+-- One item at the neutral auction house (Booty Bay) against your faction's, each after
+-- its own cut (owner, October 5: see what sells for more there, without it mixing into
+-- your normal prices). Neutral prices stay in their own market ("realm|Neutral"); only
+-- this reads them while you're away from it. nil when either side has no price.
+-- { there, here = cheapest each; netThere, netHere = after the cut; gain = netThere -
+--   netHere (selling there instead); pct = gain / netHere; buyProfit = netHere - there
+--   (buying there, selling here); listedThere, listedHere; t = when Booty Bay was seen }
+function ns:NeutralCompare(id)
+  local realm, faction = GetRealmName() or "?", UnitFactionGroup("player") or "?"
+  local there = (ns.db.prices[realm .. "|Neutral"] or {})[id]
+  local here = (ns.db.prices[realm .. "|" .. faction] or {})[id]
+  if not (there and here and there.m and here.m and not there.none and not here.none) then return end
+  if there.m <= 0 or here.m <= 0 then return end
+  local netThere, netHere = ns:AfterCut(there.m, true), ns:AfterCut(here.m, false)
+  return { there = there.m, here = here.m, netThere = netThere, netHere = netHere,
+    gain = netThere - netHere, pct = (netThere - netHere) / netHere, buyProfit = netHere - there.m,
+    listedThere = there.q or 0, listedHere = here.q or 0, t = there.t, tHere = here.t }
+end
+
 -- What a sale of this many copper brings: the game rounds the cut down, not what you get
 -- (Booty Bay mail: 433c at 15% = 64.95, cut 64c, received 369c).
 function ns:AfterCut(copper, neutral)

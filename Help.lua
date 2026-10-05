@@ -73,6 +73,7 @@ ns.HELP = {
   } },
   { "Deals", {
     { "Deals tab", "Listings well below the price an item is usually cheapest at, to buy and resell: price now, usual low, how many are worth buying, profit after the auction house cut, and how sure it is (Good, Fair or Thin)." },
+    { "Booty Bay", "Deals tab, Booty Bay (top right): the neutral auction house against yours, each after its own cut (15% there, 5% here). Sells for more there: items worth at least 10% more sold at Booty Bay. Cheaper there: buy at Booty Bay, sell here. Its prices come from scanning there and are kept apart from yours; a tooltip line for big differences is in Settings, Tooltips." },
     { "Why it's a deal", "Hover a deal: the usual cheapest and typical prices and how many days of your scans they come from, how many are usually listed, and the next listing up. Profit assumes you resell at the usual cheapest price or just under the next listing, whichever is lower. Click to search the auction house." },
     { "Filter", "All, Materials, Gear or Other, and a search box for names." },
     { "How sure", "When most of what's listed is that cheap, the price has dropped and it's no bargain: rated Thin. Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too." },

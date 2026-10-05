@@ -144,6 +144,8 @@ local PAGES = {
           help = "The best way to use the item (auction house, vendor, disenchanting or crafting it into something) and the next best few." },
         { key = "tipBuy", label = "Buy at or below", kind = "check",
           help = "The most worth paying for it, after your safety margin. Green when it's already cheaper." },
+        { key = "tipNeutral", label = "Booty Bay, when it pays clearly more", kind = "check",
+          help = "One line, only on items that bring at least 25% more at the neutral auction house (Booty Bay, Gadgetzan, Everlook) after its 15% cut, from your last scan there. Off by default; the Deals tab's Booty Bay view lists them all." },
         { sub = "Uses and quests" },
         { key = "tipQuest", label = "Quests that need it", kind = "check",
           help = "Quests that ask for the item (original Classic quests; Forever may have changed some), and \"keep it\" when this character will want it later." },

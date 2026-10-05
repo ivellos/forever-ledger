@@ -235,6 +235,17 @@ local function addLines(tt, id, forceFull)
     end
   end
 
+  -- Booty Bay, only when it's clearly better there (owner, October 5: neutral prices
+  -- mustn't muddle these; off by default, and never while you're at a neutral one,
+  -- where the prices above are its own already).
+  if s.tipNeutral and not ns.neutralAH and ns.NeutralCompare then
+    local c = ns:NeutralCompare(id)
+    if c and c.gain > 0 and c.pct >= 0.25 then
+      tt:AddDoubleLine("Booty Bay (15% cut)", ("%s, |cff7fd39c+%d%%|r %s"):format(ns.Money(c.there),
+        math.floor(c.pct * 100 + 0.5), "|cff999999" .. ns.Age(c.t) .. "|r"), LR, LG, LB, 1, 1, 1)
+    end
+  end
+
   local buy = ns.db.vendorBuy[id]
   if buy and on("tipPrice") then
     -- The standing it was seen at, when above Neutral (reputation discounts).
