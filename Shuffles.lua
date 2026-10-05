@@ -405,26 +405,55 @@ function ns:ShuffleShoppingItems(s, runs)
     end
   end
   extras(route.opt, (route.units or 1) * runs, true)
-  local market = ns.db.prices[ns.MarketKey()] or {}
   for _, b in ipairs(order) do
     b.qty = math.ceil(b.qty)
-    -- Last price level needed, as in Crates.lua priceToGet, capped by the
-    -- route's assumptions so a bigger amount never authorizes a worse shuffle.
-    local rec, top = market[b.id], nil
-    if rec and not rec.none and rec.m then
-      for p, c in (rec.l or ""):gmatch("(%d+):(%d+)") do
-        top = tonumber(p)
-        if tonumber(c) >= b.qty then break end
-      end
-      top = math.max(top or 0, rec.m)
-      if not rec.l then top = rec.a or rec.m end
-    end
-    local vendor = ns:GetVendorBuyPrice(b.id)
-    local cost = ns:CostToBuy(b.id, b.qty)
-    if vendor and cost and cost >= vendor * b.qty then top = vendor end
-    b.max = math.max(0, math.floor(math.min(b.cap or 0, top or b.cap or 0)))
+    -- The route's cap, independent of today's depth on the price ladder. Other
+    -- materials keep the cost assumptions already deducted from the root cap.
+    b.max = math.max(0, math.floor(b.cap or 0))
   end
   return order
+end
+
+-- Identify the chosen steps without saving cached valuations or character tables.
+function ns:ShuffleRouteKey(o)
+  if not o then return "" end
+  local key = o.kind .. ":" .. (o.id or "")
+  if o.rec then key = key .. ":" .. (o.recipeID or o.rec.n or "") .. ":" .. (o.rec.out or "") end
+  if o.per then key = key .. ":" .. o.per end
+  if o.next then key = key .. ">" .. ns:ShuffleRouteKey(o.next) end
+  for _, m in ipairs(o.mats or {}) do key = key .. "|" .. m.id .. ":" .. ns:ShuffleRouteKey(m.opt) end
+  return key
+end
+
+function ns:ShuffleShoppingSource(s)
+  local route = s.group and s.members[1] or s
+  local path = ns:ShuffleRouteKey(route.opt)
+  return { id = route.id, route = path, name = ns:ShuffleName(s), key = route.id .. ":" .. path }
+end
+
+-- Revalue the same route; never silently switch to a different recipe or alternative.
+-- A route no longer available leaves its items off until it can be valued again.
+function ns:RefreshShuffleShoppingSource(source)
+  for _, o in ipairs(ns:Options(source.id)) do
+    if ns:ShuffleRouteKey(o) == source.route then
+      local s
+      if o.kind == "vendor" then
+        s = { id = source.id, units = 1, opt = o, maxBuy = ns:VendorFlipLimit(o.value),
+          buys = { { id = source.id, qty = 1 } } }
+      else
+        local cost, listed = buyInfo(source.id, ns.db.prices[ns.MarketKey()] or {})
+        if cost then
+          -- build checks the same costs and safety margin as the displayed shuffle.
+          s = build(source.id, o, cost, listed, ns.db.prices[ns.MarketKey()] or {},
+            (ns.db.settings.margin or 10) / 100, ns.db.settings.actionSeconds or 3)
+        end
+      end
+      local caps = {}
+      for _, b in ipairs(s and ns:ShuffleShoppingItems(s, 1) or {}) do caps[b.id] = b.max end
+      return caps
+    end
+  end
+  return {}
 end
 
 -- The detail panel is drawn in UI.lua. Keep its shopping controls here so the

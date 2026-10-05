@@ -134,7 +134,7 @@ function T.resetDB()
 end
 
 -- The test files (listed here, so it runs the same on any system).
-local FILES = { "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets", "sync", "neutral", "shuffle_lists" }
+local FILES = { "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets", "sync", "neutral", "shuffle_lists", "list_sources", "price_controls" }
 for _, name in ipairs(FILES) do
   local f = "tests/test_" .. name .. ".lua"
   current = f:match("test_(.-)%.lua$")

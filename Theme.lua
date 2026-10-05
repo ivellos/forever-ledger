@@ -369,6 +369,7 @@ function T:Number(parent, opts, onChange)
   f:SetWidth(110 + ((opts.suffix or "") ~= "" and (suffix:GetStringWidth() + 6) or 0))
 
   function f:SetValue(v) self.value = v; eb:SetText(("%g"):format(v or 0)) end
+  function f:IsEditing() return eb:HasFocus() end
   local function set(v)
     v = tonumber(v)
     if v then
@@ -471,7 +472,10 @@ function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
     eb:SetText((v < 0 and "any") or (v > 0 and ((eb.compact and not exact) and shortPrice(v) or ns.MoneyPlain(v))) or offText or "off")
   end
   function eb:SetValue(v) self.value = v; show(v, self:HasFocus()) end
-  eb:SetScript("OnEscapePressed", function(self) self:ClearFocus(); show(self.value) end)
+  eb:HookScript("OnTextChanged", function(self, userInput)
+    if userInput then self.priceEdited = true end
+  end)
+  eb:SetScript("OnEscapePressed", function(self) self.priceEdited = nil; show(self.value); self:ClearFocus() end)
   -- Clicking in shows the exact amount and selects it, so typing replaces it.
   eb:SetScript("OnEditFocusGained", function(self)
     if self.compact then show(self.value, true) end
@@ -491,10 +495,11 @@ function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
     if v == -1 and not allowAny then v = nil end
     if not v then
       ns:Print(("Couldn't read that price. Try 2g 50s 25c, 2 50 25, 2.50.25, 25s or 75c%s."):format(allowAny and ", or any" or ""))
-    elseif v ~= self.value then
+    elseif v ~= self.value or (self.confirmSame and self.priceEdited) then
       self.value = v
       onChange(v)
     end
+    self.priceEdited = nil
     show(self.value)
   end)
   T:MoneyPreview(eb, plainUnit)

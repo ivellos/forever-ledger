@@ -13,13 +13,13 @@ local function craft()
     opt = { kind = "craft", units = 2, rec = { n = "Test gloves", oq = 1 },
       next = { kind = "vendor" } } }
 end
-T.test("Crafts scale materials and cap the last price level needed", function()
+T.test("Crafts scale materials and use route caps independent of the ladder", function()
   local s = craft()
   local buys = ns:ShuffleShoppingItems(s, 3)
   T.eq(buys[1].qty, 6)
-  T.eq(buys[1].max, 15, "enough at this ladder level")
+  T.eq(buys[1].max, 18, "the shuffle cap, not today's ladder")
   T.eq(buys[2].qty, 3)
-  T.eq(buys[2].max, 3)
+  T.eq(buys[2].max, 5)
   local big = ns:ShuffleShoppingItems(s, 20)
   T.eq(big[1].max, 18, "never raise above the shuffle limit")
   T.eq(big[2].max, 5, "extra material stays within its cost assumption")
@@ -61,7 +61,7 @@ T.test("Vendor flips use the chosen item count and never exceed the vendor-flip 
     buys = { { id = 88003, qty = 1, price = 25 } }, opt = { kind = "vendor" } }
   local list = assert(ns:ShuffleToShoppingList(s, nil, 5))
   T.eq(list.items[1].qty, 5)
-  T.eq(list.items[1].max, 25)
+  T.eq(list.items[1].max, 29)
   T.eq(ns:ShuffleShoppingItems(s, 20)[1].max, 29)
 end)
 T.test("A disenchant group adds only its cheapest alternative", function()
@@ -118,10 +118,10 @@ T.test("Gear versions and unrelated entries keep their own quantities", function
   T.eq(list.items[2].suffix, nil)
 end)
 
-T.test("Vendor materials use their known vendor price when that is cheaper", function()
+T.test("Material limits retain the route cost assumption rather than changing with the ladder", function()
   local s = craft()
   ns.db.vendorBuy[88002] = { p = 2, t = S.now }
-  T.eq(ns:ShuffleShoppingItems(s, 3)[2].max, 2)
+  T.eq(ns:ShuffleShoppingItems(s, 3)[2].max, 5)
   ns.db.vendorBuy[88002] = nil
 end)
 T.test("Done entries with no bought count still request the newly added amount", function()

@@ -10,7 +10,7 @@ end
 ns.PREFIX = "|cffb9a2ffForever Ledger:|r"
 
 local DEFAULTS = {
-  schema = 4,
+  schema = 6,
   chars = {},       -- [charKey] = { name, realm, class, level, faction, updated, profs = { [profName] = { rank, max, updated, recipes = {...} } } }
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
@@ -481,6 +481,17 @@ ns:On("ADDON_LOADED", function(name)
     end
     db.charSettings = nil
     db.schema = 5
+  end
+  -- Schema 6: price provenance. Existing limits were chosen before sources were
+  -- recorded, so protect every nonzero limit as the player's own (including any).
+  if ForeverLedgerDB.schema < 6 then
+    for _, list in ipairs((ForeverLedgerDB.shopping or {}).lists or {}) do
+      list.allowance = list.allowance or 10
+      for _, e in ipairs(list.items or {}) do
+        if not e.src then e.src = ((e.max or 0) ~= 0 or e.offSet) and "you" or "usual" end
+      end
+    end
+    ForeverLedgerDB.schema = 6
   end
   -- Settings per character (below): while a character used its own, the shared settings
   -- were also kept under settingsAccount. If the game ever saved the stand-in instead of
