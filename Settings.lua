@@ -478,7 +478,7 @@ end
 -- One setting's row: name, description and its control.
 local function makeRow(box, d)
   local r = { def = d }
-  r.label = T:Text(box, 12)
+  r.label = T:Text(box, 12 + (T.theme.labelAdd or 0))   -- (names stand out from the grey text)
   r.label:SetJustifyH("LEFT")
   r.label:SetText((d.label:gsub("^%s+", "")))
   r.indent = d.label:find("^%s") and 18 or 0   -- a sub-option of the one above
@@ -488,6 +488,7 @@ local function makeRow(box, d)
     r.help = T:Text(box, 11, T.dim)
     r.help:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -3)
     r.help:SetJustifyH("LEFT")
+    r.help:SetSpacing(2)
     r.help:SetText(helpText)
   end
   local function changed(v)

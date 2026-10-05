@@ -46,12 +46,13 @@ T.THEMES = {
   default = { name = "FL Default", accent = TEAL,
     bg = { 0.071, 0.065, 0.059, 0.97 }, header = { 0.094, 0.082, 0.071, 1 },
     button = { 0.118, 0.106, 0.094, 0.95 }, border = { 1, 0.92, 0.80, 0.10 },
-    font = "Fonts\\ARIALN.TTF", fontAdd = 1,
+    font = "Fonts\\ARIALN.TTF", fontAdd = 1, labelAdd = 1,
+    bodyFont = "Fonts\\ARIALN.TTF", bodyAdd = 1, dimAlpha = 0.5,
     topLine = BRONZE, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
   gilded = { name = "FL Gilded", accent = TEAL,
     bg = { 0.078, 0.069, 0.059, 0.97 }, header = { 0.118, 0.094, 0.071, 1 },
     button = { 0.125, 0.106, 0.086, 0.95 }, border = { BRONZE[1], BRONZE[2], BRONZE[3], 0.55 },
-    font = "Fonts\\FRIZQT__.TTF",
+    font = "Fonts\\FRIZQT__.TTF", bodyFont = "Fonts\\ARIALN.TTF", bodyAdd = 1, dimAlpha = 0.5,
     frame = BRONZE, topLine = BRONZE, title = GOLD, heading = GOLD, serif = true,
     cards = true, cardEdge = BRONZE, toggles = true, footer = true },
 }
@@ -90,6 +91,11 @@ function T:Apply()
   -- Gilded use WoW's own, which moves them away from EllesmereUI like the mockup.
   T.fontAdd = T.theme.fontAdd or 0
   if T.theme.font then T.font = T.theme.font end
+  -- Grey text (descriptions, hints) can have its own font: Arial Narrow on Default and
+  -- Gilded, compact and easy to read, dimmer than the names above it (owner's test,
+  -- October 4: names and descriptions read at the same weight; Friz made long
+  -- descriptions busy).
+  T.dim = { 1, 1, 1, T.theme.dimAlpha or 0.53 }
   T.accent = T:FromHex(s and s.accent) or euiAccent() or T.theme.accent
 end
 
@@ -124,7 +130,7 @@ end
 -- A page or window title: gold (and serif on Gilded) where the theme has them.
 function T:StyleTitle(fs, size)
   local t = T.theme
-  fs:SetFont((t.serif and T.SERIF) or T.font, (size or 16) + (t.serif and 2 or 0), "")
+  fs:SetFont((t.serif and T.SERIF) or T.font, (size or 16) + (t.serif and 2 or (T.fontAdd or 0) * 2), "")
   local c = t.title or T.text
   fs:SetTextColor(c[1], c[2], c[3], 1)
 end
@@ -139,7 +145,7 @@ function T:StyleHeading(fs, text)
     fs:SetTextColor(c[1], c[2], c[3], 1)
     fs:SetText(text)
   else
-    fs:SetFont(T.font, 11, "")
+    fs:SetFont(T.font, 11 + (T.fontAdd or 0), "")
     fs:SetTextColor(c[1], c[2], c[3], 0.9)
     fs:SetText(text:upper())
   end
@@ -204,7 +210,8 @@ function T:AccentCode()
 end
 
 function T:Font(fs, size, color)
-  fs:SetFont(T.font, (size or 12) + (T.fontAdd or 0), "")
+  local body = color == T.dim and T.theme.bodyFont
+  fs:SetFont(body or T.font, (size or 12) + (body and (T.theme.bodyAdd or 0) or (T.fontAdd or 0)), "")
   fs:SetShadowColor(0, 0, 0, 0.8)
   fs:SetShadowOffset(1, -1)
   local c = color or T.text
