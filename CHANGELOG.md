@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- Auctions tab: a neutral auction house (Booty Bay) keeps its own list of your auctions, so auctions at your faction's auction house no longer look sold while you're there; the tab says which auction house it shows.
+- Auctions tab: the Yours and Cheapest headings no longer run into each other (FL Gilded).
+
+### Removed
+- The Waylaid Crate trade posts no longer count as neutral auction houses (their auctioneers were removed from the beta).
+
 ## [0.14.0] - 2026-10-05
 
 ### Highlights

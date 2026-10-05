@@ -16,7 +16,9 @@ local T = ns.Theme
 --
 -- ns.db.myAuctions[charKey] = { t = time read, list = { { a = auctionID, id, link, q,
 --   each, left = seconds left when read, sold, soldAt = first seen sold, mailed = gone
---   from the list after selling } } }: the last list seen per character.
+--   from the list after selling } } }: the last list seen per character, and per auction
+--   house: a neutral one's under "charKey (neutral)" (owner's test, October 5: Booty Bay
+--   keeps its own list; read against the faction one, auctions there looked sold).
 -- ns.db.mailbox[charKey] = { t, money }: gold waiting in the mailbox at the last visit.
 ---------------------------------------------------------------------------
 local SALE_MAIL_SECONDS = 3600   -- Classic: a sale's gold arrives an hour later (to check in Forever)
@@ -31,7 +33,8 @@ local function store()
   ns.db.myAuctions = ns.db.myAuctions or {}
   return ns.db.myAuctions
 end
-local function mine() return store()[ns.CharKey()] end
+local function listKey() return ns.CharKey() .. (ns.neutralAH and " (neutral)" or "") end
+local function mine() return store()[listKey()] end
 
 -- The game's own auctions list needs the auction house open; it answers with
 -- OWNED_AUCTIONS_UPDATED.
@@ -165,7 +168,7 @@ local function readOwned()
   ns:Debug(("Your auctions: %d listed, %d before, %d newly sold, %d waiting to be told (auction house %s)."):format(
     #list, (function() local c = 0; for _ in pairs(before) do c = c + 1 end; return c end)(), #newlySold, #unseen,
     ahOpen and "open" or "closed"))
-  store()[ns.CharKey()] = { t = now, list = list, alerts = (mine() or {}).alerts, unseen = unseen }
+  store()[listKey()] = { t = now, list = list, alerts = (mine() or {}).alerts, unseen = unseen }
 end
 
 -- What a sold auction brings: the sale after the cut, plus the deposit, which comes back
@@ -306,7 +309,11 @@ ns:On("PLAYER_ENTERING_WORLD", function(isLogin, isReload)
   for _ in pairs(m and m.alerts or {}) do n = n + 1 end
   ns:Debug(("Your auctions: entering the world, login %s, reload %s, %d undercut alerts remembered."):format(
     tostring(isLogin), tostring(isReload), n))
-  if m and isLogin == true and not isReload then m.alerts = nil end
+  if isLogin == true and not isReload then
+    for _, k in ipairs({ ns.CharKey(), ns.CharKey() .. " (neutral)" }) do
+      if store()[k] then store()[k].alerts = nil end
+    end
+  end
 end)
 
 -- New prices from any scan: check your auctions against them.
@@ -363,7 +370,9 @@ end)
 -- The tab
 ---------------------------------------------------------------------------
 local ROW = 22
-local X = { name = 24, q = 182, each = 238, now = 292 }   -- the status gets the rest (it was cut off)
+-- The status gets the rest (it was cut off); Yours and Cheapest apart (they touched on
+-- Gilded, owner's screenshot, October 5).
+local X = { name = 24, q = 178, each = 238, now = 312 }
 local VIEWS = { { "all", "All" }, { "up", "Up" }, { "undercut", "Undercut" }, { "sold", "Sold" } }
 local view = "all"
 local cancelState     -- nil, "asking" (first click, until asked = time), or "on" (each click cancels one)
@@ -561,6 +570,8 @@ refresh = function()
     or (view == "undercut" and "None undercut at the last check.") or (view == "sold" and "Nothing sold lately.")
     or "Nothing here.")
   frame.check:SetEnabled(ns:IsAHOpen() and counts.up > 0 and not (ns.Scan.active and not ns.Scan.quiet))
+  frame.where:SetText(ns.neutralAH and "|cffffd100Neutral auction house|r"
+    or ((UnitFactionGroup("player") or "Your") .. " auction house"))
 
   -- Cancel next undercut: asks once, then each click cancels the next one.
   local todo = undercutList(order)
@@ -618,6 +629,10 @@ function ns:YourAuctionsFrame(side)
     frame.views[v[1]] = b
     prev = b
   end
+  -- Which auction house's list this is (owner, October 5: neutral and faction ones each
+  -- keep their own auctions).
+  frame.where = T:Text(frame, 11, T.dim)
+  frame.where:SetPoint("TOPRIGHT", -10, -9)
   -- A line under the view tabs, as on the Ledger (owner, October 4).
   local subLine = frame:CreateTexture(nil, "BORDER")
   subLine:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)

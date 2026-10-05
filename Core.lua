@@ -252,15 +252,12 @@ function ns.MarketKey()
 end
 
 -- The auctioneer has no faction and stands in a town with a neutral auction house:
--- Classic's goblin towns, and Forever's trade posts by the Waylaid Crate turn-ins
--- (Three Corners in Redridge; Durotar Supply and Logistics just west of the Crossroads
--- in the Barrens, subzone name unknown, so the whole zone counts).
-local NEUTRAL_TOWNS = { ["Booty Bay"] = true, ["Gadgetzan"] = true, ["Everlook"] = true, ["Three Corners"] = true }
-local NEUTRAL_ZONES = { ["Redridge Mountains"] = true, ["The Barrens"] = true }
+-- Classic's goblin towns (Booty Bay confirmed, October 5). The Waylaid Crate trade posts'
+-- auctioneers were removed in the beta (owner, October 5).
+local NEUTRAL_TOWNS = { ["Booty Bay"] = true, ["Gadgetzan"] = true, ["Everlook"] = true }
 function ns.IsNeutralAuctioneer()
   if not UnitExists("npc") or UnitFactionGroup("npc") then return false end
-  return NEUTRAL_TOWNS[GetSubZoneText() or ""] or NEUTRAL_TOWNS[GetMinimapZoneText and GetMinimapZoneText() or ""]
-    or NEUTRAL_ZONES[GetZoneText() or ""] or false
+  return NEUTRAL_TOWNS[GetSubZoneText() or ""] or NEUTRAL_TOWNS[GetMinimapZoneText and GetMinimapZoneText() or ""] or false
 end
 
 -- Placeholders; UI.lua replaces these.
