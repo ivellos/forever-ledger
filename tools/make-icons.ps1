@@ -73,4 +73,41 @@ $fill = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
 foreach ($c in @(@(7, 9), @(11.5, 6.5), @(16, 9))) { $g.FillEllipse($fill, $c[0] - 1.3, $c[1] - 1.3, 2.6, 2.6) }
 Finish $p "appearance"
 
+# Change marks for What's new (owner, October 5), after the usual software convention:
+# a bold delta for a major change, a single plus for something new, a pencil for a
+# change, a wrench for a fix.
+
+# Major: a bold delta (a thicker line than the others, so it reads as the big one).
+$p = New-Canvas; $g = $p[1]; $pen = $p[2]
+$pen.Width = 2.7
+$g.DrawPolygon($pen, @((New-Object System.Drawing.PointF 12, 3.8), (New-Object System.Drawing.PointF 20.8, 19.6), (New-Object System.Drawing.PointF 3.2, 19.6)))
+Finish $p "change-major"
+
+# New: a single plus.
+$p = New-Canvas; $g = $p[1]; $pen = $p[2]
+$pen.Width = 2.3
+$g.DrawLine($pen, 12, 5, 12, 19)
+$g.DrawLine($pen, 5, 12, 19, 12)
+Finish $p "change-new"
+
+# Changed: a pencil, pointing down to the left.
+$p = New-Canvas; $g = $p[1]; $pen = $p[2]
+$g.TranslateTransform(12, 12); $g.RotateTransform(45); $g.TranslateTransform(-12, -12)
+$g.DrawPolygon($pen, @((New-Object System.Drawing.PointF 9.8, 2.5), (New-Object System.Drawing.PointF 14.2, 2.5),
+  (New-Object System.Drawing.PointF 14.2, 16), (New-Object System.Drawing.PointF 12, 21), (New-Object System.Drawing.PointF 9.8, 16)))
+$g.DrawLine($pen, 9.8, 6, 14.2, 6)
+$g.DrawLine($pen, 9.8, 16, 14.2, 16)
+Finish $p "change-edit"
+
+# Fixed: a wrench, its open jaw up to the right.
+$p = New-Canvas; $g = $p[1]; $pen = $p[2]
+$g.TranslateTransform(12, 12); $g.RotateTransform(45); $g.TranslateTransform(-12, -12)
+$g.DrawArc($pen, 7.5, 2, 9, 9, 295, 310)
+$g.DrawLines($pen, @((New-Object System.Drawing.PointF 10.1, 2.4), (New-Object System.Drawing.PointF 10.7, 5.6),
+  (New-Object System.Drawing.PointF 13.3, 5.6), (New-Object System.Drawing.PointF 13.9, 2.4)))
+$g.DrawLine($pen, 10.6, 10.8, 10.6, 19.5)
+$g.DrawLine($pen, 13.4, 10.8, 13.4, 19.5)
+$g.DrawArc($pen, 10.6, 18.1, 2.8, 2.8, 0, 180)
+Finish $p "change-fix"
+
 Get-ChildItem $out | Select-Object Name, Length

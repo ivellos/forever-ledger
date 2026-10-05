@@ -166,23 +166,36 @@ end
 -- first install, which gets the welcome). At each release, copy the changelog's
 -- Highlights here and set the version (docs/RELEASING.md). /fl new and the What's new
 -- button show them as a card.
--- Each line is "Name: text". Big ones are { "Name: text", icon = itemID }: their own
--- card with the item's icon (owner, October 5: icons for the major things, something
--- lesser for the rest). Plain lines go together in an "Also new" card, and
--- { "Name: text", fix = true } in a "Fixes" card.
+-- Each line is "Name: text", marked by its kind after the usual software convention
+-- (owner, October 5): { ..., major = true } a big change (a bold delta, its own card);
+-- a plain line something new (a plus); { ..., change = true } a change (a pencil);
+-- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
   version = "0.14.0",
   lines = {
-    { "A new look: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. Settings, Appearance.", icon = 7971 },   -- Black Pearl
-    { "New Settings: a sidebar, Global settings for every character, and profiles your characters can share.", icon = 6219 },   -- Arclight Spanner
-    { "Dashboard redone: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.", icon = 3577 },   -- Gold Bar
+    { "A new look: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. Settings, Appearance.", major = true },
+    { "New Settings: a sidebar, Global settings for every character, and profiles your characters can share.", major = true },
+    { "Dashboard redone: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.", major = true },
     "Sessions list: every session in the Ledger, with where its gold came from.",
     "Sold while you were away: one chat line when you open the auction house.",
-    "Auction house panel: the Buy queue lights up when there's something to buy, and the Disenchant finder picks item levels from a dropdown.",
     "Bag value: bag tooltips show what a slot costs and the cheapest bag right now.",
+    { "Auction house panel: the Buy queue lights up when there's something to buy, and the Disenchant finder picks item levels from a dropdown.", change = true },
+    { "Fixes: long names in the Ledger, the Crates heading and controls in Settings no longer run over the edge.", fix = true },
   },
 }
+
+-- The kinds: icon (media/icons, drawn by tools/make-icons.ps1), colour, what a hover says.
+local KINDS = {
+  major = { "change-major", nil, "A big change" },
+  new = { "change-new", { 0.5, 0.83, 0.61 }, "New" },
+  change = { "change-edit", { 0.95, 0.75, 0.35 }, "Changed" },
+  fix = { "change-fix", { 0.6, 0.7, 0.85 }, "Fixed" },
+}
+local function kindOf(l)
+  if type(l) ~= "table" then return "new" end
+  return (l.major and "major") or (l.change and "change") or (l.fix and "fix") or "new"
+end
 
 local function lineText(l) return type(l) == "table" and l[1] or l end
 local function split(l)
@@ -192,65 +205,73 @@ local function split(l)
   return name, text
 end
 
--- A major item: its own card, the item's icon in a thin frame, the name a little bigger.
-local function majorCard(c, y, W, l)
-  local name, text = split(l)
+-- A kind's icon at size, with its meaning on hover.
+local function kindIcon(parent, kind, size)
+  local k = KINDS[kind]
+  local f = CreateFrame("Frame", nil, parent)
+  f:SetSize(size, size)
+  local tex = f:CreateTexture(nil, "ARTWORK")
+  tex:SetAllPoints()
+  tex:SetTexture("Interface\\AddOns\\ForeverLedger\\media\\icons\\" .. k[1])
+  local c = k[2] or T.theme.heading or T.accent
+  tex:SetVertexColor(c[1], c[2], c[3], 1)
+  f:EnableMouse(true)
+  f:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(k[3], 1, 1, 1)
+    GameTooltip:Show()
+  end)
+  f:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  return f
+end
+
+local function cardFrame(c, y, W, tint)
   local edge = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.08 }
   local row = CreateFrame("Frame", nil, c)
   row:SetPoint("TOPLEFT", 18, -y)
   row:SetWidth(W - 36)
-  T:Fill(row, { 1, 1, 1, 0.03 })
+  T:Fill(row, { 1, 1, 1, tint })
   T:Border(row, edge)
-  local frame = CreateFrame("Frame", nil, row)
-  frame:SetSize(34, 34)
-  frame:SetPoint("TOPLEFT", 9, -8)
-  T:Border(frame, T.theme.frame and { T.theme.frame[1], T.theme.frame[2], T.theme.frame[3], 0.8 } or { 1, 1, 1, 0.18 })
-  local icon = frame:CreateTexture(nil, "ARTWORK")
-  icon:SetPoint("TOPLEFT", 1, -1)
-  icon:SetPoint("BOTTOMRIGHT", -1, 1)
-  icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  icon:SetTexture(ns.ItemIcon and ns:ItemIcon(l.icon) or "Interface\\Icons\\INV_Misc_QuestionMark")
+  return row
+end
+
+-- A big change: its own card with the delta, the name a little bigger.
+local function majorCard(c, y, W, l)
+  local name, text = split(l)
+  local row = cardFrame(c, y, W, 0.03)
+  kindIcon(row, "major", 26):SetPoint("TOPLEFT", 12, -10)
   local head = T:Text(row, 14)
-  head:SetPoint("TOPLEFT", 54, -8)
+  head:SetPoint("TOPLEFT", 52, -8)
   head:SetText(name)
   local fs = T:Text(row, 12, T.dim)
   fs:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -3)
-  fs:SetWidth(W - 36 - 54 - 14)
+  fs:SetWidth(W - 36 - 52 - 14)
   fs:SetJustifyH("LEFT")
   fs:SetText(text)
-  local h = math.max(50, 8 + head:GetStringHeight() + 3 + fs:GetStringHeight() + 9)
+  local h = math.max(48, 8 + head:GetStringHeight() + 3 + fs:GetStringHeight() + 9)
   row:SetHeight(h)
   return h
 end
 
--- The smaller ones together in one card under a small heading: a dot, the name, then
--- its text on the same line.
-local function groupCard(c, y, W, title, list, dim)
-  local edge = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.08 }
-  local row = CreateFrame("Frame", nil, c)
-  row:SetPoint("TOPLEFT", 18, -y)
-  row:SetWidth(W - 36)
-  T:Fill(row, { 1, 1, 1, 0.025 })
-  T:Border(row, edge)
+-- The smaller ones together in one card under a small heading: each with its kind's
+-- icon, the name in white and its text after it.
+local function groupCard(c, y, W, title, list)
+  local row = cardFrame(c, y, W, 0.025)
   local head = T:Text(row, 11)
   T:StyleHeading(head, title)
   head:SetPoint("TOPLEFT", 12, -9)
-  local dotC = dim and { 0.6, 0.6, 0.6 } or (T.theme.heading or T.accent)
   local top = 9 + head:GetStringHeight() + 7
   for _, l in ipairs(list) do
     local name, text = split(l)
-    local dot = row:CreateTexture(nil, "ARTWORK")
-    dot:SetSize(5, 5)
-    dot:SetPoint("TOPLEFT", 14, -(top + 5))
-    dot:SetColorTexture(dotC[1], dotC[2], dotC[3], 0.9)
+    kindIcon(row, kindOf(l), 14):SetPoint("TOPLEFT", 12, -(top + 1))
     local fs = T:Text(row, 12, T.dim)
-    fs:SetPoint("TOPLEFT", 28, -top)
-    fs:SetWidth(W - 36 - 28 - 14)
+    fs:SetPoint("TOPLEFT", 34, -top)
+    fs:SetWidth(W - 36 - 34 - 14)
     fs:SetJustifyH("LEFT")
     fs:SetText(text ~= "" and ("|cffffffff" .. name .. "|r  " .. text) or name)
-    top = top + fs:GetStringHeight() + 5
+    top = top + fs:GetStringHeight() + 6
   end
-  local h = top + 4
+  local h = top + 3
   row:SetHeight(h)
   return h
 end
@@ -266,18 +287,18 @@ local function buildNews()
   local w = ns.WHATS_NEW
   local y = header(news, "What's new in " .. w.version,
     "The highlights of this version. Every change is in the changelog on CurseForge and Wago.")
-  local minor, fixes = {}, {}
+  -- Big changes first, then the rest: new, changed, fixed.
+  local rest = { new = {}, change = {}, fix = {} }
   for _, l in ipairs(w.lines) do
-    if type(l) == "table" and l.icon then
-      y = y + majorCard(news, y, W, l) + 6
-    elseif type(l) == "table" and l.fix then
-      fixes[#fixes + 1] = l
-    else
-      minor[#minor + 1] = l
-    end
+    local kind = kindOf(l)
+    if kind == "major" then y = y + majorCard(news, y, W, l) + 6
+    else table.insert(rest[kind], l) end
   end
-  if #minor > 0 then y = y + groupCard(news, y, W, "Also new", minor) + 6 end
-  if #fixes > 0 then y = y + groupCard(news, y, W, "Fixes", fixes, true) + 6 end
+  local small = {}
+  for _, kind in ipairs({ "new", "change", "fix" }) do
+    for _, l in ipairs(rest[kind]) do small[#small + 1] = l end
+  end
+  if #small > 0 then y = y + groupCard(news, y, W, "Also in this version", small) + 6 end
   footer(news, "The Help tab explains every feature. /fl new shows this again.", {
     { "Open Help", function() newsShade:Hide(); ns:ShowTab("help") end },
     { "Close", function() newsShade:Hide() end },

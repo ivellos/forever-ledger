@@ -12,7 +12,7 @@ While the version starts with `0.`, GitHub marks releases as pre-releases.
 
 1. In `CHANGELOG.md`, rename `## [Unreleased]` to the new version and date, for example `## [0.2.0] - 2026-10-05`, then add a fresh empty `## [Unreleased]` above it.
 2. Under the new version, add a `### Highlights` list: 5 to 7 short bullets like `- **Deals tab**: listings well below their usual price, with why each one is a deal`. This becomes the Discord announcement; the rest of the notes are counted ("Plus 13 more changes and 15 bug fixes").
-   Also copy them into `ns.WHATS_NEW` in `Welcome.lua` (plain text, no **bold**, each "Name: text") and set its `version` to the new version: players who update see them in chat once, and the What's new button shows them as a card. The two or three biggest get `icon = itemID` (a Classic item whose icon fits) and their own card; the rest go together under "Also new"; fixes get `fix = true`.
+   Also copy them into `ns.WHATS_NEW` in `Welcome.lua` (plain text, no **bold**, each "Name: text") and set its `version` to the new version: players who update see them in chat once, and the What's new button shows them as a card. Mark each by its kind, like software release notes: `major = true` for the two or three big changes (a bold delta, their own card), plain for something new (a plus), `change = true` for a change (a pencil), `fix = true` for a fix (a wrench); the small ones share an "Also in this version" card. The version number is just text.
 3. Commit with the summary `Release 0.2.0` and push.
 4. In GitHub Desktop, open the **History** tab, right-click that commit and choose **Create Tag**. Name it `v0.2.0` (with the `v`).
 5. Click **Push origin** (or **Push tags**).
