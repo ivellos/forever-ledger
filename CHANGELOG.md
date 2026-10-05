@@ -14,6 +14,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 - Ledger: once a log holds 10,000 entries, the oldest one now goes into its month's total instead of being dropped, so no copper goes missing.
 
+### Added
+- Size (Settings, Appearance): Forever Ledger's windows from 75% to 150%.
+
 ### Changed
 - Recipes tab: tabs for this character's professions only, each with a coin for its rank (gold Artisan, silver Expert, copper Journeyman), then Trainers; the rest under Other professions, starred when another of your characters on this realm has it.
 - Shuffles tab: Recipes from is a dropdown with a tick box per character (this realm and faction only), instead of a row of boxes; a line sets the sub-tabs apart.

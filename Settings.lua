@@ -66,6 +66,9 @@ local PAGES = {
       { key = "theme", label = "Theme", kind = "choice", after = function() ns:OfferReload() end, options = {
           { "clean", "FL Clean" }, { "default", "FL Default" }, { "gilded", "FL Gilded" } },
         help = "FL Clean: flat and quiet. FL Default: a bronze edge, gold titles, sections as cards, switches. FL Gilded: a bronze frame and gold serif titles. Looks based on WoW Forever's and Blizzard's own windows are coming." },
+      { key = "uiScale", label = "Size", kind = "slider", min = 75, max = 150, step = 5, suffix = "%",
+        after = function() if ns.ApplyScale then ns:ApplyScale() end end,
+        help = "How big Forever Ledger's windows are, from 75% to 150%. Drag, then let go." },
       { key = "accent", label = "Accent colour", kind = "accent", after = function() ns:OfferReload() end,
         help = "The colour of what's active: the chosen tab, switches that are on, highlights. Auto uses EllesmereUI's colour when it's installed." },
     } },
@@ -335,6 +338,7 @@ local function afterSwitch()
   if ns.UpdateMinimapButton then pcall(ns.UpdateMinimapButton, ns) end
   if ns.LayoutTabs then pcall(ns.LayoutTabs, ns) end
   if ns.UpdateCustomerAds then pcall(ns.UpdateCustomerAds, ns) end
+  if ns.ApplyScale then ns:ApplyScale() end
   ns:RefreshSettings()
 end
 
@@ -411,7 +415,7 @@ end
 -- A value a setting could really have (imports are checked, never trusted).
 local function validValue(d, v)
   if d.kind == "check" then return type(v) == "boolean" end
-  if d.kind == "number" then return type(v) == "number" and v >= (d.min or -math.huge) and v <= (d.max or math.huge) end
+  if d.kind == "number" or d.kind == "slider" then return type(v) == "number" and v >= (d.min or -math.huge) and v <= (d.max or math.huge) end
   if d.kind == "money" then return type(v) == "number" and v >= 0 and v < 1e10 end
   if d.kind == "choice" then
     for _, o in ipairs(d.options) do if o[1] == v then return true end end
@@ -472,6 +476,8 @@ local function defaultText(d)
     return "Default: " .. ((v > 0) and ns.MoneyPlain(v) or "off") .. "."
   elseif d.kind == "accent" then
     return "Default: Auto."
+  elseif d.kind == "slider" then
+    return ("Default: %d%s."):format(v, d.suffix or "")
   end
 end
 
@@ -512,6 +518,8 @@ local function makeRow(box, d)
     end
   elseif d.kind == "accent" then
     r.control = accentControl(box, changed)
+  elseif d.kind == "slider" then
+    r.control = T:Slider(box, d, changed)
   elseif d.kind == "check" then
     r.control = T:Check(box, function(self) changed(self:GetChecked()) end, "switch")
   end

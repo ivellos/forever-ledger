@@ -380,6 +380,50 @@ function T:Number(parent, opts, onChange)
   return f
 end
 
+-- A slider: a thin track, a knob in the accent colour, and the value beside it.
+-- opts: min, max, step, suffix. SetValue shows a value; onChange(value) runs when the
+-- player lets go (not while dragging: the Size slider rescales the window it's in).
+function T:Slider(parent, opts, onChange)
+  local f = CreateFrame("Frame", nil, parent)
+  f:SetSize(200, 22)
+  local s = CreateFrame("Slider", nil, f)
+  s:SetPoint("LEFT", 0, 0)
+  s:SetSize(150, 14)
+  s:SetOrientation("HORIZONTAL")
+  s:SetMinMaxValues(opts.min or 0, opts.max or 100)
+  s:SetValueStep(opts.step or 1)
+  if s.SetObeyStepOnDrag then s:SetObeyStepOnDrag(true) end
+  local track = s:CreateTexture(nil, "BACKGROUND")
+  track:SetPoint("LEFT", 0, 0)
+  track:SetPoint("RIGHT", 0, 0)
+  track:SetHeight(4)
+  track:SetColorTexture(1, 1, 1, 0.15)
+  local thumb = s:CreateTexture(nil, "ARTWORK")
+  thumb:SetSize(10, 14)
+  thumb:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 1)
+  s:SetThumbTexture(thumb)
+  local text = T:Text(f, 12)
+  text:SetPoint("LEFT", s, "RIGHT", 10, 0)
+  local function show(v) text:SetText(("%d%s"):format(v, opts.suffix or "")) end
+  local quiet = false
+  s:SetScript("OnValueChanged", function(_, v)
+    v = math.floor(v / (opts.step or 1) + 0.5) * (opts.step or 1)
+    show(v)
+  end)
+  s:SetScript("OnMouseUp", function(self)
+    local v = math.floor(self:GetValue() / (opts.step or 1) + 0.5) * (opts.step or 1)
+    if not quiet and v ~= f.value then f.value = v; onChange(v) end
+  end)
+  function f:SetValue(v)
+    self.value = v
+    quiet = true
+    s:SetValue(v or opts.min or 0)
+    quiet = false
+    show(v or opts.min or 0)
+  end
+  return f
+end
+
 -- While typing a price, a small tip shows what it will be saved as ("= 2g 50s").
 function T:MoneyPreview(eb, plainUnit)
   eb:HookScript("OnTextChanged", function(self, userInput)

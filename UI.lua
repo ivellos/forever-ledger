@@ -71,10 +71,19 @@ local function themedWindow(name, w, h, titleText, footerY)
   close:SetScript("OnClick", function() f:Hide() end)
   f.bar = bar
   T:DecorateWindow(f, footerY, bar)
+  -- Settings, Appearance: Size (owner, October 4). Every window made here follows it.
+  ns.scaledWindows = ns.scaledWindows or {}
+  table.insert(ns.scaledWindows, f)
+  f:SetScale(((ns.db and ns.db.settings.uiScale) or 100) / 100)
   return f
 end
 
 ns.ThemedWindow = themedWindow
+
+function ns:ApplyScale()
+  local s = ((ns.db and ns.db.settings.uiScale) or 100) / 100
+  for _, f in ipairs(ns.scaledWindows or {}) do f:SetScale(s) end
+end
 
 -- A thin horizontal line.
 local function rule(parent, anchor, y)
