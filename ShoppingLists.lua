@@ -12,7 +12,10 @@ local _, ns = ...
 -- queue buys from it.
 --
 -- Saved in ns.db.shopping = { lists = { { name, on, anyPrice, countHave, items = { { id, max,
---   qty, suffix, found, mode, bought, done } } } }, current, oneKind }
+--   qty, suffix, found, mode, bought, done, src, shuffleName, shuffles } } } }, current, oneKind }
+-- allowance: percent over the usual price (default 10) for hand-added items.
+-- src: shuffle / usual / you. shuffles[key] = { id, route, name, cap }; the lowest
+-- route cap wins. Typed prices always win. matUsual snapshots automatic Craft limits.
 -- on: buying from it in the Buy queue.
 -- max: copper, 0 = no limit set (not bought by the queue), -1 = any price.
 -- qty: Want, how many to buy (what's bought since Buy again counts: e.bought), nil = 1.
@@ -40,7 +43,7 @@ end
 function ns:NewShoppingList(name)
   local d = data()
   -- Not in the buy queue until you tick it (owner, October 2).
-  d.lists[#d.lists + 1] = { name = name, on = false, items = {} }
+  d.lists[#d.lists + 1] = { name = name, on = false, allowance = 10, items = {} }
   d.current = #d.lists
   return d.lists[d.current]
 end
@@ -96,14 +99,84 @@ end
 function ns:AddToShoppingList(list, id, max, qty, suffix)
   for _, e in ipairs(list.items) do
     if e.id == id and e.suffix == suffix then
-      if max then e.max = max end
+      if max ~= nil then ns:SetListItemPrice(e, max) end
       if qty then e.qty = qty end
       return e
     end
   end
-  local e = { id = id, max = max or 0, qty = qty, suffix = suffix }
+  local e = { id = id, max = max or 0, qty = qty, suffix = suffix, src = max ~= nil and "you" or "usual", offSet = max == 0 or nil }
   list.items[#list.items + 1] = e
   return e
+end
+
+-- A typed limit always wins, even when it is off or the same as an automatic limit.
+function ns:SetListItemPrice(e, value)
+  e.max, e.src, e.offSet = value, "you", value == 0 or nil
+end
+
+-- Treat unmarked entries defensively, including imported/legacy data.
+local function sourceOf(e)
+  if not e.src then e.src = ((e.max or 0) ~= 0 or e.offSet) and "you" or "usual" end
+  return e.src
+end
+
+local function shuffleLimit(e)
+  local cap, names = nil, {}
+  for _, s in pairs(e.shuffles or {}) do
+    cap = math.min(cap or math.huge, s.cap or 0)
+    names[#names + 1] = s.name
+  end
+  table.sort(names)
+  e.max, e.shuffleName = cap or 0, table.concat(names, "; ")
+end
+
+-- Add a shuffle's planned purchases without resetting a list's progress or raising
+-- a price the player already set. Crate lists have different quantity rules.
+function ns:ShuffleToShoppingList(s, list, runs)
+  runs = tonumber(runs) or 1
+  if not s or runs ~= runs or runs == math.huge or runs < 1 or runs > 10000 or runs ~= math.floor(runs) then
+    return nil, "Choose a whole amount from 1 to 10000."
+  end
+  if list then
+    local exists = false
+    for _, l in ipairs(ns:ShoppingLists()) do if l == list then exists = true end end
+    if not exists then return nil, "That list was removed. Choose another one." end
+    if list.countHave or list.temp or list.crateID then return nil, "Choose a regular shopping list, or make a new one." end
+    if list.anyPrice then return nil, "Turn off Any price on that list, or make a new one, to keep the shuffle's limits." end
+  end
+  local buys = ns:ShuffleShoppingItems(s, runs)
+  if #buys == 0 then return nil, "No purchases found for this shuffle." end
+  -- Validate before creating or changing anything.
+  for _, b in ipairs(buys) do
+    if not b.max or b.max < 1 then return nil, "A buying limit is missing for " .. (ns.ItemName(b.id) or ("item " .. b.id)) .. ". Refresh shuffles, then try again." end
+    for _, e in ipairs(list and list.items or {}) do
+      if e.id == b.id and not e.suffix and e.mode == "craft" then
+        return nil, "This list crafts one of these materials. Choose another list, or make a new one."
+      end
+    end
+  end
+  local source = ns:ShuffleShoppingSource(s)
+  list = list or ns:NewShoppingList(ns:ShuffleName(s))
+  for _, b in ipairs(buys) do
+    local old
+    for _, e in ipairs(list.items) do if e.id == b.id and not e.suffix then old = e; break end end
+    local qty = (old and (old.qty or 1) or 0) + b.qty
+    local completed = old and old.done and math.max(old.bought or 0, old.qty or 1)
+    local e = ns:AddToShoppingList(list, b.id, nil, qty)
+    if sourceOf(e) ~= "you" then
+      e.src = "shuffle"
+      e.shuffles = e.shuffles or {}
+      e.shuffles[source.key] = { id = source.id, route = source.route, name = source.name, cap = b.max }
+      shuffleLimit(e)
+    end
+    if completed then e.bought = completed end
+    e.done = nil   -- explicit additional purchases; bought and typed off stay
+  end
+  for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i); break end end
+  ns:Print(("Added %d %s for %s to shopping list \"%s\". Check Want and Up to there; tick Buy from this list in the Buy queue when ready (/fl lists)."):format(
+    #buys, #buys == 1 and "item" or "items", ns:ShuffleName(s), list.name))
+  if ns.RefreshListsView then ns:RefreshListsView() end
+  return list
 end
 
 -- An entry's name, with its version if it has one.
@@ -561,11 +634,20 @@ end
 -- Second value: true if you typed it, "any" for any price.
 function ns:MaterialLimit(list, id)
   if list.anyPrice or (list.matMax and list.matMax[id] == -1) then return ns:AnyPriceLimit(id), "any" end
-  if list.matMax and list.matMax[id] then return list.matMax[id], true end
-  local stats = ns.PriceStats and ns:PriceStats(id, "month")
-  if stats and stats.points >= 3 and stats.usual then return math.floor(stats.usual), false end
-  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
-  if rec and not rec.none and (rec.a or rec.m) then return math.floor(rec.a or rec.m), false end
+  if list.matMax and list.matMax[id] ~= nil then
+    return list.matMax[id] > 0 and list.matMax[id] or nil, true
+  end
+  -- Ordinary Craft materials have the same usual-price allowance. Keep a snapshot
+  -- until the explicit refresh points, like regular entries; matMax is always yours.
+  if not list.countHave then
+    list.matUsual = list.matUsual or {}
+    list.matAllowance = list.matAllowance or {}
+    if list.matUsual[id] == nil then
+      list.matUsual[id], list.matAllowance[id] = ns:UsualListPrice(list, id) or 0, ns:ListAllowance(list)
+    end
+    return list.matUsual[id] > 0 and list.matUsual[id] or nil, false
+  end
+  return ns:UsualPriceFor(id), false
 end
 
 -- The most to pay for an item on a list: what's in Up to, or the "any" cap. nil when
@@ -576,7 +658,7 @@ function ns:ItemLimit(list, e)
 end
 
 -- Your usual price for an item (the month's typical price from scans, else the average
--- of the cheapest listings), rounded up to the silver, or nil. Filled into Up to when
+-- of the cheapest listings), in copper, or nil. Filled into Up to when
 -- you start buying from a list or add an item to one, as a number you can see and
 -- change (owner's test, October 3: items left at "off" never got bought, so it seemed
 -- broken; filled in openly rather than "off" quietly meaning "usual price").
@@ -588,22 +670,68 @@ function ns:UsualPriceFor(id)
     p = rec and not rec.none and (rec.a or rec.m)
   end
   if not p then return end
-  if p >= 100 then return math.ceil(p / 100) * 100 end
-  return math.ceil(p)
+  return math.floor(p)
 end
 
--- Fills Up to with your usual price on the list's items that are "off" (not Craft),
--- except ones you set to off yourself (e.offSet; owner's test, October 3: ticking the
--- list again kept putting a price back on Strange Dust). Returns how many were filled.
+-- Usual price plus the list's allowance, floored to copper after applying it.
+function ns:ListAllowance(list)
+  return math.max(0, math.min(100, tonumber(list.allowance) or 10))
+end
+
+function ns:UsualListPrice(list, id)
+  local p = ns:UsualPriceFor(id)
+  return p and math.floor(p * (100 + ns:ListAllowance(list)) / 100)
+end
+
+-- Explicit refresh points only: buying switched on, Buy again, or adding by hand
+-- to a list already buying. Typed limits, including off/any, are never overwritten.
 function ns:FillUsualPrices(list)
   local n = 0
   for _, e in ipairs(list.items) do
-    if e.mode ~= "craft" and (e.max or 0) == 0 and not e.offSet then
-      local p = ns:UsualPriceFor(e.id)
-      if p then e.max, n = p, n + 1 end
+    if e.mode ~= "craft" and sourceOf(e) == "usual" then
+      local p = ns:UsualListPrice(list, e.id) or 0
+      if e.max ~= p then n = n + 1 end
+      e.max, e.usualAllowance = p, ns:ListAllowance(list)
+    end
+  end
+  if not list.countHave then
+    list.matUsual = list.matUsual or {}
+    for _, e in ipairs(list.items) do
+      local recipe = e.mode == "craft" and ns:RecipeFor(e.id)
+      for _, r in ipairs(recipe and recipe.r or {}) do
+        list.matUsual[r[1]] = ns:UsualListPrice(list, r[1]) or 0
+        list.matAllowance = list.matAllowance or {}
+        list.matAllowance[r[1]] = ns:ListAllowance(list)
+      end
     end
   end
   return n
+end
+
+function ns:RefreshListPrices(list)
+  if list.countHave or list.temp or list.crateID then return 0 end
+  local n = ns:FillUsualPrices(list)
+  local refreshed = {}
+  if ns.InvalidateValues then ns:InvalidateValues(true) end
+  for _, e in ipairs(list.items) do
+    if sourceOf(e) == "shuffle" then
+      for key, s in pairs(e.shuffles or {}) do
+        if not refreshed[key] then refreshed[key] = ns:RefreshShuffleShoppingSource(s) end
+        s.cap = refreshed[key][e.id] or 0
+      end
+      shuffleLimit(e)
+    end
+  end
+  return n
+end
+
+function ns:ListPriceSourceText(list, e)
+  local src = sourceOf(e)
+  if src == "you" then return "Set by you. This price is never changed automatically." end
+  if src == "shuffle" then
+    return "From shuffle: " .. (e.shuffleName or "unknown") .. ". Uses the route's buying cap; the lower cap when two shuffles use this item. Refreshed when added again or on Buy again."
+  end
+  return ("Usual price + %g%% (this list's allowance). Refreshed when buying is switched on or on Buy again."):format(e.usualAllowance or ns:ListAllowance(list))
 end
 
 -- Materials for the list's Craft items: { { id, need, have, buy, vendor, limit, own } }
@@ -653,6 +781,7 @@ function ns:ItemDone(e, list)
 end
 
 function ns:BuyListAgain(list)
+  ns:RefreshListPrices(list)
   for _, e in ipairs(list.items) do e.done, e.bought = nil, nil end
   list.matDone, list.matBought = nil, nil
 end

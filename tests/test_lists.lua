@@ -118,13 +118,13 @@ end)
 ---------------------------------------------------------------------------
 -- Usual prices filled into Up to
 ---------------------------------------------------------------------------
-T.test("UsualPriceFor rounds up to the silver", function()
+T.test("UsualPriceFor preserves copper precision before the allowance", function()
   price(50030, { m = 1200, a = 1234, q = 30 })
-  T.eq(ns:UsualPriceFor(50030), 1300)
+  T.eq(ns:UsualPriceFor(50030), 1234)
   price(50031, { m = 50, a = 55, q = 30 })
   T.eq(ns:UsualPriceFor(50031), 55, "under a silver: to the copper")
   history(50032, 250)
-  T.eq(ns:UsualPriceFor(50032), 300, "from history")
+  T.eq(ns:UsualPriceFor(50032), 250, "from history")
   T.eq(ns:UsualPriceFor(50033), nil, "no price")
 end)
 
@@ -139,7 +139,7 @@ T.test("FillUsualPrices fills only items at off, never a price set by hand", fun
   list.items[4] = { id = 50043, max = 0, mode = "craft" }  -- crafted, not bought
   list.items[5] = { id = 50044, max = 0 }                   -- no price known
   T.eq(ns:FillUsualPrices(list), 1)
-  T.eq(list.items[1].max, 500)
+  T.eq(list.items[1].max, 550)
   T.eq(list.items[2].max, 0, "off by hand stays off")
   T.eq(list.items[3].max, 777, "a typed price stays")
   T.eq(list.items[4].max, 0, "craft items aren't priced")

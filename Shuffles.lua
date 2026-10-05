@@ -372,6 +372,151 @@ function ns:ShuffleBuys(s)
   return out
 end
 
+-- Purchases for the selected route, including extra materials at later crafts.
+-- A disenchant group consists of alternatives: use its cheapest member, never buy
+-- every alternative. Quantities after disenchanting are averages, rounded up once.
+function ns:ShuffleShoppingItems(s, runs)
+  local route = s.group and s.members[1] or s
+  local byID, order = {}, {}
+  local function add(id, qty, cap)
+    if not id or not qty or qty <= 0 then return end
+    local b = byID[id]
+    if not b then b = { id = id, qty = 0, cap = cap }; byID[id] = b; order[#order + 1] = b end
+    b.qty = b.qty + qty
+    if cap then b.cap = b.cap and math.min(b.cap, cap) or cap end
+  end
+  for i, b in ipairs(route.buys or {}) do
+    local cap = b.price
+    if i == 1 then cap = route.maxBuy end
+    add(b.id, (b.qty or 1) * runs, cap)
+  end
+  local function extras(o, amount, first)
+    if not o then return end
+    if o.kind == "craft" then
+      local crafts = amount / math.max(o.units or 1, 1)
+      if not first then
+        for _, b in ipairs(o.buys or {}) do add(b.id, b.qty * crafts, b.cost) end
+      end
+      extras(o.next, crafts * (o.rec.oq or 1))
+    elseif o.kind == "convert" then
+      extras(o.next, amount * o.per)
+    elseif o.kind == "disenchant" then
+      for _, m in ipairs(o.mats or {}) do extras(m.opt, amount * m.count) end
+    end
+  end
+  extras(route.opt, (route.units or 1) * runs, true)
+  for _, b in ipairs(order) do
+    b.qty = math.ceil(b.qty)
+    -- The route's cap, independent of today's depth on the price ladder. Other
+    -- materials keep the cost assumptions already deducted from the root cap.
+    b.max = math.max(0, math.floor(b.cap or 0))
+  end
+  return order
+end
+
+-- Identify the chosen steps without saving cached valuations or character tables.
+function ns:ShuffleRouteKey(o)
+  if not o then return "" end
+  local key = o.kind .. ":" .. (o.id or "")
+  if o.rec then key = key .. ":" .. (o.recipeID or o.rec.n or "") .. ":" .. (o.rec.out or "") end
+  if o.per then key = key .. ":" .. o.per end
+  if o.next then key = key .. ">" .. ns:ShuffleRouteKey(o.next) end
+  for _, m in ipairs(o.mats or {}) do key = key .. "|" .. m.id .. ":" .. ns:ShuffleRouteKey(m.opt) end
+  return key
+end
+
+function ns:ShuffleShoppingSource(s)
+  local route = s.group and s.members[1] or s
+  local path = ns:ShuffleRouteKey(route.opt)
+  return { id = route.id, route = path, name = ns:ShuffleName(s), key = route.id .. ":" .. path }
+end
+
+-- Revalue the same route; never silently switch to a different recipe or alternative.
+-- A route no longer available leaves its items off until it can be valued again.
+function ns:RefreshShuffleShoppingSource(source)
+  for _, o in ipairs(ns:Options(source.id)) do
+    if ns:ShuffleRouteKey(o) == source.route then
+      local s
+      if o.kind == "vendor" then
+        s = { id = source.id, units = 1, opt = o, maxBuy = ns:VendorFlipLimit(o.value),
+          buys = { { id = source.id, qty = 1 } } }
+      else
+        local cost, listed = buyInfo(source.id, ns.db.prices[ns.MarketKey()] or {})
+        if cost then
+          -- build checks the same costs and safety margin as the displayed shuffle.
+          s = build(source.id, o, cost, listed, ns.db.prices[ns.MarketKey()] or {},
+            (ns.db.settings.margin or 10) / 100, ns.db.settings.actionSeconds or 3)
+        end
+      end
+      local caps = {}
+      for _, b in ipairs(s and ns:ShuffleShoppingItems(s, 1) or {}) do caps[b.id] = b.max end
+      return caps
+    end
+  end
+  return {}
+end
+
+-- The detail panel is drawn in UI.lua. Keep its shopping controls here so the
+-- shuffle and vendor-flip panels share the same choices and behavior.
+function ns:ShuffleShoppingControls(d, s, width, top)
+  local T = ns.Theme
+  if not d.shopping then
+    local c = CreateFrame("Frame", nil, d)
+    d.shopping = c
+    c.pick = T:Dropdown(c, 260, function(value) c.target = value end)
+    c.pick:SetPoint("TOPLEFT", 0, 0)
+    c.amount = T:Number(c, { min = 1, max = 10000, step = 1 }, function(value)
+      c.runs = math.floor(value)
+      c.amount:SetValue(c.runs)
+    end)
+    c.amount:SetPoint("TOPRIGHT", 0, 0)
+    c.label = T:Text(c, 11, T.dim)
+    c.label:SetPoint("RIGHT", c.amount, "LEFT", -8, 0)
+    c.add = T:Button(c, "Add to shopping list", 180, function()
+      local target = c.target ~= "new" and c.target or nil
+      local list, err = ns:ShuffleToShoppingList(d.shuffle, target, c.runs)
+      if not list then ns:Print(err); return end
+      c.target = list
+      ns:ShuffleShoppingControls(d, d.shuffle, d:GetWidth(), c.top)
+    end)
+    c.add:SetPoint("TOPLEFT", 0, -30)
+    c.note = T:Text(c, 11, T.dim)
+    c.note:SetPoint("TOPLEFT", c.add, "TOPRIGHT", 10, -2)
+    c.note:SetPoint("RIGHT", c, "RIGHT", 0, 0)
+    c.note:SetJustifyH("LEFT")
+    c.note:SetText("Adds purchases; buying stays as you set it.")
+    c.group = T:Text(c, 11, T.dim)
+    c.group:SetPoint("TOPLEFT", 0, -60)
+    c.group:SetPoint("RIGHT", 0, 0)
+    c.group:SetJustifyH("LEFT")
+    c.group:SetWordWrap(false)
+  end
+  local c = d.shopping
+  if c.key ~= s.key then c.key, c.runs, c.target = s.key, 1, "new" end
+  local opts = { { value = "new", label = "New list: " .. ns:ShuffleName(s) } }
+  local selected = c.target == "new"
+  for _, l in ipairs(ns:ShoppingLists()) do
+    if not l.countHave and not l.temp and not l.crateID and not l.anyPrice then
+      opts[#opts + 1] = { value = l, label = l.name }
+      if l == c.target then selected = true end
+    end
+  end
+  if not selected then c.target = "new" end
+  c.pick:SetOptions(opts)
+  c.pick:SetValue(c.target)
+  c.pick:SetWidth(math.max(190, width - 250))
+  c.amount:SetValue(c.runs)
+  c.label:SetText(s.single and "Items" or "Crafts")
+  c.top = top
+  c:ClearAllPoints()
+  c:SetPoint("TOPLEFT", 14, -top)
+  c:SetWidth(width - 28)
+  c:SetHeight(80)
+  c.group:SetText(s.group and ("Uses the cheapest option: " .. ns.ItemName(s.members[1].id)) or "")
+  c:Show()
+  return s.group and 84 or 66
+end
+
 -- The numbered steps as text.
 function ns:ShuffleSteps(s)
   local lines = {}

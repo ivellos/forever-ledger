@@ -1545,7 +1545,7 @@ local function addFromBox(v)
   local qty = not search and tonumber(v.qty:GetText()) or nil
   local e = ns:AddToShoppingList(list, id, max, qty and qty > 0 and math.floor(qty) or nil, suffix)
   if not search and (e.max or 0) == 0 and maxText == "" and e.mode ~= "craft" then
-    e.max = ns:UsualPriceFor(id) or 0
+    if e.src == "usual" then e.max, e.usualAllowance = ns:UsualListPrice(list, id) or 0, ns:ListAllowance(list) end
   end
   unpark({ id })
   v.add:SetText("")
@@ -1702,11 +1702,11 @@ local function buildListsView(parent)
     local list = currentList()
     if not list then return end
     list.on = self:GetChecked()
-    -- Starting to buy: items at "off" get your usual price in Up to, to see and change.
+    -- Refresh automatic limits; typed prices remain exactly as set.
     if list.on and ns.FillUsualPrices then
       local n = ns:FillUsualPrices(list)
       if n > 0 then
-        ns:Print(("%s: Up to set to your usual price for %d %s. Change any you like; \"off\" means don't buy it."):format(
+        ns:Print(("%s: Up to refreshed from usual prices and this list's allowance for %d %s. Change any you like; \"off\" means don't buy it."):format(
           list.name, n, n == 1 and "item" or "items"))
       end
     end
@@ -1732,6 +1732,26 @@ local function buildListsView(parent)
   end)
   v.on:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+  v.allowanceLabel = T:Text(v, 11, T.dim)
+  v.allowanceLabel:SetText("Pay up to")
+  v.allowanceLabel:SetPoint("TOPLEFT", 12, -68)
+  v.allowance = T:Number(v, { min = 0, max = 100, step = 5 }, function(value)
+    local list = currentList()
+    if list then list.allowance = value end
+  end)
+  v.allowance:SetPoint("LEFT", v.allowanceLabel, "RIGHT", 6, 0)
+  v.allowance:EnableMouse(true)
+  v.allowanceSuffix = T:Text(v, 11, T.dim)
+  v.allowanceSuffix:SetText("% over the usual price")
+  v.allowanceSuffix:SetPoint("LEFT", v.allowance, "RIGHT", 6, 0)
+  v.allowance:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Usual-price allowance", 1, 1, 1)
+    GameTooltip:AddLine("For items added by hand. Each list starts at 10%; choose 0, 5, 10, 25 or another percentage. Applied when you switch buying on or click Buy again. Typed prices and shuffle caps stay as they are.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  v.allowance:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
   -- Any price: the list is what you need, whatever it costs (raid prep).
   v.any = T:Check(v, function(self)
     local list = currentList()
@@ -1750,7 +1770,7 @@ local function buildListsView(parent)
 
   -- Add an item: shift-click, drag, or type its name; the most you'd pay; how many.
   v.add = hinted(v, 196, "Shift-click, drag or type an item", "LEFT")
-  v.add:SetPoint("TOPLEFT", 10, -66)
+  v.add:SetPoint("TOPLEFT", 10, -98)
   v.add:HookScript("OnTextChanged", function(self) v.pendingID = ns.ItemIDFromLink(self:GetText()) end)
 
   -- Suggestions while you type a name (owner, October 2): up to 8 items whose name
@@ -1839,8 +1859,8 @@ local function buildListsView(parent)
   v.addB = addB
 
   local header = CreateFrame("Frame", nil, v)
-  header:SetPoint("TOPLEFT", 6, -94)
-  header:SetPoint("TOPRIGHT", -6, -94)
+  header:SetPoint("TOPLEFT", 6, -126)
+  header:SetPoint("TOPRIGHT", -6, -126)
   header:SetHeight(20)
   v.header = header
   T:Fill(header, { 1, 1, 1, 0.05 })
@@ -1868,7 +1888,7 @@ local function buildListsView(parent)
   end)
   haveTip:SetScript("OnLeave", function() GameTooltip:Hide() end)
   v.sf, v.content = T:Scroll(v)
-  v.sf:SetPoint("TOPLEFT", 6, -116)
+  v.sf:SetPoint("TOPLEFT", 6, -148)
   v.sf:SetPoint("BOTTOMRIGHT", -6, 58)
   v.rows = {}
 
@@ -1965,11 +1985,11 @@ local function onModifiedClick(link)
   local _, suffix = ns:ResolveItemVersion(link)
   local e = ns:AddToShoppingList(list, id, nil, nil, suffix)
   -- A list you buy from: a new item starts at your usual price (you can change it).
-  if not ns:IsSearchList(list) and (e.max or 0) == 0 and e.mode ~= "craft" then e.max = ns:UsualPriceFor(id) or 0 end
+  if not ns:IsSearchList(list) and e.src == "usual" and (e.max or 0) == 0 then e.max, e.usualAllowance = ns:UsualListPrice(list, id) or 0, ns:ListAllowance(list) end
   unpark({ id })
   Q.built = 0
   ns:Print(ns:IsSearchList(list) and ("Added %s to %s."):format(link, list.name)
-    or ("Added %s to %s, Up to at your usual price. Set how many you want on the list."):format(link, list.name))
+    or ("Added %s to %s. Check Want and Up to on the list."):format(link, list.name))
   refreshLists()
 end
 if HandleModifiedItemClick then hooksecurefunc("HandleModifiedItemClick", onModifiedClick) end
@@ -2093,18 +2113,32 @@ local function listRow(i)
 
   r.max = T:MoneyBox(r, function(value)
     if r.kind == "item" then
-      r.entry.max = value
-      -- "off" typed on purpose: kept off, never refilled with your usual price.
-      r.entry.offSet = value == 0 or nil
+      ns:SetListItemPrice(r.entry, value)
     elseif r.kind == "mat" then
       local list = currentList()
       if list then
         list.matMax = list.matMax or {}
-        list.matMax[r.mat.id] = value ~= 0 and value or nil
+        list.matMax[r.mat.id] = value
       end
     end
     unpark({ (r.kind == "item" and r.entry.id) or (r.mat and r.mat.id) })
   end, "g", true)
+  r.max.confirmSame = true
+  r.max:HookScript("OnEnter", function(self)
+    local list = currentList()
+    if not list then return end
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    local value = self.value or 0
+    GameTooltip:AddLine("Up to: " .. (value == -1 and "any" or value == 0 and "off" or ns.Money(value)), 1, 1, 1)
+    local text
+    if r.kind == "item" then text = ns:ListPriceSourceText(list, r.entry)
+    elseif r.kind == "mat" then
+      text = list.matMax and list.matMax[r.mat.id] and "Set by you. This price is never changed automatically."
+        or ("Usual price + %g%% (this list's allowance). Refreshed when buying is switched on or on Buy again."):format((list.matAllowance or {})[r.mat.id] or ns:ListAllowance(list))
+    end
+    if text then GameTooltip:AddLine(text, 0.8, 0.8, 0.8, true) end
+    GameTooltip:Show()
+  end)
   r.max:SetWidth(54)
   r.max.compact = true   -- "123g" while not typing in it; exact when you click in or hover
   r.max:SetPoint("LEFT", C.max, 0)
@@ -2292,6 +2326,7 @@ refreshLists = function()
   local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
   local row = focus and focus.GetParent and focus:GetParent()
   if row and row.GetParent and row:GetParent() == v.content then return end
+  if v.allowance:IsEditing() then return end
   local list, idx = ns:CurrentShoppingList()
   local lists = ns:ShoppingLists()
   v.title:SetText(list and list.name or "No lists yet: click New")
@@ -2302,6 +2337,11 @@ refreshLists = function()
   local buyMode = ns:BuyMode(list)
   v.on:SetShown(list ~= nil)
   v.on:SetChecked(list and list.on)
+  local regular = list and not list.countHave and not list.temp and not list.crateID
+  v.allowance:SetShown(regular and not search and not list.anyPrice)
+  v.allowanceLabel:SetShown(regular and not search and not list.anyPrice)
+  v.allowanceSuffix:SetShown(regular and not search and not list.anyPrice)
+  if list and not v.allowance:IsEditing() then v.allowance:SetValue(ns:ListAllowance(list)) end
   v.any:SetShown(list ~= nil and not search)
   v.any:SetChecked(list and list.anyPrice)
   v.max:SetShown(not search)
