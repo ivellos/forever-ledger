@@ -15,7 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl unpair` also removes the characters (and bags) that came from your partner; the auction prices stay. A partner's characters say so on the Characters tab and are never sent back.
 
 ### Fixed
-- Auctions tab: a sale at one auction house no longer also shows at the other while its gold is on the way (the game lists sold auctions everywhere), so the neutral one doesn't count it at 15%.
+- Auctions tab: a sale at one auction house no longer also shows at the other while its gold is on the way (the game lists sold auctions everywhere): it stays with the auction house it was listed at, with that one's cut, and "Sold since you were last here" doesn't announce it at the wrong one.
 - Buy queue: clicking an item with none at your price now says so in chat, not only in the panel.
 - Deals tab, Booty Bay: items with under 3 listed on the side you'd sell to are hidden unless Show thin data too is ticked (one listing is an asking price), and ten times or more shows as "x12".
 - Neutral auction houses (Booty Bay, Gadgetzan, Everlook) take a 15% cut, not 5% (tested in Booty Bay): values, deals, sell protection, session loot and the Auctions tab use it while you're at one.

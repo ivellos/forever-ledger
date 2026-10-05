@@ -345,3 +345,24 @@ T.test("Deposit: the sale's gold counts it", function()
   local said = chat(function() read({ auction(34, 70034, 8, 10, nil, true) }) end)
   T.eq(count(said, "About " .. ns.Money(76 + 40)), 1, table.concat(said, " / "))
 end)
+
+---------------------------------------------------------------------------
+-- Two auction houses (owner's test, October 5: 20 Strange Dust posted and sold at
+-- Booty Bay also showed at Stormwind as sold, since the game lists sold auctions at
+-- every auction house)
+---------------------------------------------------------------------------
+T.test("A sale stays with the auction house it was listed at", function()
+  fresh()
+  ns.neutralAH = true
+  read({ auction(7, 70001, 434, 20, 2 * DAY) })            -- posted at Booty Bay: up there
+  read({ auction(7, 70001, 434, 20, 2 * DAY, true) })      -- sold
+  ns.neutralAH = nil
+  T.fire("AUCTION_HOUSE_CLOSED")
+  T.fire("AUCTION_HOUSE_SHOW")
+  ns.neutralAH = nil
+  read({ auction(8, 70002, 50, 1, 2 * DAY), auction(7, 70001, 434, 20, 2 * DAY, true) })   -- at Stormwind
+  T.eq(entry(7), nil, "not in your faction's list")
+  T.ok(entry(8), "your faction's own auction is there")
+  local neutral = ns.db.myAuctions[ME .. " (neutral)"]
+  T.ok(neutral and neutral.list[1] and neutral.list[1].a == 7, "still in Booty Bay's list")
+end)

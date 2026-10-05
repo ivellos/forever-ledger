@@ -114,18 +114,19 @@ local function readOwned()
   -- What we knew before: when each sold, and sold ones whose gold has gone to the mail.
   local before, seen = {}, {}
   -- Sold auctions waiting for their gold show at every auction house (owner's test,
-  -- October 5: 20 Strange Dust sold at Stormwind showed at Booty Bay too, at its 15%
-  -- cut). One the other auction house's list already has belongs there; one both lists
-  -- have stays with the one that saw it sell first.
+  -- October 5: 20 Strange Dust posted and sold at Booty Bay also showed at Stormwind, as
+  -- "sold since you were last here" at the 5% cut). An auction belongs to the list that
+  -- saw it up (e.up): one the other auction house's list has is skipped here, and one
+  -- this list only ever saw sold, while the other saw it up, is dropped.
   local otherKey = ns.CharKey() .. (ns.neutralAH and "" or " (neutral)")
   local elsewhere = {}
   for _, e in ipairs((store()[otherKey] or {}).list or {}) do
-    if e.a then elsewhere[e.a] = e.soldAt or 0 end
-    elsewhere[("%s:%s:%s"):format(e.id, e.each or 0, e.q or 1)] = e.soldAt or 0
+    local mark = e.up and "up" or "seen"
+    if e.a then elsewhere[e.a] = mark end
+    elsewhere[("%s:%s:%s"):format(e.id, e.each or 0, e.q or 1)] = mark
   end
   for _, e in ipairs((mine() or {}).list or {}) do
-    local theirs = e.a and elsewhere[e.a]
-    if e.a and not (e.sold and theirs and theirs <= (e.soldAt or 0)) then before[e.a] = e end
+    if e.a and not (e.sold and not e.up and elsewhere[e.a] == "up") then before[e.a] = e end
   end
   for i = 1, n do
     local ok, info = pcall(AH.GetOwnedAuctionInfo, i)
@@ -140,6 +141,7 @@ local function readOwned()
     end
     if e then
       if e.sold then e.soldAt = (before[e.a] and before[e.a].soldAt) or now end
+      e.up = (before[e.a] and before[e.a].up) or (not e.sold) or nil   -- seen listed here
       -- Its deposit: kept from before, or the one just paid when it was posted.
       if before[e.a] then
         e.dep = before[e.a].dep
