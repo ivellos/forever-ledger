@@ -348,6 +348,12 @@ function ns:BuildLedger(parent)
   f = CreateFrame("Frame", nil, parent)
   f:SetAllPoints()
 
+  -- A line under the sub-tabs, as on Shuffles (owner's test, October 4).
+  local subLine = f:CreateTexture(nil, "BORDER")
+  subLine:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4])
+  subLine:SetHeight(1)
+  subLine:SetPoint("TOPLEFT", 0, -30)
+  subLine:SetPoint("TOPRIGHT", 0, -30)
   f.subtabs = {}
   local prev
   for _, st in ipairs(SUBTABS) do
@@ -438,7 +444,7 @@ end
 local function show(rec, key)
   local v = rec[key]
   if rec.session then
-    if key == "length" then local m = math.floor((v or 0) / 60); return m < 1 and "under a minute" or (m < 60 and (m .. " min") or ("%d h %02d min"):format(math.floor(m / 60), m % 60)) end
+    if key == "length" then local m = math.floor((v or 0) / 60); return m < 1 and "< 1 min" or (m < 60 and (m .. " min") or ("%d h %02d min"):format(math.floor(m / 60), m % 60)) end
     if key == "total" or key == "rate" then
       if not v then return dim("-") end
       v = math.floor(v + 0.5)
@@ -481,8 +487,10 @@ local function rowTooltip(r)
     local function line(a, b, r, g, bl) GameTooltip:AddDoubleLine(a, b, 0.7, 0.7, 0.7, r or 1, g or 1, bl or 1) end
     GameTooltip:AddLine(("%s, %s"):format(rec.item, date("%b %d %H:%M", rec.t or 0)), 1, 1, 1)
     line("Length", show(rec, "length"))
-    if session.earned then line("Gold in", ns.Money(session.earned), 0.5, 0.83, 0.61) end
-    if session.spent then line("Gold out", ns.Money(session.spent), 0.93, 0.52, 0.59) end
+    local function gold(v, r, g, bl) if (v or 0) > 0 then return ns.Money(v), r, g, bl end return ns.Money(0), 0.6, 0.6, 0.6 end
+    if session.earned then line("Gold in", gold(session.earned, 0.5, 0.83, 0.61)) end
+    if session.spent then line("Gold out", gold(session.spent, 0.93, 0.52, 0.59)) end
+    if rec.rate then line("Gold an hour", show(rec, "rate")) end
     if rec.loot then line("Looted, worth about", ns.Money(rec.loot)) end
     if session.runs and session.runs > 0 then line(session.kind == "general" and "Dungeon runs" or "Runs", tostring(session.runs)) end
     local by = {}
@@ -503,6 +511,11 @@ local function rowTooltip(r)
       for _, it in ipairs(session.top) do
         line(("  %d x %s"):format(it[2] or 1, nameOf(it[1])), it[3] and ns.Money(it[3]) or "")
       end
+    end
+    if #by == 0 and not (session.top and #session.top > 0) then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine((session.money or session.top) and "Nothing earned, spent or looted in it."
+        or "No breakdown saved for this session (older ones kept only totals).", 0.6, 0.6, 0.6, true)
     end
     if rec.char then line("Character", charName(rec.char)) end
     GameTooltip:AddLine("Click to select; Shift-click or drag for several to total them.", 0.5, 0.5, 0.5, true)
@@ -603,6 +616,14 @@ function ns:RefreshLedger()
   if not COLUMNS[s.tab] then s.tab = "all" end
   for key, b in pairs(f.subtabs) do b:SetSelected(key == s.tab) end
   f.range:SetValue(s.range)
+  -- Sessions: no search (the other filters do the job; owner's test, October 4), so
+  -- Characters moves to the left.
+  local noSearch = s.tab == "sessions"
+  f.searchLabel:SetShown(not noSearch)
+  f.search:SetShown(not noSearch)
+  if noSearch and f.search:GetText() ~= "" then f.search:SetText("") end
+  f.charLabel:ClearAllPoints()
+  if noSearch then f.charLabel:SetPoint("TOPLEFT", 4, -40) else f.charLabel:SetPoint("LEFT", f.search, "RIGHT", 18, 0) end
   charChoice()
   f.chars:SetValue(s.char)
 
