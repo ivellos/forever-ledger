@@ -42,10 +42,14 @@ local function build()
   card:SetAllPoints(body)
   card:SetFrameLevel(body:GetFrameLevel() + 20)
   card:EnableMouse(true)
-  T:Fill(card, { 0.06, 0.06, 0.07, 0.97 })
+  -- In the theme (owner, October 4): its background, edge and top line, a gold title on
+  -- Default and Gilded, and the numbers in the heading colour.
+  T:Fill(card, { T.bg[1], T.bg[2], T.bg[3], 0.98 })
   T:Border(card)
+  T:DecorateWindow(card)
 
-  local title = T:Text(card, 16, T.accent)
+  local title = T:Text(card, 16)
+  T:StyleTitle(title, 16)
   title:SetPoint("TOPLEFT", 18, -16)
   title:SetText("Welcome to Forever Ledger")
   local sub = T:Text(card, 12, T.dim)
@@ -56,7 +60,7 @@ local function build()
 
   local prev = sub
   for i, s in ipairs(STEPS) do
-    local num = T:Text(card, 15, T.accent)
+    local num = T:Text(card, 15, T.theme.heading or T.accent)
     num:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
     num:SetWidth(22)
     num:SetJustifyH("LEFT")

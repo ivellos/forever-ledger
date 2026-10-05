@@ -55,7 +55,8 @@ local function themedWindow(name, w, h, titleText, footerY)
   bar:SetScript("OnDragStart", function() f:StartMoving() end)
   bar:SetScript("OnDragStop", function() f:StopMovingOrSizing() end)
 
-  f.title = T:Text(bar, 14)
+  -- Gold on themes with gold titles, so titles set later ("Export") match too.
+  f.title = T:Text(bar, 14, T.theme.title)
   if T.theme.serif then f.title:SetFont(T.SERIF, 16, "") end
   f.title:SetPoint("LEFT", 12, 0)
   f.title:SetText(titleText)

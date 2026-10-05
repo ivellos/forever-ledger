@@ -2623,6 +2623,12 @@ local function ensureSide()
   end
   side.close = T:Button(strip, "x", 22, function() side:Hide() end, 22)
   side.close:SetPoint("RIGHT", -3, 0)
+  -- The theme's dressing (top line, the line under the tab strip, Gilded's frame) and
+  -- Settings, Appearance, Size, like the main window (owner, October 4).
+  T:DecorateWindow(side, nil, strip)
+  ns.scaledWindows = ns.scaledWindows or {}
+  table.insert(ns.scaledWindows, side)
+  side:SetScale(((ns.db and ns.db.settings.uiScale) or 100) / 100)
   queueView = buildQueueView(side)
   listsView = buildListsView(side)
   ns:DisenchantFinderFrame(side)

@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - What sold while you were away: opening the auction house says in chat what sold since you were last there and the gold it brings with deposits back (Settings, Auction house). Auctions that sold and were mailed while you were away now show under Sold too.
 
 ### Changed
+- The theme reaches the other windows: the auction house side panel (top line, frame, Size), the session tracker (background, edge, top line, heading, Size), the welcome card, and the titles of the Export / import and Customers windows.
 - Dashboard redesigned: headline tiles (gold now and its change, profit, sales, expenses), the gold graph in a card with its high and low, Best and biggest and Activity cards, and sessions as a table (when, length, gold, looted, an hour). Start a session sits next to the character list.
 - Recipes tab: tabs for this character's professions only, each with a coin for its rank (gold Artisan, silver Expert, copper Journeyman), then Trainers; the rest under Other professions, starred when another of your characters on this realm has it.
 - Shuffles tab: Recipes from is a dropdown with a tick box per character (this realm and faction only), instead of a row of boxes; a line sets the sub-tabs apart.

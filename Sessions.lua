@@ -148,13 +148,20 @@ local function buildTracker()
   local f = CreateFrame("Frame", "ForeverLedgerSessionTracker", UIParent)
   f:SetFrameStrata("MEDIUM")
   f:SetClampedToScreen(true)
-  T:Fill(f, { 0.04, 0.04, 0.05, 0.8 })
-  T:Border(f, { 1, 1, 1, 0.12 })
+  -- In the theme (owner, October 4): its background a little see-through, its edge, the
+  -- bronze top line on Default and Gilded (the accent on Clean), and Size.
+  T:Fill(f, { T.bg[1], T.bg[2], T.bg[3], 0.85 })
+  local edge = T.theme.frame and { T.theme.frame[1], T.theme.frame[2], T.theme.frame[3], 0.8 } or { 1, 1, 1, 0.12 }
+  T:Border(f, edge)
+  local top = T.theme.topLine or T.accent
   local bar = f:CreateTexture(nil, "ARTWORK")
   bar:SetPoint("TOPLEFT", 1, -1)
   bar:SetPoint("TOPRIGHT", -1, -1)
   bar:SetHeight(2)
-  bar:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.9)
+  bar:SetColorTexture(top[1], top[2], top[3], 0.9)
+  ns.scaledWindows = ns.scaledWindows or {}
+  table.insert(ns.scaledWindows, f)
+  f:SetScale(((ns.db and ns.db.settings.uiScale) or 100) / 100)
   f:EnableMouse(true)
   f:SetMovable(true)
   f:RegisterForDrag("LeftButton")
@@ -173,8 +180,8 @@ local function buildTracker()
   local pos = ns.db.settings.sessionPos
   if pos then f:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4]) else f:SetPoint("TOP", UIParent, "TOP", 0, -140) end
 
-  f.title = T:Text(f, 11, T.accent)
-  f.title:SetText("Session")
+  f.title = T:Text(f, 11)
+  T:StyleHeading(f.title, "Session")
   f.time = T:Text(f, 11, T.dim)
   f.rate = T:Text(f, 15, { 1, 0.82, 0, 1 })
   f.rate:SetPoint("TOPLEFT", 8, -24)
