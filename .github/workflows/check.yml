@@ -27,6 +27,15 @@ jobs:
       - name: Run the tests
         run: lua5.1 tests/run.lua
 
+      # The Discord scripts: they compile, and the announcement turns the change marks
+      # into the server's emojis when their codes are set (and keeps the text mark if not).
+      - name: Check the Discord scripts
+        run: |
+          python3 -m py_compile .github/scripts/*.py
+          printf '## [9.9.9]\n\n### Highlights\n- Δ **Big**: one.\n- + **New**: two.\n- **Plain**: three.\n' > /tmp/cl.md
+          DISCORD_EMOJI_NEW='<:fl_new:1>' python3 .github/scripts/discord_announce.py /tmp/cl.md 9.9.9 https://x > /tmp/a.json
+          python3 -c "import json; d = json.load(open('/tmp/a.json'))['embeds'][0]['description']; print(d); assert 'Δ **Big**' in d and '<:fl_new:1> **New**' in d and '- **Plain**' in d"
+
       - name: Check the TOC lists every Lua file
         run: |
           for f in *.lua; do

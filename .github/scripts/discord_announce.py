@@ -7,9 +7,29 @@
 # one-liners written when the release is prepared). Without one, the first sentence of
 # each Added/Changed entry is used, which reads less well.
 # Usage: discord_announce.py <CHANGELOG.md> <version> <notes url> [role id] > payload.json
+#
+# Change marks (owner, October 5, like the icons in the game's What's new): each
+# Highlights line starts with "Δ " (a big change), "+ " (new), "~ " (changed) or "✓ "
+# (fixed). On Discord the mark becomes the server's own emoji (docs/images/changes,
+# uploaded as fl_major, fl_new, fl_changed, fl_fixed) when its code ("<:fl_new:123...>")
+# is in the repository variable DISCORD_EMOJI_MAJOR / _NEW / _CHANGED / _FIXED;
+# otherwise the text mark stays.
 import json
+import os
 import re
 import sys
+
+MARKS = {"Δ": "DISCORD_EMOJI_MAJOR", "+": "DISCORD_EMOJI_NEW", "~": "DISCORD_EMOJI_CHANGED", "✓": "DISCORD_EMOJI_FIXED"}
+
+
+def bullet(line):
+    """A Highlights line as a Discord line: its mark as the emoji (no dash), or "- " before
+    an unmarked one."""
+    for mark, var in MARKS.items():
+        if line.startswith(mark + " "):
+            emoji = os.environ.get(var, "").strip()
+            return f"{emoji or mark} {line[len(mark) + 1:]}"
+    return "- " + line
 
 MAX_FEATURES = 7      # bullets shown when falling back to Added/Changed
 MAX_BULLET = 170      # characters per fallback bullet
@@ -56,7 +76,7 @@ lines = []
 extras = []
 if highlights:
     lines.append("Major updates/features include:")
-    lines += ["- " + h for h in highlights]
+    lines += [bullet(h) for h in highlights]
     if fixes:
         extras.append(f"{len(fixes)} bug fix{'es' if len(fixes) != 1 else ''}")
     others = len(features) - len(highlights)

@@ -22,6 +22,14 @@ REPO = os.environ["GITHUB_REPOSITORY"]
 GUILD = os.environ["GUILD_ID"]
 FORUMS = {os.environ["BUG_FORUM"]: "bug", os.environ["IDEA_FORUM"]: "idea"}
 LABELS = {"bug": "bug", "idea": "enhancement"}
+
+
+def mark(kind):
+    """The change mark before a thread message (owner, October 5, like the game's What's
+    new): the server's fl_fixed emoji for a bug, fl_new for an idea, when their codes are
+    in DISCORD_EMOJI_FIXED / DISCORD_EMOJI_NEW; nothing otherwise."""
+    emoji = os.environ.get("DISCORD_EMOJI_FIXED" if kind == "bug" else "DISCORD_EMOJI_NEW", "").strip()
+    return emoji + " " if emoji else ""
 MARKER = "Discord thread ID: "
 ON_GITHUB = "On GitHub"
 # Status tags set when an issue closes, by kind and close reason; and the opening tags
@@ -197,8 +205,8 @@ def issue_event():
         reason = issue.get("state_reason") or "completed"
         status = STATUS.get((kind, reason))
         if reason == "completed":
-            text = ("Fixed on GitHub: the fix will be in the next release." if kind == "bug"
-                    else "Done on GitHub: it will be in the next release.")
+            text = mark(kind) + ("Fixed on GitHub: the fix will be in the next release." if kind == "bug"
+                                 else "Done on GitHub: it will be in the next release.")
         else:
             text = ("Closed on GitHub: we couldn't reproduce it. Reply here if it still happens and we'll look again."
                     if kind == "bug" else "Closed on GitHub: not planned for now. Thanks for the idea!")
@@ -258,7 +266,8 @@ def released():
             continue
         try:
             discord("POST", f"/channels/{m.group(1)}/messages", {
-                "content": f"**Now live in Forever Ledger {version}!** Update through your addon app "
+                "content": mark("idea" if any(l.get("name") == "enhancement" for l in issue.get("labels", [])) else "bug")
+                           + f"**Now live in Forever Ledger {version}!** Update through your addon app "
                            f"(CurseForge, Wago or WowUp), and tell us here if anything's still off.",
                 "allowed_mentions": {"parse": []},
             })

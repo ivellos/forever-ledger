@@ -4,16 +4,16 @@ Add-Type -AssemblyName System.Drawing
 # Our own drawings in the style of outline icon sets (October 4); add new ones at the end.
 $out = Join-Path (Get-Location) "media\icons"
 New-Item -ItemType Directory -Force $out | Out-Null
-$S = 64 / 24.0   # drawn on a 24-unit grid like outline icon sets, scaled to 64 px
-
-function New-Canvas {
-  $bmp = New-Object System.Drawing.Bitmap 64, 64, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+# Drawn on a 24-unit grid like outline icon sets, scaled to 64 px (or $px).
+function New-Canvas($px = 64, $color = [System.Drawing.Color]::White) {
+  $S = $px / 24.0
+  $bmp = New-Object System.Drawing.Bitmap $px, $px, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
   $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
   $g.Clear([System.Drawing.Color]::Transparent)
   $g.ScaleTransform($S, $S)
-  $pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::White), 1.9
+  $pen = New-Object System.Drawing.Pen $color, 1.9
   $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
   $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
   $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
@@ -77,37 +77,55 @@ Finish $p "appearance"
 # a bold delta for a major change, a single plus for something new, a pencil for a
 # change, a wrench for a fix.
 
-# Major: a bold delta (a thicker line than the others, so it reads as the big one).
-$p = New-Canvas; $g = $p[1]; $pen = $p[2]
-$pen.Width = 2.7
-$g.DrawPolygon($pen, @((New-Object System.Drawing.PointF 12, 3.8), (New-Object System.Drawing.PointF 20.8, 19.6), (New-Object System.Drawing.PointF 3.2, 19.6)))
-Finish $p "change-major"
+function Draw-Change($kind, $px, $color) {
+  $p = New-Canvas $px $color; $g = $p[1]; $pen = $p[2]
+  switch ($kind) {
+    # Major: a bold delta (a thicker line than the others, so it reads as the big one).
+    "major" {
+      $pen.Width = 2.7
+      $g.DrawPolygon($pen, @((New-Object System.Drawing.PointF 12, 3.8), (New-Object System.Drawing.PointF 20.8, 19.6), (New-Object System.Drawing.PointF 3.2, 19.6)))
+    }
+    # New: a single plus.
+    "new" {
+      $pen.Width = 2.3
+      $g.DrawLine($pen, 12, 5, 12, 19)
+      $g.DrawLine($pen, 5, 12, 19, 12)
+    }
+    # Changed: a pencil, pointing down to the left.
+    "edit" {
+      $g.TranslateTransform(12, 12); $g.RotateTransform(45); $g.TranslateTransform(-12, -12)
+      $g.DrawPolygon($pen, @((New-Object System.Drawing.PointF 9.8, 2.5), (New-Object System.Drawing.PointF 14.2, 2.5),
+        (New-Object System.Drawing.PointF 14.2, 16), (New-Object System.Drawing.PointF 12, 21), (New-Object System.Drawing.PointF 9.8, 16)))
+      $g.DrawLine($pen, 9.8, 6, 14.2, 6)
+      $g.DrawLine($pen, 9.8, 16, 14.2, 16)
+    }
+    # Fixed: a wrench, its open jaw up to the right.
+    "fix" {
+      $g.TranslateTransform(12, 12); $g.RotateTransform(45); $g.TranslateTransform(-12, -12)
+      $g.DrawArc($pen, 7.5, 2, 9, 9, 295, 310)
+      $g.DrawLines($pen, @((New-Object System.Drawing.PointF 10.1, 2.4), (New-Object System.Drawing.PointF 10.7, 5.6),
+        (New-Object System.Drawing.PointF 13.3, 5.6), (New-Object System.Drawing.PointF 13.9, 2.4)))
+      $g.DrawLine($pen, 10.6, 10.8, 10.6, 19.5)
+      $g.DrawLine($pen, 13.4, 10.8, 13.4, 19.5)
+      $g.DrawArc($pen, 10.6, 18.1, 2.8, 2.8, 0, 180)
+    }
+  }
+  return $p
+}
 
-# New: a single plus.
-$p = New-Canvas; $g = $p[1]; $pen = $p[2]
-$pen.Width = 2.3
-$g.DrawLine($pen, 12, 5, 12, 19)
-$g.DrawLine($pen, 5, 12, 19, 12)
-Finish $p "change-new"
-
-# Changed: a pencil, pointing down to the left.
-$p = New-Canvas; $g = $p[1]; $pen = $p[2]
-$g.TranslateTransform(12, 12); $g.RotateTransform(45); $g.TranslateTransform(-12, -12)
-$g.DrawPolygon($pen, @((New-Object System.Drawing.PointF 9.8, 2.5), (New-Object System.Drawing.PointF 14.2, 2.5),
-  (New-Object System.Drawing.PointF 14.2, 16), (New-Object System.Drawing.PointF 12, 21), (New-Object System.Drawing.PointF 9.8, 16)))
-$g.DrawLine($pen, 9.8, 6, 14.2, 6)
-$g.DrawLine($pen, 9.8, 16, 14.2, 16)
-Finish $p "change-edit"
-
-# Fixed: a wrench, its open jaw up to the right.
-$p = New-Canvas; $g = $p[1]; $pen = $p[2]
-$g.TranslateTransform(12, 12); $g.RotateTransform(45); $g.TranslateTransform(-12, -12)
-$g.DrawArc($pen, 7.5, 2, 9, 9, 295, 310)
-$g.DrawLines($pen, @((New-Object System.Drawing.PointF 10.1, 2.4), (New-Object System.Drawing.PointF 10.7, 5.6),
-  (New-Object System.Drawing.PointF 13.3, 5.6), (New-Object System.Drawing.PointF 13.9, 2.4)))
-$g.DrawLine($pen, 10.6, 10.8, 10.6, 19.5)
-$g.DrawLine($pen, 13.4, 10.8, 13.4, 19.5)
-$g.DrawArc($pen, 10.6, 18.1, 2.8, 2.8, 0, 180)
-Finish $p "change-fix"
-
-Get-ChildItem $out | Select-Object Name, Length
+# In the game: white, tinted there. For Discord emojis and release notes: in colour,
+# 128 px PNGs in docs\images\changes (the same colours as in the game; the delta is
+# the gold of the Default theme).
+$pngOut = Join-Path (Get-Location) "docs\images\changes"
+New-Item -ItemType Directory -Force $pngOut | Out-Null
+$colours = @{ major = @(232, 194, 122); new = @(127, 211, 156); edit = @(242, 191, 89); fix = @(153, 178, 217) }
+$pngNames = @{ major = "major"; new = "new"; edit = "changed"; fix = "fixed" }
+foreach ($kind in @("major", "new", "edit", "fix")) {
+  Finish (Draw-Change $kind 64 ([System.Drawing.Color]::White)) "change-$kind"
+  $c = $colours[$kind]
+  $p = Draw-Change $kind 128 ([System.Drawing.Color]::FromArgb(255, $c[0], $c[1], $c[2]))
+  $p[1].Dispose()
+  $p[0].Save((Join-Path $pngOut "$($pngNames[$kind]).png"), [System.Drawing.Imaging.ImageFormat]::Png)
+  $p[0].Dispose()
+}
+Get-ChildItem $out, $pngOut | Select-Object Name, Length
