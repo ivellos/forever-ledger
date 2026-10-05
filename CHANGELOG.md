@@ -11,7 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Settings profiles: a set of settings characters can share (Settings, Profiles), for example no tooltips or no customer finder on one character. Each character uses one, Default to start. New, Rename, Reset to defaults and Delete; export a profile as text with the parts you tick, and import someone's. Global settings are never in a profile.
 - Bag value: a bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor) and the cheapest bag per slot right now (Settings, Tooltips).
 - Size (Settings, Appearance): Forever Ledger's windows from 75% to 150%.
-- What sold while you were away: opening the auction house says in chat what sold since you were last there and the gold it brings with deposits back (Settings, Auction house). Auctions that sold and were mailed while you were away now show under Sold too.
+- What sold while you were away: opening the auction house says in chat what sold since you were last there and the gold it brings with deposits back (Settings, Auction house), including part of a stack. Auctions that sold and were mailed while you were away now show under Sold too.
 
 ### Changed
 - The theme reaches the other windows: the auction house side panel (top line, frame, Size), the session tracker (background, edge, top line, heading, Size), the welcome card, and the titles of the Export / import and Customers windows.

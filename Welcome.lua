@@ -144,14 +144,15 @@ end
 -- Highlights here and set the version (docs/RELEASING.md). /fl new shows them again.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.13.0",
+  version = "0.14.0",
   lines = {
-    "Characters tab: every character's bags and bank, with what it's all worth and the best way to turn it into gold.",
-    "Per realm and faction: pick which characters to look at at the top of the list; only those count.",
-    "Price helper: the usual price and the cheapest now on the Sell tab, with Undercut and Usual buttons.",
-    "One Export / import button: Export, Import and Prices as text in one window.",
-    "Easier money boxes: type 1.5 for one and a half gold.",
-    "Fixes: undercut reminders once per login, steadier Your auctions, a tidier session tracker.",
+    "A new look: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. Settings, Appearance.",
+    "New Settings: a sidebar, Global settings for every character, and profiles your characters can share.",
+    "Dashboard redone: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.",
+    "Sessions list: every session in the Ledger, with where its gold came from.",
+    "Sold while you were away: one chat line when you open the auction house.",
+    "Buy queue lights up when there's something to buy; the Disenchant finder picks item levels from a dropdown.",
+    "Bag value: bag tooltips show what a slot costs and the cheapest bag right now.",
   },
 }
 

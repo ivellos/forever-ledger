@@ -87,10 +87,25 @@ local function eachPrice(info)
   return buy
 end
 
-local readOwnedSold = {}   -- what the last read found newly sold
+local ahOpen = false
+local firstRead = false   -- the first read of the list after opening the auction house
+local emptyRetried = false
 local function readOwned()
-  if not (AH and AH.GetNumOwnedAuctions and AH.GetOwnedAuctionInfo) then return end
+  if not (AH and AH.GetNumOwnedAuctions and AH.GetOwnedAuctionInfo) then return false end
   local n = AH.GetNumOwnedAuctions() or 0
+  -- No auctions on the first answer, when some were up last time: the game can answer
+  -- empty for a moment (after a reload), which would look like they all sold. Ask once
+  -- more; a second empty answer is believed.
+  if n == 0 and firstRead and not emptyRetried then
+    for _, e in ipairs((mine() or {}).list or {}) do
+      if not e.sold then
+        emptyRetried = true
+        ns:Debug("Your auctions: the list came back empty; asking again before believing it.")
+        C_Timer.After(2, function() query() end)
+        return false
+      end
+    end
+  end
   local list, now = {}, time()
   local sold = Enum and Enum.AuctionStatus and Enum.AuctionStatus.Sold or 1
   -- What we knew before: when each sold, and sold ones whose gold has gone to the mail.
@@ -120,7 +135,14 @@ local function readOwned()
   local last = (mine() or {}).t or now
   local newlySold = {}
   for _, e in ipairs(list) do
-    if e.sold and not (before[e.a] and before[e.a].sold) then newlySold[#newlySold + 1] = e end
+    local b = before[e.a]
+    if e.sold and not (b and b.sold) then
+      newlySold[#newlySold + 1] = e
+    elseif not e.sold and b and not b.sold and (b.q or 1) > (e.q or 1) then
+      -- Part of a stack bought (materials sell a few at a time; owner's test, October 5:
+      -- "A buyer has been found" for Strange Dust, and no line at the auction house).
+      newlySold[#newlySold + 1] = { id = e.id, q = (b.q or 1) - (e.q or 1), each = e.each }
+    end
   end
   for a, e in pairs(before) do
     if not seen[a] and not e.sold and (e.left or 0) > (now - last) + 300 then
@@ -132,8 +154,18 @@ local function readOwned()
       list[#list + 1] = e
     end
   end
-  readOwnedSold = mine() and newlySold or {}   -- (nothing to compare with on the very first read)
-  store()[ns.CharKey()] = { t = now, list = list, alerts = (mine() or {}).alerts }
+  -- What sold since the last look, found on the first read after opening: it waits in
+  -- unseen for the chat line. Sales while you're there get the game's own message.
+  local unseen = (mine() or {}).unseen or {}
+  if mine() and firstRead then
+    for _, e in ipairs(newlySold) do
+      unseen[#unseen + 1] = { id = e.id, q = e.q, each = e.each, dep = e.dep }
+    end
+  end
+  ns:Debug(("Your auctions: %d listed, %d before, %d newly sold, %d waiting to be told (auction house %s)."):format(
+    #list, (function() local c = 0; for _ in pairs(before) do c = c + 1 end; return c end)(), #newlySold, #unseen,
+    ahOpen and "open" or "closed"))
+  store()[ns.CharKey()] = { t = now, list = list, alerts = (mine() or {}).alerts, unseen = unseen }
 end
 
 -- What a sold auction brings: the sale after the cut, plus the deposit, which comes back
@@ -233,7 +265,6 @@ local refresh   -- the tab's redraw
 
 -- Sold while you were away: one line the first time the list is read after opening the
 -- auction house (sales while you're there get the game's own message and the sale sound).
-local firstRead = false
 local function soldSummary(list)
   if #list == 0 or ns.db.settings.soldSummary == false then return end
   local names, total = {}, 0
@@ -247,15 +278,23 @@ local function soldSummary(list)
 end
 
 ns:On("OWNED_AUCTIONS_UPDATED", function()
-  readOwned()
+  -- Only at the auction house: away from it the game may answer with an empty list,
+  -- which would look like everything sold or vanished.
+  if not ahOpen then return end
+  if readOwned() == false then return end
   if firstRead then
     firstRead = false
-    soldSummary(readOwnedSold)
+    local m = mine()
+    if m and m.unseen then
+      soldSummary(m.unseen)
+      m.unseen = nil
+    end
   end
   checkAlerts()
   if refresh then refresh() end
 end)
-ns:On("AUCTION_HOUSE_SHOW", function() firstRead = true end)
+ns:On("AUCTION_HOUSE_SHOW", function() ahOpen, firstRead, emptyRetried = true, true, false end)
+ns:On("AUCTION_HOUSE_CLOSED", function() ahOpen, firstRead = false, false end)
 -- A sale or a cancel changes the list: ask again.
 ns:On("AUCTION_CANCELED", function() C_Timer.After(0.5, query) end)
 ns:On("AUCTION_HOUSE_AUCTION_CREATED", function() C_Timer.After(0.5, query) end)
