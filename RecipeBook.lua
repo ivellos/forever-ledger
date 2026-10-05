@@ -211,8 +211,9 @@ end)
 function ns:PrintRecipeBook()
   ns:Print("Recipe book so far:")
   local known = {}
-  for _, c in pairs(ns.db.chars) do
-    for prof, p in pairs(c.profs or {}) do
+  -- (Your characters on this ruleset and faction, as everywhere else: Core.lua.)
+  for key, c in pairs(ns.db.chars) do
+    for prof, p in pairs(ns:SameMarketChar(key) and c.profs or {}) do
       known[prof] = known[prof] or {}
       for id in pairs(p.recipes or {}) do known[prof][id] = true end
     end

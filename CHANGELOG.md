@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Ledger: once a log holds 10,000 entries, the oldest one now goes into its month's total instead of being dropped, so no copper goes missing.
+- `/fl book`: "known by your characters" counts only characters on this realm and faction, not other rulesets or the other faction.
 - Ledger: long character names no longer run off the edge.
 - Recipes, Trainers view: the columns fit the window at its smallest.
 - Shuffles: the Recipes from list closes when you click elsewhere.

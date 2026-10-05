@@ -9,7 +9,7 @@ local S = require("stubs")
 local ADDON, ns = "ForeverLedger", {}
 
 -- The files to load, in the .toc's order, up to the last one the tests need.
-local LOAD = { "Core.lua", "Prices.lua", "History.lua", "Inventory.lua", "Professions.lua", "Values.lua", "Crates.lua", "Settings.lua",
+local LOAD = { "Core.lua", "Prices.lua", "History.lua", "Inventory.lua", "RecipeBook.lua", "Professions.lua", "Values.lua", "Crates.lua", "Settings.lua",
   "Disenchant.lua", "Sessions.lua", "ShoppingLists.lua", "Auctions.lua" }
 local wanted = {}
 for _, f in ipairs(LOAD) do wanted[f] = true end
@@ -134,7 +134,7 @@ function T.resetDB()
 end
 
 -- The test files (listed here, so it runs the same on any system).
-local FILES = { "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles" }
+local FILES = { "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets" }
 for _, name in ipairs(FILES) do
   local f = "tests/test_" .. name .. ".lua"
   current = f:match("test_(.-)%.lua$")
