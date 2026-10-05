@@ -4,7 +4,7 @@ local _, ns = ...
 -- Quest turn-in items (owner's idea, October 2): items quests ask for that you can buy
 -- on the auction house. Leveling players need each once per character, so they sell;
 -- and your own characters should keep them for later. From a community spreadsheet of
--- Classic quests (docs/GAME_DATA.md); Forever may have changed some. Items are named,
+-- Classic quests (in the private game-data notes); Forever may have changed some. Items are named,
 -- not numbered, and matched to the Classic item list at load: a name that doesn't match
 -- is left out rather than guessed.
 -- { quest, where, level, faction (A, H or B), { item, count, item, count, ... }, class }

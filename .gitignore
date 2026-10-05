@@ -13,10 +13,3 @@ WTF/
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Private working notes (kept in the private notes repo, never here)
-CLAUDE.md
-AGENTS.md
-docs/ROADMAP.md
-docs/SELF_TEST.md
-docs/GAME_DATA.md

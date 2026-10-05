@@ -8,7 +8,7 @@ local T = ns.Theme
 -- house (after the cut) and a vendor, or vendor only (setting). At the end, a summary
 -- in chat and a line in the Dashboard's sessions. (The "Work it" shuffle sessions were
 -- removed with that window, October 4; their finished ones still show.) Dungeon runs and chase items build on
--- this later (docs/ROADMAP.md).
+-- this later (the private roadmap).
 --
 -- ns.db.liveSession = { t, char, money = { [source] = signed copper }, loot = { [itemID] = count } }
 -- Finished ones go to ns.db.sessions as { kind = "general", name, t, stop, earned, spent, loot, top }.
