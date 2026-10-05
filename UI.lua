@@ -193,10 +193,17 @@ local function buildMain()
   local dataBtn = T:Button(main, "Export / import", 120, function() ns:ShowExport() end)
   dataBtn:SetPoint("LEFT", scan, "RIGHT", 18, 0)
   main.scanBtn, main.fullBtn = scan, full
+  -- Help: the first-run welcome again (Welcome.lua), bottom left like the other tabs'
+  -- buttons (owner, October 5: not under the topic list).
+  local welcomeBtn = T:Button(main, "Show the welcome again", 170, function()
+    if ns.ShowWelcome then ns:ShowWelcome() end
+  end)
+  welcomeBtn:SetPoint("BOTTOMLEFT", 12, 12)
   main.footer = {
     dashboard = { full, scan },
     deals = { full, scan },
     characters = { full, scan, dataBtn },
+    help = { welcomeBtn },
   }
 
   main.refreshBtn = T:Button(main, "Refresh", 90, function() ns:RefreshShuffles() end)
@@ -1118,6 +1125,15 @@ local function setTabs(f, tabs)
   for _, c in pairs(f.tabChoices) do c:Hide() end
   f.help:ClearAllPoints()
   f.help:SetPoint("RIGHT", f, "RIGHT", -14, 0)
+  -- A line between the tabs and what's below, as on the other pages (October 5).
+  if not f.tabLine then
+    f.tabLine = f:CreateTexture(nil, "BORDER")
+    f.tabLine:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+    f.tabLine:SetHeight(1)
+    f.tabLine:SetPoint("TOPLEFT", 1, -68)
+    f.tabLine:SetPoint("TOPRIGHT", -1, -68)
+  end
+  f.tabLine:SetShown(tabs ~= nil)
   if not tabs then
     f.help:SetPoint("TOPLEFT", 14, -42)
     return
@@ -1136,7 +1152,7 @@ local function setTabs(f, tabs)
   c.tabs = tabs
   c:SetValue(tabs.current or 1)
   c:Show()
-  f.help:SetPoint("TOPLEFT", 14, -70)
+  f.help:SetPoint("TOPLEFT", 14, -78)
 end
 
 function ns:ShowTextWindow(title, help, text, actionLabel, onAction, tabs)
@@ -1170,10 +1186,12 @@ local function dataTabs(current)
     { "Prices as text", function() ns:ShowPricesCSV() end } }
 end
 
+-- One title for the one window; the tabs say which part you're on (owner's test,
+-- October 5: a title per tab made it look like three windows).
 function ns:ShowExport()
   local f = ioWindow()
   setTabs(f, dataTabs(1))
-  f.title:SetText("Export")
+  f.title:SetText("Export / import")
   f.help:SetText("Press Ctrl+A, then Ctrl+C to copy. Paste it into Import on your other account, or send it to Claude.")
   f.eb:SetText(ns:Export())
   f.action:Hide()
@@ -1186,7 +1204,7 @@ end
 function ns:ShowImport()
   local f = ioWindow()
   setTabs(f, dataTabs(2))
-  f.title:SetText("Import")
+  f.title:SetText("Export / import")
   f.help:SetText("Paste an export from your other account with Ctrl+V, then click Import. Newer data replaces older data.")
   f.eb:SetText("")
   f.action:SetText("Import")
@@ -1229,7 +1247,7 @@ end
 function ns:ShowPricesCSV()
   local f = ioWindow()
   setTabs(f, dataTabs(3))
-  f.title:SetText("Prices as text")
+  f.title:SetText("Export / import")
   f.help:SetText("Press Ctrl+A, then Ctrl+C. Paste this into a chat with Claude to check flips at today's prices.")
   f.eb:SetText(ns:PricesCSV())
   f.action:Hide()

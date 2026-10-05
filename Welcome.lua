@@ -42,11 +42,28 @@ local function build()
   card:SetAllPoints(body)
   card:SetFrameLevel(body:GetFrameLevel() + 20)
   card:EnableMouse(true)
-  -- In the theme (owner, October 4): its background, edge and top line, a gold title on
-  -- Default and Gilded, and the numbers in the heading colour.
+  -- In the theme, like the newer pages (owner, October 4-5): its background, edge and
+  -- frame, a gold title on Default and Gilded, a line under the header, each step in its
+  -- own card with its number in a badge, and the buttons in a footer band.
+  local FOOT = 52
   T:Fill(card, { T.bg[1], T.bg[2], T.bg[3], 0.98 })
   T:Border(card)
-  T:DecorateWindow(card)
+  T:DecorateWindow(card, FOOT)
+  if not T.theme.footer then   -- (Clean: just the line above the buttons)
+    local t = card:CreateTexture(nil, "BORDER")
+    t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+    t:SetHeight(1)
+    t:SetPoint("BOTTOMLEFT", 1, FOOT)
+    t:SetPoint("BOTTOMRIGHT", -1, FOOT)
+  end
+  local W = math.max(body:GetWidth(), 600)
+  local function rule(y)
+    local t = card:CreateTexture(nil, "BORDER")
+    t:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+    t:SetHeight(1)
+    t:SetPoint("TOPLEFT", 1, -y)
+    t:SetPoint("TOPRIGHT", -1, -y)
+  end
 
   local title = T:Text(card, 16)
   T:StyleTitle(title, 16)
@@ -57,52 +74,60 @@ local function build()
   sub:SetPoint("RIGHT", card, "RIGHT", -18, 0)
   sub:SetJustifyH("LEFT")
   sub:SetText("It finds gold for you: things to buy and sell on, and what your crafting is worth. Five things to start with:")
+  rule(66)
 
-  local prev = sub
+  -- The steps, as cards from the top down; each as tall as its text needs.
+  local edge = T.theme.cardEdge and { T.theme.cardEdge[1], T.theme.cardEdge[2], T.theme.cardEdge[3], 0.45 } or { 1, 1, 1, 0.08 }
+  local badgeC = T.theme.heading or T.accent
+  local y, BTN_W = 76, 150
   for i, s in ipairs(STEPS) do
-    local num = T:Text(card, 15, T.theme.heading or T.accent)
-    num:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
-    num:SetWidth(22)
-    num:SetJustifyH("LEFT")
+    local row = CreateFrame("Frame", nil, card)
+    row:SetPoint("TOPLEFT", 18, -y)
+    row:SetWidth(W - 36)
+    T:Fill(row, { 1, 1, 1, 0.025 })
+    T:Border(row, edge)
+
+    local badge = row:CreateTexture(nil, "ARTWORK")
+    badge:SetSize(24, 24)
+    badge:SetPoint("TOPLEFT", 10, -9)
+    badge:SetColorTexture(badgeC[1], badgeC[2], badgeC[3], 0.16)
+    local num = T:Text(row, 13, badgeC)
+    num:SetPoint("CENTER", badge, "CENTER", 0, 0)
     num:SetText(tostring(i))
-    local head = T:Text(card, 13)
-    head:SetPoint("TOPLEFT", num, "TOPRIGHT", 4, 0)
+
+    local head = T:Text(row, 13)
+    head:SetPoint("TOPLEFT", 46, -9)
     head:SetText(s[1])
-    local text = T:Text(card, 12, T.dim)
+    local text = T:Text(row, 12, T.dim)
     text:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -3)
-    text:SetPoint("RIGHT", card, "RIGHT", s[3] and -170 or -18, 0)
+    text:SetWidth(W - 36 - 46 - (s[3] and BTN_W + 28 or 14))
     text:SetJustifyH("LEFT")
     text:SetText(s[2])
+    local h = math.max(42, 9 + head:GetStringHeight() + 3 + text:GetStringHeight() + 9)
+    row:SetHeight(h)
     if s[3] then
       local key = s[4]
-      local b = T:Button(card, s[3], 140, function()
+      local b = T:Button(row, s[3], BTN_W, function()
         close()
         if key == "lists" then ns:ShowSidePanel("lists") else ns:ShowTab(key) end
       end, 22)
-      -- Right of the step's text (which stops 170 short of the edge), level with its heading.
-      b:SetPoint("TOPLEFT", text, "TOPRIGHT", 12, 8)   -- a little below the heading (owner, October 3)
+      b:SetPoint("RIGHT", -12, 0)
     end
-    -- The next step goes under this one's text (left edge from the number).
-    local anchor = CreateFrame("Frame", nil, card)
-    anchor:SetSize(1, 1)
-    anchor:SetPoint("TOP", text, "BOTTOM")
-    anchor:SetPoint("LEFT", num, "LEFT")
-    prev = anchor
+    y = y + h + 6
   end
 
+  -- The footer: a note, Open Help, and Got it as the main button (Magic, October 3: the
+  -- way out stands out).
   local got = T:Button(card, "Got it", 110, close, 26)
-  got:SetPoint("BOTTOMRIGHT", -18, 16)
-  -- The main way out stands out (Magic, October 3), in the addon's accent colour like a
-  -- chosen tab, rather than teal, which means "scroll here" on the Buy queue.
-  got:SetSelected(true)
-  got:HookScript("OnLeave", function(self) self:SetSelected(true) end)
+  got:SetPoint("BOTTOMRIGHT", -18, 13)
+  got:SetPrimary(true)
   local help = T:Button(card, "Open Help", 110, function()
     close()
     ns:ShowTab("help")
   end, 26)
   help:SetPoint("RIGHT", got, "LEFT", -8, 0)
   local note = T:Text(card, 11, T.dim)
-  note:SetPoint("LEFT", card, "BOTTOMLEFT", 18, 29)
+  note:SetPoint("LEFT", card, "BOTTOMLEFT", 18, 26)
   note:SetPoint("RIGHT", help, "LEFT", -12, 0)
   note:SetJustifyH("LEFT")
   note:SetText("The Help tab explains every feature, and can show this again.")

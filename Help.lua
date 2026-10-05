@@ -198,7 +198,7 @@ function ns:BuildHelp(parent)
   f:SetAllPoints()
   hv = { frame = f, navButtons = {} }
 
-  -- The sidebar, like Settings': search, the topics, and the welcome again at the bottom.
+  -- The sidebar, like Settings': search and the topics.
   local nav = CreateFrame("Frame", nil, f)
   nav:SetPoint("TOPLEFT")
   nav:SetPoint("BOTTOMLEFT")
@@ -237,7 +237,7 @@ function ns:BuildHelp(parent)
   -- Topics (scroll if the window is short): a name, with a bar and a tint on the chosen one.
   local navSf, list = T:Scroll(nav)
   navSf:SetPoint("TOPLEFT", 0, -38)
-  navSf:SetPoint("BOTTOMRIGHT", -1, 34)
+  navSf:SetPoint("BOTTOMRIGHT", -1, 4)
   hv.navSf, hv.list = navSf, list
   local y, lastGroup = 0, nil
   for i, section in ipairs(ns.HELP) do
@@ -281,11 +281,7 @@ function ns:BuildHelp(parent)
     hv.navButtons[i] = b
   end
   list:SetHeight(y)
-  -- The first-run welcome again (Welcome.lua).
-  hv.welcome = T:Button(nav, "Show the welcome again", NAV_W - 16, function()
-    if ns.ShowWelcome then ns:ShowWelcome() end
-  end, 22)
-  hv.welcome:SetPoint("BOTTOMLEFT", 8, 6)
+  -- (Show the welcome again is in the window's bottom bar, UI.lua: owner, October 5.)
 
   -- The chosen topic: its title, a line about it, then the entries.
   hv.title = T:Text(f, 16)
