@@ -218,6 +218,11 @@ local PAGES = {
       { key = "updateNotice", label = "Tell me when a new version is out", kind = "check",
         help = "Forever Ledger hears it from guildmates and group members who have a newer version, and says so in chat once a session. It only shares the version number." },
     } },
+  -- Every saved character, with Remove (owner, October 5: addons can't see a character
+  -- being deleted, and a sync partner's stayed; rare and permanent, so here, not on the
+  -- Characters tab).
+  { key = "characters", title = "Characters", custom = true,
+    desc = "Every character Forever Ledger knows about, and removing ones you no longer have." },
 }
 
 -- Every page gets a tab list (one unnamed tab when it has none), and every setting is
@@ -742,7 +747,7 @@ local function buildProfiles(box)
   P.shareHelp:SetText("Export copies this character's profile as text, with only the parts you tick. Import makes a new profile from someone's text. Only settings travel: never Global settings, gold or any of your data.")
   P.parts, P.partChecks = {}, {}
   for _, p in ipairs(PAGES) do
-    if p.key and p.key ~= "global" and p.key ~= "profiles" then
+    if p.key and p.tabs and p.key ~= "global" then   -- (pages with settings: not Profiles or Characters)
       P.parts[p.key] = true
       local c = T:Check(P, function(self) P.parts[p.key] = self:GetChecked() end)
       c:SetChecked(true)
@@ -836,6 +841,98 @@ local function refreshProfiles(P)
   P.users:SetText(#users > 0 and ("Used by: " .. table.concat(users, ", ")) or "")
   P.rename:SetEnabled(cur ~= ns.DEFAULT_PROFILE)
   P.delete:SetEnabled(cur ~= ns.DEFAULT_PROFILE)
+end
+
+---------------------------------------------------------------------------
+-- The Characters page: every saved character, when it was last seen, where it came
+-- from, and Remove (ns:RemoveCharacter, Core.lua). Never the one you're on.
+---------------------------------------------------------------------------
+local function lastSeen(key)
+  if key == ns.CharKey() then return time() end
+  local c, inv = ns.db.chars[key] or {}, ns.db.inventory[key] or {}
+  local t = math.max(c.updated or 0, inv.t or 0, inv.bankT or 0)
+  return t > 0 and t or nil
+end
+
+local function buildChars(box)
+  local C = CreateFrame("Frame", nil, box)
+  C.intro = T:Text(C, 12, T.dim)
+  C.intro:SetJustifyH("LEFT")
+  C.intro:SetText("Addons can't see a character being deleted or renamed, so it stays here (and on the Characters tab, in Have and in recipes) until you remove it. Remove forgets its level, professions, recipes, bags and bank; prices and gold history stay. One of yours comes back when you log in on it.")
+  C.rows = {}
+  return C
+end
+
+local function charRow(C, i)
+  if C.rows[i] then return C.rows[i] end
+  local r = CreateFrame("Frame", nil, C)
+  r:SetHeight(40)
+  r.stripe = T:Fill(r, { 1, 1, 1, 0.025 })
+  r.remove = confirmButton(r, "Remove", 130, function()
+    local key = r.key
+    local name = (ns.db.chars[key] and ns.db.chars[key].name) or key
+    if ns:RemoveCharacter(key) then
+      if ns.BuildUsageIndex then ns:BuildUsageIndex() end
+      if ns.InvalidateValues then ns:InvalidateValues() end
+      ns:Print(("Removed %s from Forever Ledger. Prices and gold history are kept."):format(name))
+      ns:RefreshUI()
+      ns:RefreshSettings()
+    end
+  end)
+  r.remove:SetPoint("RIGHT", -8, 0)
+  r.you = T:Text(r, 11, T.dim)
+  r.you:SetPoint("RIGHT", -14, 0)
+  r.you:SetText("you're on this one")
+  r.name = T:Text(r, 12)
+  r.name:SetPoint("TOPLEFT", 10, -5)
+  r.name:SetPoint("RIGHT", r.remove, "LEFT", -10, 0)
+  r.name:SetJustifyH("LEFT")
+  r.name:SetWordWrap(false)
+  r.info = T:Text(r, 11, T.dim)
+  r.info:SetPoint("TOPLEFT", 10, -22)
+  r.info:SetPoint("RIGHT", r.remove, "LEFT", -10, 0)
+  r.info:SetJustifyH("LEFT")
+  r.info:SetWordWrap(false)
+  C.rows[i] = r
+  return r
+end
+
+local function layoutChars(C, width)
+  local y = 4
+  C.intro:ClearAllPoints()
+  C.intro:SetPoint("TOPLEFT", 12, -y)
+  C.intro:SetWidth(width - 24)
+  y = y + C.intro:GetStringHeight() + 12
+  -- The one you're on first, then the most recently seen.
+  local keys = {}
+  for key in pairs(ns.db.chars) do keys[#keys + 1] = key end
+  table.sort(keys, function(a, b)
+    if (a == ns.CharKey()) ~= (b == ns.CharKey()) then return a == ns.CharKey() end
+    return (lastSeen(a) or 0) > (lastSeen(b) or 0)
+  end)
+  for i, key in ipairs(keys) do
+    local c, r = ns.db.chars[key], charRow(C, i)
+    local me = key == ns.CharKey()
+    r.key = key
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", 4, -y)
+    r:SetWidth(width - 8)
+    local cc = RAID_CLASS_COLORS and RAID_CLASS_COLORS[c.class or ""]
+    local cls = (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[c.class or ""]) or c.class or ""
+    r.name:SetText(("%s  |cff888888level %s %s|r"):format(
+      cc and ("|c" .. (cc.colorStr or "ffffffff") .. (c.name or key) .. "|r") or (c.name or key), c.level or "?", cls))
+    local from = (c.via and ("from your sync partner " .. c.via))
+      or (ns:IsOwnChar(key) and "this account") or "from an import or an earlier sync"
+    local seen = lastSeen(key)
+    r.info:SetText(("%s %s, %s, %s"):format(c.realm or "?", c.faction or "", from,
+      me and "playing now" or (seen and ("last seen " .. ns.Age(seen)) or "never seen here")))
+    r.remove:SetShown(not me)
+    r.you:SetShown(me)
+    r:Show()
+    y = y + 44
+  end
+  for i = #keys + 1, #C.rows do C.rows[i]:Hide() end
+  return y + 10
 end
 
 ---------------------------------------------------------------------------
@@ -960,6 +1057,8 @@ function ns:BuildSettings(parent)
   end
   f.profiles = buildProfiles(content)
   f.profiles:Hide()
+  f.chars = buildChars(content)
+  f.chars:Hide()
   return f
 end
 
@@ -980,7 +1079,9 @@ function ns:RefreshSettings()
     local on = not q and key == page.key
     b.sel:SetShown(on)
     b.bar:SetShown(on)
-    b.extra:SetText(key == "profiles" and ns:ProfileOf() or "")
+    local nChars = 0
+    if key == "characters" then for _ in pairs(ns.db.chars) do nChars = nChars + 1 end end
+    b.extra:SetText((key == "profiles" and ns:ProfileOf()) or (key == "characters" and tostring(nChars)) or "")
   end
 
   -- Header and tabs
@@ -1058,6 +1159,17 @@ function ns:RefreshSettings()
     refreshProfiles(f.profiles)
     local h = layoutProfiles(f.profiles, width)
     f.profiles:SetHeight(h)
+    y = h
+  end
+  -- The Characters page
+  local chars = not q and page.key == "characters"
+  f.chars:SetShown(chars)
+  if chars then
+    f.chars:ClearAllPoints()
+    f.chars:SetPoint("TOPLEFT", 0, 0)
+    f.chars:SetWidth(width)
+    local h = layoutChars(f.chars, width)
+    f.chars:SetHeight(h)
     y = h
   end
 

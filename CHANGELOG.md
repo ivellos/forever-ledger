@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Characters tab: Remove forgets a character (two clicks): its level, professions, recipes, bags and bank. Prices and gold history stay.
+- Settings, Characters: every character Forever Ledger knows, with when it was last seen and where it came from (this account, your sync partner, an import), and Remove (two clicks) for ones you deleted or no longer want: it forgets the level, professions, recipes, bags and bank. Prices and gold history stay.
 - Live sync: Share bags and bank (Settings, Global settings, Advanced; off by default) sends your characters' bags and bank to your paired character on your other account, so they count in Have, shopping lists and the Characters tab there.
 
 ### Changed

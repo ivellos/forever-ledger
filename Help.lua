@@ -114,7 +114,7 @@ ns.HELP = {
   } },
   { "Two accounts", {
     { "Live sync", "/fl pair First Last sends prices and recipes between your two accounts while both are online: your characters first, then the prices (those can take several minutes). Bags and bank only if you switch on \"Share bags and bank\" (Global settings, Advanced). /fl unpair stops it and removes the other side's characters; the prices stay." },
-    { "Removing a character", "Characters tab: pick the character and click Remove twice. It forgets its level, professions, recipes, bags and bank; prices and gold history stay. Not the one you're on." },
+    { "Removing a character", "Settings, Characters lists every character Forever Ledger knows, when each was last seen and where it came from. Addons can't see a character being deleted, so remove old ones there: click Remove twice. It forgets the level, professions, recipes, bags and bank; prices and gold history stay. Not the one you're on." },
     { "Export and import", "Export / import on the Characters tab, to copy everything across by hand (and Prices as text)." },
   } },
   { "Help and community", {
