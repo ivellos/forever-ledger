@@ -11,7 +11,8 @@
 # Change marks (owner, October 5, like the icons in the game's What's new): each
 # Highlights line starts with "Δ " (a big change), "+ " (new), "~ " (changed) or "✓ "
 # (fixed). On Discord the mark becomes the server's own emoji (docs/images/changes,
-# uploaded as fl_major, fl_new, fl_changed, fl_fixed), looked up by name with the bot
+# uploaded as fl_major, fl_new, fl_changed, fl_fixed, or under their file names major,
+# new, changed, fixed, which Discord gives them by default), looked up by name with the bot
 # (DISCORD_BOT_TOKEN, GUILD_ID); an emoji that isn't there keeps the text mark.
 # DISCORD_EMOJI_MAJOR / _NEW / _CHANGED / _FIXED ("<:fl_new:123...>") override the lookup
 # (the code check uses them).
@@ -41,8 +42,13 @@ def server_emojis():
 
 
 EMOJIS = server_emojis()
-print("Change-mark emojis on the server:", ", ".join(sorted(n for n in EMOJIS if n.startswith("fl_"))) or "none",
-      file=sys.stderr)
+
+
+def emoji_for(kind):
+    return EMOJIS.get("fl_" + kind) or EMOJIS.get(kind, "")
+
+
+print("Change-mark emojis found:", ", ".join(f"{k} {emoji_for(k) or '-'}" for k in MARKS.values()), file=sys.stderr)
 
 
 def bullet(line):
@@ -50,9 +56,10 @@ def bullet(line):
     an unmarked one."""
     for mark, kind in MARKS.items():
         if line.startswith(mark + " "):
-            emoji = os.environ.get("DISCORD_EMOJI_" + kind.upper(), "").strip() or EMOJIS.get("fl_" + kind, "")
+            emoji = os.environ.get("DISCORD_EMOJI_" + kind.upper(), "").strip() or emoji_for(kind)
             return f"{emoji or mark} {line[len(mark) + 1:]}"
     return "- " + line
+
 
 MAX_FEATURES = 7      # bullets shown when falling back to Added/Changed
 MAX_BULLET = 170      # characters per fallback bullet

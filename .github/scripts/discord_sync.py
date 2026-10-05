@@ -71,7 +71,8 @@ def mark(kind):
         except RuntimeError as e:
             print("Couldn't read the server's emojis:", e)
             _emojis = {}
-    emoji = _emojis.get("fl_fixed" if kind == "bug" else "fl_new", "")
+    name = "fixed" if kind == "bug" else "new"
+    emoji = _emojis.get("fl_" + name) or _emojis.get(name, "")   # (or under its file name)
     return emoji + " " if emoji else ""
 
 
