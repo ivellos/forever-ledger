@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-05
+
+### Highlights
+- Δ **A new look**: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. FL Default is the new standard look; change it in Settings, Appearance.
+- Δ **New Settings**: a sidebar like EllesmereUI's, Global settings for every character, and profiles your characters can share.
+- Δ **Dashboard redone**: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.
+- + **Sessions list**: every session in the Ledger, with where its gold came from.
+- + **Sold while you were away**: one chat line when you open the auction house.
+- + **Bag value**: bag tooltips show what a slot costs and the cheapest bag right now.
+- ~ **Auction house panel**: the Buy queue lights up when there's something to buy, and the Disenchant finder picks item levels from a dropdown.
+
 ### Added
 - Ledger, Sessions: every session (when, length, gold, looted, gold an hour, character), sortable, with where its gold came from and the best loot on hover; See all sessions on the Dashboard opens it. Sessions now save their character.
 - Themes (Settings, Appearance): FL Clean, FL Default (the new default: warm browns, a bronze edge, gold titles, sections as cards, rounded switches, WoW's Arial Narrow) and FL Gilded (a bronze frame, gold titles, Friz Quadrata), each with an accent colour (Auto takes EllesmereUI's; presets or a custom colour). Part of your profile. Looks based on WoW Forever's and Blizzard's windows are coming.

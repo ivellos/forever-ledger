@@ -174,8 +174,8 @@ end
 ns.WHATS_NEW = {
   version = "0.14.0",
   lines = {
-    { "A new look: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. Settings, Appearance.", major = true },
-    { "New Settings: a sidebar, Global settings for every character, and profiles your characters can share.", major = true },
+    { "A new look: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. FL Default is the new standard look; change it in Settings, Appearance.", major = true },
+    { "New Settings: a sidebar like EllesmereUI's, Global settings for every character, and profiles your characters can share.", major = true },
     { "Dashboard redone: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.", major = true },
     "Sessions list: every session in the Ledger, with where its gold came from.",
     "Sold while you were away: one chat line when you open the auction house.",
