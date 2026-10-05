@@ -3,20 +3,23 @@
 local T = ...
 local ns = T.ns
 
-T.test("Riding fund: about 100g at 40 until a trainer has been seen", function()
+T.test("Riding fund: training and a mount, 100g at 40, before a trainer is seen", function()
   ns.db.settings.ridingFund = true
   ns.db.riding = {}
   local r = ns:RidingFund(250000, { days = 5 }, 200000)
+  T.eq(r.training, 900000, "90g (beta)")
+  T.eq(r.mount, 100000, "about 10g")
   T.eq(r.cost, 1000000)
   T.eq(r.level, 40)
   T.eq(r.seen, false)
   T.eq(r.perDay, 10000, "5g up over 5 days: 1g a day")
 end)
 
-T.test("Riding fund: the cost seen at a riding trainer wins", function()
-  ns.db.riding = { ["Apprentice Riding"] = { cost = 900000, level = 40 } }
+T.test("Riding fund: the training cost seen at a riding trainer wins", function()
+  ns.db.riding = { ["Apprentice Riding"] = { cost = 950000, level = 40 } }
   local r = ns:RidingFund(0)
-  T.eq(r.cost, 900000)
+  T.eq(r.training, 950000)
+  T.eq(r.cost, 1050000, "plus the mount")
   T.eq(r.seen, true)
 end)
 

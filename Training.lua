@@ -218,9 +218,13 @@ end
 -- switched off (Settings, Global settings, Advanced), hidden on this character (Hide
 -- here; /fl fund brings it back), or the character knows epic riding.
 ---------------------------------------------------------------------------
+-- Training as seen in the beta (owner, October 5, Binjy Featherwhistle: Apprentice
+-- Riding 90g at 40, Journeyman Riding 900g at 60), plus a mount: about a ninth of the
+-- training (owner's estimate: 10g and 100g; mounts are per character, so each needs
+-- its own). The fund is the two together: 100g, then 1,000g.
 local RIDING_GUESS = {
-  { name = "Riding", short = "Riding at 40", level = 40, cost = 1000000, match = "Apprentice" },      -- about 100g (beta)
-  { name = "Epic riding", short = "Epic riding at 60", level = 60, cost = 10000000, match = "Journeyman" }, -- about 1,000g
+  { name = "Apprentice Riding", short = "Riding at 40", level = 40, training = 900000, mount = 100000, match = "Apprentice" },
+  { name = "Journeyman Riding", short = "Epic riding at 60", level = 60, training = 9000000, mount = 1000000, match = "Journeyman" },
 }
 function ns:RidingFund(goldNow, totals, goldFirst)
   if ns.db.settings.ridingFund == false then return end
@@ -229,15 +233,16 @@ function ns:RidingFund(goldNow, totals, goldFirst)
   local tier = ns:RidingTier()
   local want = RIDING_GUESS[tier + 1]
   if not want then return end
-  local out = { name = want.name, short = want.short, level = want.level, cost = want.cost, seen = false }
+  local out = { name = want.name, short = want.short, level = want.level, training = want.training,
+    mount = want.mount, seen = false }
   -- Seen at a riding trainer: the service whose name says its tier (Apprentice Riding...).
   for svc, r in pairs(ns.db.riding or {}) do
     if svc:find(want.match, 1, true) and r.cost then
-      out.cost, out.seen, out.name = r.cost, true, svc
+      out.training, out.seen, out.name = r.cost, true, svc
       if r.level and r.level > 0 then out.level = r.level end
-      out.short = ("%s at %d"):format(svc, out.level)
     end
   end
+  out.cost = out.training + out.mount
   out.gold = goldNow or GetMoney()
   if goldNow and goldFirst and totals and totals.days and totals.days > 0 then
     out.perDay = (goldNow - goldFirst) / totals.days
@@ -273,6 +278,11 @@ function ns:TalentProbe()
     local a, b, c = try(function() return C_SpecializationInfo.GetSpecializationInfo(i) end)
     if a or b then print(("  Spec %d: %s, %s, %s"):format(i, tostring(a), tostring(b), tostring(c))) end
   end
+  local thirds = ns.TalentThirds and ns:TalentThirds()
+  if thirds then
+    print(("  Points by tree: %s %d, %s %d, %s %d; levelling as: %s"):format(thirds.names[1], thirds.points[1],
+      thirds.names[2], thirds.points[2], thirds.names[3], thirds.points[3], tostring(ns:LevellingTree())))
+  end
   if not (configID and C_Traits) then return end
   local info = try(function() return C_Traits.GetConfigInfo(configID) end)
   local trees = info and info.treeIDs or {}
@@ -298,4 +308,63 @@ function ns:TalentProbe()
     print(("  Tree %s: %d nodes, x from %s to %s; with points: %s"):format(tostring(treeID), #nodes, tostring(xs[1]),
       tostring(xs[#xs]), #picked > 0 and table.concat(picked, "; ") or "none"))
   end
+end
+
+---------------------------------------------------------------------------
+-- Which tree a character levels in. Forever has one talent tree per class (owner's
+-- /fl talents, October 5: Mage, tree 1112, 54 talents, x 1020 to 10880), with Classic's
+-- three trees side by side, in Classic's order left to right: a Mage's Frost talents
+-- were on the right (x 9080 to 10280). So: thirds of the x range, the most points wins.
+-- Classic's order per class; to be confirmed for the other classes.
+---------------------------------------------------------------------------
+local TREES = {
+  MAGE = { "Arcane", "Fire", "Frost" }, WARRIOR = { "Arms", "Fury", "Protection" },
+  PALADIN = { "Holy", "Protection", "Retribution" }, PRIEST = { "Discipline", "Holy", "Shadow" },
+  ROGUE = { "Assassination", "Combat", "Subtlety" }, HUNTER = { "Beast Mastery", "Marksmanship", "Survival" },
+  WARLOCK = { "Affliction", "Demonology", "Destruction" }, SHAMAN = { "Elemental", "Enhancement", "Restoration" },
+  DRUID = { "Balance", "Feral", "Restoration" },
+}
+
+-- { names, points = { a, b, c } } or nil when talents can't be read.
+function ns:TalentThirds()
+  local ok, result = pcall(function()
+    local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    local info = configID and C_Traits and C_Traits.GetConfigInfo(configID)
+    local treeID = info and info.treeIDs and info.treeIDs[1]
+    if not treeID then return end
+    local nodes, minX, maxX = {}, nil, nil
+    for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
+      local node = C_Traits.GetNodeInfo(configID, nodeID)
+      if node and node.posX then
+        nodes[#nodes + 1] = node
+        minX, maxX = math.min(minX or node.posX, node.posX), math.max(maxX or node.posX, node.posX)
+      end
+    end
+    if #nodes == 0 or maxX == minX then return end
+    local points = { 0, 0, 0 }
+    for _, node in ipairs(nodes) do
+      local spent = node.ranksPurchased or node.activeRank or 0
+      if spent > 0 then
+        local third = math.min(3, math.floor((node.posX - minX) / (maxX - minX) * 3) + 1)
+        points[third] = points[third] + spent
+      end
+    end
+    local _, class = UnitClass("player")
+    return { names = TREES[class or ""] or { "Left", "Middle", "Right" }, points = points }
+  end)
+  return ok and result or nil
+end
+
+-- The tree with the most points ("Frost"), or nil with no points spent. A choice made
+-- for the character (c.levelTree, Settings later) wins.
+function ns:LevellingTree(key)
+  local c = ns.db.chars[key or ns.CharKey()]
+  if c and c.levelTree then return c.levelTree end
+  if key and key ~= ns.CharKey() then return c and c.tree end
+  local t = ns:TalentThirds()
+  if not t then return c and c.tree end
+  local best, most = nil, 0
+  for i, p in ipairs(t.points) do if p > most then best, most = t.names[i], p end end
+  if c then c.tree = best end
+  return best
 end

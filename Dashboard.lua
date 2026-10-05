@@ -391,7 +391,9 @@ function ns:BuildDashboard(parent)
     if not r then return end
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:AddLine(r.name, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Costs", ns.Money(r.cost) .. (r.seen and "" or " |cff999999(about: not seen at a trainer yet)|r"), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Training", ns.Money(r.training) .. (r.seen and "" or " |cff999999(not seen at a trainer yet)|r"), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddDoubleLine("A mount", "about " .. ns.Money(r.mount), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Together", ns.Money(r.cost), 0.7, 0.7, 0.7, 1, 1, 1)
     GameTooltip:AddDoubleLine("From level", tostring(r.level), 0.7, 0.7, 0.7, 1, 1, 1)
     GameTooltip:AddDoubleLine("Gold now (the characters above)", ns.Money(r.gold), 0.7, 0.7, 0.7, 1, 1, 1)
     if r.perDay and r.perDay > 0 then
