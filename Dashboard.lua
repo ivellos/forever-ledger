@@ -211,6 +211,10 @@ local function drawGraph(g, pts, from, to, rangeKey)
   local UP, DOWN, FLAT = { 0.5, 0.83, 0.61 }, { 0.93, 0.52, 0.59 }, T.theme.title or T.accent
   local nextCol, doneCols = pool(g, "cols", function()
     local t = g:CreateTexture(nil, "ARTWORK")
+    -- Not rounded to whole screen pixels, or neighbouring strips can round apart and leave
+    -- thin seams at some Size settings (owner's test, October 4).
+    if t.SetSnapToPixelGrid then t:SetSnapToPixelGrid(false) end
+    if t.SetTexelSnappingBias then t:SetTexelSnappingBias(0) end
     t:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
     return t
   end)
@@ -267,7 +271,7 @@ local function drawGraph(g, pts, from, to, rangeKey)
           col:SetColorTexture(fr, fgc, fb, 1)
           col:ClearAllPoints()
           col:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", prevX, PAD_BOTTOM)
-          col:SetSize(math.max(1, x(i) - prevX + (i < lastI and 1 or 0)), math.max(1, math.min(prevY, y(p.v)) - PAD_BOTTOM))
+          col:SetSize(math.max(1, x(i) - prevX + (i < lastI and 2 or 0)), math.max(1, math.min(prevY, y(p.v)) - PAD_BOTTOM))
         end
         if prevX and g.CreateLine then
           local l = nextLine()
