@@ -457,7 +457,14 @@ end
 -- ("12g 40s", "123g"); clicking in shows the exact amount to edit, and hovering shows
 -- it too (owner's test, October 3: big prices ran out of the shopping list's box).
 local function shortPrice(c)
-  if c < 10000 then return ns.MoneyPlain(c) end
+  -- Under a gold, short too (owner's screenshot, October 5: "1s 48c" showed as "48c",
+  -- its start cut off): "48c", "1s48c", "12s".
+  if c < 100 then return c .. "c" end
+  if c < 10000 then
+    local s, cp = math.floor(c / 100), c % 100
+    if s >= 10 or cp == 0 then return s .. "s" end
+    return ("%ds%02dc"):format(s, cp)
+  end
   if c < 1000000 then
     local g, s = math.floor(c / 10000), math.floor(c % 10000 / 100)
     return s > 0 and (g .. "g " .. s .. "s") or (g .. "g")
