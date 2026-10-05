@@ -413,9 +413,12 @@ function ns:BuildRecipes(parent)
   end)
   f.custom:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- Short labels so the row fits the window.
+  -- A dropdown: six buttons pushed Use my types off the window with wider fonts
+  -- (owner's test, October 4).
   local typeOpts = { { value = "all", label = "Any type" } }
   for _, k in ipairs(ORDER) do typeOpts[#typeOpts + 1] = { value = k, label = TYPES[k].short } end
-  f.type = T:Choice(f.second, typeOpts, function(v) s.type = v; ns:RefreshRecipes() end)
+  f.type = T:Dropdown(f.second, 130, function(v) s.type = v; ns:RefreshRecipes() end)
+  f.type:SetOptions(typeOpts)
   f.type:SetPoint("LEFT", f.show, "RIGHT", 14, 0)
   f.search = T:EditBox(f.second, 140, "LEFT")
   f.search:SetPoint("LEFT", f.type, "RIGHT", 14, 0)
@@ -735,9 +738,9 @@ local TRAINER_COLS = {
   { key = "name", label = "Trainer" },
   { key = "skill", label = "", w = 0 },
   { key = "known", label = "Profession", w = 110 },
-  { key = "source", label = "Where", w = 330 },
+  { key = "source", label = "Where", w = 260 },
   { key = "type", label = "Tier", w = 90 },
-  { key = "profit", label = "Title or note", w = 230 },
+  { key = "profit", label = "Title or note", w = 170 },   -- (330 + 230 ran off the window at its smallest: October 4)
   { key = "pin", label = "", w = 36 },
 }
 
@@ -891,7 +894,7 @@ function ns:RefreshRecipes()
   local trainers = current == "trainers"
   f.second:SetShown(not trainers)
 
-  local width = f:GetWidth() - 12
+  local width = f:GetWidth() - 20   -- (clear of the scroll bar)
   local cols = trainers and TRAINER_COLS or COLS
   local lay = layout(cols, width)
   -- Recipe columns sort when their heading is clicked (not the Trainers view).

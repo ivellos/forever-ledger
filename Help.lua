@@ -9,36 +9,43 @@ local _, ns = ...
 -- Each section: { title, { { topic, text }, ... } }.
 ns.HELP = {
   { "Getting started", {
+    { sub = "First steps" },
     { "Open this window", "Type /fl, or click the minimap button." },
     { "Learn your recipes", "Open each profession window once on every character." },
     { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
     { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it one line, with Shift for more." },
     { "Bags", "A bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor), and which bag is the cheapest per slot right now, so you buy the cheapest space first." },
+    { sub = "Settings and look" },
     { "Search", "Settings and Help each have a search box above their list: type two letters or more to see everything that mentions it, from every section at once." },
     { "Settings", "A sidebar like EllesmereUI's: Global settings first (the same for every character: the auction house cut, safety margin, price source and what counts as a flip or a deal), then Profiles, then a page per part of the addon, with tabs across the top for its parts." },
     { "Themes", "Settings, Appearance: FL Clean (flat and quiet), FL Default (a bronze edge, gold titles, sections as cards, switches) or FL Gilded (a bronze frame, gold serif titles), and an accent colour: Auto uses EllesmereUI's when it's installed, or pick one, or Custom. A new look shows after a reload; it offers one." },
     { "Profiles", "Settings, Profiles: a profile is a set of settings characters can share, say no tooltips on one character, no customer finder on another. Each character uses one (Default to start). New profile copies your settings now; Rename, Reset to defaults and Delete profile (click twice) work on the one this character uses. Export copies a profile as text with the parts you tick; Import makes a new profile from someone's text. Global settings are never in a profile." },
+    { sub = "Updates" },
     { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button under the list of topics, or /fl welcome." },
     { "What's new", "After an update, chat lists what's new in that version, once. /fl new shows it again." },
   } },
   { "Auction house scans", {
+    { sub = "Scanning" },
     { "Full scan", "Reads every listing in a few seconds." },
     { "Scan materials", "Checks just what your recipes use." },
     { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. It can only scan with the auction house open: it pauses when you close it and picks up again when you come back (Settings, Auction house: Resume the flip watch)." },
     { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too. With Auctionator, TSM or ForeverForge installed, features they already cover (like auction prices in tooltips, or a sound when an auction sells) are switched off once, with a message; turn them back on in Settings." },
+    { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
+    { sub = "Selling" },
     { "Your auctions", "The Auctions tab beside the auction house: All, Up, Undercut and Sold, like the Ledger. Each auction shows how many, your price each, the cheapest now, and undercut (red) or cheapest (green); sold ones show what you get after the cut and when the gold reaches your mailbox. The bottom line says what gold is on the way and what's waiting in your mailbox. Check prices looks them all up; scans and the flip watch check them too, and an undercut gets a chat line and a sound (Settings, Auction house). Cancel next undercut asks once, then each click cancels the next one (each loses its deposit). Opening the auction house says in chat what sold while you were away and the gold it brings (Settings, Auction house)." },
     { "Sale sound", "A coin sound when one of your auctions sells. Settings, Auction house: Sound when an auction sells." },
-    { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices." },
     { "Price helper", "On the Sell tab, under the Create Auction button: your usual price and the cheapest now, with Undercut (1 copper under the cheapest) and Usual buttons that fill in the price. When the cheapest is well below usual it says so, so you can wait. You still click Post (Settings, Auction house)." },
     { "Sell protection", "On the Sell tab, if a vendor pays more than your listing would bring after the auction house cut, a red line under Post says so and Post is greyed out until you click Post anyway. Settings, Auction house: untick Stop posts below vendor price to keep just the warning." },
   } },
   { "Tooltips", {
+    { sub = "Prices" },
     { "Auction price", "Auction, cheapest: the lowest price listed at your last scan, how many were listed, and (in grey) how long ago. Under it, when different: the average of the 20 cheapest, about what you'd pay buying a few. Values in Forever Ledger use that average, so one odd cheap listing doesn't sway them. With your own prices over 12 hours old, Auctionator's or TSM's price is used if you have them, and named." },
     { "Worth to you", "The best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed." },
     { "Buy at or below", "The most worth paying, after your safety margin. Green when it's already cheaper." },
-    { "Also", "Disenchant results, which of your recipes use it, and the cheapest crate fill." },
     { "Gear versions", "Gear with random stats (of the Eagle) also shows the price of that exact version." },
     { "Price history", "Hold Ctrl over an item: the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen. It builds up with each scan." },
+    { sub = "Uses and quests" },
+    { "Also", "Disenchant results, which of your recipes use it, and the cheapest crate fill." },
     { "Quests", "Items quests ask for (Bronze Tube, Spider Ichor, Flask of Oil...) list the quest, its level and how many, for your faction. In yellow with keep it when this character hasn't reached that level yet, so you don't vendor it. Quests this character has done, ones grey for its level and other classes' quests are left out (Settings, Tooltips: Only quests this character still needs; off shows them all, marked). Leveling players buy these once per character, so they sell; the Deals tab's hover says when a deal is one. From original Classic quests: Forever may have changed some." },
     { "Sells", "How fast an item sells: Fast, Steady, Slow, Rare (seldom listed, goes quickly) or No sales seen, judged against items of the same kind, so ore and swords aren't held to the same bar. It counts listings that vanished before they could have expired, so it builds up as you run full scans (fastest with Watch flips) and shows after 3 hours of scans compared (and, in the first day, at least 3 sales)." },
   } },
@@ -48,11 +55,13 @@ ns.HELP = {
     { "On the auction house", "Listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE), and the line above says how many are left." },
   } },
   { "Buy queue and lists", {
+    { sub = "Buy queue" },
     { "Buy queue", "Click Buy queue on the auction house: a panel beside it lines up vendor flips and your shopping lists. Click a section to buy from it; it finds the next one by itself, and a click on Buy (or, with Scroll to buy ticked, a tick of the mouse wheel down over its top strip) buys it. Stacks of materials take a second tick to confirm the final price. /fl queue." },
     { "Scanning from the panel", "The panel's bottom row has Watch flips, Full scan and Scan materials (Stop watching and Stop scan while they run), with the scan's progress just above. While the panel is open beside the auction house, the same buttons under the auction house window are hidden. With nothing to buy, the big button starts the flip watch." },
     { "Two views", "Vendor flips or Shopping lists, switched at the top of the panel, one at a time; the one you're on is the one that buys, so a list never buys a flip by accident. Each has its own buttons at the bottom. With Scroll to buy ticked, the strip to scroll over glows (teal for Vendor flips, purple for Shopping lists) and shows a mouse wheel. Scans and the flip watch add to the lists but never switch the view; new flips found while you're on Shopping lists show a teal count on the Vendor flips button (and on the Buy queue tab)." },
     { "Safe by design", "It never pays more than the limit shown (checked again on the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. Scroll to buy starts off. Right-click an item to skip it. Items you can't afford yet stay at the bottom of the list, greyed and marked can't afford, and are skipped until you have the gold; scroll past the last one you can buy and you get the error sound and a red message, once." },
     { "Spend at most", "The box near the bottom of the Buy queue caps what it spends this auction house visit (type 50 for 50g; it starts again each time you open the auction house). No limit until you type one; what's left shows beside it. Items over it are marked over limit and skipped. To always keep some gold back for repairs or a mount: Settings, Auction house, Buy queue: always keep." },
+    { sub = "Shopping lists" },
     { "Shopping lists", "Named lists of items, for example twink gear to watch for or raid consumables to buy. Pick a list from the dropdown at the top; New, Rename and Delete are beside it. With the list open, shift-click an item to add it (or drag it, or type its name: names are suggested as you type, Enter takes the top one). Open them anywhere, to plan before you go to the auction house: the Shopping lists button at the top of this window, Shift-click on the minimap button, or /fl lists." },
     { "Search all", "Checks the auction house for everything on the list at once. Each item shows when it was checked (checking... and in line while it runs), how many are listed and the cheapest. Click an item to look at it on the auction house." },
     { "Have", "What you own of each item: this character's bags, bank and auction house purchases still in the mail, and your characters on this ruleset and faction. On a list you buy from it reads 3 (20): 3 bought for the list, 20 owned. Hover the number to see where. It's there to know, it doesn't change what's bought." },
@@ -90,12 +99,16 @@ ns.HELP = {
     { "Work done", "Enchants and paid trades, with today's and this week's earnings. /fl work." },
   } },
   { "Your gold", {
+    { sub = "Overview" },
     { "Dashboard", "Gold over time, sales, expenses and profit, and your sessions." },
     { "Characters", "Your characters on this realm and faction down the left with their gold (the dropdown above them picks another realm or faction, both factions, or all realms). Pick one for its professions and what's in its bags and bank, each item with what it's worth to you (Each: the best of auction house, vendor, disenchanting or crafting) and the best way to get it; All characters adds everyone up. Hover an item for who has it, a character for gold and bags and bank worth, the bottom line for what it's made of. Bags as of each character's last login, bank as of the last bank visit." },
+    { sub = "Ledger" },
     { "Ledger", "All: every transaction in one list (auction and vendor sales and purchases, repairs, mail, loot, quests...), money in green and out in red. Sales, Purchases, Resale (profit on items bought and sold) and Other show one kind each. Filter by time, character or a word; click a heading to sort; hover a row for the details." },
     { "Totals of rows", "Select rows to see what they add up to: click one, Shift-click another for everything between, Ctrl-click to add or take one, or press and drag across rows. The bottom line shows the money in, out and net of the selection. Right-click a row or Clear selection to start again." },
+    { sub = "Sessions and runs" },
     { "Sessions", "Start one (Start a session at the top of the Dashboard, Ctrl-click on the minimap button, or /fl session start) and a small tracker you can drag counts what your time is worth: gold an hour, gold in and out, and what you loot (at the better of auction and vendor price; Settings can make it vendor only). Right-click the tracker to fold it to one line. Stop it to get a summary in chat; it joins the Dashboard's sessions. A session carries on through a logout on the same character." },
     { "Dungeon runs", "Counted as you go, session or not: each dungeon's runs, time, coin and what dropped for you (going back in within 5 minutes is the same run). /fl runs lists them; item tooltips say \"Dropped for you: Deadmines, 2 in 14 runs\"." },
+    { sub = "Keeping data" },
     { "How long it's kept", "Sales and purchases one by one for 30 days, then as one line per item per month for a year. Gold and money in and out per day for a year, then per month. Prices per day for 14 days, then weekly averages for a year. Recipes, vendors, items and your characters are kept for good. Nothing is lost at a reload: only data past these ages is summed up or dropped." },
   } },
   { "Two accounts", {
@@ -163,6 +176,15 @@ ns.HELP_FAQ = {
 local NAV_W = 190
 local hv
 
+-- The sidebar's groups, like Settings'; Getting started stands on its own.
+local HELP_GROUPS = {
+  ["Auction house scans"] = "Gold making", ["Tooltips"] = "Gold making", ["Shuffles and vendor flips"] = "Gold making",
+  ["Buy queue and lists"] = "Gold making", ["Deals"] = "Gold making", ["Disenchanting"] = "Gold making",
+  ["Recipes and trainers"] = "Professions", ["Waylaid Crates"] = "Professions", ["Customers and work"] = "Professions",
+  ["Your gold"] = "Your gold",
+  ["Two accounts"] = "Other", ["Help and community"] = "Other", ["Your data"] = "Other", ["Commands"] = "Other",
+}
+
 local function topicIndex()
   local want = ns.helpTopic
   for i, s in ipairs(ns.HELP) do if s[1] == want then return i end end
@@ -216,10 +238,20 @@ function ns:BuildHelp(parent)
   navSf:SetPoint("TOPLEFT", 0, -38)
   navSf:SetPoint("BOTTOMRIGHT", -1, 34)
   hv.navSf, hv.list = navSf, list
+  local y, lastGroup = 0, nil
   for i, section in ipairs(ns.HELP) do
+    local group = HELP_GROUPS[section[1]]
+    if group and group ~= lastGroup then
+      local h = T:Text(list, 10)
+      T:StyleHeading(h, group)
+      h:SetPoint("TOPLEFT", 10, -(y + 8))
+      y = y + 26
+    end
+    lastGroup = group
     local b = CreateFrame("Button", nil, list)
     b:SetHeight(24)
-    b:SetPoint("TOPLEFT", 0, -(i - 1) * 26)
+    b:SetPoint("TOPLEFT", 0, -y)
+    y = y + 26
     b:SetPoint("RIGHT", list, "RIGHT", 0, 0)
     b.sel = b:CreateTexture(nil, "BACKGROUND")
     b.sel:SetAllPoints()
@@ -233,7 +265,7 @@ function ns:BuildHelp(parent)
     hl:SetAllPoints()
     hl:SetColorTexture(1, 1, 1, 0.05)
     b.text = T:Text(b, 12)
-    b.text:SetPoint("LEFT", 14, 0)
+    b.text:SetPoint("LEFT", group and 24 or 14, 0)
     b.text:SetPoint("RIGHT", -6, 0)
     b.text:SetJustifyH("LEFT")
     b.text:SetWordWrap(false)   -- (Magic, October 3: names ran out)
@@ -247,7 +279,7 @@ function ns:BuildHelp(parent)
     end)
     hv.navButtons[i] = b
   end
-  list:SetHeight(#ns.HELP * 26)
+  list:SetHeight(y)
   -- The first-run welcome again (Welcome.lua).
   hv.welcome = T:Button(nav, "Show the welcome again", NAV_W - 16, function()
     if ns.ShowWelcome then ns:ShowWelcome() end
@@ -299,7 +331,9 @@ function ns:RefreshHelp()
   else
     hv.title:SetText(section[1])
     local faq = ns.HELP_FAQ[section[1]]
-    hv.desc:SetText(("%d things to know%s. Search finds anything in Help."):format(#section[2],
+    local count = 0
+    for _, e in ipairs(section[2]) do if not e.sub then count = count + 1 end end
+    hv.desc:SetText(("%d things to know%s. Search finds anything in Help."):format(count,
       (faq and #faq > 0) and (", and common questions") or ""))
   end
   local width = math.max(hv.sf:GetWidth() - 12, 280)
@@ -376,7 +410,7 @@ function ns:RefreshHelp()
     local any = false
     for _, s in ipairs(ns.HELP) do
       local list = {}
-      for _, e in ipairs(s[2]) do if hit(e[1], e[2]) then list[#list + 1] = { e[1], e[2] } end end
+      for _, e in ipairs(s[2]) do if not e.sub and hit(e[1], e[2]) then list[#list + 1] = { e[1], e[2] } end end
       for _, fq in ipairs(ns.HELP_FAQ[s[1]] or {}) do
         if hit(fq[1], fq[2]) then list[#list + 1] = { fq[1], fq[2], true } end
       end
@@ -391,8 +425,18 @@ function ns:RefreshHelp()
       entry("Try another word", "Like price, flip, list, scan or sound. Or pick a topic on the left.")
     end
   else
-    heading(section[1])
-    for _, e in ipairs(section[2]) do entry(e[1], e[2]) end
+    -- A topic's named groups each get a card; entries before the first are under the
+    -- topic's own name.
+    local started = false
+    for _, e in ipairs(section[2]) do
+      if e.sub then
+        heading(e.sub)
+      else
+        if not started and not groupTop then heading(section[1]) end
+        entry(e[1], e[2])
+      end
+      started = true
+    end
     local faq = ns.HELP_FAQ[section[1]]
     if faq and #faq > 0 then
       heading("Questions")

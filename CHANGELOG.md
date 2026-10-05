@@ -17,6 +17,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - Recipes tab: tabs for this character's professions only, each with a coin for its rank (gold Artisan, silver Expert, copper Journeyman), then Trainers; the rest under Other professions, starred when another of your characters on this realm has it.
 - Shuffles tab: Recipes from is a dropdown with a tick box per character (this realm and faction only), instead of a row of boxes; a line sets the sub-tabs apart.
+- Dashboard and Ledger: the character dropdown lists this realm only: all of your faction and its characters, then the other faction and its characters, then the whole realm.
+- Help: topics grouped in the sidebar like Settings (Gold making, Professions, Your gold, Other), and the longer topics split into named groups, each in a card.
+- Characters tab: professions in a card of their own, with the rank coin.
+- Recipes tab: the type filter is a dropdown, so the row fits with every font.
+- Settings: pages under a group heading are indented.
 - Help tab laid out like Settings: a sidebar with search and the topics, each topic under its title with every entry as a name and its explanation, the topic and its questions in cards.
 - Settings has a sidebar like EllesmereUI's options: Global settings (the same for every character: auction house cut, safety margin, price source, flip and deal rules), Profiles, then a page per part of the addon, with tabs across the top. Search still finds any setting.
 - Deal and vendor flip alerts are remembered until you log out, so a `/reload` no longer announces them all again.
@@ -47,6 +52,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The Work it window and its shuffle sessions: shopping lists and the Buy queue do its job now. Shuffles still list every step; finished shuffle sessions still show on the Dashboard. `/fl session` now just says how to start a session.
 
 ### Fixed
+- Ledger: long character names no longer run off the edge.
+- Recipes, Trainers view: the columns fit the window at its smallest.
+- Shuffles: the Recipes from list closes when you click elsewhere.
 - Settings: controls on the right no longer run past the edge of their card.
 - Crates tab: the text at the top no longer runs into the column headings.
 - Dashboard: the Characters dropdown stays on one line with wider fonts.

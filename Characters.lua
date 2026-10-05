@@ -372,8 +372,15 @@ function ns:BuildCharacters(parent)
   f.profs:SetPoint("RIGHT", f, "RIGHT", -6, 0)
   f.profs:SetJustifyH("LEFT")
   f.profs:SetWordWrap(false)
+  -- In a card of their own, set apart from the bags and bank below (owner's test,
+  -- October 4: like the newer pages).
+  f.profCard = CreateFrame("Frame", nil, f)
+  f.profCard:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", -6, -3)
+  f.profCard:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+  f.profCard:SetHeight(38)
+  T:Card(f.profCard)
   for i = 1, 6 do
-    local fs = T:Text(f, 11)
+    local fs = T:Text(f.profCard, 11)
     fs:SetJustifyH("LEFT")
     fs:SetWordWrap(false)
     profCells[i] = fs
@@ -382,9 +389,9 @@ function ns:BuildCharacters(parent)
   -- Bags, bank or both; and a search through them.
   f.where = T:Choice(f, { { value = "both", label = "Bags and bank" }, { value = "bags", label = "Bags" }, { value = "bank", label = "Bank" } },
     function(v) state.where = v; ns:RefreshCharacters() end)
-  f.where:SetPoint("TOPLEFT", NAV_W + 10, -58)
+  f.where:SetPoint("TOPLEFT", NAV_W + 10, -66)
   f.search = T:EditBox(f, 160, "LEFT")
-  f.search:SetPoint("TOPRIGHT", -6, -58)
+  f.search:SetPoint("TOPRIGHT", -6, -66)
   local hint = T:Text(f.search, 11, T.section)
   hint:SetPoint("LEFT", 6, 0)
   hint:SetText("Search items")
@@ -400,12 +407,12 @@ function ns:BuildCharacters(parent)
   f.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
 
   f.header = CreateFrame("Frame", nil, f)
-  f.header:SetPoint("TOPLEFT", NAV_W + 6, -86)
-  f.header:SetPoint("TOPRIGHT", 0, -86)
+  f.header:SetPoint("TOPLEFT", NAV_W + 6, -94)
+  f.header:SetPoint("TOPRIGHT", 0, -94)
   f.header:SetHeight(20)
   T:Fill(f.header, { 1, 1, 1, 0.05 })
   f.sf, f.content = T:Scroll(f)
-  f.sf:SetPoint("TOPLEFT", NAV_W + 6, -108)
+  f.sf:SetPoint("TOPLEFT", NAV_W + 6, -116)
   f.sf:SetPoint("BOTTOMRIGHT", 0, 22)
   f.empty = T:Text(f.content, 12, T.dim)
   f.empty:SetPoint("TOPLEFT", 8, -8)
@@ -508,6 +515,7 @@ function ns:RefreshCharacters()
   -- The chosen one: who, and their professions (where to open the window if not saved).
   local key = state.char
   for _, fs in ipairs(profCells) do fs:Hide() end
+  f.profCard:Hide()
   if key == "all" then
     f.title:SetText(T:AccentCode() .. "All characters|r " .. dim(groupLabel(state.group)))
     f.profs:SetText("What everyone has, added up; hover an item for who has it.")
@@ -521,19 +529,24 @@ function ns:RefreshCharacters()
       if (SECONDARY[a] or false) ~= (SECONDARY[b] or false) then return not SECONDARY[a] end
       return a < b
     end)
-    local cellW = math.floor((f:GetWidth() - NAV_W - 18) / 3)
+    local cellW = math.floor((f:GetWidth() - NAV_W - 34) / 3)
     for i, p in ipairs(names) do
       local fs = profCells[i]
       if not fs then break end
       local info = c.profs[p]
       local saved = (info.recipeCount or 0) > 0 and dim(("  %d recipes"):format(info.recipeCount))
         or "  |cffee8597open to save recipes|r"
-      fs:SetText(("%s %s/%s%s"):format(p, info.rank or "?", info.max or "?", saved))
+      -- The rank coin, as on the Recipes tabs: gold Artisan, silver Expert, copper Journeyman.
+      local max = info.max or 0
+      local coin = (max >= 300 and "GoldIcon") or (max >= 225 and "SilverIcon") or (max >= 150 and "CopperIcon")
+      fs:SetText((coin and ("|TInterface\\MoneyFrame\\UI-" .. coin .. ":11:11:0:0|t ") or "")
+        .. ("%s %s/%s%s"):format(p, info.rank or "?", info.max or "?", saved))
       fs:ClearAllPoints()
-      fs:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", ((i - 1) % 3) * cellW, -4 - math.floor((i - 1) / 3) * 15)
+      fs:SetPoint("TOPLEFT", f.profCard, "TOPLEFT", 10 + ((i - 1) % 3) * cellW, -5 - math.floor((i - 1) / 3) * 15)
       fs:SetWidth(cellW - 8)
       fs:Show()
     end
+    f.profCard:SetShown(#names > 0)
     f.profs:SetText(#names > 0 and "" or "No professions saved yet: open each profession's window once.")
     f.profs:SetShown(#names == 0)
   end

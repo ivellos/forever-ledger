@@ -656,6 +656,7 @@ function T:Dropdown(parent, width, onChange)
   local measure = T:Text(menu, 12)   -- (hidden: sizes the list to its longest name)
   measure:Hide()
   local function fill()
+    local top = 0
     -- At least the button's width, wider when a name needs it (owner's test, October 4:
     -- "Aukshaun Vondrizzle (Classic Beta PvP 2)" was cut off).
     local w = d:GetWidth()
@@ -687,15 +688,19 @@ function T:Dropdown(parent, width, onChange)
         menu.rows[i] = r
       end
       r.value = o.value
-      r:SetPoint("TOPLEFT", 0, -(i - 1) * 20)
+      -- { heading = true, label = "" }: a gap (or a dim label) that can't be picked.
+      r:EnableMouse(not o.heading)
+      r:SetHeight(o.heading and o.label == "" and 8 or 20)
+      r:SetPoint("TOPLEFT", 0, -(top or 0))
+      top = (top or 0) + r:GetHeight()
       r:SetPoint("RIGHT", 0, 0)
       local label = o.label .. ((d.default ~= nil and o.value == d.default) and " |cff888888(default)|r" or "")
       r.text:SetText(o.value == d.value and (T:AccentCode() .. o.label .. "|r" .. label:sub(#o.label + 1)) or label)
       r:Show()
     end
     for i = #d.options + 1, #menu.rows do menu.rows[i]:Hide() end
-    menu.content:SetHeight(math.max(#d.options * 20, 20))
-    menu:SetHeight(math.min(#d.options, 12) * 20 + 4)
+    menu.content:SetHeight(math.max(top or 0, 20))
+    menu:SetHeight(math.min(top or 0, 12 * 20) + 4)
     menu.sf.UpdateScrollBar()
   end
   d:SetScript("OnClick", function()

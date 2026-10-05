@@ -41,7 +41,7 @@ local COLUMNS = {
     { key = "qty", label = "Qty", width = 40, right = true },
     { key = "each", label = "Each", width = 86, right = true },
     { key = "amount", label = "Amount", width = 100, right = true },
-    { key = "char", label = "Character", width = 84 },
+    { key = "char", label = "Character", width = 108 },
   },
   sales = {
     { key = "t", label = "Time", width = 96 },
@@ -50,8 +50,8 @@ local COLUMNS = {
     { key = "each", label = "Each", width = 86, right = true },
     { key = "total", label = "Total", width = 96, right = true },
     { key = "where", label = "Where", width = 60 },
-    { key = "who", label = "Buyer", width = 96 },
-    { key = "char", label = "Character", width = 84 },
+    { key = "who", label = "Buyer", width = 88 },
+    { key = "char", label = "Character", width = 108 },
   },
   purchases = {
     { key = "t", label = "Time", width = 96 },
@@ -60,7 +60,7 @@ local COLUMNS = {
     { key = "each", label = "Each", width = 86, right = true },
     { key = "total", label = "Total", width = 96, right = true },
     { key = "where", label = "Where", width = 60 },
-    { key = "char", label = "Character", width = 84 },
+    { key = "char", label = "Character", width = 108 },
   },
   resale = {
     { key = "item", label = "Item" },
@@ -74,7 +74,7 @@ local COLUMNS = {
     { key = "t", label = "Day", width = 96 },
     { key = "item", label = "Type" },
     { key = "total", label = "Amount", width = 110, right = true },
-    { key = "char", label = "Character", width = 84 },
+    { key = "char", label = "Character", width = 108 },
   },
 }
 
@@ -530,7 +530,7 @@ local EMPTY = {
 function ns:RefreshLedger()
   if not f or not f:IsShown() then return end
   local s = settings()
-  if s.char ~= "all" and not ns.db.chars[s.char] then s.char = "all" end
+  if not ns:IsCharChoice(s.char) then s.char = "all" end
   if not COLUMNS[s.tab] then s.tab = "all" end
   for key, b in pairs(f.subtabs) do b:SetSelected(key == s.tab) end
   f.range:SetValue(s.range)
@@ -541,7 +541,7 @@ function ns:RefreshLedger()
   local from = 0
   for _, r in ipairs(RANGES) do if r.key == s.range and r.secs then from = time() - r.secs end end
   -- All: this ruleset and faction (Dashboard.lua CharacterOptions).
-  local function charOK(c) return (s.char == "all" and ns:SameMarketChar(c)) or c == s.char end
+  local function charOK(c) return ns:CharChoiceHas(s.char, c) end
   local list = records(s.tab, from, charOK, (f.search:GetText() or ""):lower())
   f.list = list
 
@@ -561,7 +561,9 @@ function ns:RefreshLedger()
   end)
 
   -- Header
-  local width = f:GetWidth() - 12
+  -- Clear of the scroll bar (long names ran under it and off the edge: owner's test,
+  -- October 4).
+  local width = f:GetWidth() - 20
   local lay = columnLayout(cols, width)
   for i, c in ipairs(cols) do
     local h = getHeader(i)

@@ -43,8 +43,7 @@ end
 local function chosenKeys()
   local want, keys = settings().char, {}
   for k in pairs(ns.db.chars) do
-    -- All: this ruleset and faction only (CharacterOptions).
-    if (want == "all" and ns:SameMarketChar(k)) or want == k then keys[#keys + 1] = k end
+    if ns:CharChoiceHas(want, k) then keys[#keys + 1] = k end
   end
   table.sort(keys)
   return keys
@@ -391,31 +390,53 @@ function ns:BuildDashboard(parent)
   return f
 end
 
--- The character list for dropdowns (Dashboard, Ledger): All, then the character you're
--- on, then the rest by name (owner, October 3: a button each didn't fit).
+-- Which characters a choice in the dropdowns below covers: "all" = your faction on this
+-- realm, "faction:Horde" = that faction on this realm, "realm" = this realm, both
+-- factions; anything else is one character's key. Other realms never count (owner,
+-- October 4: another ruleset is another economy).
+function ns:CharChoiceHas(choice, key)
+  local c = ns.db.chars[key]
+  if not c then return false end
+  local realm = GetRealmName and GetRealmName()
+  local sameRealm = not c.realm or not realm or c.realm == realm
+  if choice == "all" then return ns:SameMarketChar(key) end
+  if choice == "realm" then return sameRealm end
+  local fac = type(choice) == "string" and choice:match("^faction:(.+)$")
+  if fac then return sameRealm and (c.faction or UnitFactionGroup("player")) == fac end
+  return choice == key
+end
+
+function ns:IsCharChoice(choice)
+  return choice == "all" or choice == "realm" or (type(choice) == "string" and choice:match("^faction:") ~= nil)
+    or (ns.db.chars[choice] ~= nil and ns:CharChoiceHas("realm", choice))
+end
+
+-- The character list for dropdowns (Dashboard, Ledger), this realm only (owner, October
+-- 4): all of your faction, its characters (you first); a gap; all of the other faction
+-- and its characters; the whole realm, both factions.
 function ns:CharacterOptions()
-  -- "All characters" is this ruleset and faction: gold on another ruleset is another
-  -- economy (owner's test, October 4: a PvP Orc's gold was in the totals). Characters
-  -- elsewhere come last, with their realm or faction, to look at on their own.
-  local me = ns.CharKey()
-  local here, away = {}, {}
-  for k in pairs(ns.db.chars) do
-    if k ~= me then
-      if ns:SameMarketChar(k) then here[#here + 1] = k else away[#away + 1] = k end
+  local me, mine = ns.CharKey(), UnitFactionGroup("player") or "?"
+  local own, other, otherName = {}, {}, nil
+  for k, c in pairs(ns.db.chars) do
+    if k ~= me and ns:CharChoiceHas("realm", k) then
+      local fac = c.faction or mine
+      if fac == mine then own[#own + 1] = k else other[#other + 1] = k; otherName = fac end
     end
   end
   local function name(k) return (ns.db.chars[k] and ns.db.chars[k].name) or k end
   local function byName(a, b) return name(a):lower() < name(b):lower() end
-  table.sort(here, byName)
-  table.sort(away, byName)
-  local opts = { { value = "all", label = "All characters (this realm)" } }
-  if ns.db.chars[me] then opts[#opts + 1] = { value = me, label = name(me) .. " (this one)" } end
-  for _, k in ipairs(here) do opts[#opts + 1] = { value = k, label = name(k) } end
-  local myRealm = GetRealmName and GetRealmName()
-  for _, k in ipairs(away) do
-    local c = ns.db.chars[k]
-    local where = (c.realm and c.realm ~= myRealm and c.realm) or c.faction or "elsewhere"
-    opts[#opts + 1] = { value = k, label = ("%s |cff888888(%s)|r"):format(name(k), where) }
+  table.sort(own, byName)
+  table.sort(other, byName)
+  local opts = { { value = "all", label = ("All %s characters"):format(mine) } }
+  if ns.db.chars[me] then opts[#opts + 1] = { value = me, label = "  " .. name(me) .. " |cff888888(this one)|r" } end
+  for _, k in ipairs(own) do opts[#opts + 1] = { value = k, label = "  " .. name(k) } end
+  if #other > 0 then
+    opts[#opts + 1] = { heading = true, label = "" }
+    opts[#opts + 1] = { value = "faction:" .. otherName, label = ("All %s characters"):format(otherName) }
+    for _, k in ipairs(other) do opts[#opts + 1] = { value = k, label = "  " .. name(k) } end
+    local realm = (GetRealmName() or "this"):gsub("^Classic Beta%s+", "")
+    opts[#opts + 1] = { heading = true, label = "" }
+    opts[#opts + 1] = { value = "realm", label = ("Whole %s realm, both factions"):format(realm) }
   end
   return opts
 end
@@ -425,6 +446,7 @@ local function charChoice(f)
     f.charChoice = T:Dropdown(f, 230, function(v) settings().char = v; ns:RefreshDashboard(f) end)
     f.charChoice:SetPoint("LEFT", f.charLabel, "RIGHT", 10, 0)
   end
+  if not ns:IsCharChoice(settings().char) then settings().char = "all" end   -- (another realm's, from before)
   f.charChoice:SetOptions(ns:CharacterOptions())
 end
 

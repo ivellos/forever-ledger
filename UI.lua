@@ -553,6 +553,10 @@ buildTable = function()
   T:Border(f.charMenu)
   f.charMenu:Hide()
   f.charBtn:HookScript("OnHide", function() f.charMenu:Hide() end)
+  -- A click anywhere else closes it (owner's test, October 4).
+  ns:On("GLOBAL_MOUSE_DOWN", function()
+    if f.charMenu:IsShown() and not (f.charMenu:IsMouseOver() or f.charBtn:IsMouseOver()) then f.charMenu:Hide() end
+  end)
 
   f.header = CreateFrame("Frame", nil, f)
   f.header:SetHeight(22)

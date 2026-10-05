@@ -613,7 +613,7 @@ local function layoutRows(box, rows, width, y, withCards)
 end
 
 -- The sidebar: a page's button (its name, a bar and a tint on the chosen one).
-local function navButton(p)
+local function navButton(p, indent)
   local b = CreateFrame("Button", nil, f.nav)
   b:SetHeight(24)
   b.sel = b:CreateTexture(nil, "BACKGROUND")
@@ -630,7 +630,7 @@ local function navButton(p)
   -- No icons (owner, October 4: the game's icons looked busy, and there will be many
   -- pages); the bar and the tint show the chosen one.
   b.text = T:Text(b, 12)
-  b.text:SetPoint("LEFT", 14, 0)
+  b.text:SetPoint("LEFT", indent or 14, 0)
   b.text:SetJustifyH("LEFT")
   b.text:SetText(p.title)
   b.extra = T:Text(b, 10, T.dim)
@@ -847,14 +847,16 @@ function ns:BuildSettings(parent)
   f.search = search
 
   local y = 38
+  local grouped = false   -- pages under a group heading sit further in (owner, October 4)
   for _, p in ipairs(PAGES) do
     if p.group then
+      grouped = true
       local h = T:Text(f.nav, 10)
       T:StyleHeading(h, p.group)
       h:SetPoint("TOPLEFT", 10, -(y + 8))
       y = y + 26
     else
-      local b = navButton(p)
+      local b = navButton(p, grouped and 24 or 14)
       b:SetPoint("TOPLEFT", 0, -y)
       b:SetPoint("RIGHT", f.nav, "RIGHT", -1, 0)
       f.navButtons[p.key] = b
