@@ -28,8 +28,10 @@ function ns:TrainerRead(list, npc, npcID, prof)
       riding = riding + 1
     elseif not s.skill or s.skill == "" then
       -- No profession needed: a class spell (profession trainers' recipes name a skill).
+      -- By level: Forever's second value is the spell's icon, not "Rank 2" (owner's
+      -- /fl trainer, October 5), so ranks are counted from the levels (ns:SpellRanks).
       spells[s.name] = spells[s.name] or {}
-      spells[s.name][s.sub or ""] = { cost = s.cost, level = s.level }
+      spells[s.name][s.level or 0] = s.cost or 0
     end
   end
   local n = 0
@@ -73,6 +75,12 @@ function ns:RidingTier()
     if ok and known and r[2] > best then best = r[2] end
   end
   if best > 0 then return best end
+  -- The spellbook, by name (Forever has no Classic skill list: owner's /fl api, October 5).
+  for _, name in ipairs(ns:SpellbookRiding()) do
+    local tier = (name:find("Apprentice", 1, true) and 1) or 2
+    if tier > best then best = tier end
+  end
+  if best > 0 then return best end
   -- Classic's skill list: "Riding" and the old per-mount skills (Horse Riding, Ram Riding...).
   if GetNumSkillLines and GetSkillLineInfo then
     local ok, n = pcall(GetNumSkillLines)
@@ -87,6 +95,34 @@ function ns:RidingTier()
   return best
 end
 
+-- Spells in the spellbook with "Riding" in their name: the modern spellbook, else the
+-- older one. Empty when neither can be read.
+function ns:SpellbookRiding()
+  local found = {}
+  local SB = C_SpellBook
+  local ok = pcall(function()
+    if SB and SB.GetNumSpellBookSkillLines and SB.GetSpellBookSkillLineInfo and SB.GetSpellBookItemName then
+      local bank = Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+      for i = 1, SB.GetNumSpellBookSkillLines() or 0 do
+        local info = SB.GetSpellBookSkillLineInfo(i)
+        for j = (info and info.itemIndexOffset or 0) + 1, (info and (info.itemIndexOffset + info.numSpellBookItems) or 0) do
+          local name = SB.GetSpellBookItemName(j, bank)
+          if name and isRiding(name) then found[#found + 1] = name end
+        end
+      end
+    elseif GetNumSpellTabs and GetSpellTabInfo and GetSpellBookItemName then
+      for i = 1, GetNumSpellTabs() do
+        local _, _, offset, count = GetSpellTabInfo(i)
+        for j = (offset or 0) + 1, (offset or 0) + (count or 0) do
+          local name = GetSpellBookItemName(j, BOOKTYPE_SPELL or "spell")
+          if name and isRiding(name) then found[#found + 1] = name end
+        end
+      end
+    end
+  end)
+  return ok and found or {}
+end
+
 -- For /fl api: what each way of telling says.
 function ns:RidingReport()
   local parts = {}
@@ -96,12 +132,31 @@ function ns:RidingReport()
     end)
     parts[#parts + 1] = ("%d %s/%s"):format(r[1], ok and tostring(a) or "err", ok and tostring(b) or "err")
   end
-  return ("tier %d; spells (player/known): %s"):format(ns:RidingTier(), table.concat(parts, ", "))
+  local book = ns:SpellbookRiding()
+  return ("tier %d; spells (player/known): %s; spellbook: %s"):format(ns:RidingTier(), table.concat(parts, ", "),
+    #book > 0 and table.concat(book, ", ") or "no Riding spell")
 end
 
--- Talents (to tell which tree a character levels in): name and points per tab.
+-- Talents (to tell which tree a character levels in): name and points per tab. Forever
+-- has no Classic talent functions (owner's /fl api, October 5), so the newer ones are
+-- tried and reported too.
 function ns:TalentReport()
-  if not GetNumTalentTabs then return "GetNumTalentTabs missing" end
+  if not GetNumTalentTabs then
+    local parts = {}
+    local function try(label, fn)
+      local ok, a, b = pcall(fn)
+      parts[#parts + 1] = ("%s=%s"):format(label, ok and (tostring(a) .. (b ~= nil and ("/" .. tostring(b)) or "")) or "err")
+    end
+    try("GetSpecialization", function() return GetSpecialization and GetSpecialization() end)
+    try("C_SpecializationInfo", function() return C_SpecializationInfo ~= nil, C_SpecializationInfo and C_SpecializationInfo.GetSpecialization and C_SpecializationInfo.GetSpecialization() end)
+    try("C_ClassTalents.GetActiveConfigID", function() return C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID() end)
+    try("C_Traits", function() return C_Traits ~= nil end)
+    try("C_Talent", function() return C_Talent ~= nil end)
+    try("GetNumTalents", function() return GetNumTalents and GetNumTalents() end)
+    try("GetActiveTalentGroup", function() return GetActiveTalentGroup and GetActiveTalentGroup() end)
+    try("UnitCharacterPoints", function() return UnitCharacterPoints and UnitCharacterPoints("player") end)
+    return "no GetNumTalentTabs; " .. table.concat(parts, ", ")
+  end
   local ok, n = pcall(GetNumTalentTabs)
   if not ok then return "GetNumTalentTabs error" end
   local parts = {}
@@ -126,11 +181,34 @@ function ns:PrintTrainer()
     ns:Print("Open a trainer first (class or riding); then /fl trainer lists what it teaches.")
     return
   end
+  -- One line per spell, its ranks as "level cost" (owner, October 5: one line per rank
+  -- was too long for chat), * on ranks you can learn now, + on ones you know.
   ns:Print(("%s (%s), %d services:"):format(lastRead.npc or "?", lastRead.prof or "class or riding", #lastRead.list))
+  local order, by = {}, {}
   for _, s in ipairs(lastRead.list) do
-    print(("  %s%s: %s, %s, level %s"):format(s.name, (s.sub and s.sub ~= "") and (" (" .. s.sub .. ")") or "",
-      s.state or "?", s.cost and ns.Money(s.cost) or "?", tostring(s.level or "?")))
+    if not by[s.name] then by[s.name] = {}; order[#order + 1] = s.name end
+    table.insert(by[s.name], s)
   end
+  for _, name in ipairs(order) do
+    local list = by[name]
+    table.sort(list, function(a, b) return (a.level or 0) < (b.level or 0) end)
+    local parts = {}
+    for _, s in ipairs(list) do
+      local mark = (s.state == "available" and "*") or (s.state == "used" and "+") or ""
+      parts[#parts + 1] = ("%s%s %s"):format(mark, tostring(s.level or "?"), s.cost and ns.MoneyPlain(s.cost) or "?")
+    end
+    print(("  %s: %s"):format(name, table.concat(parts, ", ")))
+  end
+  print("  (* you can learn it now, + you know it)")
+end
+
+-- A spell's ranks at the trainer, lowest level first: { { level, cost }, ... }.
+function ns:SpellRanks(name, class)
+  local t = ns.db.trainers and ns.db.trainers[class or select(2, UnitClass("player")) or "?"]
+  local ranks = {}
+  for level, cost in pairs(t and t.spells[name] or {}) do ranks[#ranks + 1] = { level = level, cost = cost } end
+  table.sort(ranks, function(a, b) return a.level < b.level end)
+  return ranks
 end
 
 ---------------------------------------------------------------------------

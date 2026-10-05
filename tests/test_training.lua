@@ -33,15 +33,19 @@ end)
 
 T.test("A class trainer read keeps spells by name and rank, riding apart", function()
   ns.db.trainers, ns.db.riding = nil, nil
+  -- (Forever's second value is the icon, not the rank: owner's /fl trainer, October 5.)
   ns:TrainerRead({
-    { name = "Frostbolt", sub = "Rank 2", state = "available", cost = 1000, level = 8 },
-    { name = "Frostbolt", sub = "Rank 3", state = "unavailable", cost = 2000, level = 14 },
-    { name = "Dampen Magic", sub = "Rank 1", state = "available", cost = 900, level = 12 },
-    { name = "Apprentice Riding", sub = "", state = "unavailable", cost = 900000, level = 40 },
+    { name = "Frostbolt", sub = 135846, state = "available", cost = 2000, level = 20 },
+    { name = "Frostbolt", sub = 135846, state = "unavailable", cost = 5000, level = 26 },
+    { name = "Dampen Magic", sub = 136006, state = "unavailable", cost = 4000, level = 24 },
+    { name = "Apprentice Riding", sub = 0, state = "unavailable", cost = 900000, level = 40 },
   }, "Jennea Cannon", 1, nil)
   local _, class = UnitClass("player")
   local spells = ns.db.trainers[class or "?"].spells
-  T.eq(spells["Frostbolt"]["Rank 3"].level, 14)
+  T.eq(spells["Frostbolt"][26], 5000)
+  local ranks = ns:SpellRanks("Frostbolt")
+  T.eq(#ranks, 2)
+  T.eq(ranks[1].level, 20, "lowest level first")
   T.ok(spells["Dampen Magic"], "every class spell")
   T.eq(spells["Apprentice Riding"], nil, "riding kept apart")
   T.eq(ns.db.riding["Apprentice Riding"].cost, 900000)

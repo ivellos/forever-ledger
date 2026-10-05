@@ -584,7 +584,9 @@ function ns:RefreshDashboard(f)
     nextCard(fTop, fTop + fundH, 0, W)
     T:StyleHeading(f.fundHead, "Riding fund")
     place(f.fundHead, 12, fTop + 9)
-    local barX, barW = 120, math.floor(W * 0.28)
+    -- A short bar, so the line fits even at "999g 99s 99c of 1000g (99%) about 999 days at
+    -- your pace" (owner's screenshot, October 5: the end was cut off).
+    local barX, barW = 120, 130
     f.fundBack:ClearAllPoints()
     f.fundBack:SetPoint("TOPLEFT", barX, -(fTop + 12))
     f.fundBack:SetSize(barW, 6)
