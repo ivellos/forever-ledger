@@ -255,3 +255,47 @@ function ns:FundCommand()
   end
   ns:RefreshUI()
 end
+
+---------------------------------------------------------------------------
+-- /fl talents: how Forever's talents read (owner's /fl api, October 5: no Classic talent
+-- functions; C_ClassTalents and C_Traits exist, config 1041811, C_SpecializationInfo
+-- says 1). Prints the config, its trees, and the talents with points in them (by spell
+-- name), so the tree a character levels in can be worked out. Everything in pcall.
+---------------------------------------------------------------------------
+function ns:TalentProbe()
+  local function try(fn) local ok, a, b, c = pcall(fn); if ok then return a, b, c end end
+  ns:Print("Talents (send this to Claude):")
+  local configID = try(function() return C_ClassTalents.GetActiveConfigID() end)
+  print("  Active config: " .. tostring(configID))
+  local spec = try(function() return C_SpecializationInfo.GetSpecialization() end)
+  print("  Specialization: " .. tostring(spec))
+  for i = 1, 3 do
+    local a, b, c = try(function() return C_SpecializationInfo.GetSpecializationInfo(i) end)
+    if a or b then print(("  Spec %d: %s, %s, %s"):format(i, tostring(a), tostring(b), tostring(c))) end
+  end
+  if not (configID and C_Traits) then return end
+  local info = try(function() return C_Traits.GetConfigInfo(configID) end)
+  local trees = info and info.treeIDs or {}
+  print(("  Config: type %s, name %s, %d trees"):format(tostring(info and info.type), tostring(info and info.name), #trees))
+  for _, treeID in ipairs(trees) do
+    local nodes = try(function() return C_Traits.GetTreeNodes(treeID) end) or {}
+    local picked, xs = {}, {}
+    for _, nodeID in ipairs(nodes) do
+      local node = try(function() return C_Traits.GetNodeInfo(configID, nodeID) end)
+      if node then
+        xs[#xs + 1] = node.posX
+        if (node.ranksPurchased or node.activeRank or 0) > 0 then
+          local entryID = node.activeEntry and node.activeEntry.entryID or (node.entryIDs and node.entryIDs[1])
+          local entry = entryID and try(function() return C_Traits.GetEntryInfo(configID, entryID) end)
+          local def = entry and entry.definitionID and try(function() return C_Traits.GetDefinitionInfo(entry.definitionID) end)
+          local name = def and (def.overrideName or (def.spellID and ns.SpellName(def.spellID)))
+          picked[#picked + 1] = ("%s %d (x %s, y %s)"):format(tostring(name or nodeID), node.ranksPurchased or node.activeRank or 0,
+            tostring(node.posX), tostring(node.posY))
+        end
+      end
+    end
+    table.sort(xs)
+    print(("  Tree %s: %d nodes, x from %s to %s; with points: %s"):format(tostring(treeID), #nodes, tostring(xs[1]),
+      tostring(xs[#xs]), #picked > 0 and table.concat(picked, "; ") or "none"))
+  end
+end

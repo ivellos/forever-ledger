@@ -930,6 +930,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:PrintTrainer()
   elseif msg == "fund" then
     ns:FundCommand()
+  elseif msg == "talents" then
+    ns:TalentProbe()
   elseif msg == "session start" then
     ns:StartGeneralSession()
   elseif msg == "session stop" or msg == "session end" then
