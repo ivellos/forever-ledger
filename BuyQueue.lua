@@ -2635,7 +2635,7 @@ local function ensureSide()
   T:DecorateWindow(side, nil, strip)
   -- Clean has no accent line there: a plain one, so every tab is set apart from the tab
   -- row, not only the Disenchant finder by its own border (owner, October 4).
-  if not T.theme.topLine then
+  if not (T.theme.topLine or T.theme.underLine) then
     local under = strip:CreateTexture(nil, "BORDER")
     under:SetPoint("BOTTOMLEFT")
     under:SetPoint("BOTTOMRIGHT")

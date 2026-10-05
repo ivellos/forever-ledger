@@ -47,7 +47,8 @@ T.THEMES = {
     bg = { 0.071, 0.065, 0.059, 0.97 }, header = { 0.094, 0.082, 0.071, 1 },
     button = { 0.118, 0.106, 0.094, 0.95 }, border = { 1, 0.92, 0.80, 0.10 },
     font = "Fonts\\ARIALN.TTF", fontAdd = 1, labelAdd = 1, dimAlpha = 0.5,
-    topLine = BRONZE, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
+    -- (no bronze line along the top: it didn't match the rest; owner, October 4)
+    underLine = true, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
   gilded = { name = "FL Gilded", accent = TEAL,
     bg = { 0.078, 0.069, 0.059, 0.97 }, header = { 0.118, 0.094, 0.071, 1 },
     button = { 0.125, 0.106, 0.086, 0.95 }, border = { BRONZE[1], BRONZE[2], BRONZE[3], 0.55 },
@@ -205,7 +206,7 @@ end
 function T:DecorateWindow(f, footerY, bar)
   local t = T.theme
   -- Under the title bar: a faint accent line (Default) or bronze (Gilded).
-  if bar and t.topLine then
+  if bar and (t.topLine or t.underLine) then
     local under = bar:CreateTexture(nil, "BORDER")
     under:SetPoint("BOTTOMLEFT")
     under:SetPoint("BOTTOMRIGHT")
@@ -758,6 +759,111 @@ function T:Dropdown(parent, width, onChange)
     menu:Raise()
   end)
   d:HookScript("OnHide", function() menu:Hide() end)
+  return d
+end
+
+-- A dropdown that picks several (owner, October 4: the Disenchant finder's item levels):
+-- a tick per option, Select all and Deselect all on top. The list stays open while you
+-- tick; a click anywhere else closes it. SetOptions({ { value, label }, ... });
+-- SetSelected(set), a table of value = true, changed in place; onChange() after each change.
+-- d.Summary(selected, options) gives the button's text. d.OnRowEnter(value), d.OnRowLeave():
+-- hovering an option.
+function T:MultiDropdown(parent, width, onChange)
+  local d = T:Button(parent, "", width, nil, 22)
+  d.options, d.selected = {}, {}
+  local fs = d:GetFontString()
+  fs:ClearAllPoints()
+  fs:SetPoint("LEFT", 8, 0)
+  fs:SetPoint("RIGHT", -18, 0)
+  fs:SetJustifyH("LEFT")
+  fs:SetWordWrap(false)
+  local arrow = T:Text(d, 11, T.dim)
+  arrow:SetPoint("RIGHT", -6, 0)
+  arrow:SetText("v")
+  local menu = CreateFrame("Frame", nil, d)
+  menu:SetPoint("TOPLEFT", d, "BOTTOMLEFT", 0, -2)
+  menu:SetWidth(math.max(width, 190))
+  menu:SetFrameStrata("FULLSCREEN_DIALOG")
+  menu:SetToplevel(true)
+  menu:EnableMouse(true)
+  T:Fill(menu, { 0.05, 0.05, 0.05, 0.98 })
+  T:Border(menu)
+  menu.rows = {}
+  menu:Hide()
+  menu:SetScript("OnHide", function() if d.OnRowLeave then d.OnRowLeave() end end)
+  d.menu = menu
+
+  function d:Refresh()
+    self:SetText(self.Summary and self.Summary(self.selected, self.options) or "")
+    for _, r in ipairs(menu.rows) do r.box:SetChecked(r.value ~= nil and self.selected[r.value]) end
+  end
+  function d:SetOptions(opts) self.options = opts; self:Refresh() end
+  function d:SetSelected(set) self.selected = set; self:Refresh() end
+  local function changed()
+    d:Refresh()
+    if onChange then onChange() end
+  end
+
+  local all = T:Button(menu, "Select all", 80, function()
+    for _, o in ipairs(d.options) do d.selected[o.value] = true end
+    changed()
+  end, 20)
+  all:SetPoint("TOPLEFT", 6, -6)
+  local none = T:Button(menu, "Deselect all", 90, function()
+    for k in pairs(d.selected) do d.selected[k] = nil end
+    changed()
+  end, 20)
+  none:SetPoint("LEFT", all, "RIGHT", 4, 0)
+  local line = menu:CreateTexture(nil, "BORDER")
+  line:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+  line:SetHeight(1)
+  line:SetPoint("TOPLEFT", 1, -31)
+  line:SetPoint("TOPRIGHT", -1, -31)
+
+  local function fill()
+    local top = 34
+    for i, o in ipairs(d.options) do
+      local r = menu.rows[i]
+      if not r then
+        r = CreateFrame("Button", nil, menu)
+        r:SetHeight(20)
+        local hl = r:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
+        r.box = T:Check(r)
+        r.box:EnableMouse(false)   -- (the whole row ticks it)
+        r.box:SetPoint("LEFT", 6, 0)
+        r:SetScript("OnClick", function(self)
+          d.selected[self.value] = (not d.selected[self.value]) or nil
+          changed()
+        end)
+        r:SetScript("OnEnter", function(self) if d.OnRowEnter then d.OnRowEnter(self.value) end end)
+        r:SetScript("OnLeave", function() if d.OnRowLeave then d.OnRowLeave() end end)
+        menu.rows[i] = r
+      end
+      r.value = o.value
+      r.box.label:SetText(o.label)
+      r.box:SetChecked(d.selected[o.value])
+      r:ClearAllPoints()
+      r:SetPoint("TOPLEFT", 2, -top)
+      r:SetPoint("RIGHT", -2, 0)
+      r:Show()
+      top = top + 20
+    end
+    for i = #d.options + 1, #menu.rows do menu.rows[i]:Hide() end
+    menu:SetHeight(top + 4)
+  end
+  d:SetScript("OnClick", function()
+    if menu:IsShown() then menu:Hide(); return end
+    fill()
+    menu:SetFrameStrata("FULLSCREEN_DIALOG")   -- (a parent's layer change resets it)
+    menu:Show()
+    menu:Raise()
+  end)
+  d:HookScript("OnHide", function() menu:Hide() end)
+  ns:On("GLOBAL_MOUSE_DOWN", function()
+    if menu:IsShown() and not (menu:IsMouseOver() or d:IsMouseOver()) then menu:Hide() end
+  end)
   return d
 end
 

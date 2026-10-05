@@ -414,19 +414,29 @@ local function buildFinder(side)
     tip:Show()
   end
 
-  -- Item level band checkboxes, four to a row.
+  -- Item levels: a dropdown that picks several, with Select all / Deselect all (owner,
+  -- October 4: instead of three rows of checkboxes). Hovering a level shows its panel.
   local y = 52
-  for i, b in ipairs(ns.DISENCHANT_BANDS) do
-    local cb = T:Check(finder, function(self) s.bands[b.key] = self:GetChecked() or nil; changed() end)
-    cb:SetPoint("TOPLEFT", 12 + ((i - 1) % 4) * 100, -(y + math.floor((i - 1) / 4) * 20))
-    cb.label:SetText(b.label)
-    cb:SetChecked(s.bands[b.key])
-    -- The label counts as part of the checkbox, so hovering the text shows the tooltip.
-    cb:SetHitRectInsets(0, -(cb.label:GetStringWidth() + 8), 0, 0)
-    cb:SetScript("OnEnter", function() bandTooltip(b) end)
-    cb:SetScript("OnLeave", function() if tip then tip:Hide() end end)
+  local byKey, opts = {}, {}
+  for _, b in ipairs(ns.DISENCHANT_BANDS) do
+    byKey[b.key] = b
+    opts[#opts + 1] = { value = b.key, label = b.label }
   end
-  y = y + math.ceil(#ns.DISENCHANT_BANDS / 4) * 20 + 6
+  local levels = T:MultiDropdown(finder, 200, changed)
+  levels:SetPoint("TOPLEFT", 12, -y)
+  levels.Summary = function(sel, list)
+    local picked = {}
+    for _, o in ipairs(list) do if sel[o.value] then picked[#picked + 1] = o.label end end
+    if #picked == 0 then return "Item levels: none" end
+    if #picked == #list then return "Item levels: all" end
+    if #picked <= 2 then return "Item levels: " .. table.concat(picked, ", ") end
+    return ("Item levels: %d picked"):format(#picked)
+  end
+  levels.OnRowEnter = function(key) if byKey[key] then bandTooltip(byKey[key]) end end
+  levels.OnRowLeave = function() if tip then tip:Hide() end end
+  levels:SetSelected(s.bands)
+  levels:SetOptions(opts)
+  y = y + 30
 
   local opts = { { "armor", "Armor" }, { "weapon", "Weapons" }, { "profitable", "Only worth disenchanting" } }
   local x = 12
@@ -534,7 +544,11 @@ function ns:RefreshDisenchantFinder()
   local newest = 0
   for _, rec in pairs(ns.db.prices[ns.MarketKey()] or {}) do newest = math.max(newest, rec.t or 0) end
   finder.info:SetText(("From your last scan (%s). Click an item to search for it."):format(newest > 0 and ns.Age(newest) or "none yet"))
-  finder.count:SetText(("%d items%s"):format(#items, waiting > 0 and (", %d still loading"):format(waiting) or ""))
+  if next(finderSettings().bands) == nil then
+    finder.count:SetText("No item levels picked: choose some under Item levels.")
+  else
+    finder.count:SetText(("%d items%s"):format(#items, waiting > 0 and (", %d still loading"):format(waiting) or ""))
+  end
 end
 
 -- Item details arrive a moment after they're asked for; redraw once some of ours have,
