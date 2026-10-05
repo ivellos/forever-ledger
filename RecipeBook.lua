@@ -133,14 +133,18 @@ local function captureTrainer()
   -- (the highest rank spell they offer: Apprentice, Journeyman, Expert, Artisan).
   local TIERS = { Apprentice = 1, Journeyman = 2, Expert = 3, Artisan = 4 }
   local profCount, tier = {}, nil
+  local all = {}   -- everything read, for Training.lua (class and riding trainers)
   for i = 1, (GetNumTrainerServices() or 0) do
-    local service, _, category = GetTrainerServiceInfo(i)
+    local service, sub, category = GetTrainerServiceInfo(i)
     if service and category ~= "header" then
       local reqName, skill = GetTrainerServiceSkillReq and GetTrainerServiceSkillReq(i)
       if reqName and reqName ~= "" then profCount[reqName] = (profCount[reqName] or 0) + 1 end
       local t = service:match("^(%a+)")
       if TIERS[t] and (not tier or TIERS[t] > TIERS[tier]) then tier = t end
       local cost = GetTrainerServiceCost and GetTrainerServiceCost(i)
+      local ok, level = pcall(function() return GetTrainerServiceLevelReq and GetTrainerServiceLevelReq(i) end)
+      all[#all + 1] = { name = service, sub = sub, state = category, cost = cost, level = ok and level or nil,
+        skill = reqName, skillLevel = skill }
       addSource(service:lower(), { kind = "trainer", npc = name, npcID = npcID, mapID = mapID, x = x, y = y,
         zone = zone, skill = skill, cost = cost })
       found = found + 1
@@ -167,6 +171,11 @@ local function captureTrainer()
     local fromTitle = v.title and v.title:match("^(%a+)")
     if fromTitle and TIERS[fromTitle] then v.tier = fromTitle end
     ns:Debug("Trainer", name or "?", "teaches", prof or "?", "up to", tier or "?", "title", v.title or "?")
+  end
+  -- Class and riding trainers (Training.lua), once the profession (if any) is known.
+  if ns.TrainerRead then
+    local ok, err = pcall(ns.TrainerRead, ns, all, name, npcID, (v and v.profession) or prof)
+    if not ok then ns:Debug("Training: couldn't read the trainer:", tostring(err)) end
   end
   reading = false
   lastRead = GetTime()

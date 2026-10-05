@@ -50,7 +50,7 @@ local DEFAULTS = {
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
     -- wheel starts off so nobody buys by accident (owner, October 2).
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = false, tab = "queue" },
-    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false,
+    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false, ridingFund = true,
     theme = "default", accent = "", uiScale = 100 },
 }
 -- For Settings: "Default: Auto." under each choice (UI.lua).
@@ -725,6 +725,9 @@ function ns:ApiReport()
     "C_MountJournal.GetMountFromItem", "C_MountJournal.GetMountInfoExtraByID",
     "C_ToyBox.GetNumToys", "C_ToyBox.GetToyInfo", "PlayerHasToy",
     "C_TransmogCollection.GetItemInfo", "C_TransmogCollection.PlayerHasTransmog",
+    -- Training (Training.lua, October 5): trainer levels, talents, riding, casts.
+    "GetTrainerServiceLevelReq", "GetTrainerServiceTypeFilter", "GetNumTalentTabs", "GetTalentTabInfo",
+    "GetTalentInfo", "IsPlayerSpell", "IsSpellKnown", "GetSkillLineInfo", "C_SpellBook.IsSpellKnown",
   }
   ns:Print("API check (send this to Claude if something isn't working):")
   for _, path in ipairs(checks) do
@@ -745,6 +748,13 @@ function ns:ApiReport()
   try("Hardcore", function() return C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive() end)
   try("PvP server", function() return C_PvP and C_PvP.IsWarModeDesired and C_PvP.IsWarModeDesired(), IsPVPTimerRunning and IsPVPTimerRunning() end)
   try("Server type", function() return GetCVar and GetCVar("realmName"), GetCVar and GetCVar("portal") end)
+  try("Talents", function() return ns.TalentReport and ns:TalentReport() end)
+  try("Riding", function() return ns.RidingReport and ns:RidingReport() end)
+  try("Spells cast saved", function()
+    local n = 0
+    for _ in pairs((ns.db.casts or {})[ns.CharKey()] or {}) do n = n + 1 end
+    return n
+  end)
   -- If the pet journal exists: how many pets it knows, and one sample with its
   -- "how to get it" text (the 12th value), to see what a pet module could show.
   if C_PetJournal and C_PetJournal.GetNumPets then
@@ -916,6 +926,10 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:PrintDisenchants(msg == "de reset")
   elseif msg == "runs" or msg == "dungeons" then
     ns:PrintRuns()
+  elseif msg == "trainer" then
+    ns:PrintTrainer()
+  elseif msg == "fund" then
+    ns:FundCommand()
   elseif msg == "session start" then
     ns:StartGeneralSession()
   elseif msg == "session stop" or msg == "session end" then

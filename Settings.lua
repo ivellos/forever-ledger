@@ -51,6 +51,9 @@ local PAGES = {
           help = "Deals tab: profit after the auction house cut, reselling at the usual price or under the next listing. \"off\" for no minimum." },
       } },
       { name = "Advanced", rows = {
+        { sub = "Dashboard" },
+        { key = "ridingFund", label = "Riding fund on the Dashboard", kind = "check", after = function() ns:RefreshUI() end,
+          help = "A strip under the tiles: the riding this character doesn't know yet (then epic riding), what it costs, how much gold you have toward it and about how many days at your pace. It goes away once learned. Hide here (on the strip) hides it on one character; /fl fund shows it again." },
         { sub = "Sync with your other account" },
         { key = "syncBags", label = "Share bags and bank with your sync partner", kind = "check",
           after = function() if ns.SyncSend then ns:SyncSend(true) end end,

@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Dashboard: a riding fund, until the character knows riding (then epic riding): what it costs (as seen at a riding trainer), your gold toward it and about how many days at your pace. Settings, Global settings, Advanced turns it off; Hide here hides it on one character (`/fl fund` shows it again).
+- Groundwork for "skip spell ranks you don't use": the spells each character casts, and what class and riding trainers teach, are saved; `/fl trainer` lists the last trainer's spells with rank, cost and level. `/fl api` checks talents and riding.
 - Deals tab, Booty Bay: the neutral auction house against yours, each after its own cut (15% there). Sells for more there, or Cheaper there (buy there, sell at home); at least 10% better, with both prices and their age on hover. Its prices stay apart from yours. An optional tooltip line (Settings, Tooltips, off by default) shows Booty Bay on items that bring 25% more there.
 - Settings, Characters: every character Forever Ledger knows, with when it was last seen and where it came from (this account, your sync partner, an import), and Remove (two clicks) for ones you deleted or no longer want: it forgets the level, professions, recipes, bags and bank. Prices and gold history stay.
 - Live sync: Share bags and bank (Settings, Global settings, Advanced; off by default) sends your characters' bags and bank to your paired character on your other account, so they count in Have, shopping lists and the Characters tab there.

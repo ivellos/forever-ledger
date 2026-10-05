@@ -369,6 +369,39 @@ function ns:BuildDashboard(parent)
   f.tiles = {}
   for i = 1, 4 do f.tiles[i] = { label = text(f, 11, T.dim), value = text(f, 18), sub = text(f, 11, T.dim) } end
 
+  -- Riding fund (owner, October 5): a strip under the tiles until the character knows
+  -- riding, then epic riding. Global setting, and Hide here per character.
+  f.fundHead = text(f, 11)
+  f.fundText = text(f, 11)
+  f.fundBack = f:CreateTexture(nil, "ARTWORK")
+  f.fundBack:SetColorTexture(1, 1, 1, 0.08)
+  f.fundBar = f:CreateTexture(nil, "OVERLAY")
+  f.fundBar:SetColorTexture(0.86, 0.69, 0.33, 0.9)
+  f.fundHide = T:Button(f, "Hide here", 76, function()
+    local c = ns.db.chars[ns.CharKey()]
+    if c then c.noRidingFund = true end
+    ns:Print("Riding fund hidden on this character. /fl fund shows it again.")
+    ns:RefreshDashboard(f)
+  end, 18)
+  f.fundHide:GetFontString():SetFont(T.font, 11, "")
+  f.fundHit = CreateFrame("Frame", nil, f)
+  f.fundHit:EnableMouse(true)
+  f.fundHit:SetScript("OnEnter", function(self)
+    local r = self.fund
+    if not r then return end
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine(r.name, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Costs", ns.Money(r.cost) .. (r.seen and "" or " |cff999999(about: not seen at a trainer yet)|r"), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddDoubleLine("From level", tostring(r.level), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Gold now (the characters above)", ns.Money(r.gold), 0.7, 0.7, 0.7, 1, 1, 1)
+    if r.perDay and r.perDay > 0 then
+      GameTooltip:AddDoubleLine("Your pace", ns.Money(math.floor(r.perDay)) .. " a day", 0.7, 0.7, 0.7, 1, 1, 1)
+    end
+    GameTooltip:AddLine("Goes away once this character knows it. Settings, Global settings, Advanced turns it off everywhere; Hide here on this character.", 0.6, 0.6, 0.6, true)
+    GameTooltip:Show()
+  end)
+  f.fundHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
   -- The graph, in its card
   f.graphHead = text(f, 11)
   f.graphNote = text(f, 11, T.dim, "RIGHT")
@@ -542,9 +575,44 @@ function ns:RefreshDashboard(f)
     t.sub:SetText(tiles[i][3])
   end
 
+  -- Riding fund strip (the graph gives up its height while it shows)
+  local fund = ns.RidingFund and ns:RidingFund(last, n, first)
+  local fundH = fund and 30 or 0
+  local fTop = tileY + tileH + gap
+  for _, w in ipairs({ f.fundHead, f.fundText, f.fundBack, f.fundBar, f.fundHide, f.fundHit }) do w:SetShown(fund ~= nil) end
+  if fund then
+    nextCard(fTop, fTop + fundH, 0, W)
+    T:StyleHeading(f.fundHead, "Riding fund")
+    place(f.fundHead, 12, fTop + 9)
+    local barX, barW = 120, math.floor(W * 0.28)
+    f.fundBack:ClearAllPoints()
+    f.fundBack:SetPoint("TOPLEFT", barX, -(fTop + 12))
+    f.fundBack:SetSize(barW, 6)
+    local pct = math.min(1, (fund.gold or 0) / math.max(fund.cost, 1))
+    f.fundBar:ClearAllPoints()
+    f.fundBar:SetPoint("TOPLEFT", barX, -(fTop + 12))
+    f.fundBar:SetSize(math.max(1, barW * pct), 6)
+    place(f.fundText, barX + barW + 12, fTop + 9, W - (barX + barW + 12) - 96)
+    local eta = ""
+    if pct >= 1 then
+      eta = (UnitLevel("player") or 0) >= fund.level and "  |cff7fd39cenough: visit the riding trainer|r"
+        or ("  |cff7fd39cenough, at level %d|r"):format(fund.level)
+    elseif fund.perDay and fund.perDay > 0 then
+      eta = dim(("  about %d days at your pace"):format(math.ceil((fund.cost - fund.gold) / fund.perDay)))
+    end
+    f.fundText:SetText(("%s: %s of %s (%d%%)%s"):format(fund.short, ns.Money(math.max(fund.gold, 0)), ns.Money(fund.cost),
+      math.floor(pct * 100), eta))
+    f.fundHide:ClearAllPoints()
+    f.fundHide:SetPoint("TOPRIGHT", f, "TOPLEFT", W - 8, -(fTop + 6))
+    f.fundHit:ClearAllPoints()
+    f.fundHit:SetPoint("TOPLEFT", 0, -fTop)
+    f.fundHit:SetSize(W - 96, fundH)
+    f.fundHit.fund = fund
+  end
+
   -- The graph card
-  local gTop = tileY + tileH + gap
-  local gBottom = gTop + 172
+  local gTop = tileY + tileH + gap + (fund and (fundH + gap) or 0)
+  local gBottom = gTop + 172 - (fund and (fundH + gap) or 0)
   nextCard(gTop, gBottom, 0, W)
   T:StyleHeading(f.graphHead, "Gold over " .. (OVER[s.range] or "the week"))
   place(f.graphHead, 12, gTop + 9)
