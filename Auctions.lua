@@ -579,6 +579,12 @@ function ns:YourAuctionsFrame(side)
     frame.views[v[1]] = b
     prev = b
   end
+  -- A line under the view tabs, as on the Ledger (owner, October 4).
+  local subLine = frame:CreateTexture(nil, "BORDER")
+  subLine:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+  subLine:SetHeight(1)
+  subLine:SetPoint("TOPLEFT", 0, -30)
+  subLine:SetPoint("TOPRIGHT", 0, -30)
   local header = CreateFrame("Frame", nil, frame)
   header:SetPoint("TOPLEFT", 6, -34)
   header:SetPoint("TOPRIGHT", -6, -34)

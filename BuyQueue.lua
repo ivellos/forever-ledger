@@ -1075,23 +1075,29 @@ local function buildLane(v, d)
   return L
 end
 
-local function buildQueueView(parent)
-  local v = CreateFrame("Frame", nil, parent)
-  v:SetPoint("TOPLEFT", 0, -30)
-  v:SetPoint("BOTTOMRIGHT")
-
-  -- A toolbar band under the tabs, set apart by its shade and a line below (owner,
-  -- October 2: a cleaner split between the tabs and the buttons).
+-- A toolbar band under the tabs, set apart by its shade and a line below (owner,
+-- October 2: a cleaner split between the tabs and the buttons; October 4: the line as
+-- clear as the Disenchant finder's, on the Shopping lists too).
+local function toolbar(v, height)
   local bar = CreateFrame("Frame", nil, v)
   bar:SetPoint("TOPLEFT", 1, 0)
   bar:SetPoint("TOPRIGHT", -1, 0)
-  bar:SetHeight(30)
+  bar:SetHeight(height)
   T:Fill(bar, { 1, 1, 1, 0.035 })
   local line = bar:CreateTexture(nil, "BORDER")
   line:SetPoint("BOTTOMLEFT")
   line:SetPoint("BOTTOMRIGHT")
   line:SetHeight(1)
-  line:SetColorTexture(T.border[1], T.border[2], T.border[3], 0.25)
+  line:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+  return bar
+end
+
+local function buildQueueView(parent)
+  local v = CreateFrame("Frame", nil, parent)
+  v:SetPoint("TOPLEFT", 0, -30)
+  v:SetPoint("BOTTOMRIGHT")
+
+  local bar = toolbar(v, 30)
 
   -- Which view: Vendor flips or Shopping lists, one at a time; and Scroll to buy.
   v.viewChoice = T:Choice(bar, { { value = "flips", label = "Vendor flips" }, { value = "lists", label = "Shopping lists" } },
@@ -1553,8 +1559,9 @@ local function buildListsView(parent)
 
   -- Which list: a dropdown of every list (owner, October 2: instead of arrows), and
   -- New / Rename / Delete.
+  toolbar(v, 34)
   local pick = T:Button(v, "", 210, nil, 22)
-  pick:SetPoint("TOPLEFT", 10, -8)
+  pick:SetPoint("TOPLEFT", 10, -6)
   v.title = pick:GetFontString()
   v.title:ClearAllPoints()
   v.title:SetPoint("LEFT", 8, 0)
@@ -1866,7 +1873,7 @@ local function buildListsView(parent)
     end
   end
   local share = T:Button(v, "Share / import", 100, function() shareWindow("share") end, 22)
-  share:SetPoint("TOPRIGHT", -10, -38)
+  share:SetPoint("TOPRIGHT", -10, -40)
   share:GetFontString():SetFont(T.font, 11, "")
   v.share = share
 
@@ -2626,6 +2633,15 @@ local function ensureSide()
   -- The theme's dressing (top line, the line under the tab strip, Gilded's frame) and
   -- Settings, Appearance, Size, like the main window (owner, October 4).
   T:DecorateWindow(side, nil, strip)
+  -- Clean has no accent line there: a plain one, so every tab is set apart from the tab
+  -- row, not only the Disenchant finder by its own border (owner, October 4).
+  if not T.theme.topLine then
+    local under = strip:CreateTexture(nil, "BORDER")
+    under:SetPoint("BOTTOMLEFT")
+    under:SetPoint("BOTTOMRIGHT")
+    under:SetHeight(1)
+    under:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4] or 1)
+  end
   ns.scaledWindows = ns.scaledWindows or {}
   table.insert(ns.scaledWindows, side)
   side:SetScale(((ns.db and ns.db.settings.uiScale) or 100) / 100)

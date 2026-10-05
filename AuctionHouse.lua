@@ -270,6 +270,7 @@ local function buildFinder(side)
   finder:EnableMouse(true)
   T:Fill(finder, T.bg)
   T:Border(finder)
+  finder.borders[1]:Hide()   -- the side panel draws the line under its tab row, on every theme
 
   local title = T:Text(finder, 14, T.accent)
   title:SetPoint("TOPLEFT", 12, -10)
