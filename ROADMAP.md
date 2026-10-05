@@ -21,7 +21,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Shopping lists, simpler**: in the addon since 0.11.0: one kind of list with a one-click "Search all" (including specific versions, "of the Monkey") and what you own across your characters; tick one box to buy from it in the Buy queue, with the cost of the rest, and craft or buy, whichever is cheaper.
 - **Item groups, built in**: ready-made groups (cloth, herbs, ores, enchanting materials, recipes, transmog gear and more) with sensible buy and sell rules, filled from the game's own item data and kept up to date with patches. No setup and no import strings; change any rule if you want to.
 - **Watch list and rare finds**: a list of items you're after (a rare appearance, a BoE epic) with the most you'd pay, checked on every scan; plus alerts for items that are almost never listed and for valuable items listed well under their usual price.
-- **Your auctions**: in the addon since 0.12.0 (undercut alerts, Cancel next undercut, sold and gold on the way). Next: a sold alert while you're away.
+- **Your auctions**: in the addon since 0.12.0 (undercut alerts, Cancel next undercut, sold and gold on the way), and what sold while you were away since 0.14.0.
 - **Vendor or auction house?**: on the Sell tab, what each item in your bags would net on the auction house after the cut and deposit against what a vendor pays, with a one-click list to vendor the rest.
 - **Deals per stat version**: judge "of the Monkey" against other Monkey versions, not the item as a whole.
 - **Which recipes are worth buying**: a recipe's cost (gold or Merchant's Favor) against its profit per craft and how often you'd make it.
@@ -44,7 +44,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Training costs**: what the next levels of class and profession training will cost, so you can save for them.
 - **Riding fund**: how close you are to riding at 40 (and epic riding at 60), how long that takes at your usual gold per hour, and a warning when you spend into it.
 - **Skip this rank**: at the trainer, mark ranks of spells you never cast (learned from your own play, so it fits any class and build) and what skipping them saves.
-- **Bag value**: in the addon now (price per slot in bag tooltips, and the cheapest bag per slot).
+- **Bag value**: in the addon since 0.14.0 (price per slot in bag tooltips, and the cheapest bag per slot).
 - **Legacy advisor**: which Legacy perks pay off for how you play (priced from your own vendor, flight and Favor spending), and the cheapest route to your next point.
 
 ## Professions
@@ -63,7 +63,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Mail helper**: open all mail in one click (sales logged as it goes), and a warning when one mail carries many stacks.
 - **Plays nice with Auctionator and TSM**: features they already cover are switched off when they're installed, with a one-time message saying what and how to turn them back on. Later also Leatrix Plus and ForeverForge, for auto-selling and sniping.
 - **Prices for other addons' lists**: what GearQuest's suggested upgrades cost on the auction house right now, and what Dungeon Journal's boss loot is worth per run, when those addons are installed.
-- **A new look and a new Settings window**: a look of our own that still sits well next to EllesmereUI, and Settings laid out like EllesmereUI's options: Global settings for everything account-wide, then a section per feature group with tabs inside. Settings profiles you can switch between per character, export (choosing which sections) and import.
+- **A new look and a new Settings window**: in the addon since 0.14.0 (three themes, accent colours, Size, the new Settings with profiles). Next: looks based on WoW Forever's own windows and on Blizzard's.
 - **Shopping list** across shuffles.
 - **Macro library**: a searchable library of useful macros by class and purpose, each explained, with one-click "create". Players will be able to suggest macros on the Discord and vote for the most useful ones.
 

@@ -37,7 +37,7 @@
 - **Spend at most:** cap what the queue spends each auction house visit, or always keep some gold back for repairs.
 - **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Share a list as text.
 ### Selling
-- **Your auctions:** what you have up, what's been undercut (with a reminder), and Cancel next undercut, one click each; sold ones show what you get and when the gold reaches your mailbox.
+- **Your auctions:** what you have up, what's been undercut (with a reminder), and Cancel next undercut, one click each; sold ones show what you get and when the gold reaches your mailbox, and what sold while you were away is in chat when you come back.
 - **Price helper:** the usual price and the cheapest now on the Sell tab, with Undercut and Usual buttons that fill the price in, and a warning when someone is dumping.
 - **Sell protection:** a warning, and Post greyed out, before you list something for less than a vendor pays.
 
@@ -47,14 +47,17 @@
 - **Customer finder and ads:** spots people in chat asking for what your character can do (enchanting, crafted items, Mage water and portals, Warlock summons, lockpicking), with Whisper and Invite buttons, one-click ads for Trade, and a Silence button.
 
 ### Your gold
-- **Dashboard:** gold over time, sales, expenses and profit.
+- **Dashboard:** gold now, profit, sales and expenses at a glance, gold over time, your best sales and buys, and recent sessions.
 - **Ledger:** every transaction in one list; select rows to see what they add up to; resale profit per item.
 - **Characters:** every character's bags and bank, per realm and faction, with what it's all worth and the best way to turn each item into gold.
-- **Sessions:** a small tracker for gold an hour, gold in and out and what you loot.
+- **Bag value:** a bag's tooltip shows what one slot costs and the cheapest bag per slot right now.
+- **Sessions:** a small tracker for gold an hour, gold in and out and what you loot, and every session listed in the Ledger.
 - **Dungeon runs:** runs, time, coin and what dropped for you, per dungeon.
 
 ### Getting around
 - **Welcome and Help:** a short guide the first time, Help by topic with common questions, and search boxes for Settings and Help.
+- **Your look:** three themes (FL Clean, FL Default, FL Gilded), your accent colour (or EllesmereUI's), and a Size from 75% to 150%.
+- **Settings profiles:** characters can share a set of settings or each have their own; export a profile for a friend.
 - **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
 - **Two accounts?** Live sync shares prices and recipes between them while both are online.
 - **Update notice:** hear from your guild or group when a newer version is out.

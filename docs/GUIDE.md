@@ -105,7 +105,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 ## Disenchanting
 
-- **Disenchant finder** (beside the auction house: Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant. Hover a band for the odds of each material and what a bad and a good roll would bring. The worth is an average over many disenchants (Settings, Auction house can hide the rolls).
+- **Disenchant finder** (beside the auction house: Buy queue button, Disenchant finder tab): green armor and weapons in the item levels you pick (the **Item levels** dropdown, with Select all and Deselect all; Armor, Weapons and Only worth disenchanting filter the list), with what each is worth to disenchant. Hover a level in that list for the odds of each material and what a bad and a good roll would bring. The worth is an average over many disenchants (Settings, Auction house can hide the rolls).
 - `/fl de` shows your own disenchanting results against the expected odds.
 
 ![Disenchant finder beside the auction house](images/disenchant-finder.png)

@@ -79,7 +79,7 @@ ns.HELP = {
     { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },
   { "Disenchanting", {
-    { "Disenchant finder", "Beside the auction house (Buy queue button, Disenchant finder tab): green armor and weapons by item level, with what each is worth to disenchant, on average. Hover a band for the odds and what a bad and a good roll would bring (Settings, Auction house can hide the rolls)." },
+    { "Disenchant finder", "Beside the auction house (Buy queue button, Disenchant finder tab): green armor and weapons in the item levels you pick (the Item levels dropdown, with Select all and Deselect all), with what each is worth to disenchant, on average. Hover a level in that list for the odds and what a bad and a good roll would bring (Settings, Auction house can hide the rolls)." },
   } },
   { "Recipes and trainers", {
     { "Recipes tab", "Every recipe of your professions, who knows it, where to get it, the skill needed, and profit per craft. Right-click a recipe to set its type yourself. Click a column heading to sort." },
