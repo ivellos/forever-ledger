@@ -148,7 +148,7 @@ end
 
 local function buildMain()
   if main then return main end
-  main = themedWindow("ForeverLedgerFrame", 880, 520,
+  main = themedWindow("ForeverLedgerFrame", 880, 620,
     T:TitleCode() .. "Forever Ledger|r  " .. dim(ns.VERSION), 46)
   -- Shopping lists away from the auction house, to plan ahead (owner, October 3).
   local lists = T:Button(main.bar, "Shopping lists", 110, function() ns:ShowSidePanel("lists") end, 22)
@@ -212,34 +212,9 @@ local function buildMain()
   main.shuffleInfo:SetJustifyH("LEFT")
   main.shuffleInfo:SetWordWrap(false)
 
-  -- Resizing: drag the grip in the bottom-right corner. The starting size is the smallest.
-  -- 880 wide at the least (owner's test, October 4: at 760 the tables ran off the edge
-  -- before they could shorten anything, and Recipes lost its Per craft column).
-  local MIN_W, MIN_H = 880, 520
-  main:SetResizable(true)
-  if main.SetResizeBounds then main:SetResizeBounds(MIN_W, MIN_H, 1800, 1300)
-  elseif main.SetMinResize then main:SetMinResize(MIN_W, MIN_H) end
-  local saved = ns.db.settings.window
-  if saved.w and saved.h then main:SetSize(math.max(saved.w, MIN_W), math.max(saved.h, MIN_H)) end
-  local grip = CreateFrame("Button", nil, main)
-  grip:SetSize(16, 16)
-  grip:SetPoint("BOTTOMRIGHT", -2, 2)
-  grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-  grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-  grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-  -- Never size past the screen edge: the window is kept on screen, so the game would
-  -- push it upwards instead, a little more each time.
-  grip:SetScript("OnMouseDown", function()
-    local maxW = math.max(MIN_W, UIParent:GetRight() / main:GetEffectiveScale() * UIParent:GetEffectiveScale() - main:GetLeft())
-    local maxH = math.max(MIN_H, main:GetTop() - UIParent:GetBottom() / main:GetEffectiveScale() * UIParent:GetEffectiveScale())
-    if main.SetResizeBounds then main:SetResizeBounds(MIN_W, MIN_H, maxW, maxH)
-    elseif main.SetMaxResize then main:SetMaxResize(maxW, maxH) end
-    main:StartSizing("BOTTOMRIGHT")
-  end)
-  grip:SetScript("OnMouseUp", function()
-    main:StopMovingOrSizing()
-    saved.w, saved.h = main:GetWidth(), main:GetHeight()
-  end)
+  -- A fixed size, 880 x 620, with Settings, Appearance, Size to make it smaller or bigger
+  -- (owner, October 4: lay pages out for one size, like EllesmereUI; no resize grip). The
+  -- old saved size (settings.window) is no longer used.
   -- Lay the current tab out again while the size changes, at most every 0.1 seconds.
   local queued = false
   main:SetScript("OnSizeChanged", function()

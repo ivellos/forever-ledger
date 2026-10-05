@@ -20,7 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Characters tab: professions in a card of their own, with the rank coin.
 - Recipes tab: the type filter is a dropdown, so the row fits with every font; a wider window widens Where from as well as the recipe names.
 - Settings: pages under a group heading are indented; Global settings, Profiles and Appearance have a small outline icon (a gear, two people, a palette), tinted to the theme.
-- The main window is at least 880 wide (was 760), so every table fits, Recipes' Per craft column included.
+- The main window has one size, 880 by 620 (Settings, Appearance, Size makes it smaller or bigger), and every page is laid out for it; no resize grip.
 - Professions show a grey dot for Apprentice, next to the coins for the higher ranks.
 - Help tab laid out like Settings: a sidebar with search and the topics, each topic under its title with every entry as a name and its explanation, the topic and its questions in cards.
 - Settings has a sidebar like EllesmereUI's options: Global settings (the same for every character: auction house cut, safety margin, price source, flip and deal rules), Profiles, then a page per part of the addon, with tabs across the top. Search still finds any setting.
