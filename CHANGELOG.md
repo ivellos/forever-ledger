@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Ledger: once a log holds 10,000 entries, the oldest one now goes into its month's total instead of being dropped, so no copper goes missing.
+- `/fl book`: "known by your characters" counts only characters on this realm and faction, not other rulesets or the other faction.
 
 ### Changed
 - Recipes tab: tabs for this character's professions only, each with a coin for its rank (gold Artisan, silver Expert, copper Journeyman), then Trainers; the rest under Other professions, starred when another of your characters on this realm has it.
