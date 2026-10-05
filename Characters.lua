@@ -538,8 +538,9 @@ function ns:RefreshCharacters()
         or "  |cffee8597open to save recipes|r"
       -- The rank coin, as on the Recipes tabs: gold Artisan, silver Expert, copper Journeyman.
       local max = info.max or 0
-      local coin = (max >= 300 and "GoldIcon") or (max >= 225 and "SilverIcon") or (max >= 150 and "CopperIcon")
-      fs:SetText((coin and ("|TInterface\\MoneyFrame\\UI-" .. coin .. ":11:11:0:0|t ") or "")
+      local coin = (max >= 300 and "MoneyFrame\\UI-GoldIcon") or (max >= 225 and "MoneyFrame\\UI-SilverIcon")
+        or (max >= 150 and "MoneyFrame\\UI-CopperIcon") or "COMMON\\Indicator-Gray"   -- (grey dot: Apprentice)
+      fs:SetText(("|TInterface\\" .. coin .. ":11:11:0:0|t ")
         .. ("%s %s/%s%s"):format(p, info.rank or "?", info.max or "?", saved))
       fs:ClearAllPoints()
       fs:SetPoint("TOPLEFT", f.profCard, "TOPLEFT", 10 + ((i - 1) % 3) * cellW, -5 - math.floor((i - 1) / 3) * 15)

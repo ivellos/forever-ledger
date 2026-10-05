@@ -324,8 +324,8 @@ local current     -- profession shown, or "Trainers:<profession>"
 local COLS = {
   { key = "name", label = "Recipe" },
   { key = "skill", label = "Skill", w = 36, num = true },
-  { key = "known", label = "Known by", w = 120 },
-  { key = "source", label = "Where from (hover for all)", w = 300 },
+  { key = "known", label = "Known by", w = 110 },
+  { key = "source", label = "Where from (hover for all)", w = 250 },
   { key = "type", label = "Type", w = 104 },
   { key = "profit", label = "Per craft", w = 80, num = true },
   { key = "pin", label = "", w = 36 },
@@ -357,7 +357,7 @@ end
 -- The rank of a profession by its skill cap, as a coin: gold Artisan (300), silver Expert
 -- (225), copper Journeyman (150), none for Apprentice (owner, October 4).
 local RANKS = { { 300, "Artisan", "Interface\\MoneyFrame\\UI-GoldIcon" }, { 225, "Expert", "Interface\\MoneyFrame\\UI-SilverIcon" },
-  { 150, "Journeyman", "Interface\\MoneyFrame\\UI-CopperIcon" }, { 0, "Apprentice" } }
+  { 150, "Journeyman", "Interface\\MoneyFrame\\UI-CopperIcon" }, { 0, "Apprentice", "Interface\\COMMON\\Indicator-Gray" } }   -- (a grey dot, so every tab lines up: owner, October 4)
 local function rankOf(max)
   for _, r in ipairs(RANKS) do if (max or 0) >= r[1] then return r[2], r[3] end end
 end
@@ -738,9 +738,9 @@ local TRAINER_COLS = {
   { key = "name", label = "Trainer" },
   { key = "skill", label = "", w = 0 },
   { key = "known", label = "Profession", w = 110 },
-  { key = "source", label = "Where", w = 260 },
+  { key = "source", label = "Where", w = 240 },
   { key = "type", label = "Tier", w = 90 },
-  { key = "profit", label = "Title or note", w = 170 },   -- (330 + 230 ran off the window at its smallest: October 4)
+  { key = "profit", label = "Title or note", w = 140 },   -- (330 + 230 ran off the window at its smallest: October 4)
   { key = "pin", label = "", w = 36 },
 }
 

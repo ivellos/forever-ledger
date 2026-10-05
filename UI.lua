@@ -139,7 +139,7 @@ end
 
 local function buildMain()
   if main then return main end
-  main = themedWindow("ForeverLedgerFrame", 760, 520,
+  main = themedWindow("ForeverLedgerFrame", 880, 520,
     T:TitleCode() .. "Forever Ledger|r  " .. dim(ns.VERSION), 46)
   -- Shopping lists away from the auction house, to plan ahead (owner, October 3).
   local lists = T:Button(main.bar, "Shopping lists", 110, function() ns:ShowSidePanel("lists") end, 22)
@@ -204,7 +204,9 @@ local function buildMain()
   main.shuffleInfo:SetWordWrap(false)
 
   -- Resizing: drag the grip in the bottom-right corner. The starting size is the smallest.
-  local MIN_W, MIN_H = 760, 520
+  -- 880 wide at the least (owner's test, October 4: at 760 the tables ran off the edge
+  -- before they could shorten anything, and Recipes lost its Per craft column).
+  local MIN_W, MIN_H = 880, 520
   main:SetResizable(true)
   if main.SetResizeBounds then main:SetResizeBounds(MIN_W, MIN_H, 1800, 1300)
   elseif main.SetMinResize then main:SetMinResize(MIN_W, MIN_H) end
