@@ -65,3 +65,34 @@ T.test("Remove never takes the character you're on", function()
   T.eq(ns:RemoveCharacter("Old Friend-Testrealm"), true)
   T.eq(ns.db.chars["Old Friend-Testrealm"], nil)
 end)
+
+-- Codex review, October 5.
+T.test("A partner's character you then play is yours: unpairing keeps it", function()
+  local me = ns.CharKey()
+  ns.db.chars[me] = nil
+  ns.db.inventory[me] = nil
+  ns:MergeData({ chars = { [me] = char("Tester", 500) }, inventory = { [me] = { bags = { [2589] = 3 }, bank = {}, t = 500 } } }, "Partner Name")
+  -- (it was the one you're on, so it was kept as yours already; now one that isn't)
+  ns:MergeData({ chars = { ["Played Later-Testrealm"] = char("Played Later", 500) },
+    inventory = { ["Played Later-Testrealm"] = { bags = {}, bank = {}, t = 500 } } }, "Partner Name")
+  T.eq(ns.db.chars["Played Later-Testrealm"].via, "Partner Name")
+  -- Logging in on it: Inventory.lua saves its bags as this account's.
+  local realKey = ns.CharKey
+  ns.CharKey = function() return "Played Later-Testrealm" end
+  T.fire("BAG_UPDATE_DELAYED")
+  T.runTimers()
+  ns.CharKey = realKey
+  T.eq(ns.db.inventory["Played Later-Testrealm"].via, nil, "bags now this account's")
+  T.eq(ns.db.chars["Played Later-Testrealm"].via, nil, "character now this account's")
+  ns:RemoveSyncedFrom("Partner Name")
+  T.ok(ns.db.chars["Played Later-Testrealm"], "kept after unpairing")
+end)
+
+T.test("Bags and bank merge by their own times", function()
+  ns.db.inventory["Split-Testrealm"] = { bags = { [2589] = 1 }, bank = { [2589] = 50 }, t = 100, bankT = 200, via = "Partner Name" }
+  ns:MergeData({ inventory = { ["Split-Testrealm"] = { bags = { [2589] = 8 }, bank = { [2589] = 40 }, t = 150, bankT = 120 } } }, "Partner Name")
+  local inv = ns.db.inventory["Split-Testrealm"]
+  T.eq(inv.bags[2589], 8, "newer bags taken")
+  T.eq(inv.bank[2589], 50, "older bank not taken over the newer one")
+  T.eq(inv.bankT, 200)
+end)
