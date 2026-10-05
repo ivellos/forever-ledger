@@ -47,10 +47,14 @@ local function count(lines, text)
   return n
 end
 
--- A fresh start: no saved auctions, nothing waiting on a first read after opening.
+-- A fresh start at the auction house (the list is only read there): no saved auctions,
+-- nothing waiting on a first read after opening.
 local function fresh()
   S.now = NOW
-  read({})
+  T.fire("AUCTION_HOUSE_CLOSED")
+  ns.db.myAuctions = {}
+  T.fire("AUCTION_HOUSE_SHOW")
+  read({})   -- (the first read after opening, with nothing saved to compare)
   ns.db.myAuctions = {}
   ns.db.prices[ns.MarketKey()] = {}
   wipe(S.sounds)
@@ -138,8 +142,42 @@ T.test("Sold while away: ones gone from the list with time left count", function
   read({ auction(13, 70013, 100, 2, 2 * DAY) })
   S.now = NOW + HOUR
   T.fire("AUCTION_HOUSE_SHOW")
-  local said = chat(function() read({}) end)
+  local said = chat(function()
+    read({})   -- an empty first answer is asked again (it can be the game not ready yet)
+    read({})   -- a second one is believed
+  end)
   T.eq(count(said, "Gone Sale x2"), 1)
+end)
+
+T.test("Sold while away: an empty first answer alone isn't taken as everything sold", function()
+  fresh()
+  S.items[70016] = { name = "Still Up" }
+  read({ auction(16, 70016, 100, 1, 2 * DAY) })
+  T.fire("AUCTION_HOUSE_SHOW")
+  local said = chat(function()
+    read({})
+    read({ auction(16, 70016, 100, 1, 2 * DAY) })   -- the real answer
+  end)
+  T.eq(count(said, "Sold since"), 0)
+  T.eq(entry(16).sold, nil)
+end)
+
+T.test("Sold while away: part of a stack bought counts", function()
+  fresh()
+  S.items[70017] = { name = "Strange Dust" }
+  read({ auction(17, 70017, 100, 10) })
+  T.fire("AUCTION_HOUSE_SHOW")
+  local said = chat(function() read({ auction(17, 70017, 100, 7) }) end)
+  T.eq(count(said, "Strange Dust x3"), 1, table.concat(said, " / "))
+end)
+
+T.test("Your auctions: not read while the auction house is closed", function()
+  fresh()
+  read({ auction(18, 70018, 100, 1, 2 * DAY) })
+  T.fire("AUCTION_HOUSE_CLOSED")
+  read({})   -- an answer away from the auction house
+  T.ok(entry(18), "still there")
+  T.eq(entry(18).sold, nil)
 end)
 
 T.test("Sold while away: nothing on the very first read (nothing to compare with)", function()
