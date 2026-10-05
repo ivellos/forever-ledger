@@ -210,7 +210,13 @@ local function finishTarget(note)
     for i, x in ipairs(list) do if x == e then table.remove(list, i); break end end
     Q.note = ns.ItemName(e.id) .. ": " .. note
     ns:Debug("Buy queue:", ns.ItemName(e.id), "-", note)
+    -- A row you clicked that has nothing to buy: say so in chat too (owner's test,
+    -- October 5: clicking a crate seemed to do nothing; the note was only in the panel).
+    if Q.clicked == e and note:find("none left", 1, true) then
+      ns:Print(("Buy queue: %s Clicking it on a shopping list searches the auction house so you can see what's there."):format(Q.note))
+    end
   end
+  Q.clicked = nil
   Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
   setState("idle")
   C_Timer.After(0.3, prepare)
@@ -416,6 +422,7 @@ local function choose(e)
   dropCurrent()
   Q.cur, Q.tries = e, 0
   Q.userPicked = true
+  Q.clicked = e
   search()
 end
 

@@ -113,13 +113,32 @@ local function readOwned()
   local sold = Enum and Enum.AuctionStatus and Enum.AuctionStatus.Sold or 1
   -- What we knew before: when each sold, and sold ones whose gold has gone to the mail.
   local before, seen = {}, {}
-  for _, e in ipairs((mine() or {}).list or {}) do if e.a then before[e.a] = e end end
+  -- Sold auctions waiting for their gold show at every auction house (owner's test,
+  -- October 5: 20 Strange Dust sold at Stormwind showed at Booty Bay too, at its 15%
+  -- cut). One the other auction house's list already has belongs there; one both lists
+  -- have stays with the one that saw it sell first.
+  local otherKey = ns.CharKey() .. (ns.neutralAH and "" or " (neutral)")
+  local elsewhere = {}
+  for _, e in ipairs((store()[otherKey] or {}).list or {}) do
+    if e.a then elsewhere[e.a] = e.soldAt or 0 end
+    elsewhere[("%s:%s:%s"):format(e.id, e.each or 0, e.q or 1)] = e.soldAt or 0
+  end
+  for _, e in ipairs((mine() or {}).list or {}) do
+    local theirs = e.a and elsewhere[e.a]
+    if e.a and not (e.sold and theirs and theirs <= (e.soldAt or 0)) then before[e.a] = e end
+  end
   for i = 1, n do
     local ok, info = pcall(AH.GetOwnedAuctionInfo, i)
+    local e, id
     if ok and info and info.itemKey then
-      local id = info.itemKey.itemID
-      local e = { a = info.auctionID, id = id, link = info.itemLink, q = info.quantity or 1,
+      id = info.itemKey.itemID
+      e = { a = info.auctionID, id = id, link = info.itemLink, q = info.quantity or 1,
         each = eachPrice(info, id), left = info.timeLeftSeconds, sold = info.status == sold or nil }
+      if e.sold and not before[e.a] and (elsewhere[e.a] or elsewhere[("%s:%s:%s"):format(id, e.each or 0, e.q)]) then
+        e = nil   -- (the other auction house's)
+      end
+    end
+    if e then
       if e.sold then e.soldAt = (before[e.a] and before[e.a].soldAt) or now end
       -- Its deposit: kept from before, or the one just paid when it was posted.
       if before[e.a] then
