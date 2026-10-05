@@ -29,11 +29,13 @@ local function S() return ns.db.settings.buyQueue end
 -- instead of stacked sections, so it's clear what the strip and buttons work on). The
 -- view you're on is the one that buys: a shopping list never buys a flip by accident.
 local function view() return S().view == "lists" and "lists" or "flips" end
-local TEAL = { 0.2, 0.85, 0.75 }   -- Scroll to buy is on: the area to scroll glows this colour
--- ...in Vendor flips; Shopping lists glow purple, so the two views look different at a
--- glance (Magic, October 3).
+-- Something ready to buy: the area to scroll glows this colour in Vendor flips (gold, not
+-- teal: teal is the accent and it blended in; owner, October 4); Shopping lists glow
+-- purple, so the two views look different at a glance (Magic, October 3). With nothing to
+-- buy, both are in the theme's plain colours.
+local GOLDEN = { 1, 0.74, 0.22 }
 local PURPLE = { 0.68, 0.55, 1 }
-local function laneColor(key) return key == "lists" and PURPLE or TEAL end
+local function laneColor(key) return key == "lists" and PURPLE or GOLDEN end
 local function hex(c)
   return ("%02x%02x%02x"):format(math.floor(c[1] * 255), math.floor(c[2] * 255), math.floor(c[3] * 255))
 end
@@ -981,6 +983,13 @@ local function buildLane(v, d)
   strip:SetHeight(STRIP_H)
   L.strip = strip
   L.stripBg = T:Fill(strip, { 1, 1, 1, 0.04 })
+  -- Something to buy: a coloured edge down the strip's left side, so the place to scroll
+  -- catches the eye (owner, October 4).
+  L.edge = strip:CreateTexture(nil, "ARTWORK")
+  L.edge:SetPoint("TOPLEFT")
+  L.edge:SetPoint("BOTTOMLEFT")
+  L.edge:SetWidth(3)
+  L.edge:Hide()
   strip:SetScript("OnClick", function() arm(d.key) end)
   -- The wheel over the strip: makes this the section you buy from, then (with Scroll to
   -- buy ticked) each tick down buys. Over the list below, the wheel scrolls the list.
@@ -1015,7 +1024,7 @@ local function buildLane(v, d)
   L.buy:SetPoint("RIGHT", -6, 0)
   L.buy:GetFontString():SetFont(T.font, 14, "")
   -- A mouse with its wheel and arrows: "scroll here" (Magic, October 3). It stands in
-  -- for the button when there's nothing to click, and lights up teal with Scroll to buy.
+  -- for the button when there's nothing to click, and lights up with Scroll to buy when there's something to buy.
   -- Drawn as pictures (media/mouse.tga, media/updown.tga), white, tinted here: built
   -- from boxes it read as a block (owner's test, October 3; Magic's mock-up).
   local m = CreateFrame("Frame", nil, strip)
@@ -1036,7 +1045,7 @@ local function buildLane(v, d)
   function m:SetShownAll(on) self:SetShown(on) end
   L.mouse = m
 
-  -- Scroll to buy on: a soft teal glow just outside the strip, fading outwards.
+  -- Something to buy: a soft glow just outside the strip, fading outwards (pulses).
   L.glow = {}
   for k = 1, 4 do
     local a = ({ 0.45, 0.25, 0.12, 0.05 })[k]
@@ -1134,7 +1143,7 @@ local function buildQueueView(parent)
   wheel:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine("Scroll to buy", 1, 1, 1)
-    GameTooltip:AddLine("With the mouse over the top strip (it glows teal while this is ticked), each tick of the wheel down buys the next item; stacks of materials take a second tick to confirm. It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
+    GameTooltip:AddLine("With the mouse over the top strip (it glows when there's something to buy), each tick of the wheel down buys the next item; stacks of materials take a second tick to confirm. It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1291,21 +1300,35 @@ local function fillLane(L)
   local list = {}
   for _, e in ipairs(Q.lanes[d.key] or {}) do if not cantAfford(e) then list[#list + 1] = e end end
   for _, e in ipairs(Q.lanes[d.key] or {}) do if cantAfford(e) then list[#list + 1] = e end end
-  -- Scroll to buy on: the section glows teal, the strip most of all, so where to scroll
-  -- shows without reading (Magic, October 3).
   local wheel = S().wheel and true or false
   local c = laneColor(d.key)
-  for _, e in ipairs(L.borders or {}) do
-    if wheel then e:SetColorTexture(c[1], c[2], c[3], 0.9)
-    else e:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4]) end
-  end
-  if wheel then L.stripBg:SetColorTexture(c[1], c[2], c[3], 0.12)
-  else L.stripBg:SetColorTexture(1, 1, 1, 0.05) end
-  for _, t in ipairs(L.glow) do t:SetShown(wheel) end
   local ready = 0
   for _, x in ipairs(list) do if not x.waiting and not cantAfford(x) then ready = ready + 1 end end
+  -- Something ready to buy: the section lights up in its colour, the strip most of all,
+  -- with a slow pulsing glow, so it shows without reading (Magic, October 3). Nothing to
+  -- buy: the theme's plain look, whether Scroll to buy is on or not (owner, October 4).
+  local lit = ready > 0
+  for _, e in ipairs(L.borders or {}) do
+    if lit then e:SetColorTexture(c[1], c[2], c[3], 0.9)
+    else e:SetColorTexture(T.border[1], T.border[2], T.border[3], T.border[4]) end
+  end
+  if lit then L.stripBg:SetColorTexture(c[1], c[2], c[3], 0.12)
+  else L.stripBg:SetColorTexture(1, 1, 1, 0.05) end
+  L.edge:SetColorTexture(c[1], c[2], c[3], 1)
+  L.edge:SetShown(lit)
+  for _, t in ipairs(L.glow) do t:SetShown(lit) end
+  if lit and not L.pulsing then
+    L.pulsing = true
+    L:SetScript("OnUpdate", function()
+      local a = 0.6 + 0.4 * math.sin(GetTime() * 2.5)
+      for _, t in ipairs(L.glow) do t:SetAlpha(a) end
+    end)
+  elseif not lit and L.pulsing then
+    L.pulsing = nil
+    L:SetScript("OnUpdate", nil)
+  end
   L.title:SetText(("%s  |cff888888%d to buy|r%s"):format(d.title, ready,
-    wheel and ("   |cff" .. hex(c) .. "scroll down here to buy|r") or "   |cff888888click Buy, or tick Scroll to buy|r"))
+    wheel and ("   |cff" .. (lit and hex(c) or "888888") .. "scroll down here to buy|r") or "   |cff888888click Buy, or tick Scroll to buy|r"))
   local a, b, label
   if armed then
     a, b, label = statusText()
@@ -1323,7 +1346,7 @@ local function fillLane(L)
   local action = label == "Buy" or label == "Confirm" or label == "Go now"
   L.buy:SetShown(action)
   L.mouse:SetShownAll(not action)
-  L.mouse:SetLit(wheel)
+  L.mouse:SetLit(wheel and lit)
   L.buy:SetText(label)
   L.buy:SetSelected(armed and Q.state == "confirm")
 
@@ -2803,7 +2826,7 @@ end)
 -- New flips just announced (Shuffles.lua): into the queue at once, even an item set
 -- aside for its two minutes after "none left" (owner's test, October 3: a flip was
 -- announced but only showed up about 20 seconds later). Looking at another tab or the
--- Shopping lists view, a teal count on the Buy queue tab and the Vendor flips button
+-- Shopping lists view, a gold count on the Buy queue tab and the Vendor flips button
 -- says they're there.
 local function badge(parent)
   -- On the corner, half outside, like a notification count: inside the button it
@@ -2817,8 +2840,8 @@ local function badge(parent)
   local inner = b:CreateTexture(nil, "ARTWORK")
   inner:SetPoint("TOPLEFT", 2, -2)
   inner:SetPoint("BOTTOMRIGHT", -2, 2)
-  inner:SetColorTexture(TEAL[1], TEAL[2], TEAL[3], 1)
-  b.text = T:Text(b, 10, { 0.03, 0.12, 0.1, 1 })
+  inner:SetColorTexture(GOLDEN[1], GOLDEN[2], GOLDEN[3], 1)
+  b.text = T:Text(b, 10, { 0.14, 0.09, 0.02, 1 })
   b.text:SetPoint("CENTER", 0, 0)
   b:Hide()
   return b
