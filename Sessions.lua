@@ -288,7 +288,7 @@ function ns:StopGeneralSession(quiet)
   end
   local top = {}
   for k = 1, math.min(5, #st.items) do top[k] = { st.items[k].id, st.items[k].n, st.items[k].value } end
-  table.insert(ns.db.sessions, { kind = "general", name = "Session", t = s.t, stop = time(), secs = st.secs, earned = st.earned,
+  table.insert(ns.db.sessions, { kind = "general", name = "Session", c = s.char, t = s.t, stop = time(), secs = st.secs, earned = st.earned,
     spent = st.spent, loot = st.loot, top = top, runs = 0, money = s.money })
   while #ns.db.sessions > 100 do table.remove(ns.db.sessions, 1) end
   if quiet then

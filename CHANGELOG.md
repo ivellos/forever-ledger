@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Ledger, Sessions: every session (when, length, gold, looted, gold an hour, character), sortable, with where its gold came from and the best loot on hover; See all sessions on the Dashboard opens it. Sessions now save their character.
 - Themes (Settings, Appearance): FL Clean, FL Default (the new default: warm browns, a bronze edge, gold titles, sections as cards, rounded switches, WoW's Arial Narrow) and FL Gilded (a bronze frame, gold titles, Friz Quadrata), each with an accent colour (Auto takes EllesmereUI's; presets or a custom colour). Part of your profile. Looks based on WoW Forever's and Blizzard's windows are coming.
 - Settings profiles: a set of settings characters can share (Settings, Profiles), for example no tooltips or no customer finder on one character. Each character uses one, Default to start. New, Rename, Reset to defaults and Delete; export a profile as text with the parts you tick, and import someone's. Global settings are never in a profile.
 - Bag value: a bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor) and the cheapest bag per slot right now (Settings, Tooltips).

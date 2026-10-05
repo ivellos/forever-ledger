@@ -3,8 +3,8 @@ local T = ns.Theme
 
 ---------------------------------------------------------------------------
 -- Ledger tab: every transaction in one list (All), every sale and purchase (auction
--- house and vendor), a resale summary for items both bought and sold, and other money
--- in and out. Filter by time, character and item name; click a column heading to sort.
+-- house and vendor), a resale summary for items both bought and sold, other money in
+-- and out, and every session (Sessions). Filter by time, character and item name; click a column heading to sort.
 -- Select rows (click, Shift-click, Ctrl-click or drag) to see their total (owner,
 -- October 3: "a single view for all transactions" and "select several to see the
 -- gold in or out").
@@ -25,6 +25,7 @@ local SUBTABS = {
   { key = "purchases", label = "Purchases" },
   { key = "resale", label = "Resale" },
   { key = "other", label = "Other" },
+  { key = "sessions", label = "Sessions" },   -- (owner, October 4: a home for every session)
 }
 local OTHER = {
   ahFee = "Auction house fees", ahDepositBack = "Auction deposits back", repair = "Repairs", mailIn = "Mail received", mailOut = "Mail sent",
@@ -69,6 +70,15 @@ local COLUMNS = {
     { key = "sold", label = "Sold", width = 50, right = true },
     { key = "avgSell", label = "Avg sell", width = 90, right = true },
     { key = "profit", label = "Profit", width = 100, right = true },
+  },
+  sessions = {
+    { key = "t", label = "When", width = 96 },
+    { key = "item", label = "Session" },
+    { key = "length", label = "Length", width = 76, right = true },
+    { key = "total", label = "Gold", width = 96, right = true },
+    { key = "loot", label = "Looted", width = 90, right = true },
+    { key = "rate", label = "An hour", width = 90, right = true },
+    { key = "char", label = "Character", width = 108 },
   },
   other = {
     { key = "t", label = "Day", width = 96 },
@@ -207,6 +217,19 @@ local function records(tab, from, charOK, match)
       end
     end
   end
+  if tab == "sessions" then
+    -- Sessions (Sessions.lua; older shuffle sessions too). Ones saved before October 4
+    -- don't know their character: they show under every character choice.
+    for _, e in ipairs(ns.db.sessions or {}) do
+      if (e.t or 0) >= from and (not e.c or charOK(e.c)) then
+        local secs = e.secs or ((e.stop or e.t) - e.t)
+        local gained = (e.earned or 0) - (e.spent or 0)
+        out[#out + 1] = { t = e.t, session = e, item = e.kind == "general" and "Session" or (e.name or "Shuffle"),
+          kind = "Session", length = secs, total = gained, amount = gained, loot = e.kind == "general" and (e.loot or 0) or nil,
+          rate = secs >= 120 and gained / secs * 3600 or nil, char = e.c }
+      end
+    end
+  end
   if tab == "other" or tab == "all" then
     -- Other money: daily totals by type (repairs, mail, loot, quests...). Auction and
     -- vendor money isn't here: the lists above have it item by item.
@@ -294,8 +317,8 @@ local function updateSummary()
   end
   local total = 0
   for _, rec in ipairs(f.list or {}) do total = total + signedOf(rec, s.tab) end
-  local words = { all = "entries", sales = "sales", purchases = "purchases", resale = "items bought and sold", other = "entries" }
-  local label = (s.tab == "resale" and "profit") or ((s.tab == "other" or s.tab == "all") and "net") or "total"
+  local words = { all = "entries", sales = "sales", purchases = "purchases", resale = "items bought and sold", other = "entries", sessions = "sessions" }
+  local label = (s.tab == "resale" and "profit") or (s.tab == "sessions" and "gold") or ((s.tab == "other" or s.tab == "all") and "net") or "total"
   local shownTotal = s.tab == "purchases" and -total or total
   local extra = (f.list and #f.list > MAX_ROWS) and dim((" (showing the first %d)"):format(MAX_ROWS)) or ""
   f.summary:SetText(("%d %s, %s %s%s   %s"):format(f.list and #f.list or 0, words[s.tab] or "entries", label,
@@ -414,6 +437,17 @@ end
 -- The text shown for one value.
 local function show(rec, key)
   local v = rec[key]
+  if rec.session then
+    if key == "length" then local m = math.floor((v or 0) / 60); return m < 1 and "under a minute" or (m < 60 and (m .. " min") or ("%d h %02d min"):format(math.floor(m / 60), m % 60)) end
+    if key == "total" or key == "rate" then
+      if not v then return dim("-") end
+      v = math.floor(v + 0.5)
+      if v == 0 then return ns.Money(0) end
+      return "|cff" .. (v > 0 and "7fd39c+" or "ee8597-") .. ns.Money(math.abs(v)) .. "|r"
+    end
+    if key == "loot" then return v and ns.Money(v) or dim("-") end
+    if key == "char" and not v then return dim("-") end
+  end
   if key == "t" then return dim(date((rec.month and "%B %Y") or (rec.day and "%b %d") or "%b %d %H:%M", v)) end
   if key == "char" then return charName(v) end
   if key == "qty" or key == "bought" or key == "sold" then return v and tostring(v) or dim(rec.day and "" or "?") end
@@ -431,6 +465,7 @@ end
 local function rowTooltip(r)
   local rec = shown[r.index]
   if not rec then return end
+  local session = rec.session
   -- Beside the window, not at the cursor: at the cursor it could run off the screen's
   -- edge (owner's test, October 3).
   GameTooltip:SetOwner(r, "ANCHOR_NONE")
@@ -440,6 +475,39 @@ local function rowTooltip(r)
     GameTooltip:SetPoint("TOPLEFT", r, "TOPLEFT", f:GetWidth() + 16, 0)
   else
     GameTooltip:SetPoint("TOPRIGHT", r, "TOPLEFT", -16, 0)
+  end
+  if session then
+    -- A session: where its gold came from and what it looted best.
+    local function line(a, b, r, g, bl) GameTooltip:AddDoubleLine(a, b, 0.7, 0.7, 0.7, r or 1, g or 1, bl or 1) end
+    GameTooltip:AddLine(("%s, %s"):format(rec.item, date("%b %d %H:%M", rec.t or 0)), 1, 1, 1)
+    line("Length", show(rec, "length"))
+    if session.earned then line("Gold in", ns.Money(session.earned), 0.5, 0.83, 0.61) end
+    if session.spent then line("Gold out", ns.Money(session.spent), 0.93, 0.52, 0.59) end
+    if rec.loot then line("Looted, worth about", ns.Money(rec.loot)) end
+    if session.runs and session.runs > 0 then line(session.kind == "general" and "Dungeon runs" or "Runs", tostring(session.runs)) end
+    local by = {}
+    for src, v in pairs(session.money or {}) do if v ~= 0 then by[#by + 1] = { src, v } end end
+    table.sort(by, function(a, b) return math.abs(a[2]) > math.abs(b[2]) end)
+    if #by > 0 then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine("Gold by where it came from", 1, 0.82, 0)
+      for k = 1, math.min(6, #by) do
+        local v = by[k][2]
+        line("  " .. ((ns.MONEY_LABELS and ns.MONEY_LABELS[by[k][1]]) or by[k][1]), (v > 0 and "+" or "-") .. ns.Money(math.abs(v)),
+          v > 0 and 0.5 or 0.93, v > 0 and 0.83 or 0.52, v > 0 and 0.61 or 0.59)
+      end
+    end
+    if session.top and #session.top > 0 then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine("Best loot", 1, 0.82, 0)
+      for _, it in ipairs(session.top) do
+        line(("  %d x %s"):format(it[2] or 1, nameOf(it[1])), it[3] and ns.Money(it[3]) or "")
+      end
+    end
+    if rec.char then line("Character", charName(rec.char)) end
+    GameTooltip:AddLine("Click to select; Shift-click or drag for several to total them.", 0.5, 0.5, 0.5, true)
+    GameTooltip:Show()
+    return
   end
   if rec.id then GameTooltip:SetItemByID(rec.id); GameTooltip:AddLine(" ")
   else GameTooltip:AddLine(rec.item ~= "" and rec.item or (rec.kind or "?"), 1, 1, 1) end
@@ -525,6 +593,7 @@ local EMPTY = {
   purchases = "No purchases for these filters yet. Auction and vendor purchases are logged as you buy.",
   resale = "No items both bought and sold for these filters yet. Once you've bought and sold the same item, its profit shows here.",
   other = "No other money for these filters yet: repairs, mail, trades, loot, quests, training and flights show here by day.",
+  sessions = "No sessions for these filters yet. Start one with Start a session on the Dashboard (or /fl session start); it's listed here when you stop it.",
 }
 
 function ns:RefreshLedger()
@@ -621,3 +690,11 @@ function ns:RefreshLedger()
 end
 
 ns.RefreshLedger = ns.Timed("Ledger tab", ns.RefreshLedger)
+
+-- Open the Ledger on one of its sub-tabs (the Dashboard's "See all sessions").
+function ns:OpenLedgerTab(tab)
+  ns:ShowTab("ledger")   -- (opening resets it to All)
+  settings().tab = tab
+  clearSelection()
+  ns:RefreshLedger()
+end

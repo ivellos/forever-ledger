@@ -401,6 +401,9 @@ function ns:BuildDashboard(parent)
   -- Sessions
   f.sesHead = text(f, 11)
   f.sesNote = text(f, 11, T.dim, "RIGHT")
+  -- Every session, in the Ledger's Sessions sub-tab (owner, October 4).
+  f.sesAll = T:Button(f, "See all sessions", 116, function() ns:OpenLedgerTab("sessions") end, 18)
+  f.sesAll:GetFontString():SetFont(T.font, 11, "")
   f.sesCols = {}
   for i, c in ipairs(SESSION_COLS) do
     local fs = text(f, 11, T.dim, c[4])
@@ -588,8 +591,10 @@ function ns:RefreshDashboard(f)
   nextCard(sTop, sBottom, 0, W)
   T:StyleHeading(f.sesHead, "Sessions")
   place(f.sesHead, 12, sTop + 9)
+  f.sesAll:ClearAllPoints()
+  f.sesAll:SetPoint("TOPRIGHT", f, "TOPLEFT", W - 10, -(sTop + 6))
   f.sesNote:ClearAllPoints()
-  f.sesNote:SetPoint("TOPRIGHT", f, "TOPLEFT", W - 12, -(sTop + 9))
+  f.sesNote:SetPoint("RIGHT", f.sesAll, "LEFT", -10, 0)
   local gs = ns.SessionTotals and ns:SessionTotals()
   f.sesNote:SetText(gs and ("running: %d min, gold %s"):format(math.floor(gs.secs / 60), signed(gs.gained, true)) or "")
   local headY = sTop + 28
