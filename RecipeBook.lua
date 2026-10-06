@@ -135,7 +135,13 @@ local function captureTrainer()
   local profCount, tier = {}, nil
   local all = {}   -- everything read, for Training.lua (class and riding trainers)
   for i = 1, (GetNumTrainerServices() or 0) do
-    local service, sub, category = GetTrainerServiceInfo(i)
+    local service, second, third = GetTrainerServiceInfo(i)
+    -- Which value is the state ("available", "unavailable", "used", "header"): Forever
+    -- gives it second and the icon third (owner's /fl trainer, October 5: "Fire Ward
+    -- (available): 135806"); Classic gave the rank second and the state third.
+    local STATES = { available = true, unavailable = true, used = true, header = true }
+    local category = (STATES[second] and second) or (STATES[third] and third) or third
+    local sub = (STATES[second] and nil) or second
     if service and category ~= "header" then
       local reqName, skill = GetTrainerServiceSkillReq and GetTrainerServiceSkillReq(i)
       if reqName and reqName ~= "" then profCount[reqName] = (profCount[reqName] or 0) + 1 end
