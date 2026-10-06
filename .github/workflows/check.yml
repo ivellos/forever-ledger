@@ -9,7 +9,7 @@ on:
 
 jobs:
   lua-syntax:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest moves to Ubuntu 26 on October 19, 2026, which may drop lua5.1
     steps:
       - name: Get the code
         uses: actions/checkout@v4
