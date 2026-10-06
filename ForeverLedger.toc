@@ -35,6 +35,8 @@ Welcome.lua
 Sessions.lua
 Dungeons.lua
 Training.lua
+TrainerAdvice.lua
+TrainingPanel.lua
 Sync.lua
 Version.lua
 AuctionHouse.lua

@@ -42,6 +42,7 @@ function ns:TrainerRead(list, npc, npcID, prof)
     ns.db.trainers = ns.db.trainers or {}
     ns.db.trainers[class or "?"] = { t = time(), npc = npc, spells = spells }
     ns:Debug(("Training: %s teaches %d %s spells (%d services)."):format(npc or "?", n, class or "?", #list))
+    if ns.ShowTrainingAdvice then ns:ShowTrainingAdvice(list) end
   end
   if riding > 0 then ns:Debug(("Training: %d riding services seen at %s."):format(riding, npc or "?")) end
 end
@@ -55,6 +56,9 @@ ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
   local key = ns.CharKey()
   ns.db.casts[key] = ns.db.casts[key] or {}
   ns.db.casts[key][name] = time()
+  -- When counting began for this character: "not cast lately" needs a week of counting.
+  ns.db.castsSince = ns.db.castsSince or {}
+  ns.db.castsSince[key] = ns.db.castsSince[key] or time()
 end)
 
 function ns:LastCast(name, key)
@@ -322,7 +326,7 @@ local TREES = {
   PALADIN = { "Holy", "Protection", "Retribution" }, PRIEST = { "Discipline", "Holy", "Shadow" },
   ROGUE = { "Assassination", "Combat", "Subtlety" }, HUNTER = { "Beast Mastery", "Marksmanship", "Survival" },
   WARLOCK = { "Affliction", "Demonology", "Destruction" }, SHAMAN = { "Elemental", "Enhancement", "Restoration" },
-  DRUID = { "Balance", "Feral", "Restoration" },
+  DRUID = { "Balance", "Feral Combat", "Restoration" },
 }
 
 -- { names, points = { a, b, c } } or nil when talents can't be read.
