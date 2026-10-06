@@ -223,7 +223,7 @@ local function finderSettings()
 end
 
 -- Items to list: { id, ilvl, price, worth, profit, locked = skill needed or nil }.
-local function finderItems()
+function ns:DisenchantFinderItems()
   local s = finderSettings()
   local market = ns.db.prices[ns.MarketKey()] or {}
   local skill = ns.EnchantingSkill and ns.EnchantingSkill() or 0
@@ -241,14 +241,11 @@ local function finderItems()
       else
         local yield = ns:DisenchantYield(id)
         if yield and s.bands[yield.band] and s[yield.kind] then
-          local worth
-          for _, o in ipairs(ns:Options(id)) do
-            if o.kind == "disenchant" then worth = o.value; break end
-          end
+          local limit, worth = ns:DisenchantBuyLimit(id)
           local locked = skill < (yield.skill or 1) and yield.skill or nil
           local profit = worth and worth - rec.m or nil
           if not s.profitable or (profit and profit > 0) then
-            out[#out + 1] = { id = id, ilvl = ilvl, price = rec.m, worth = worth, profit = profit, locked = locked }
+            out[#out + 1] = { id = id, ilvl = ilvl, price = rec.m, worth = worth, profit = profit, locked = locked, max = limit }
           end
         end
       end
@@ -259,6 +256,34 @@ local function finderItems()
     return a.price < b.price
   end)
   return out, waiting
+end
+
+-- The list name describes the selected filter, including gaps between bands.
+function ns:DisenchantFinderListName()
+  local s, bands = finderSettings(), {}
+  for _, b in ipairs(ns.DISENCHANT_BANDS) do if s.bands[b.key] then bands[#bands + 1] = b.label end end
+  local kind = s.armor and s.weapon and "armor and weapons" or s.armor and "armor" or s.weapon and "weapons" or "no types"
+  return "Disenchant: item level " .. (#bands > 0 and table.concat(bands, ", ") or "none") .. " " .. kind
+    .. (s.profitable and " (worth disenchanting)" or "")
+end
+
+local function finderListOptions()
+  local opts, selected = { { value = "new", label = "New list: " .. ns:DisenchantFinderListName() } }, finder.target == "new"
+  for _, l in ipairs(ns:ShoppingLists()) do
+    if not l.countHave and not l.temp and not l.crateID and not l.anyPrice then
+      opts[#opts + 1] = { value = l, label = l.name }
+      if finder.target == l then selected = true end
+    end
+  end
+  if not selected then finder.target = "new" end
+  finder.pick:SetOptions(opts)
+  finder.pick:SetValue(finder.target)
+end
+local function addFinderRows(rows)
+  local list, err = ns:DisenchantToShoppingList(rows, finder.target ~= "new" and finder.target or nil, ns:DisenchantFinderListName())
+  if not list then ns:Print(err); return end
+  finder.target = list
+  finderListOptions()
 end
 
 -- The finder is one tab of the side panel beside the auction house (BuyQueue.lua), below
@@ -449,6 +474,16 @@ local function buildFinder(side)
   end
   y = y + 26
 
+  finder.target = "new"
+  finder.pick = T:Dropdown(finder, 230, function(value) finder.target = value end)
+  finder.pick:SetPoint("TOPLEFT", 12, -y)
+  finder.add = T:Button(finder, "Add to shopping list", 180, function() addFinderRows(finder.items or {}) end)
+  finder.add:SetPoint("TOPLEFT", finder.pick, "TOPRIGHT", 6, 0)
+  local note = T:Text(finder, 10, T.dim)
+  note:SetPoint("TOPLEFT", 12, -(y + 28))
+  note:SetText("Adds one of each shown item. Right-click a row to add only it.")
+  y = y + 50
+
   local header = CreateFrame("Frame", nil, finder)
   header:SetPoint("TOPLEFT", 6, -y)
   header:SetPoint("TOPRIGHT", -6, -y)
@@ -504,11 +539,16 @@ local function finderRow(i)
   r.price:SetPoint("RIGHT", r, "LEFT", 244, 0)
   r.worth:SetPoint("RIGHT", r, "LEFT", 314, 0)
   r.profit:SetPoint("RIGHT", r, "LEFT", 390, 0)
-  r:SetScript("OnClick", function(self) ns:SearchAuctionHouse(self.id) end)
+  r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  r:SetScript("OnClick", function(self, button)
+    if button == "RightButton" then addFinderRows({ self.item }) else ns:SearchAuctionHouse(self.id) end
+  end)
   r:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetItemByID(self.id)
     if self.locked then GameTooltip:AddLine(("Needs Enchanting %d to disenchant."):format(self.locked), 1, 0.4, 0.4) end
+    if self.item.max then GameTooltip:AddLine("Up to for disenchanting: " .. ns.Money(self.item.max), 1, 0.82, 0) end
+    GameTooltip:AddLine("Right-click to add one to the shopping list picked above. Any stat version will do.", 0.8, 0.8, 0.8, true)
     GameTooltip:AddLine("Click to search the auction house for it.", T.accent[1], T.accent[2], T.accent[3])
     GameTooltip:Show()
   end)
@@ -519,8 +559,12 @@ end
 
 function ns:RefreshDisenchantFinder()
   if not finder or not finder:IsShown() then return end
-  local items, waiting = finderItems()
+  local items, waiting = ns:DisenchantFinderItems()
   local n = math.min(#items, FINDER_ROWS)
+  finder.items = {}
+  for i = 1, n do finder.items[i] = items[i] end
+  finderListOptions()
+  finder.add:SetEnabled(n > 0)
   local width = finder.sf:GetWidth() - 12
   finder.content:SetWidth(width)
   for i = 1, n do
@@ -529,7 +573,7 @@ function ns:RefreshDisenchantFinder()
     r:SetPoint("TOPLEFT", finder.content, "TOPLEFT", 0, -(i - 1) * 20)
     r:SetWidth(width)
     r.stripe:SetShown(i % 2 == 0)
-    r.id, r.locked = it.id, it.locked
+    r.id, r.locked, r.item = it.id, it.locked, it
     r.icon:SetTexture(ns:ItemIcon(it.id))
     r.name:SetText(("%s |cff888888(%d)|r"):format(ns.ItemName(it.id), it.ilvl or 0))
     r.price:SetText(ns.Money(it.price))
@@ -547,7 +591,7 @@ function ns:RefreshDisenchantFinder()
   if next(finderSettings().bands) == nil then
     finder.count:SetText("No item levels picked: choose some under Item levels.")
   else
-    finder.count:SetText(("%d items%s"):format(#items, waiting > 0 and (", %d still loading"):format(waiting) or ""))
+    finder.count:SetText(("%d items%s%s"):format(#items, #items > n and (", first %d shown/added"):format(n) or "", waiting > 0 and (", %d still loading"):format(waiting) or ""))
   end
 end
 

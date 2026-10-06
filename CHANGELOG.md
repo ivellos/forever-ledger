@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Add the Disenchant finder's filtered rows, or one row by right-click, to a regular shopping list with refreshable disenchant buying limits. Typed prices stay protected; lower them for a bigger margin.
 - Training advice: beside your class trainer, what you can learn now in Must have / Nice to have / Skip while levelling, with costs and the reason on hover; it follows the tree your talent points are in and the spells you actually cast (Settings, Global settings, Advanced).
 - Dashboard: a riding fund, until the character knows riding (then epic riding): training plus a mount (90g + about 10g at 40, 900g + about 100g at 60; training as seen at a riding trainer), your gold toward it and about how many days at your pace. Settings, Global settings, Advanced turns it off; Hide here hides it on one character (`/fl fund` shows it again).
 - Groundwork for "skip spell ranks you don't use": the spells each character casts, and what class and riding trainers teach, are saved; `/fl trainer` lists the last trainer's spells with rank, cost and level. `/fl api` checks talents and riding.
