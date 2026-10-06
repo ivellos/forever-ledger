@@ -2157,7 +2157,12 @@ local function listRow(i)
       text = list.matMax and list.matMax[r.mat.id] and "Set by you. This price is never changed automatically."
         or ("Usual price + %g%% (this list's allowance). Refreshed when buying is switched on or on Buy again."):format((list.matAllowance or {})[r.mat.id] or ns:ListAllowance(list))
     end
-    if text then GameTooltip:AddLine("Right-click: use the automatic price.", 0.8, 0.8, 0.8, true); GameTooltip:AddLine(text, 0.8, 0.8, 0.8, true) end
+    -- Who set it, as its own gold line (owner, October 6: "Set by you" blended in).
+    local mine = (r.kind == "item" and r.entry.src == "you") or (r.kind == "mat" and list.matMax and list.matMax[r.mat.id] ~= nil)
+    GameTooltip:AddLine(mine and "Set by you" or "Automatic", 1, 0.82, 0)
+    if text then GameTooltip:AddLine((text:gsub("^Set by you%. ", "")), 0.8, 0.8, 0.8, true) end
+    if not mine then GameTooltip:AddLine("Type a price to set your own.", 0.6, 0.6, 0.6, true)
+    elseif r.kind == "mat" then GameTooltip:AddLine("Right-click: back to the automatic price.", 0.6, 0.6, 0.6, true) end
     GameTooltip:Show()
   end)
   r.max:SetWidth(66)
@@ -2282,7 +2287,8 @@ end
 
 local function nowText(id, limit, vendor)
   -- Vendor supplies show their fixed price instead of an auction quote.
-  if vendor then return "|cff888888Vendor: " .. shortMoney(vendor) .. "|r" end
+  -- (Up to already says "vendor"; "Vendor: 1s" here ran into Have: owner, October 6.)
+  if vendor then return "|cff888888" .. shortMoney(vendor) .. "|r" end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   if rec and rec.none then return "|cff888888none|r", false end
   if rec and rec.m then
@@ -2504,7 +2510,8 @@ refreshLists = function()
       r.maxText:SetText(craft and "crafted" or vendor and (ns.db.settings.vendorItemsAH and shortMoney(limit or 0) or "vendor") or "any")
       if not craft and not r.max:HasFocus() then
         r.max:SetValue(e.max or 0)
-        r.max:SetTextColor(1, 1, 1, 1)   -- (a material row may have greyed this box)
+        -- Gold when you typed it, white when automatic (owner, October 6).
+        if e.src == "you" then r.max:SetTextColor(1, 0.82, 0, 1) else r.max:SetTextColor(1, 1, 1, 1) end
       end
       if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
       -- Have: bought for this list (yellow, green once its Want is bought), then what
@@ -2542,7 +2549,7 @@ refreshLists = function()
       r.maxText:SetText(m.vendor and (m.vendorAH and shortMoney(m.limit or 0) or "vendor") or "any")
       if not m.vendor and not list.anyPrice and not r.max:HasFocus() then
         r.max:SetValue(m.own == "any" and -1 or m.limit or 0)
-        r.max:SetTextColor(1, 1, 1, m.own and 1 or 0.55)   -- grey: the usual price, not one you typed
+        if m.own == true then r.max:SetTextColor(1, 0.82, 0, 1) else r.max:SetTextColor(1, 1, 1, 0.55) end   -- gold: yours; grey: the usual price
       end
       -- Want column: how many are needed. Have: bought for this list (crate lists: what
       -- you have), yellow while short, green when enough, then what you own in brackets.

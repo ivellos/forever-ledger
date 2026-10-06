@@ -42,6 +42,14 @@ end
 
 function ns:NewShoppingList(name)
   local d = data()
+  -- A name already used gets "(2)", "(3)" (owner, October 6: two lists both called
+  -- "Bolt of Woolen Cloth").
+  local function taken(n) for _, l in ipairs(d.lists) do if l.name == n then return true end end end
+  if name and taken(name) then
+    local i = 2
+    while taken(("%s (%d)"):format(name, i)) do i = i + 1 end
+    name = ("%s (%d)"):format(name, i)
+  end
   -- Not in the buy queue until you tick it (owner, October 2).
   d.lists[#d.lists + 1] = { name = name, on = false, allowance = 10, items = {} }
   d.current = #d.lists
