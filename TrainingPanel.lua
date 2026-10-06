@@ -13,8 +13,8 @@ local WEEK = 7 * 86400
 local panel
 
 local GROUPS = {
-  { key = "train", title = "Train", color = "7fd39c" },
-  { key = "choice", title = "Your choice", color = "e8c27a" },
+  { key = "train", title = "Must have", color = "7fd39c" },
+  { key = "choice", title = "Nice to have", color = "e8c27a" },
   { key = "skip", title = "Skip while levelling", color = "ee8597" },
   { key = "unknown", title = "Not reviewed yet", color = "999999" },
 }

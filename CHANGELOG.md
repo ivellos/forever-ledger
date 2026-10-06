@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Training advice: beside your class trainer, what you can learn now in Train / Your choice / Skip while levelling, with costs and the reason on hover; it follows the tree your talent points are in and the spells you actually cast (Settings, Global settings, Advanced).
+- Training advice: beside your class trainer, what you can learn now in Must have / Nice to have / Skip while levelling, with costs and the reason on hover; it follows the tree your talent points are in and the spells you actually cast (Settings, Global settings, Advanced).
 - Dashboard: a riding fund, until the character knows riding (then epic riding): training plus a mount (90g + about 10g at 40, 900g + about 100g at 60; training as seen at a riding trainer), your gold toward it and about how many days at your pace. Settings, Global settings, Advanced turns it off; Hide here hides it on one character (`/fl fund` shows it again).
 - Groundwork for "skip spell ranks you don't use": the spells each character casts, and what class and riding trainers teach, are saved; `/fl trainer` lists the last trainer's spells with rank, cost and level. `/fl api` checks talents and riding.
 - Shuffles and vendor flips: Add to shopping list puts the chosen amount and buying limits into an existing list or a new one named after the shuffle, preserving bought counts and typed prices.
