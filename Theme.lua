@@ -467,7 +467,7 @@ local function shortPrice(c)
   end
   if c < 1000000 then
     local g, s = math.floor(c / 10000), math.floor(c % 10000 / 100)
-    return s > 0 and (g .. "g " .. s .. "s") or (g .. "g")
+    return s > 0 and (g .. "g" .. s .. "s") or (g .. "g")
   end
   return math.floor(c / 10000) .. "g"
 end
@@ -687,7 +687,11 @@ function T:Dropdown(parent, width, onChange)
   local arrow = T:Text(d, 11, T.dim)
   arrow:SetPoint("RIGHT", -6, 0)
   arrow:SetText("v")
-  local menu = CreateFrame("Frame", nil, d)
+  -- On the screen, not inside the dropdown's parent: a dropdown low in a scroll area had
+  -- its list cut off at the area's edge (owner's screenshot, October 5, Shuffles' list
+  -- picker). Kept on screen, at the window's Size (scale set when opened).
+  local menu = CreateFrame("Frame", nil, UIParent)
+  menu:SetClampedToScreen(true)
   menu:SetPoint("TOPLEFT", d, "BOTTOMLEFT", 0, -2)
   menu:SetWidth(width)
   menu:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -765,6 +769,7 @@ function T:Dropdown(parent, width, onChange)
   end
   d:SetScript("OnClick", function()
     if menu:IsShown() then menu:Hide(); return end
+    menu:SetScale(d:GetEffectiveScale() / UIParent:GetEffectiveScale())
     fill()
     menu:SetFrameStrata("FULLSCREEN_DIALOG")   -- (a parent's layer change resets it)
     menu:Show()
@@ -792,7 +797,11 @@ function T:MultiDropdown(parent, width, onChange)
   local arrow = T:Text(d, 11, T.dim)
   arrow:SetPoint("RIGHT", -6, 0)
   arrow:SetText("v")
-  local menu = CreateFrame("Frame", nil, d)
+  -- On the screen, not inside the dropdown's parent: a dropdown low in a scroll area had
+  -- its list cut off at the area's edge (owner's screenshot, October 5, Shuffles' list
+  -- picker). Kept on screen, at the window's Size (scale set when opened).
+  local menu = CreateFrame("Frame", nil, UIParent)
+  menu:SetClampedToScreen(true)
   menu:SetPoint("TOPLEFT", d, "BOTTOMLEFT", 0, -2)
   menu:SetWidth(math.max(width, 190))
   menu:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -867,6 +876,7 @@ function T:MultiDropdown(parent, width, onChange)
   end
   d:SetScript("OnClick", function()
     if menu:IsShown() then menu:Hide(); return end
+    menu:SetScale(d:GetEffectiveScale() / UIParent:GetEffectiveScale())
     fill()
     menu:SetFrameStrata("FULLSCREEN_DIALOG")   -- (a parent's layer change resets it)
     menu:Show()

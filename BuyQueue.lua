@@ -1577,7 +1577,8 @@ end
 -- Want shows up to four digits (9999): a narrow box showed one digit of a bigger
 -- number, so 9999 looked like 9 and the queue rightly bought for 9999 (owner's test,
 -- October 3; the 601 Strange Dust before it was the same).
-local C = { name = 22, get = 154, max = 210, want = 268, have = 372, now = 416, x = 420 }
+-- Up to wider (owner's screenshot, October 5: 1g 20s showed as "20s", cut off).
+local C = { name = 22, get = 144, max = 198, want = 268, have = 372, now = 416, x = 420 }
 -- Not buying: Item, Checked, Listed, Have, Cheapest (at C.now).
 local SC = { checked = 190, listed = 292, have = 350 }
 
@@ -2139,7 +2140,7 @@ local function listRow(i)
     if text then GameTooltip:AddLine(text, 0.8, 0.8, 0.8, true) end
     GameTooltip:Show()
   end)
-  r.max:SetWidth(54)
+  r.max:SetWidth(66)
   r.max.compact = true   -- "123g" while not typing in it; exact when you click in or hover
   r.max:SetPoint("LEFT", C.max, 0)
   r.maxText = T:Text(r, 11, T.section)
