@@ -1449,6 +1449,10 @@ function ns:RefreshQueueView()
     if ns.RefreshListsView then ns:RefreshListsView() end   -- (Search all's progress)
   end)
 end
+function ns:RebuildBuyQueue()
+  Q.built = 0
+  if rebuildNow then rebuildNow() end
+end
 function ns:SidePanelDocked() return side and side:IsShown() and not side.floating or false end
 
 -- The panel's scan buttons follow what's running.
@@ -1470,8 +1474,8 @@ function ns:SearchQueueLists()
   for _, l in ipairs(ns:ShoppingLists()) do
     if l.on then
       names[#names + 1] = l.name
-      for _, e in ipairs(l.items) do if e.mode ~= "craft" then add(e.id) end end
-      for _, m in ipairs((ns:ListMaterials(l))) do if not m.vendor then add(m.id) end end
+      for _, e in ipairs(l.items) do if e.mode ~= "craft" and (not ns:ListVendorPrice(e.id) or ns.db.settings.vendorItemsAH) then add(e.id) end end
+      for _, m in ipairs((ns:ListMaterials(l))) do if not m.vendor or m.vendorAH then add(m.id) end end
     end
   end
   if #ids == 0 then
@@ -2125,6 +2129,22 @@ local function listRow(i)
     unpark({ (r.kind == "item" and r.entry.id) or (r.mat and r.mat.id) })
   end, "g", true)
   r.max.confirmSame = true
+  r.max:HookScript("OnMouseDown", function(self, button)
+    if button ~= "RightButton" then return end
+    local list = currentList()
+    if not list then return end
+    self:ClearFocus()
+    if r.kind == "item" then ns:UseAutomaticListItemPrice(list, r.entry)
+    elseif r.kind == "mat" then
+      if list.matMax then list.matMax[r.mat.id] = nil end
+      list.matUsual, list.matAllowance = list.matUsual or {}, list.matAllowance or {}
+      list.matUsual[r.mat.id] = ns:UsualListPrice(list, r.mat.id) or 0
+      list.matAllowance[r.mat.id] = ns:ListAllowance(list)
+    end
+    Q.built = 0
+    unpark({ r.kind == "item" and r.entry.id or r.mat.id })
+    refreshLists()
+  end)
   r.max:HookScript("OnEnter", function(self)
     local list = currentList()
     if not list then return end
@@ -2137,7 +2157,7 @@ local function listRow(i)
       text = list.matMax and list.matMax[r.mat.id] and "Set by you. This price is never changed automatically."
         or ("Usual price + %g%% (this list's allowance). Refreshed when buying is switched on or on Buy again."):format((list.matAllowance or {})[r.mat.id] or ns:ListAllowance(list))
     end
-    if text then GameTooltip:AddLine(text, 0.8, 0.8, 0.8, true) end
+    if text then GameTooltip:AddLine("Right-click: use the automatic price.", 0.8, 0.8, 0.8, true); GameTooltip:AddLine(text, 0.8, 0.8, 0.8, true) end
     GameTooltip:Show()
   end)
   r.max:SetWidth(66)
@@ -2261,8 +2281,8 @@ local function shortMoney(c)
 end
 
 local function nowText(id, limit, vendor)
-  -- "vendor" is already in the Up to column; here just the price, grey.
-  if vendor then return "|cff888888" .. shortMoney(vendor) .. "|r" end
+  -- Vendor supplies show their fixed price instead of an auction quote.
+  if vendor then return "|cff888888Vendor: " .. shortMoney(vendor) .. "|r" end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   if rec and rec.none then return "|cff888888none|r", false end
   if rec and rec.m then
@@ -2291,7 +2311,7 @@ local function estimateText(list)
     end
   end
   for _, m in ipairs((ns:ListMaterials(list))) do
-    if m.buy > 0 and not m.vendor then add(m.id, m.buy) end
+    if m.buy > 0 and (not m.vendor or m.vendorAH) then add(m.id, m.buy) end
   end
   if total <= 0 then return "" end
   return ("About %s to buy the rest%s. "):format(ns.Money(total),
@@ -2450,7 +2470,7 @@ refreshLists = function()
       r.icon:SetDesaturated(not up)
       r.name:SetText(up and ns:ListEntryName(e) or ("|cff888888" .. ns:ListEntryName(e) .. "|r"))
       r.listed:SetText(listed == nil and "|cff888888?|r" or up and ("|cffffffff" .. listed .. "|r") or "|cff8888880|r")
-      r.now:SetText(up and min and ("|cff7fd39c" .. shortMoney(min) .. "|r") or "|cff888888-|r")
+      r.now:SetText(ns:ListVendorPrice(e.id) and nowText(e.id, nil, ns:ListVendorPrice(e.id)) or (up and min and ("|cff7fd39c" .. shortMoney(min) .. "|r") or "|cff888888-|r"))
       -- Search all under way: this row is being checked, or waits its turn.
       local status = ns.SearchAllStatus and ns:SearchAllStatus(e)
       if status == "checking" then
@@ -2478,9 +2498,10 @@ refreshLists = function()
       r.kindText:SetText("Buy")
       -- Up to: the most to pay for one ("off": not bought).
       local limit = ns:ItemLimit(list, e)
-      r.max:SetShown(not craft and not list.anyPrice)
-      r.maxText:SetShown(craft or list.anyPrice)
-      r.maxText:SetText(craft and "crafted" or "any")
+      local vendor = not craft and ns:ListVendorPrice(e.id)
+      r.max:SetShown(not craft and not vendor and not list.anyPrice)
+      r.maxText:SetShown(craft or vendor ~= nil or list.anyPrice)
+      r.maxText:SetText(craft and "crafted" or vendor and (ns.db.settings.vendorItemsAH and shortMoney(limit or 0) or "vendor") or "any")
       if not craft and not r.max:HasFocus() then
         r.max:SetValue(e.max or 0)
         r.max:SetTextColor(1, 1, 1, 1)   -- (a material row may have greyed this box)
@@ -2506,7 +2527,7 @@ refreshLists = function()
       elseif status then
         r.now:SetText(status == "checking" and (T:AccentCode() .. "checking|r") or "|cff888888in line|r")
       else
-        local text, ok = nowText(e.id, not craft and limit or nil)
+        local text, ok = nowText(e.id, not craft and limit or nil, vendor)
         r.now:SetText(text)
         if ok then cheap = cheap + 1 end
       end
@@ -2518,7 +2539,7 @@ refreshLists = function()
       r.kindText:SetText("for craft")
       r.max:SetShown(not m.vendor and not list.anyPrice)
       r.maxText:SetShown(m.vendor ~= nil or list.anyPrice)
-      r.maxText:SetText(m.vendor and "vendor" or "any")
+      r.maxText:SetText(m.vendor and (m.vendorAH and shortMoney(m.limit or 0) or "vendor") or "any")
       if not m.vendor and not list.anyPrice and not r.max:HasFocus() then
         r.max:SetValue(m.own == "any" and -1 or m.limit or 0)
         r.max:SetTextColor(1, 1, 1, m.own and 1 or 0.55)   -- grey: the usual price, not one you typed
@@ -2535,7 +2556,7 @@ refreshLists = function()
         or (status == "checking" and (T:AccentCode() .. "checking|r"))
         or (status == "waiting" and "|cff888888in line|r")
         or (nowText(m.id, m.limit, m.vendor)))
-      if m.buy > 0 and not m.vendor then toBuy = toBuy + 1 end
+      if m.buy > 0 and (not m.vendor or m.vendorAH) then toBuy = toBuy + 1 end
     else
       r.head:SetText(s.text)
       r.head:SetFont(T.font, s.kind == "head" and 12 or 11, "")
@@ -2598,7 +2619,7 @@ refreshLists = function()
     -- Items at "off" aren't bought; say so, and how to change it.
     local noPrice = 0
     for _, e in ipairs(list.items) do
-      if e.mode ~= "craft" and not ns:ItemLimit(list, e) then noPrice = noPrice + 1 end
+      if e.mode ~= "craft" and not ns:ListVendorPrice(e.id) and not ns:ItemLimit(list, e) then noPrice = noPrice + 1 end
     end
     if noPrice > 0 then
       v.info:SetText(("%d %s Up to off, so the queue skips %s: type a price to buy %s."):format(noPrice,
