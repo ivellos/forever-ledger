@@ -388,6 +388,19 @@ function ns:BuyAtOrBelow(id)
   end
 end
 
+-- The finder and its saved shopping source use the disenchant route specifically,
+-- even when selling/crafting the gear would be worth more. Copper limits round down.
+function ns:DisenchantBuyLimit(id, source)
+  local yield = ns:DisenchantYield(id)
+  if not yield or (source and (source.id ~= id or source.band ~= yield.band or source.kind ~= yield.kind)) then return end
+  for _, o in ipairs(ns:Options(id)) do
+    if o.kind == "disenchant" then
+      local cap = math.floor(o.value * (1 - (ns.db.settings.margin or 10) / 100))
+      return cap > 0 and cap or nil, o.value, yield
+    end
+  end
+end
+
 -- Every option for an item, best first.
 function ns:Options(id)
   if not id or not ns.db then return {} end

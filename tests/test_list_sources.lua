@@ -130,7 +130,7 @@ T.test("Schema 6 protects every legacy nonzero limit and explicit off", function
   ForeverLedgerDB = db; ns.accountSettings = nil
   local real = hooksecurefunc; hooksecurefunc = function() end
   T.fire("ADDON_LOADED", "ForeverLedger"); hooksecurefunc = real
-  T.eq(ns.db.schema, 6); T.eq(l.allowance, 10)
+  T.eq(ns.db.schema, 7); T.eq(l.allowance, 10)
   T.eq(l.items[1].src, "you"); T.eq(l.items[2].src, "you")
   T.eq(l.items[3].src, "usual"); T.eq(l.items[4].src, "you")
   ns:FillUsualPrices(l)

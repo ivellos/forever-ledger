@@ -14,7 +14,8 @@ local _, ns = ...
 -- Saved in ns.db.shopping = { lists = { { name, on, anyPrice, countHave, items = { { id, max,
 --   qty, suffix, found, mode, bought, done, src, shuffleName, shuffles } } } }, current, oneKind }
 -- allowance: percent over the usual price (default 10) for hand-added items.
--- src: shuffle / usual / you. shuffles[key] = { id, route, name, cap }; the lowest
+-- src: shuffle / disenchant / usual / you. disenchant = { id, band, kind, cap }.
+-- shuffles[key] = { id, route, name, cap }; the lowest
 -- route cap wins. Typed prices always win. matUsual snapshots automatic Craft limits.
 -- on: buying from it in the Buy queue.
 -- max: copper, 0 = no limit set (not bought by the queue), -1 = any price.
@@ -174,8 +175,8 @@ function ns:ShuffleToShoppingList(s, list, runs)
     e.shuffles = e.shuffles or {}
     e.shuffles[source.key] = { id = source.id, route = source.route, name = source.name, cap = b.max }
     if sourceOf(e) ~= "you" then
-      e.src = "shuffle"
-      shuffleLimit(e)
+      e.max, e.src = ns:AutomaticListItemPrice(list, e)
+      if e.src == "shuffle" then shuffleLimit(e) end
     end
     if completed then e.bought = completed end
     e.done = nil   -- explicit additional purchases; bought and typed off stay
@@ -183,6 +184,56 @@ function ns:ShuffleToShoppingList(s, list, runs)
   for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i); break end end
   ns:Print(("Added %d %s for %s to shopping list \"%s\". Check Want and Up to there; tick Buy from this list in the Buy queue when ready (/fl lists)."):format(
     #buys, #buys == 1 and "item" or "items", ns:ShuffleName(s), list.name))
+  if ns.RefreshListsView then ns:RefreshListsView() end
+  return list
+end
+
+-- One purchase of each finder row. Validate everything before changing the list;
+-- filters choose the items, not a rule that silently adds future scan results.
+function ns:DisenchantToShoppingList(rows, list, name)
+  if not rows or #rows == 0 then return nil, "No items shown: choose filters and scan first." end
+  if list then
+    local exists = false
+    for _, l in ipairs(ns:ShoppingLists()) do if l == list then exists = true end end
+    if not exists then return nil, "That list was removed. Choose another one." end
+    if list.countHave or list.temp or list.crateID or list.anyPrice then
+      return nil, "Choose a regular list without Any price, or make a new one."
+    end
+  end
+  if ns.InvalidateValues then ns:InvalidateValues(true) end
+  local buys, seen = {}, {}
+  for _, row in ipairs(rows) do
+    local id = row.id
+    local cap, worth, yield
+    if id then cap, worth, yield = ns:DisenchantBuyLimit(id) end
+    if not cap then return nil, "A disenchant buying limit is missing for " .. (id and ns.ItemName(id) or "this item") .. ". Check Enchanting and material prices, then refresh the finder." end
+    for _, e in ipairs(list and list.items or {}) do
+      if e.id == id and not e.suffix and e.mode == "craft" then
+        return nil, "This list crafts one of these items. Choose another list, or make a new one."
+      end
+    end
+    if not seen[id] then
+      seen[id] = true
+      buys[#buys + 1] = { id = id, band = yield.band, kind = yield.kind, cap = cap }
+    end
+  end
+  list = list or ns:NewShoppingList(name or "Disenchant")
+  for _, source in ipairs(buys) do
+    local old
+    for _, e in ipairs(list.items) do if e.id == source.id and not e.suffix then old = e; break end end
+    local completed = old and old.done and math.max(old.bought or 0, old.qty or 1)
+    local e = ns:AddToShoppingList(list, source.id, nil, (old and (old.qty or 1) or 0) + 1)
+    e.disenchant = source
+    if sourceOf(e) ~= "you" then
+      e.max, e.src = ns:AutomaticListItemPrice(list, e)
+      if e.src == "shuffle" then shuffleLimit(e) end
+    end
+    if completed then e.bought = completed end
+    e.done = nil
+  end
+  for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i); break end end
+  ns:Print(("Added %d %s to shopping list \"%s\" for disenchanting. Check Want and Up to; buying stays as you set it (/fl lists)."):format(
+    #buys, #buys == 1 and "item" or "items", list.name))
   if ns.RefreshListsView then ns:RefreshListsView() end
   return list
 end
@@ -749,6 +800,13 @@ function ns:RefreshListPrices(list)
       end
       if sourceOf(e) == "shuffle" then shuffleLimit(e) end
     end
+    if e.disenchant then
+      e.disenchant.cap = ns:DisenchantBuyLimit(e.id, e.disenchant) or 0
+    end
+    if sourceOf(e) ~= "you" and (e.disenchant or next(e.shuffles or {})) then
+      e.max, e.src = ns:AutomaticListItemPrice(list, e)
+      if e.src == "shuffle" then shuffleLimit(e) end
+    end
   end
   return n
 end
@@ -757,6 +815,9 @@ end
 function ns:AutomaticListItemPrice(list, e)
   local cap
   for _, source in pairs(e.shuffles or {}) do cap = math.min(cap or math.huge, source.cap or 0) end
+  if e.disenchant and (cap == nil or (e.disenchant.cap or 0) <= cap) then
+    return e.disenchant.cap or 0, "disenchant"
+  end
   if cap ~= nil then return cap, "shuffle" end
   return ns:UsualListPrice(list, e.id) or 0, "usual"
 end
@@ -765,17 +826,24 @@ function ns:UseAutomaticListItemPrice(list, e)
   ns:RefreshListPrices({ items = { e }, allowance = list.allowance, countHave = list.countHave, temp = list.temp, crateID = list.crateID })
   e.max, e.src = ns:AutomaticListItemPrice(list, e)
   e.offSet = nil
-  if e.src == "shuffle" then shuffleLimit(e) else e.usualAllowance = ns:ListAllowance(list) end
+  if e.src == "shuffle" then shuffleLimit(e) elseif e.src == "usual" then e.usualAllowance = ns:ListAllowance(list) end
 end
 function ns:AutomaticListItemPriceText(list, e)
   local value, source = ns:AutomaticListItemPrice(list, e)
-  return source == "shuffle" and ("shuffle " .. ns.Money(value))
+  return source == "disenchant" and ("disenchant " .. ns.Money(value))
+    or source == "shuffle" and ("shuffle " .. ns.Money(value))
     or ("usual + %g%%: %s"):format(ns:ListAllowance(list), ns.Money(value))
 end
 
 function ns:ListPriceSourceText(list, e)
   local src = sourceOf(e)
   if src == "you" then return "Set by you. This price is never changed automatically. Automatic: " .. ns:AutomaticListItemPriceText(list, e) .. ". Right-click Up to to use the automatic price." end
+  if src == "disenchant" then
+    local s = e.disenchant or {}
+    local band
+    for _, b in ipairs(ns.DISENCHANT_BANDS or {}) do if b.key == s.band then band = b.label; break end end
+    return ("From disenchanting: item level %s %s. Uses the finder's disenchant buying limit after the safety margin, not this list's usual-price allowance. Refreshed when added again, on Buy again or by right-clicking Up to. Type a lower price for a bigger margin."):format(band or "?", s.kind == "weapon" and "weapons" or "armor")
+  end
   if src == "shuffle" then
     local details = {}
     for _, s in pairs(e.shuffles or {}) do

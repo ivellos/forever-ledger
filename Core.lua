@@ -10,7 +10,7 @@ end
 ns.PREFIX = "|cffb9a2ffForever Ledger:|r"
 
 local DEFAULTS = {
-  schema = 6,
+  schema = 7,
   chars = {},       -- [charKey] = { name, realm, class, level, faction, updated, profs = { [profName] = { rank, max, updated, recipes = {...} } } }
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
@@ -493,6 +493,9 @@ ns:On("ADDON_LOADED", function(name)
     end
     ForeverLedgerDB.schema = 6
   end
+  -- Schema 7 adds an optional disenchant source to shopping entries. Existing limits
+  -- and their provenance remain unchanged; no old entry becomes a DE purchase.
+  if ForeverLedgerDB.schema < 7 then ForeverLedgerDB.schema = 7 end
   -- Settings per character (below): while a character used its own, the shared settings
   -- were also kept under settingsAccount. If the game ever saved the stand-in instead of
   -- the real table, this brings them back.
