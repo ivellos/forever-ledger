@@ -36,13 +36,16 @@ T.test("Spells not in the list are marked not reviewed", function()
   T.eq((ns:SpellAdvice("Felfire")), "unknown")
 end)
 
-T.test("A known spell not cast for a week becomes your choice", function()
+T.test("Higher ranks follow the spell's rank rule", function()
   asTree("Frost")
   local key = ns.CharKey()
   ns.db.castsSince = { [key] = time() - 10 * 86400 }
-  ns.db.casts = { [key] = { ["Frostbolt"] = time() - 9 * 86400 } }
-  T.eq((ns:SpellAdvice("Frostbolt", true)), "choice")
-  ns.db.casts[key]["Frostbolt"] = time() - 3600
-  T.eq((ns:SpellAdvice("Frostbolt", true)), "train", "cast an hour ago")
+  ns.db.casts = { [key] = { ["Frostbolt"] = time() - 9 * 86400, ["Blizzard"] = time() - 9 * 86400 } }
+  T.eq((ns:SpellAdvice("Frostbolt", true)), "train", "keep current: always")
+  T.eq((ns:SpellAdvice("Blizzard", true)), "choice", "upgrade if used: not cast for a week")
+  ns.db.casts[key]["Blizzard"] = time() - 3600
+  T.eq((ns:SpellAdvice("Blizzard", true)), "train", "cast an hour ago")
+  T.eq((ns:SpellAdvice("Polymorph", true)), "choice", "learn once: you have it")
+  T.eq((ns:SpellAdvice("Polymorph", false)), "train", "learn once: first rank")
   ns.db.castsSince, ns.db.casts = nil, nil
 end)

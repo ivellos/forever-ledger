@@ -48,15 +48,28 @@ function ns:SpellAdvice(name, knowsLower)
     group = "skip"
   end
   if a.k then why[#why + 1] = a.k end
-  -- Spells you know but haven't cast in a week (after a week of counting): a higher rank
-  -- of something you don't use can wait.
-  local key = ns.CharKey()
-  local since = ns.db.castsSince and ns.db.castsSince[key]
-  if group == "train" and knowsLower and since and time() - since > WEEK then
+  -- A higher rank of a spell you know (owner, October 5: is a higher Polymorph worth it?),
+  -- by the spell's rank rule (Codex's research): current = keep every rank (main
+  -- attacks, upkeep); learn = the first rank does the job; used = upgrade only if you
+  -- cast it (after a week of counting your casts).
+  if group == "train" and knowsLower then
+    local key = ns.CharKey()
+    local since = ns.db.castsSince and ns.db.castsSince[key]
+    local counted = since and time() - since > WEEK
     local last = ns.LastCast and ns:LastCast(name)
-    if not last or time() - last > WEEK then
+    local castLately = last and time() - last <= WEEK
+    if a.p == "learn" then
       group = "choice"
-      why[#why + 1] = "You haven't cast it in the last week, so a higher rank can wait."
+      why[#why + 1] = "You have it already, and the first rank does the job; a higher rank mostly lasts longer or reaches further. Buy it when you have gold to spare."
+    elseif a.p == "used" or a.p == "defer" then
+      if counted and not castLately then
+        group = "choice"
+        why[#why + 1] = "Upgrade it only while you use it: you haven't cast it in the last week."
+      else
+        why[#why + 1] = "Worth upgrading while you use it."
+      end
+    elseif a.p == "current" then
+      why[#why + 1] = "Keep it current: the old rank falls behind as you level."
     end
   end
   return group, why
@@ -120,22 +133,21 @@ end
 function ns:ShowTrainingAdvice(list)
   if ns.db.settings.trainerAdvice == false or not T then return end   -- (no Theme in the tests)
   if not panel then build() end
-  -- Ranks per spell (by level, Forever gives no rank), and which you know already.
-  local byName, known = {}, {}
+  -- What you know, from the spellbook ("Rank 3"): the trainer list in Forever starts
+  -- around level 20, so counting its entries gave every spell "rank 1" (owner's
+  -- screenshot, October 5). Known ones are upgrades; the rest are new.
+  local book = ns.KnownSpellRanks and ns:KnownSpellRanks() or {}
   for _, s in ipairs(list) do
-    byName[s.name] = byName[s.name] or {}
-    table.insert(byName[s.name], s.level or 0)
-    if s.state == "used" then known[s.name] = true end
+    if s.state == "used" and not book[s.name] then book[s.name] = 0 end
   end
-  for _, levels in pairs(byName) do table.sort(levels) end
   local groups, cost, total = {}, {}, 0
   for _, g in ipairs(GROUPS) do groups[g.key], cost[g.key] = {}, 0 end
   for _, s in ipairs(list) do
     if s.state == "available" then
-      local group, why = ns:SpellAdvice(s.name, known[s.name])
-      local rank
-      for i, lv in ipairs(byName[s.name]) do if lv == (s.level or 0) then rank = i end end
-      table.insert(groups[group], { s = s, why = why, rank = rank })
+      local knownRank = book[s.name]
+      local group, why = ns:SpellAdvice(s.name, knownRank ~= nil)
+      local tag = (knownRank == nil and "new") or (knownRank > 0 and ("rank " .. (knownRank + 1))) or "upgrade"
+      table.insert(groups[group], { s = s, why = why, tag = tag })
       cost[group] = cost[group] + (s.cost or 0)
       total = total + (s.cost or 0)
     end
@@ -163,7 +175,7 @@ function ns:ShowTrainingAdvice(list)
         r:ClearAllPoints()
         r:SetPoint("TOPLEFT", 10, -y)
         r:SetPoint("RIGHT", panel.content, "RIGHT", 0, 0)
-        r.text:SetText(e.s.name .. (e.rank and ("  |cff888888rank " .. e.rank .. "|r") or ""))
+        r.text:SetText(e.s.name .. "  |cff888888" .. e.tag .. "|r")
         r.cost:SetText(ns.Money(e.s.cost or 0))
         r.why, r.spell = e.why, e.s.name
         r:Show()

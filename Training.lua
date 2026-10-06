@@ -127,6 +127,37 @@ function ns:SpellbookRiding()
   return ok and found or {}
 end
 
+-- The spells you know, by name, with the highest rank number the spellbook shows ("Rank 3"
+-- under the name; 0 when it shows none). The trainer list in Forever only goes back to
+-- about level 20, so the ranks you know come from here (owner's screenshot, October 5:
+-- the panel said "rank 1" for Frostbolt, really rank 4).
+function ns:KnownSpellRanks()
+  local known = {}
+  local function add(name, sub)
+    if not name then return end
+    local r = tonumber(type(sub) == "string" and sub:match("(%d+)") or "") or 0
+    known[name] = math.max(known[name] or 0, r)
+  end
+  local SB = C_SpellBook
+  pcall(function()
+    if SB and SB.GetNumSpellBookSkillLines and SB.GetSpellBookSkillLineInfo and SB.GetSpellBookItemName then
+      local bank = Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+      for i = 1, SB.GetNumSpellBookSkillLines() or 0 do
+        local info = SB.GetSpellBookSkillLineInfo(i)
+        for j = (info and info.itemIndexOffset or 0) + 1, (info and (info.itemIndexOffset + info.numSpellBookItems) or 0) do
+          add(SB.GetSpellBookItemName(j, bank))
+        end
+      end
+    elseif GetNumSpellTabs and GetSpellTabInfo and GetSpellBookItemName then
+      for i = 1, GetNumSpellTabs() do
+        local _, _, offset, count = GetSpellTabInfo(i)
+        for j = (offset or 0) + 1, (offset or 0) + (count or 0) do add(GetSpellBookItemName(j, BOOKTYPE_SPELL or "spell")) end
+      end
+    end
+  end)
+  return known
+end
+
 -- For /fl api: what each way of telling says.
 function ns:RidingReport()
   local parts = {}
@@ -204,6 +235,23 @@ function ns:PrintTrainer()
     print(("  %s: %s"):format(name, table.concat(parts, ", ")))
   end
   print("  (* you can learn it now, + you know it)")
+  -- Where Forever keeps the rank (Blizzard's window shows "Rank 4"; the list gives the
+  -- state and icon): every value of the first service, and the spellbook's rank text.
+  if GetTrainerServiceInfo and GetNumTrainerServices and (GetNumTrainerServices() or 0) > 0 then
+    local vals = { pcall(GetTrainerServiceInfo, 1) }
+    local parts = {}
+    for i = 2, #vals do parts[#parts + 1] = tostring(vals[i]) end
+    print("  First service, every value: " .. table.concat(parts, " | "))
+    local ok, desc = pcall(function() return GetTrainerServiceDescription and GetTrainerServiceDescription(1) end)
+    if ok and desc then print("  Its description: " .. tostring(desc):sub(1, 120)) end
+  end
+  local book = ns:KnownSpellRanks()
+  local n, sample = 0, {}
+  for name, r in pairs(book) do
+    n = n + 1
+    if #sample < 6 then sample[#sample + 1] = name .. " " .. r end
+  end
+  print(("  Spellbook: %d spells; ranks read: %s"):format(n, table.concat(sample, ", ")))
 end
 
 -- A spell's ranks at the trainer, lowest level first: { { level, cost }, ... }.
