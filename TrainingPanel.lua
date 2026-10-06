@@ -118,7 +118,7 @@ end
 
 -- list: the trainer's services as RecipeBook.lua read them (name, state, cost, level).
 function ns:ShowTrainingAdvice(list)
-  if ns.db.settings.trainerAdvice == false then return end
+  if ns.db.settings.trainerAdvice == false or not T then return end   -- (no Theme in the tests)
   if not panel then build() end
   -- Ranks per spell (by level, Forever gives no rank), and which you know already.
   local byName, known = {}, {}
