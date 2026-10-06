@@ -27,7 +27,34 @@ function ns:SpellAdvice(name, knowsLower)
   local tree = ns.LevellingTree and ns:LevellingTree()
   local why = { a.r }
   local group
-  if a.c == "everyone" then
+  -- The levelling tier (Codex's community research, October 6): one for every tree, or one
+  -- per tree, read for the tree you level in. Without a tree yet, a spell the trees
+  -- disagree on is your choice.
+  local TIER = { must = "train", nice = "choice", skip = "skip" }
+  if type(a.tr) == "string" and TIER[a.tr] then
+    group = TIER[a.tr]
+  elseif type(a.tr) == "table" then
+    local tier = tree and a.tr[tree]
+    if not tier and not tree then
+      local seen, same = nil, true
+      for _, v in pairs(a.tr) do if seen and v ~= seen then same = false end; seen = v end
+      tier = same and seen or nil
+    end
+    if tier and TIER[tier] then
+      group = TIER[tier]
+      if tree then
+        why[#why + 1] = (tier == "must" and "Must have for %s, your tree.") or (tier == "nice" and "Nice to have for %s, your tree.")
+          or ("Not needed levelling as %s."):format(tree)
+        why[#why] = why[#why]:format(tree)
+      end
+    else
+      group = "choice"
+      local parts = {}
+      for t, v in pairs(a.tr) do parts[#parts + 1] = ("%s: %s"):format(t, (v == "must" and "must have") or (v == "nice" and "nice to have") or "skip") end
+      table.sort(parts)
+      why[#why + 1] = "Depends on your tree (" .. table.concat(parts, ", ") .. "). Spend talent points and this gets clearer."
+    end
+  elseif a.c == "everyone" then
     group = "train"
   elseif a.c == "spec" then
     local mine = false
@@ -48,6 +75,7 @@ function ns:SpellAdvice(name, knowsLower)
     group = "skip"
   end
   if a.k then why[#why + 1] = a.k end
+  if a.b then why[#why + 1] = a.b end
   -- A higher rank of a spell you know (owner, October 5: is a higher Polymorph worth it?),
   -- by the spell's rank rule (Codex's research): current = keep every rank (main
   -- attacks, upkeep); learn = the first rank does the job; used = upgrade only if you
