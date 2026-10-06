@@ -39,8 +39,18 @@ function ns:TrainerRead(list, npc, npcID, prof)
   -- A class trainer: more class spells than anything else and no profession.
   if n > 0 and not prof then
     local _, class = UnitClass("player")
+    -- Added to what earlier visits saw, never replacing it (Codex review, October 6: a
+    -- portal trainer that teaches only teleports wiped Frostbolt's saved ranks). Reference
+    -- data is kept for good; a level seen again just updates its cost.
     ns.db.trainers = ns.db.trainers or {}
-    ns.db.trainers[class or "?"] = { t = time(), npc = npc, spells = spells }
+    local cat = ns.db.trainers[class or "?"] or { spells = {} }
+    ns.db.trainers[class or "?"] = cat
+    cat.spells = cat.spells or {}
+    for name, levels in pairs(spells) do
+      cat.spells[name] = cat.spells[name] or {}
+      for level, cost in pairs(levels) do cat.spells[name][level] = cost end
+    end
+    cat.t, cat.npc = time(), npc
     ns:Debug(("Training: %s teaches %d %s spells (%d services)."):format(npc or "?", n, class or "?", #list))
     if ns.ShowTrainingAdvice then ns:ShowTrainingAdvice(list) end
   end

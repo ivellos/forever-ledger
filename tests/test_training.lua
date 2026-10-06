@@ -59,3 +59,29 @@ T.test("A profession trainer isn't read as a class trainer", function()
   ns:TrainerRead({ { name = "Bolt of Linen Cloth", sub = "", state = "used", cost = 50, skill = "Tailoring" } }, "Sellandus", 2, "Tailoring")
   T.eq(ns.db.trainers, nil)
 end)
+
+-- Codex review, October 6: a trainer visit adds to what earlier visits saw.
+T.test("A specialist trainer doesn't wipe earlier spells", function()
+  ns.db.trainers = nil
+  ns:TrainerRead({
+    { name = "Frostbolt", state = "available", cost = 2000, level = 20 },
+    { name = "Fireball", state = "unavailable", cost = 4000, level = 24 },
+  }, "Jennea Cannon", 1, nil)
+  ns:TrainerRead({ { name = "Teleport: Stormwind", state = "available", cost = 10000, level = 20 } }, "Portal trainer", 2, nil)
+  T.eq(#ns:SpellRanks("Frostbolt"), 1, "Frostbolt kept")
+  T.eq(#ns:SpellRanks("Fireball"), 1, "Fireball kept")
+  T.eq(#ns:SpellRanks("Teleport: Stormwind"), 1, "teleport added")
+end)
+
+T.test("A level seen again updates its cost and keeps the other ranks", function()
+  ns.db.trainers = nil
+  ns:TrainerRead({
+    { name = "Frostbolt", state = "available", cost = 2000, level = 20 },
+    { name = "Frostbolt", state = "unavailable", cost = 5000, level = 26 },
+  }, "Jennea Cannon", 1, nil)
+  ns:TrainerRead({ { name = "Frostbolt", state = "available", cost = 1900, level = 20 } }, "Another trainer", 3, nil)
+  local ranks = ns:SpellRanks("Frostbolt")
+  T.eq(#ranks, 2, "both ranks kept")
+  T.eq(ranks[1].cost, 1900, "cost updated")
+  T.eq(ranks[2].cost, 5000)
+end)
