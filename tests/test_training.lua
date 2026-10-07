@@ -85,3 +85,12 @@ T.test("A level seen again updates its cost and keeps the other ranks", function
   T.eq(ranks[1].cost, 1900, "cost updated")
   T.eq(ranks[2].cost, 5000)
 end)
+
+T.test("Talent positions fall in the right tree, even stray ones", function()
+  -- From the saved layouts (October 6): Hunter's Bestial Wrath, Trueshot Aura,
+  -- Counterattack, and Lightning Reflexes at a stray x of 102800 (a Survival talent).
+  T.eq(ns.TalentThird(1620), 1); T.eq(ns.TalentThird(2820), 1)
+  T.eq(ns.TalentThird(5020), 2); T.eq(ns.TalentThird(5620), 2); T.eq(ns.TalentThird(6820), 2)
+  T.eq(ns.TalentThird(9080), 3); T.eq(ns.TalentThird(10880), 3)
+  T.eq(ns.TalentThird(102800), 3, "stray position")
+end)

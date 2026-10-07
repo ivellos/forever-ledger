@@ -9,6 +9,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).
 - Each class's talent layout is saved at login (and by `/fl talents`), to check the order of the three trees in Forever's single talent tree for every class.
 
+### Fixed
+- Training advice: the tree you level in is read from fixed positions in the talent tree, the same for every class. A Hunter talent with a stray position counted nearly every Hunter talent in the first tree (Beast Mastery).
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights

@@ -423,7 +423,8 @@ end)
 -- /fl talents, October 5: Mage, tree 1112, 54 talents, x 1020 to 10880), with Classic's
 -- three trees side by side, in Classic's order left to right: a Mage's Frost talents
 -- were on the right (x 9080 to 10280). So: thirds of the x range, the most points wins.
--- Classic's order per class; to be confirmed for the other classes.
+-- Classic's order per class, confirmed for all nine from their saved layouts (October 6:
+-- Bestial Wrath left, Trueshot Aura middle, Counterattack right, and so on).
 ---------------------------------------------------------------------------
 local TREES = {
   MAGE = { "Arcane", "Fire", "Frost" }, WARRIOR = { "Arms", "Fury", "Protection" },
@@ -433,6 +434,16 @@ local TREES = {
   DRUID = { "Balance", "Feral Combat", "Restoration" },
 }
 
+-- Which of the three trees a talent's x position is in. Every class uses the same grid
+-- (saved layouts of all nine classes, October 6): left 1020-2820, middle 5020-6820,
+-- right 9080-10880. Fixed boundaries, not the lowest and highest x: a few talents have
+-- stray positions (Hunter's Lightning Reflexes at x 102800), which put nearly every
+-- Hunter talent in the first tree.
+function ns.TalentThird(x)
+  if x < 3900 then return 1 elseif x < 7950 then return 2 end
+  return 3
+end
+
 -- { names, points = { a, b, c } } or nil when talents can't be read.
 function ns:TalentThirds()
   local ok, result = pcall(function()
@@ -440,20 +451,17 @@ function ns:TalentThirds()
     local info = configID and C_Traits and C_Traits.GetConfigInfo(configID)
     local treeID = info and info.treeIDs and info.treeIDs[1]
     if not treeID then return end
-    local nodes, minX, maxX = {}, nil, nil
+    local nodes = {}
     for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
       local node = C_Traits.GetNodeInfo(configID, nodeID)
-      if node and node.posX then
-        nodes[#nodes + 1] = node
-        minX, maxX = math.min(minX or node.posX, node.posX), math.max(maxX or node.posX, node.posX)
-      end
+      if node and node.posX then nodes[#nodes + 1] = node end
     end
-    if #nodes == 0 or maxX == minX then return end
+    if #nodes == 0 then return end
     local points = { 0, 0, 0 }
     for _, node in ipairs(nodes) do
       local spent = node.ranksPurchased or node.activeRank or 0
       if spent > 0 then
-        local third = math.min(3, math.floor((node.posX - minX) / (maxX - minX) * 3) + 1)
+        local third = ns.TalentThird(node.posX)
         points[third] = points[third] + spent
       end
     end
