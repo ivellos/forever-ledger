@@ -16,6 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Live sync: Share bags and bank (Settings, Global settings, Advanced; off by default) sends your characters' bags and bank to your paired character on your other account, so they count in Have, shopping lists and the Characters tab there.
 
 ### Changed
+- Buy queue: the corner total shows profit instead of worth: what a vendor pays for what you bought this visit, less what it cost (green, or red for a loss), with the numbers on hover.
 - Shopping lists: right-click Up to to return a typed price to its automatic shuffle cap or usual price plus the list allowance. The hover shows the automatic value even while your typed price is in force.
 - Shopping-list prices show their source: shuffle caps refresh on adding again or Buy again; hand-added items use usual prices plus a per-list allowance (10% by default). Typed prices always stay yours, including existing saved limits.
 - Live sync sends your characters first, in a small message of their own, then the prices, so the other side sees them within seconds instead of after every price has arrived.

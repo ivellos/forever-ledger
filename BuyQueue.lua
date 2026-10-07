@@ -239,7 +239,13 @@ ns:On("AUCTION_HOUSE_SHOW", function() Q.lastMoney = GetMoney() end)
 local function bought(n, cost)
   local e = Q.cur
   Q.bought = Q.bought + n
-  if e and e.worth then Q.worth = Q.worth + n * e.worth end
+  -- Profit if you vendored what you bought (owner, October 6: "Profit" instead of
+  -- "worth"): what a vendor pays for it less what it cost, over items a vendor buys.
+  local vendor = e and ns:GetSellPrice(e.id)
+  if vendor and cost then
+    Q.vendorValue = (Q.vendorValue or 0) + n * vendor
+    Q.vendorCost = (Q.vendorCost or 0) + cost
+  end
   if e and e.want then e.want = e.want - n end
   if e then Q.note = ("Bought %d %s for %s."):format(n, ns.ItemName(e.id), money(cost)) end
 end
@@ -1205,6 +1211,21 @@ local function buildQueueView(parent)
   v.totals:SetPoint("BOTTOMRIGHT", -10, 36)
   v.totals:SetJustifyH("RIGHT")
   v.totals:SetWordWrap(false)
+  v.totalsHit = CreateFrame("Frame", nil, v)
+  v.totalsHit:SetAllPoints(v.totals)
+  v.totalsHit:EnableMouse(true)
+  v.totalsHit:SetScript("OnEnter", function(self)
+    if Q.bought == 0 then return end
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Bought this visit", 1, 1, 1)
+    GameTooltip:AddDoubleLine("Spent", money(Q.spent), 0.7, 0.7, 0.7, 1, 1, 1)
+    if Q.vendorValue then
+      GameTooltip:AddDoubleLine("A vendor pays", money(Q.vendorValue), 0.7, 0.7, 0.7, 1, 1, 1)
+      GameTooltip:AddLine("Profit: what a vendor pays for what you bought, less what it cost. Items a vendor won't buy are left out.", 0.8, 0.8, 0.8, true)
+    end
+    GameTooltip:Show()
+  end)
+  v.totalsHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
   v.status = T:Text(v, 11, { 0.73, 0.64, 1, 1 })
   v.status:SetPoint("BOTTOMLEFT", 12, 36)
   v.status:SetPoint("RIGHT", v.totals, "LEFT", -10, 0)
@@ -1415,8 +1436,9 @@ refreshQueue = function()
   end
   -- The scan status (a scan's progress, the watch's countdown) when there is one.
   v.status:SetText(ns.statusText or "")
+  local profit = Q.vendorValue and (Q.vendorValue - Q.vendorCost)
   v.totals:SetText(Q.bought > 0 and ("Bought %d for %s%s"):format(Q.bought, money(Q.spent),
-      Q.worth > 0 and (", worth %s"):format(money(Q.worth)) or "")
+      profit and (", profit %s"):format(profit >= 0 and ("|cff7fd39c" .. money(profit) .. "|r") or ("|cffee8597-" .. money(-profit) .. "|r")) or "")
     or ("%d to buy"):format(total))
   -- What's left of this visit's limit, or the gold you keep when there's no limit.
   local left, keep = visitLeft(), ns.db.settings.keepGold or 0
@@ -2848,6 +2870,7 @@ ns:On("AUCTION_HOUSE_SHOW", function()
   -- (What was just finished stays set aside for its two minutes: clearing it here
   -- brought bought-out items straight back on reopening. Owner, October 3.)
   Q.bought, Q.spent, Q.worth, Q.note, Q.built = 0, 0, 0, nil, 0
+  Q.vendorValue, Q.vendorCost = nil, nil
 end)
 ns:On("AUCTION_HOUSE_CLOSED", function()
   Q.cur, Q.plan, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"
