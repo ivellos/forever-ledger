@@ -9,14 +9,14 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 ## Being tested now
 
 - **Arcane Salvager**: measuring how much it really improves disenchanting (nothing official says), then a plan for using it well: saving up greens and disenchanting them in 15-minute Salvager windows when the extra materials are worth more than the Salvager costs.
-- **Neutral auction houses**: prices kept as their own market, a 15% cut in the math, and items only one faction can buy, to sell to the other side.
+- **Neutral auction houses**: in the addon since 0.15.0 (Booty Bay prices kept as their own market, the 15% cut in the math, and a Booty Bay view on the Deals tab). Next: items only one faction can buy, to sell to the other side.
 - **Where recipes come from**: original Classic vendor, drop and trainer locations are shown as "(Classic)" until players confirm them in Forever.
 - **Sell speed**: a rating per item (Fast, Steady, Slow, Rare, No sales seen), judged against items of the same kind, from listings that vanished before they could have expired. In the addon now and building up data; next: comparing items against each other within their kind, and spotting patches that change what sells.
 
 ## Gold making
 
 - **Waylaid Crates**: the cheapest way to raise Commerce Authority reputation at today's prices, buying crates and materials across the cheapest listings.
-- **Shuffles to a shopping list**: add a shuffle's materials to a shopping list in one click, an existing list or a new one.
+- **Shuffles to a shopping list**: in the addon since 0.15.0, with the Disenchant finder's items too and each price limit's source shown (the shuffle, your usual price plus an allowance, or your own).
 - **Shopping list rules**: besides single items, rules like "green armor up to 4s" or "level 29 BoE gear for rogues", and importing Auctionator shopping lists.
 - **Shopping lists, simpler**: in the addon since 0.11.0: one kind of list with a one-click "Search all" (including specific versions, "of the Monkey") and what you own across your characters; tick one box to buy from it in the Buy queue, with the cost of the rest, and craft or buy, whichever is cheaper.
 - **Item groups, built in**: ready-made groups (cloth, herbs, ores, enchanting materials, recipes, transmog gear and more) with sensible buy and sell rules, filled from the game's own item data and kept up to date with patches. No setup and no import strings; change any rule if you want to.
@@ -42,8 +42,8 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Leveling to-do list**: reminders that pop up at the right moment, for example "Level 14: time to get your Cozy Sleeping Bag".
 - **Cozy Sleeping Bag**: whether the trip is worth it for your route and pace, and the best time to get it.
 - **Training costs**: what the next levels of class and profession training will cost, so you can save for them.
-- **Riding fund**: how close you are to riding at 40 (and epic riding at 60), how long that takes at your usual gold per hour, and a warning when you spend into it.
-- **Skip this rank**: at the trainer, mark ranks of spells you never cast (learned from your own play, so it fits any class and build) and what skipping them saves.
+- **Riding fund**: in the addon since 0.15.0 (how close you are to riding at 40 and epic riding at 60, mount included, and about how many days at your pace). Next: a warning when you spend into it.
+- **Training advice**: in the addon since 0.15.0 for every class (Must have, Nice to have and Skip while levelling beside the class trainer, following your talents and the spells you cast). Next: checking each class in Forever, and the same for profession trainers.
 - **Bag value**: in the addon since 0.14.0 (price per slot in bag tooltips, and the cheapest bag per slot).
 - **Legacy advisor**: which Legacy perks pay off for how you play (priced from your own vendor, flight and Favor spending), and the cheapest route to your next point.
 

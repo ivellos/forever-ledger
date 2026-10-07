@@ -25,17 +25,17 @@
 
 ### Finding gold
 - **Tooltips:** what an item is worth to you and the best few ways to use it, the auction price, how fast it sells, what it disenchants into, which of your recipes use it, and quests that need it ("keep it" if you will). Hold Ctrl for its price history. One line with Shift for more, if you prefer.
-- **Deals:** listings well below their usual price, with the usual price, how many days of scans it's based on, the next listing up and the resale profit, rated Good, Fair or Thin.
+- **Deals:** listings well below their usual price, with the usual price, how many days of scans it's based on, the next listing up and the resale profit, rated Good, Fair or Thin. A Booty Bay view compares the neutral auction house with yours, each after its own cut.
 - **Vendor flips:** things on the auction house for less than a vendor pays. Watch flips keeps scanning while the auction house is open and chimes when one turns up.
 - **Shuffles:** buy materials, craft, disenchant or convert, and sell, ranked by gold an hour, with every step spelled out.
 - **On the auction house:** listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE).
-- **Disenchant finder:** green armor and weapons by item level, with what each is worth to disenchant, on average and on a bad or good roll.
+- **Disenchant finder:** green armor and weapons by item level, with what each is worth to disenchant, on average and on a bad or good roll; add them to a shopping list in one click.
 - **Gear versions:** "of the Eagle" and "of the Whale" are priced separately.
 
 ### Buying
 - **Buy queue:** flips and shopping list items beside the auction house, best profit you can afford first; click Buy or scroll over it to buy the next one.
 - **Spend at most:** cap what the queue spends each auction house visit, or always keep some gold back for repairs.
-- **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Share a list as text.
+- **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Add a shuffle's materials in one click; each price limit says where it came from. Share a list as text.
 ### Selling
 - **Your auctions:** what you have up, what's been undercut (with a reminder), and Cancel next undercut, one click each; sold ones show what you get and when the gold reaches your mailbox, and what sold while you were away is in chat when you come back.
 - **Price helper:** the usual price and the cheapest now on the Sell tab, with Undercut and Usual buttons that fill the price in, and a warning when someone is dumping.
@@ -53,13 +53,15 @@
 - **Bag value:** a bag's tooltip shows what one slot costs and the cheapest bag per slot right now.
 - **Sessions:** a small tracker for gold an hour, gold in and out and what you loot, and every session listed in the Ledger.
 - **Dungeon runs:** runs, time, coin and what dropped for you, per dungeon.
+- **Riding fund:** how close you are to riding at 40 and epic riding at 60, mount included.
+- **Training advice:** beside your class trainer, which spells and ranks are must haves, nice to have, or skippable while levelling, with what each costs.
 
 ### Getting around
 - **Welcome and Help:** a short guide the first time, Help by topic with common questions, and search boxes for Settings and Help.
 - **Your look:** three themes (FL Clean, FL Default, FL Gilded), your accent colour (or EllesmereUI's), and a Size from 75% to 150%.
 - **Settings profiles:** characters can share a set of settings or each have their own; export a profile for a friend.
 - **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
-- **Two accounts?** Live sync shares prices and recipes between them while both are online.
+- **Two accounts?** Live sync shares prices and recipes between them while both are online, and bags and bank if you like. Remove characters you no longer have in Settings.
 - **Update notice:** hear from your guild or group when a newer version is out.
 
 ![The Forever Ledger window, Dashboard tab](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/dashboard.png)
