@@ -11,13 +11,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Selling an item on the auction house (Worth to you), resale deals and the Booty Bay view allow for one 8-hour listing that doesn't sell (its deposit is lost); cheap items can favor vendoring. Not counted down a chain: the Disenchant finder, shuffles, vendor flips and shopping-list limits are unchanged. Uses live quotes when available, otherwise Classic's formula (5% of the vendor price per 2 hours; Forever's durations are 2, 8 and 24 hours). The explanation stays in Help and the affected options. `/fl deposit` takes an item ID or a shift-clicked item.
 
 ### Added
-- Leveling tab, below level 20: ways to make gold while levelling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession (Only my professions hides them); other classes' lines don't show; (Classic) until confirmed in Forever.
+- Leveling tab, below level 20: ways to make gold while leveling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession (Only my professions hides them); other classes' lines don't show; (Classic) until confirmed in Forever.
 - Settings, Global settings, Modules: switch off Leveling help (training advice, the riding fund and counting your casts) in one place. The first of the modules; more follow.
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).
 - Each class's talent layout is saved at login (and by `/fl talents`), to check the order of the three trees in Forever's single talent tree for every class.
 - `/fl api` lists which of Blizzard's tab templates and tab art the client has (for side tabs like the spellbook's).
 
 ### Fixed
+- Switching off Leveling help or training advice in Settings now closes an open training advice panel at once.
+- Disenchant finder: the item-level hover values dust and essences the same way the disenchant itself does (no deposit allowance down the chain).
 - `/fl csv` uses saved item names and Classic's list before "item N", and fills in names the server is still sending a few seconds later.
 - Vendor items that cost under a copper each (ammo, 1c for 5) no longer save as 0c; their tooltip shows the stack price ("1c for 5"). An old 0c price counts as unknown until you visit that vendor again.
 - Training advice: the tree you level in is read from fixed positions in the talent tree, the same for every class. A Hunter talent with a stray position counted nearly every Hunter talent in the first tree (Beast Mastery).
