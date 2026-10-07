@@ -6,8 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
+- Watch flips: the 120 items re-checked between full scans are picked by how close they are to the vendor price and how busy they are (units posted and bought a day, or how many are listed), with crafted items counting extra, instead of closeness alone.
 - American spelling in everything players read (leveling, color, gray, armor), like the game itself.
-- Auction-sale values, shuffles and resale comparisons allow for one 8-hour listing that doesn't sell (its deposit is lost); cheap items can favour vendoring. Uses live quotes when available, otherwise Classic's formula (5% of the vendor price per 2 hours; Forever's durations are 2, 8 and 24 hours). The explanation stays in Help and the affected options. `/fl deposit` takes an item ID or a shift-clicked item.
+- Selling an item on the auction house (Worth to you), resale deals and the Booty Bay view allow for one 8-hour listing that doesn't sell (its deposit is lost); cheap items can favor vendoring. Not counted down a chain: the Disenchant finder, shuffles, vendor flips and shopping-list limits are unchanged. Uses live quotes when available, otherwise Classic's formula (5% of the vendor price per 2 hours; Forever's durations are 2, 8 and 24 hours). The explanation stays in Help and the affected options. `/fl deposit` takes an item ID or a shift-clicked item.
 
 ### Added
 - Leveling tab, below level 20: ways to make gold while levelling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession (Only my professions hides them); other classes' lines don't show; (Classic) until confirmed in Forever.

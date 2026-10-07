@@ -280,6 +280,11 @@ options = function(id, depth)
   end
 
   local sale, deposit, source = ahSale(id, depth > 0)
+  -- The deposit allowance only when this item itself is what you'd list (owner, October
+  -- 7: not for the dust from a disenchant or a craft's output down a chain, so the
+  -- Disenchant finder, shuffles and shopping-list limits are unchanged). Deals and the
+  -- Booty Bay view, which resell the item itself, use ns:AuctionSaleValue directly.
+  if depth > 0 and sale and deposit then sale, deposit = sale + deposit, 0 end
   add({ kind = "ah", value = sale, deposit = deposit, depositSource = source })
   local vendor = vendorSale(id)
   add({ kind = "vendor", value = vendor, vendorInstead = vendor and sale and deposit and deposit > 0 and sale <= vendor and sale + deposit > vendor })

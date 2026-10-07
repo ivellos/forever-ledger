@@ -90,6 +90,18 @@ T.test("RemoveBought: buying them all", function()
   T.eq(rec.none, true)
 end)
 
+-- Which items the flip watch re-checks (owner, October 7): busy items beat a rarely
+-- posted one that's just as close to its vendor price.
+T.test("Flip watch: busy and crafted items come before quiet ones", function()
+  local S = ns.FlipWatchScore
+  T.ok(S(0.9, 50) > S(0.9, 0.2), "same closeness: the busy one first")
+  T.ok(S(1.2, 50) > S(0.9, 0.2), "a busy item a bit further off still beats a quiet close one")
+  T.ok(S(0.5, 0.2) > S(1.4, 50), "but not when it's nearly at 150% of the vendor price")
+  T.ok(S(1.0, 5, nil, true) > S(1.0, 5), "crafted items count extra")
+  T.ok(S(1.0, nil, 100) > S(1.0, nil, 2), "no sell speed yet: how many are listed")
+  T.eq(S(1.5, 50), 0, "150% of the vendor price: no chance")
+end)
+
 T.test("RemoveBought: nothing at that price changes nothing", function()
   price({ m = 100, a = 100, q = 5, t = 1, l = "100:5" })
   ns:RemoveBought(ID, 2, 50)

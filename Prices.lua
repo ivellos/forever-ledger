@@ -1159,7 +1159,8 @@ local watching, watchTimer = false, nil
 -- the auction house (owner, October 3).
 local watchWasOn = false
 
--- Items whose cheapest listing was within 50% of what a vendor pays, closest first.
+-- Items whose cheapest listing was within 50% of what a vendor pays, best bets first
+-- (flipCandidates below).
 -- Gear is left out: its stat versions ("of the Eagle") share one item ID, and each
 -- quick search came back with a different version's listings, so prices (and
 -- disenchant shuffles) jumped back and forth every pass. Full scans see all versions.
@@ -1170,16 +1171,43 @@ local function isGear(id)
   return classID == 2 or classID == 4
 end
 
+-- Crafted items (any recipe's output in the recipe book): crafters post them in bulk to
+-- level their professions, so cheap ones turn up often.
+local craftedSet, craftedAt
+local function crafted(id)
+  if not craftedSet or GetTime() - (craftedAt or 0) > 600 then
+    craftedSet, craftedAt = {}, GetTime()
+    for _, book in pairs(ns.db.recipeBook or {}) do
+      for _, r in pairs(book) do if r.out then craftedSet[r.out] = true end end
+    end
+  end
+  return craftedSet[id]
+end
+
+-- Which items to re-check (owner, October 7: not only the closest to vendor price, but
+-- the ones that get posted a lot: Linen Cloth over a rare item that happens to be cheap).
+-- Score = closeness x how busy: closeness runs from 1.5 (half the vendor price or less)
+-- down to 0 at 150% of it; busy is 1 + the units bought a day (sell speed, which new
+-- posts replace) on a log scale, or the number listed when there's no sell speed yet;
+-- crafted items count half again.
+function ns.FlipWatchScore(ratio, perDay, listed, isCrafted)
+  local close = math.max(0, 1.5 - ratio)
+  local busy = 1 + math.log(1 + (perDay or (listed or 0) * 0.2))
+  return close * busy * (isCrafted and 1.5 or 1)
+end
+
 local function flipCandidates()
   local market = ns.db.prices[ns.MarketKey()] or {}
   local list = {}
   for id, rec in pairs(market) do
     local sell = rec.m and not rec.none and ns:GetSellPrice(id)
     if sell and sell >= 5 and rec.m <= sell * 1.5 and not ns:GetVendorBuyPrice(id) and not isGear(id) then
-      list[#list + 1] = { id = id, r = rec.m / sell }
+      local ok, sp = pcall(ns.SellSpeed, ns, id)
+      local perDay = ok and sp and sp.perDay or nil
+      list[#list + 1] = { id = id, r = ns.FlipWatchScore(rec.m / sell, perDay, rec.q, crafted(id)) }
     end
   end
-  table.sort(list, function(a, b) return a.r < b.r end)
+  table.sort(list, function(a, b) return a.r > b.r end)
   local ids = {}
   for i = 1, math.min(#list, WATCH_ITEMS) do ids[i] = list[i].id end
   return ids

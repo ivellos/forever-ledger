@@ -57,7 +57,9 @@ T.test("One failed deposit can select vendor instead, without changing vendor pr
   T.eq(opts[2].value, 94); T.eq(opts[2].deposit, 20)
   T.eq(ns:AfterCut(120), 114, "successful-sale proceeds still refund the deposit")
 end)
-T.test("Deposit reserve propagates through crafts and lowers buying caps and profit", function()
+-- Frank, October 7: the Disenchant finder, shuffles and shopping-list limits don't count
+-- deposits; only selling the item itself does.
+T.test("No deposit down a chain: crafts, buying caps and profit are unchanged", function()
   local OUT = 99021; local me = ns.CharKey()
   ns.db.vendorSell[OUT] = 100
   ns.db.prices[ns.MarketKey()] = { [ID] = { m = 10, a = 10, q = 50, t = S.now }, [OUT] = { m = 1000, a = 1000, q = 50, t = S.now } }
@@ -65,12 +67,12 @@ T.test("Deposit reserve propagates through crafts and lowers buying caps and pro
     Tailoring = { rank = 300, recipes = { [1] = { n = "Deposit craft", out = OUT, oq = 2, r = { { ID, 2 } } } } }
   } } }
   ns:BuildUsageIndex(); ns:InvalidateValues(true)
-  local o = ns:BestOption(ID); T.eq(o.kind, "craft"); T.eq(o.value, 930)
-  local cap = ns:BuyAtOrBelow(ID); T.eq(cap, 837)
+  local o = ns:BestOption(ID); T.eq(o.kind, "craft"); T.eq(o.value, 950)
+  local cap = ns:BuyAtOrBelow(ID); T.eq(cap, 855)
   local vendor, ah = ns:FindShuffles()
   local found
   for _, list in ipairs({ vendor, ah }) do for _, s in ipairs(list) do if s.id == ID and s.opt.kind == "craft" then found = s end end end
-  T.ok(found); T.eq(found.profit, 1840); T.eq(found.maxBuy, 837); T.ok(found.perHour > 0); T.eq(found.deposit, 40)
+  T.ok(found); T.eq(found.profit, 1880); T.eq(found.maxBuy, 855); T.ok(found.perHour > 0); T.eq(found.deposit, 0)
 end)
 T.test("Neutral sale losses guard percentages and reserve the destination deposit", function()
   ns.db.vendorSell[ID] = 100

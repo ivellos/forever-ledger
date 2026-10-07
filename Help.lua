@@ -41,7 +41,7 @@ ns.HELP = {
     { sub = "Prices" },
     { "Auction price", "Auction, cheapest: the lowest price listed at your last scan, how many were listed, and (in gray) how long ago. Under it, when different: the average of the 20 cheapest, about what you'd pay buying a few. Values in Forever Ledger use that average, so one odd cheap listing doesn't sway them. With your own prices over 12 hours old, Auctionator's or TSM's price is used if you have them, and named." },
     { "Worth to you", "The best of selling on the auction house, selling to a vendor, disenchanting, or crafting it into something, with the best few ways listed." },
-    { "Auction house deposits", "Auction-sale values, shuffles and resale comparisons allow for one 8-hour listing that doesn't sell (its deposit is lost). The deposit comes back when a listing sells. If this makes selling to a vendor better, the option says Vendor it instead. Deposits use the auction house's quote when available, otherwise Classic's formula, which matches Forever: 5% of the vendor price per 2 hours (25% at Booty Bay), so 20% for 8 hours. Without a known vendor price, it's zero." },
+    { "Auction house deposits", "Selling an item on the auction house (its Worth to you line), resale deals and the Booty Bay view allow for one 8-hour listing that doesn't sell (its deposit is lost). The deposit comes back when a listing sells. Materials further down a chain (dust from disenchanting, a craft's output) don't count it, so the Disenchant finder, shuffles, vendor flips and shopping-list limits are unchanged. If this makes selling to a vendor better, the option says Vendor it instead. Deposits use the auction house's quote when available, otherwise Classic's formula, which matches Forever: 5% of the vendor price per 2 hours (25% at Booty Bay), so 20% for 8 hours. Without a known vendor price, it's zero." },
     { "Buy at or below", "The most worth paying, after your safety margin. Green when it's already cheaper." },
     { "Gear versions", "Gear with random stats (of the Eagle) also shows the price of that exact version." },
     { "Price history", "Hold Ctrl over an item: the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen. It builds up with each scan." },
@@ -162,7 +162,7 @@ ns.HELP_FAQ = {
   ["Auction house scans"] = {
     { "Why can't I run a full scan?", "The game allows one about every 15 minutes. The Full scan button counts down to the next." },
     { "Does Watch flips work with the auction house closed?", "No: the game only lets addons search with the auction house open. The watch pauses when you close it and picks up when you come back." },
-    { "What are the 120 items the watch re-checks?", "Between full scans, the items whose price was closest to what a vendor pays: the likeliest to turn into flips when someone lists one cheap." },
+    { "What are the 120 items the watch re-checks?", "Between full scans, the likeliest to turn into flips: items priced near what a vendor pays, weighed by how many get posted and bought each day (Linen Cloth before a rare item), with crafted items counting extra since crafters post them in bulk. Gear is left out." },
   },
   ["Tooltips"] = {
     { "Why does it say none listed?", "Your last scan found none of that item on the auction house." },
