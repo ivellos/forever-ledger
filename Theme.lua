@@ -42,19 +42,22 @@ local TEAL = { 12 / 255, 210 / 255, 157 / 255 }
 T.THEMES = {
   clean = { name = "FL Clean", accent = TEAL,
     bg = { 0.071, 0.071, 0.071, 0.97 }, header = { 0.09, 0.09, 0.09, 1 },
-    button = { 0.105, 0.105, 0.105, 0.95 }, border = { 1, 1, 1, 0.10 } },
+    button = { 0.105, 0.105, 0.105, 0.95 }, border = { 1, 1, 1, 0.10 },
+    material = { tint = { 1, 1, 1 }, body = 0.025, header = 0.04 } },
   default = { name = "FL Default", accent = TEAL,
     bg = { 0.071, 0.065, 0.059, 0.97 }, header = { 0.094, 0.082, 0.071, 1 },
     button = { 0.118, 0.106, 0.094, 0.95 }, border = { 1, 0.92, 0.80, 0.10 },
     font = "Fonts\\ARIALN.TTF", fontAdd = 1, labelAdd = 1, dimAlpha = 0.5,
     -- (no bronze line along the top: it didn't match the rest; owner, October 4)
-    underLine = true, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true },
+    underLine = true, title = GOLD, heading = GOLD, cards = true, toggles = true, footer = true,
+    material = { tint = { 1, 0.92, 0.80 }, body = 0.055, header = 0.14 } },
   gilded = { name = "FL Gilded", accent = TEAL,
     bg = { 0.078, 0.069, 0.059, 0.97 }, header = { 0.118, 0.094, 0.071, 1 },
     button = { 0.125, 0.106, 0.086, 0.95 }, border = { BRONZE[1], BRONZE[2], BRONZE[3], 0.55 },
     font = "Fonts\\FRIZQT__.TTF", dimAlpha = 0.5,
     frame = BRONZE, topLine = BRONZE, title = GOLD, heading = GOLD, serif = true,
-    cards = true, cardEdge = BRONZE, toggles = true, footer = true },
+    cards = true, cardEdge = BRONZE, toggles = true, footer = true,
+    material = { tint = { 1, 0.92, 0.80 }, body = 0.045, header = 0.12 }, corner = 24 },
 }
 T.THEME_ORDER = { "clean", "default", "gilded" }
 T.SERIF = "Fonts\\FRIZQT__.TTF"   -- WoW's own Friz Quadrata (Morpheus read oddly at heading size)
@@ -200,11 +203,49 @@ function T:HideCards(page, from)
   end
 end
 
+-- Original neutral artwork: materials keep their quiet theme tint while active
+-- controls keep the player's accent. Static regions only; no events or timers.
+local THEME_MEDIA = "Interface\\AddOns\\ForeverLedger\\media\\themes\\"
+local function materialTexture(parent, tint, alpha)
+  local tex = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
+  tex:SetAllPoints()
+  tex:SetTexture(THEME_MEDIA .. "ledger-grain.tga")
+  tex:SetVertexColor(tint[1], tint[2], tint[3], alpha)
+  return tex
+end
+
+function T:WindowMaterial(f, bar)
+  local t = T.theme
+  if not t.material or f.ledgerMaterial then return end
+  local m = t.material
+  f.ledgerMaterial = materialTexture(f, m.tint, m.body)
+  if bar then f.ledgerHeaderMaterial = materialTexture(bar, m.tint, m.header) end
+  if not t.corner then return end
+  -- Small mirrored book-binding caps, inside the existing edge. Texture regions
+  -- cannot take mouse input; buttons and title text remain above them.
+  f.ledgerCorners = {}
+  local corners = {
+    { "TOPLEFT", 1, -1, 0, 1, 0, 1 }, { "TOPRIGHT", -1, -1, 1, 0, 0, 1 },
+    { "BOTTOMLEFT", 1, 1, 0, 1, 1, 0 }, { "BOTTOMRIGHT", -1, 1, 1, 0, 1, 0 },
+  }
+  local c = t.frame or T.border
+  for i, v in ipairs(corners) do
+    local tex = f:CreateTexture(nil, "BORDER", nil, 3)
+    tex:SetTexture(THEME_MEDIA .. "ledger-corner.tga")
+    tex:SetSize(t.corner, t.corner)
+    tex:SetPoint(v[1], f, v[1], v[2], v[3])
+    tex:SetTexCoord(v[4], v[5], v[6], v[7])
+    tex:SetVertexColor(c[1], c[2], c[3], 0.65)
+    f.ledgerCorners[i] = tex
+  end
+end
+
 -- The theme's dressing on a window: the bronze line along the top, a line under the
 -- title bar, the bronze frame, a tinted footer below footerY (pixels from the bottom;
 -- optional).
 function T:DecorateWindow(f, footerY, bar)
   local t = T.theme
+  T:WindowMaterial(f, bar)
   -- Under the title bar: a faint accent line (Default) or bronze (Gilded).
   if bar and (t.topLine or t.underLine) then
     local under = bar:CreateTexture(nil, "BORDER")
