@@ -2,8 +2,12 @@ local _, ns = ...
 
 -- Planning reserve: one failed 24-hour listing, then a successful sale. The latter's
 -- deposit is refunded; this is risk allowance, not an extra fee on a successful sale.
--- Signatures/duration indices: Blizzard generated AuctionHouseDocumentation.lua and
--- AuctionHouseSellFrame.lua (wow-ui-source). Forever's amounts still need a game check.
+-- API reference: https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/AuctionHouseDocumentation.lua
+-- CalculateCommodityDeposit(itemID, duration, quantity) -> copper.
+-- CalculateItemDeposit(itemLocation, duration, quantity) -> copper; requires owned ItemLocation.
+-- Duration indices 1/2/3 = 12/24/48 hours (Blizzard AuctionHouseSellFrame.lua).
+-- Forever's amounts still need a game check. Per-unit estimates may exceed one stack
+-- quote because of rounding; we use live quotes only at the matching open auction house.
 ns.DEPOSIT_DURATION = 2 -- 1/2/3 = 12/24/48 hours
 
 -- Classic estimate, not a confirmed Forever formula. No retail minimum is assumed.

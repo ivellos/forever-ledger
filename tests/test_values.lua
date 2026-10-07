@@ -36,7 +36,7 @@ T.test("The auction house, after the cut", function()
   local v, opts = ns:GetValue(60001)
   T.eq(v, 920)
   T.eq(opts[1].kind, "ah")
-  T.eq(opts[1].label, "Sell on the auction house, after 5% cut and deposit reserve")
+  T.eq(opts[1].label, "Sell on the auction house, after 5% cut and one unsold listing")
   T.eq(opts[2].kind, "vendor", "the vendor next")
 end)
 

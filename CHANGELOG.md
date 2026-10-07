@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
-- Auction-sale values, shuffles and resale comparisons reserve one lost 24-hour deposit; cheap items can favour vendoring. Live quotes when available, otherwise clearly described Classic estimates.
+- Auction-sale values, shuffles and resale comparisons allow for one 24-hour listing that doesn't sell (its deposit is lost); cheap items can favour vendoring. Uses live quotes when available, otherwise a Classic estimate. The explanation stays in Help and the affected options.
 
 ### Added
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).

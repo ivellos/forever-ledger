@@ -439,7 +439,10 @@ end
 -- reads like a price to buy at (Magic, October 3: "Auction house, after 5% cut" in green
 -- looked like the buying price, next to "Auction, cheapest").
 function ns:OptionLabel(o)
-  if o.kind == "ah" then return ("Sell on the auction house, after %g%% cut and deposit reserve"):format(ns:AHCut() * 100) end
+  if o.kind == "ah" then
+    local label = ("Sell on the auction house, after %g%% cut"):format(ns:AHCut() * 100)
+    return (o.deposit or 0) > 0 and (label .. " and one unsold listing") or label
+  end
   if o.kind == "vendor" then return o.vendorInstead and "Vendor it instead (deposit risk)" or "Sell to vendor" end
   if o.kind == "disenchant" then return "Disenchant" end
   local label = o.step .. ", " .. rest(o.next)

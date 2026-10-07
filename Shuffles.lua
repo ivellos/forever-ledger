@@ -307,7 +307,7 @@ function ns:ShuffleDetails(s)
   stepLines(s.opt, lines, { n = 0 }, true)
   lines[#lines + 1] = ("Profit %s %s (%d%%), about %s an hour."):format(
     ns.Money(s.profit), s.single and "each" or "per craft", returnPct(s), ns.Money(s.perHour))
-  if s.share > 0 then lines[#lines + 1] = ("Auction sales reserve %s for one lost 24-hour deposit before selling; estimates when the live quote is unavailable."):format(ns.Money(s.deposit or 0)) end
+  if (s.deposit or 0) > 0 then lines[#lines + 1] = ("Allows for one 24-hour listing that doesn't sell (its deposit is lost): %s."):format(ns.Money(s.deposit)) end
   return table.concat(lines, "\n")
 end
 
@@ -523,7 +523,7 @@ end
 function ns:ShuffleSteps(s)
   local lines = {}
   stepLines(s.opt, lines, { n = 0 }, true)
-  if s.share > 0 then lines[#lines + 1] = ("Auction sales reserve %s for one lost 24-hour deposit before selling; estimates when the live quote is unavailable."):format(ns.Money(s.deposit or 0)) end
+  if (s.deposit or 0) > 0 then lines[#lines + 1] = ("Allows for one 24-hour listing that doesn't sell (its deposit is lost): %s."):format(ns.Money(s.deposit)) end
   return table.concat(lines, "\n")
 end
 
@@ -928,8 +928,8 @@ function ns:DealExplain(d)
 
   L[#L + 1] = { head = "If you resell" }
   pair(d.nextUp and d.nextUp < d.worth and "Resell at (under the next listing)" or "Resell at (usual cheapest)", ns.Money(d.resell))
-  pair("One lost 24h deposit, each", ns.Money(d.deposit or 0))
-  pair(("Profit each, after %g%% cut and reserve"):format(ns:AHCut() * 100), green(d.each))
+  pair("Unsold listing's deposit, each", ns.Money(d.deposit or 0))
+  pair(("Profit each, after %g%% cut and one unsold listing"):format(ns:AHCut() * 100), green(d.each))
   if d.listed > 1 then pair(("Profit for all %d"):format(d.listed), green(d.total)) end
 
   L[#L + 1] = { head = "How sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) }
