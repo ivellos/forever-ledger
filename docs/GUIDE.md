@@ -54,6 +54,14 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 ![Tooltip for Strange Dust](images/tooltip.png)
 
+## Auction house deposits
+
+Auction-sale values, shuffles, resale deals and Booty Bay comparisons reserve **one lost 24-hour deposit before a successful sale**. The successful sale refunds its deposit; an expiry or cancellation loses it. This is a cautious planning allowance, not a charge on every sale. Vendor-only routes have none. Cheap items can say **Vendor it instead (deposit risk)**.
+
+Live quotes are used at the matching auction house: commodities by item ID, other items from your bags. Otherwise a Classic estimate uses 30% of vendor price for 24 hours (150% at Booty Bay); without a known vendor price the reserve is estimated as zero. Actual Forever amounts still need checking. Per-item planning can overestimate a combined stack. `/fl api` reports the APIs; `/fl deposit <item ID> [quantity] [12/24/48 hours]` defaults to one item at 24 hours.
+
+API signatures: [Blizzard generated API documentation](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/AuctionHouseDocumentation.lua). The formula is a fallback estimate, pending comparison against Forever.
+
 ## Shuffles and vendor flips
 
 - **Shuffles**: buy materials, craft, disenchant or convert, and sell, ranked by profit per hour. Click a row for every step.
@@ -99,7 +107,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 ## Deals
 
-- **Deals tab**: listings well below the price an item is usually *cheapest* at, to buy and resell. Each row shows the price now, the usual low (the middle of each day's cheapest price over the period set in Settings), how far below it is, how many are worth buying, the profit after the auction house cut (each and for all of them), and how sure the deal is: **Good**, **Fair** or **Thin**. Comparing with the usual cheapest price, not the typical one, means a deal is a real bargain, not just today's normal low.
+- **Deals tab**: listings well below the price an item is usually *cheapest* at, to buy and resell. Each row shows the price now, the usual low (the middle of each day's cheapest price over the period set in Settings), how far below it is, how many are worth buying, the profit after the auction house cut and deposit reserve (each and for all of them), and how sure the deal is: **Good**, **Fair** or **Thin**. Comparing with the usual cheapest price, not the typical one, means a deal is a real bargain, not just today's normal low.
 - **Hover a deal** to see why it's a deal: the usual cheapest and typical prices, how many days they're based on, the typical range most days, how many are usually listed, and the next listing above the cheap ones. Profit assumes you resell at the usual cheapest price, or just under the next listing if that's lower, and only listings that still make the minimum profit count. **Click** a deal to search for it on the auction house.
 - **How sure**: Good means a week or more of steady prices. Fair means less data, or a warning: usually only one listed (it may sell slowly, or that "usual price" was one hopeful seller), nothing else listed to compare with, or gear whose stat versions sell at different prices. Thin (a few days, or prices that jump around) is hidden unless you tick **Show thin data too**.
 - Deals need at least 4 days of scans to know an item's usual price, or TSM installed. Settings, Global settings, Flips and deals sets how far below, over what period, and the least profit each. After a scan, chat says how many new deals there are instead of listing them.

@@ -56,7 +56,7 @@ end
 -- skipBuys leaves out the first craft's extra materials, which the buy line lists instead.
 local function describe(o, skipBuys)
   if o.kind == "ah" then return "sell on auction house" end
-  if o.kind == "vendor" then return "sell to vendor" end
+  if o.kind == "vendor" then return o.vendorInstead and "vendor it instead (deposit risk)" or "sell to vendor" end
   if o.kind == "disenchant" then
     local parts = {}
     for _, m in ipairs(o.mats) do parts[#parts + 1] = itemName(m.id) .. ": " .. describe(m.opt) end
@@ -69,7 +69,7 @@ end
 local function stepLines(o, lines, num, skipBuys)
   num.n = num.n + 1
   if o.kind == "ah" then lines[#lines + 1] = num.n .. ". Sell on the auction house"; return end
-  if o.kind == "vendor" then lines[#lines + 1] = num.n .. ". Sell to a vendor"; return end
+  if o.kind == "vendor" then lines[#lines + 1] = num.n .. (o.vendorInstead and ". Vendor it instead (deposit risk)" or ". Sell to a vendor"); return end
   if o.kind == "disenchant" then
     lines[#lines + 1] = num.n .. ". Disenchant. On average each one gives:"
     for _, m in ipairs(o.mats) do
@@ -115,6 +115,7 @@ local function build(id, o, cost, listed, market, margin, secs)
 
   s.cost = 0
   for _, b in ipairs(s.buys) do s.cost = s.cost + b.price * b.qty end
+  s.deposit = ns:OptionDeposit(o) * s.units
   s.profit = (o.value - cost) * s.units
   if s.profit <= 0 or (s.cost + s.profit) * (1 - margin) <= s.cost then return end
 
@@ -306,6 +307,7 @@ function ns:ShuffleDetails(s)
   stepLines(s.opt, lines, { n = 0 }, true)
   lines[#lines + 1] = ("Profit %s %s (%d%%), about %s an hour."):format(
     ns.Money(s.profit), s.single and "each" or "per craft", returnPct(s), ns.Money(s.perHour))
+  if s.share > 0 then lines[#lines + 1] = ("Auction sales reserve %s for one lost 24-hour deposit before selling; estimates when the live quote is unavailable."):format(ns.Money(s.deposit or 0)) end
   return table.concat(lines, "\n")
 end
 
@@ -521,6 +523,7 @@ end
 function ns:ShuffleSteps(s)
   local lines = {}
   stepLines(s.opt, lines, { n = 0 }, true)
+  if s.share > 0 then lines[#lines + 1] = ("Auction sales reserve %s for one lost 24-hour deposit before selling; estimates when the live quote is unavailable."):format(ns.Money(s.deposit or 0)) end
   return table.concat(lines, "\n")
 end
 
@@ -747,7 +750,6 @@ local function judgeUsual(id, rec)
   local limit = ref * (1 - pct)
   if rec.m > limit then return end
 
-  local cut = ns:AHCut()
   local resell = ref
   -- The next listing above the cheap ones: reselling today means pricing under it.
   local nextUp
@@ -759,15 +761,16 @@ local function judgeUsual(id, rec)
   end
   if nextUp and nextUp < resell then resell = nextUp end
   -- Only buy listings that still make the minimum profit after the cut.
-  local buyLimit = math.min(limit, resell * (1 - cut) - (s.dealUsualMin or 0))
+  local net, deposit = ns:AuctionSaleValue(id, resell)
+  local buyLimit = math.min(limit, net - (s.dealUsualMin or 0))
   if buyLimit <= 0 or rec.m > buyLimit then return end
   local n, cost = ns:CheapListings(id, buyLimit)
   if not n or n == 0 then return end
   cost = cost or rec.m
-  local each = resell * (1 - cut) - cost
+  local each = net - cost
 
   local d = { kind = "usual", id = id, price = rec.m, worth = ref, typical = usual, listed = n, basis = basis, cost = cost,
-    limit = buyLimit, resell = resell, nextUp = nextUp, each = each, total = each * n, stats = stats,
+    limit = buyLimit, resell = resell, deposit = deposit, nextUp = nextUp, each = each, total = each * n, stats = stats,
     pct = 1 - rec.m / ref, t = rec.t, warnings = {} }
 
   -- How sure: from this addon's own history where there is some (TSM alone is "fair").
@@ -836,7 +839,8 @@ end
 -- Returns deals, biggest saving first: { kind = "usual" | "vendor", id, price, worth, listed }.
 -- Usual-price deals carry the judgement above. maxAge: how old a price may be
 -- (default 10 minutes, for alerts right after a scan).
--- Each item's verdict is kept until its price, the day or a deal setting changes: judging
+-- Each item's verdict is kept until its price, the day, a setting or the 30-second
+-- deposit refresh changes (a live quote can become available without a new scan): judging
 -- all 2,500 items took up to 0.2 s per Deals tab redraw (/fl perf, October 3).
 local judged, judgedSig = {}, nil
 function ns:FindDeals(maxAge)
@@ -845,7 +849,8 @@ function ns:FindDeals(maxAge)
   local vendorPct, vendorMin = (s.dealVendorPct or 10) / 100, s.dealVendorMin or 0
   local sig = table.concat({ ns.MarketKey(), ns.LocalDay and ns.LocalDay() or 0, tostring(s.dealUsualPct),
     tostring(s.dealWindow), tostring(s.dealUsualMin), tostring(s.ahCut), tostring(s.dealHistory),
-    tostring(s.source) }, "|")
+    tostring(s.source), tostring(ns.depositRevision or 0),
+    tostring(math.floor(GetTime() / 30)) }, "|")
   if sig ~= judgedSig then judged, judgedSig = {}, sig end
   local now, deals = time(), {}
   for id, rec in pairs(market) do
@@ -923,7 +928,8 @@ function ns:DealExplain(d)
 
   L[#L + 1] = { head = "If you resell" }
   pair(d.nextUp and d.nextUp < d.worth and "Resell at (under the next listing)" or "Resell at (usual cheapest)", ns.Money(d.resell))
-  pair(("Profit each, after %g%% cut"):format(ns:AHCut() * 100), green(d.each))
+  pair("One lost 24h deposit, each", ns.Money(d.deposit or 0))
+  pair(("Profit each, after %g%% cut and reserve"):format(ns:AHCut() * 100), green(d.each))
   if d.listed > 1 then pair(("Profit for all %d"):format(d.listed), green(d.total)) end
 
   L[#L + 1] = { head = "How sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) }

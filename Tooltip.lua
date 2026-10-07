@@ -256,6 +256,7 @@ local function addLines(tt, id, forceFull)
 
   local best, options = ns:GetValue(id)
   if best and on("tipWorth") then
+    tt:AddLine("Auction values reserve one lost 24h deposit (estimated without a live quote).", 0.6, 0.6, 0.6, true)
     tt:AddDoubleLine("Worth to you", ns.Money(best), LR, LG, LB, 1, 1, 1)
     local limit = s.tipOptions or 3
     for i, o in ipairs(options) do

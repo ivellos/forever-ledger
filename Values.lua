@@ -19,7 +19,7 @@ function ns:AHCut(neutral)
 end
 
 -- One item at the neutral auction house (Booty Bay) against your faction's, each after
--- its own cut (owner, October 5: see what sells for more there, without it mixing into
+-- its own cut and one lost 24h deposit reserve (owner, October 5: see what sells for more there, without it mixing into
 -- your normal prices). Neutral prices stay in their own market ("realm|Neutral"); only
 -- this reads them while you're away from it. nil when either side has no price.
 -- { there, here = cheapest each; netThere, netHere = after the cut; gain = netThere -
@@ -31,9 +31,10 @@ function ns:NeutralCompare(id)
   local here = (ns.db.prices[realm .. "|" .. faction] or {})[id]
   if not (there and here and there.m and here.m and not there.none and not here.none) then return end
   if there.m <= 0 or here.m <= 0 then return end
-  local netThere, netHere = ns:AfterCut(there.m, true), ns:AfterCut(here.m, false)
+  local netThere, depositThere = ns:AuctionSaleValue(id, there.m, true)
+  local netHere, depositHere = ns:AuctionSaleValue(id, here.m, false)
   return { there = there.m, here = here.m, netThere = netThere, netHere = netHere,
-    gain = netThere - netHere, pct = (netThere - netHere) / netHere, buyProfit = netHere - there.m,
+    depositThere = depositThere, depositHere = depositHere, gain = netThere - netHere, pct = netHere > 0 and (netThere - netHere) / netHere or 0, buyProfit = netHere - there.m,
     listedThere = there.q or 0, listedHere = here.q or 0, t = there.t, tHere = here.t }
 end
 
@@ -43,7 +44,7 @@ function ns:AfterCut(copper, neutral)
   return copper - math.floor(copper * ns:AHCut(neutral))
 end
 
--- What one unit fetches on the auction house after the cut. With needListings,
+-- What one unit fetches after the cut and one lost 24h deposit reserve. With needListings,
 -- thin markets (fewer than MIN_LISTED listed) don't count.
 -- What selling one on the auction house brings, after the cut. Selling means listing at
 -- or under the cheapest, so this is the lowest of the price used for buying (the average
@@ -59,7 +60,7 @@ local function ahSale(id, needListings)
     local ok, st = pcall(ns.PriceStats, ns, id, "month")
     if ok and st and st.points >= 4 and st.low and st.low < p then p = st.low end
   end
-  return p * (1 - ns:AHCut())
+  return ns:AuctionSaleValue(id, p)
 end
 
 local function vendorSale(id)
@@ -278,8 +279,10 @@ options = function(id, depth)
     if o.value and o.value > 0 then o.id = id; list[#list + 1] = o end
   end
 
-  add({ kind = "ah", value = ahSale(id, depth > 0) })
-  add({ kind = "vendor", value = vendorSale(id) })
+  local sale, deposit, source = ahSale(id, depth > 0)
+  add({ kind = "ah", value = sale, deposit = deposit, depositSource = source })
+  local vendor = vendorSale(id)
+  add({ kind = "vendor", value = vendor, vendorInstead = vendor and sale and deposit and deposit > 0 and sale <= vendor and sale + deposit > vendor })
 
   if depth < MAX_STEPS then
     local skill = canDisenchant()
@@ -330,9 +333,10 @@ options = function(id, depth)
 
   end
 
-  -- Ties are broken by name, so the same prices always give the same order.
+  -- Ties favour the vendor (no listing risk), then name for a stable order.
   table.sort(list, function(a, b)
     if a.value ~= b.value then return a.value > b.value end
+    if a.kind == "vendor" or b.kind == "vendor" then return a.kind == "vendor" end
     return (a.step or a.kind) < (b.step or b.kind)
   end)
   return list
@@ -435,8 +439,8 @@ end
 -- reads like a price to buy at (Magic, October 3: "Auction house, after 5% cut" in green
 -- looked like the buying price, next to "Auction, cheapest").
 function ns:OptionLabel(o)
-  if o.kind == "ah" then return ("Sell on the auction house, after %g%% cut"):format(ns:AHCut() * 100) end
-  if o.kind == "vendor" then return "Sell to vendor" end
+  if o.kind == "ah" then return ("Sell on the auction house, after %g%% cut and deposit reserve"):format(ns:AHCut() * 100) end
+  if o.kind == "vendor" then return o.vendorInstead and "Vendor it instead (deposit risk)" or "Sell to vendor" end
   if o.kind == "disenchant" then return "Disenchant" end
   local label = o.step .. ", " .. rest(o.next)
   if o.who then label = label .. " (" .. o.who .. ")" end

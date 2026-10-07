@@ -34,9 +34,9 @@ T.test("The auction house, after the cut", function()
   price(60001, 1000)
   ns.db.vendorSell[60001] = 100
   local v, opts = ns:GetValue(60001)
-  T.eq(v, 950)
+  T.eq(v, 920)
   T.eq(opts[1].kind, "ah")
-  T.eq(opts[1].label, "Sell on the auction house, after 5% cut")
+  T.eq(opts[1].label, "Sell on the auction house, after 5% cut and deposit reserve")
   T.eq(opts[2].kind, "vendor", "the vendor next")
 end)
 
