@@ -380,7 +380,7 @@ local function buildFinder(side)
     add("Worth per item, on average", dim, per(function(y)
       local worth = 0
       for _, m in ipairs(y) do
-        local best = ns:BestOption(m[1])
+        local best = ns:MaterialOption(m[1])
         if best then worth = worth + best.value * m[2] end
       end
       return worth > 0 and ns.Money(worth) or "?"
@@ -391,7 +391,7 @@ local function buildFinder(side)
       local function roll(y, best)
         local pick
         for _, o in ipairs(y.odds or {}) do
-          local b = ns:BestOption(o[1])
+          local b = ns:MaterialOption(o[1])
           if b then
             local v = b.value * (best and o[4] or o[3])
             if not pick or (best and v > pick) or (not best and v < pick) then pick = v end

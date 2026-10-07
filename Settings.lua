@@ -54,9 +54,13 @@ local PAGES = {
       -- don't crowd the window). Off means not running at all. More join with the side tabs.
       { name = "Modules", rows = {
         { sub = "Leveling help" },
-        { key = "moduleLevelling", label = "Leveling help", kind = "check", after = function() ns:LayoutTabs(); ns:RefreshUI() end,
+        { key = "moduleLevelling", label = "Leveling help", kind = "check", after = function()
+            ns:LayoutTabs(); ns:RefreshUI()
+            if ns.db.settings.moduleLevelling == false and ns.HideTrainingAdvice then ns:HideTrainingAdvice() end
+          end,
           help = "The Leveling tab (ways to make gold while leveling, under level 20), training advice at the class trainer and the riding fund on the Dashboard. Off: none of it runs, and the spells you cast aren't counted. It switches itself off on level 60 characters." },
         { key = "trainerAdvice", label = "  Training advice beside the class trainer", kind = "check",
+          after = function() if ns.db.settings.trainerAdvice == false and ns.HideTrainingAdvice then ns:HideTrainingAdvice() end end,
           help = "When you open your class trainer, a panel beside it sorts what you can learn now into Must have, Nice to have and Skip while leveling, with what each costs and why (hover). It follows the tree your talent points are in and the spells you actually cast. Advice only: you still train in Blizzard's window." },
         { key = "ridingFund", label = "  Riding fund on the Dashboard", kind = "check", after = function() ns:RefreshUI() end,
           help = "A strip under the tiles: the riding this character doesn't know yet (then epic riding), what it costs, how much gold you have toward it and about how many days at your pace. It goes away once learned. Hide here (on the strip) hides it on one character; /fl fund shows it again." },

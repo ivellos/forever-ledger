@@ -381,6 +381,15 @@ function ns:BestOption(id)
   return best(id, 0)
 end
 
+-- A material as something you get from a disenchant or craft (one step down a chain):
+-- no deposit allowance, thin markets left out, exactly as the disenchant option counts
+-- it (Codex review, October 7: the Disenchant finder's level hover used BestOption).
+function ns:MaterialOption(id)
+  if not id or not ns.db then return end
+  freshCache()
+  return best(id, 1)
+end
+
 -- The most worth paying for an item: its best value without relisting it on the
 -- auction house, less the safety margin. Only for items you can craft with,
 -- disenchant or convert. Returns the price and the option it comes from.

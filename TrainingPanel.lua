@@ -218,9 +218,18 @@ local function row(i)
 end
 
 -- list: the trainer's services as RecipeBook.lua read them (name, state, cost, level).
+-- Hides the panel if it's up (switched off in Settings while a trainer is open: Codex
+-- review, October 7).
+function ns:HideTrainingAdvice()
+  if panel then panel:Hide() end
+end
+
 function ns:ShowTrainingAdvice(list)
-  if ns.db.settings.trainerAdvice == false or not T then return end   -- (no Theme in the tests)
-  if not ns:LevellingOn() then return end   -- module off, or 60: nothing left to level for (owner, October 6)
+  -- Off (the setting, the module, or level 60): nothing left to level for (owner, October 6).
+  if ns.db.settings.trainerAdvice == false or not T or not ns:LevellingOn() then
+    ns:HideTrainingAdvice()
+    return
+  end
   if not panel then build() end
   -- What you know, from the spellbook ("Rank 3"): the trainer list in Forever starts
   -- around level 20, so counting its entries gave every spell "rank 1" (owner's
