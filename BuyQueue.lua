@@ -2279,9 +2279,13 @@ local function shortMoney(c)
   if c >= 10000 then
     local g, s = math.floor(c / 10000), math.floor(c % 10000 / 100 + 0.5)
     if s >= 100 then g, s = g + 1, 0 end
-    return s > 0 and (g .. "g " .. s .. "s") or (g .. "g")
+    return s > 0 and (g .. "g" .. s .. "s") or (g .. "g")
   end
-  if c >= 100 then return math.floor(c / 100 + 0.5) .. "s" end
+  -- Silver with its copper (owner, October 6: Strange Dust at 2s 35c read "2s").
+  if c >= 100 then
+    local s, cp = math.floor(c / 100), c % 100
+    return cp > 0 and (s .. "s" .. cp .. "c") or (s .. "s")
+  end
   return c .. "c"
 end
 
@@ -2387,7 +2391,8 @@ refreshLists = function()
     fs:SetShown(x ~= nil)
   end
   place("Buy/Craft", not search and C.get or nil)
-  place("Up to", not search and C.max or nil)
+  -- Right-aligned over its box, clear of "Buy/Craft" (owner, October 6: "Buy/CraftUp to").
+  place("Up to", not search and (C.max + 62) or nil, true)
   place("Want", not search and C.want or nil)
   place("Checked", search and SC.checked or nil)
   place("Listed", search and SC.listed or nil, true)
@@ -2474,7 +2479,9 @@ refreshLists = function()
       local up = listed and listed > 0
       if up then done = done + 1 end
       r.icon:SetDesaturated(not up)
-      r.name:SetText(up and ns:ListEntryName(e) or ("|cff888888" .. ns:ListEntryName(e) .. "|r"))
+      -- "vendor" after the name: bought from a vendor, not here (owner, October 6).
+      local vtag = ns:ListVendorPrice(e.id) and "  |cff888888vendor|r" or ""
+      r.name:SetText((up and ns:ListEntryName(e) or ("|cff888888" .. ns:ListEntryName(e) .. "|r")) .. vtag)
       r.listed:SetText(listed == nil and "|cff888888?|r" or up and ("|cffffffff" .. listed .. "|r") or "|cff8888880|r")
       r.now:SetText(ns:ListVendorPrice(e.id) and nowText(e.id, nil, ns:ListVendorPrice(e.id)) or (up and min and ("|cff7fd39c" .. shortMoney(min) .. "|r") or "|cff888888-|r"))
       -- Search all under way: this row is being checked, or waits its turn.

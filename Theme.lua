@@ -456,27 +456,41 @@ end
 -- eb.compact = true: a narrow box shows a short form while you're not typing in it
 -- ("12g 40s", "123g"); clicking in shows the exact amount to edit, and hovering shows
 -- it too (owner's test, October 3: big prices ran out of the shopping list's box).
+-- The whole amount without spaces ("9999g99s99c", "1s48c"); the box shrinks its text to
+-- fit (owner, October 6: "can we just make the text smaller when there are more numbers?").
 local function shortPrice(c)
-  -- Under a gold, short too (owner's screenshot, October 5: "1s 48c" showed as "48c",
-  -- its start cut off): "48c", "1s48c", "12s".
-  if c < 100 then return c .. "c" end
-  if c < 10000 then
-    local s, cp = math.floor(c / 100), c % 100
-    if s >= 10 or cp == 0 then return s .. "s" end
-    return ("%ds%02dc"):format(s, cp)
-  end
-  if c < 1000000 then
-    local g, s = math.floor(c / 10000), math.floor(c % 10000 / 100)
-    return s > 0 and (g .. "g" .. s .. "s") or (g .. "g")
-  end
-  return math.floor(c / 10000) .. "g"
+  local g, s, cp = math.floor(c / 10000), math.floor(c % 10000 / 100), c % 100
+  local out = ""
+  if g > 0 then out = out .. g .. "g" end
+  if s > 0 then out = out .. s .. "s" end
+  if cp > 0 or out == "" then out = out .. cp .. "c" end
+  return out
 end
 function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
   local eb = editBox(parent, 100)
   eb.allowAny = allowAny
+  -- A narrow box: smaller text when the amount is long, down to 7, so all of it shows.
+  local measure = eb.CreateFontString and eb:CreateFontString(nil, "OVERLAY")
+  if measure then measure:Hide() end
+  local function fit()
+    if not eb.compact or not measure then return end
+    local font, size, flags = eb:GetFont()
+    if not font or not size then return end
+    eb.baseSize = eb.baseSize or size
+    size = eb.baseSize
+    measure:SetFont(font, size, flags)
+    measure:SetText(eb:GetText())
+    local room = (eb:GetWidth() or 0) - 12
+    while room > 0 and measure:GetStringWidth() > room and size > 7 do
+      size = size - 1
+      measure:SetFont(font, size, flags)
+    end
+    eb:SetFont(font, size, flags)
+  end
   local function show(v, exact)
     v = v or 0
     eb:SetText((v < 0 and "any") or (v > 0 and ((eb.compact and not exact) and shortPrice(v) or ns.MoneyPlain(v))) or offText or "off")
+    fit()
   end
   function eb:SetValue(v) self.value = v; show(v, self:HasFocus()) end
   eb:HookScript("OnTextChanged", function(self, userInput)

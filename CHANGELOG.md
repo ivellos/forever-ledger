@@ -22,6 +22,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl unpair` also removes the characters (and bags) that came from your partner; the auction prices stay. A partner's characters say so on the Characters tab and are never sent back.
 
 ### Fixed
+- Shopping lists: long amounts show in full ("9999g99s99c") with smaller text when needed; prices under Now and Cheapest keep their copper ("2s35c", not "2s"); vendor items say "vendor" after the name; the Up to heading no longer runs into Buy/Craft.
+- Training advice: hovers in short sections (the verdict in its group's colour, why, when to upgrade, notes) instead of one block of text.
 - Shopping lists: a price you typed shows in gold (automatic ones in white), and the hover says "Set by you" or "Automatic" on its own line; vendor items show just their price under Now (it ran into Have); a new list with a name already used gets "(2)", "(3)".
 - Shopping lists: the Up to box is wider and shows short amounts ("1g20s", "1s48c") instead of cutting off the start ("20s" for 1g 20s); hover for the exact amount.
 - Dropdown lists no longer get cut off at the edge of a scrolling area (the shopping-list picker on a shuffle low in the Shuffles tab).

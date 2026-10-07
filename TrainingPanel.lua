@@ -23,9 +23,11 @@ local GROUPS = {
 function ns:SpellAdvice(name, knowsLower)
   local _, class = UnitClass("player")
   local a = ns.TRAINER_ADVICE and ns.TRAINER_ADVICE[class or ""] and ns.TRAINER_ADVICE[class or ""][name]
-  if not a then return "unknown", { "Not in Forever Ledger's list for your class yet." } end
+  if not a then return "unknown", { reason = "Not in Forever Ledger's list for your class yet.", notes = {} } end
   local tree = ns.LevellingTree and ns:LevellingTree()
-  local why = { a.r }
+  -- Hover sections (owner, October 6: readable, not one block): verdict, reason, when to
+  -- upgrade, notes.
+  local why = { reason = a.r, notes = {} }
   local group
   -- The levelling tier (Codex's community research, October 6): one for every tree, or one
   -- per tree, read for the tree you level in. Without a tree yet, a spell the trees
@@ -43,16 +45,16 @@ function ns:SpellAdvice(name, knowsLower)
     if tier and TIER[tier] then
       group = TIER[tier]
       if tree then
-        why[#why + 1] = (tier == "must" and "Must have for %s, your tree.") or (tier == "nice" and "Nice to have for %s, your tree.")
-          or ("Not needed levelling as %s."):format(tree)
-        why[#why] = why[#why]:format(tree)
+        why.verdict = ((tier == "must" and "Must have for %s, your tree.") or (tier == "nice" and "Nice to have for %s, your tree.")
+          or "Not needed levelling as %s."):format(tree)
       end
     else
       group = "choice"
       local parts = {}
       for t, v in pairs(a.tr) do parts[#parts + 1] = ("%s: %s"):format(t, (v == "must" and "must have") or (v == "nice" and "nice to have") or "skip") end
       table.sort(parts)
-      why[#why + 1] = "Depends on your tree (" .. table.concat(parts, ", ") .. "). Spend talent points and this gets clearer."
+      why.verdict = "Depends on your tree: " .. table.concat(parts, ", ") .. "."
+      why.notes[#why.notes + 1] = "Spend talent points and this gets clearer."
     end
   elseif a.c == "everyone" then
     group = "train"
@@ -61,21 +63,21 @@ function ns:SpellAdvice(name, knowsLower)
     for _, t in ipairs(a.t or {}) do if t == tree then mine = true end end
     if mine then
       group = "train"
-      why[#why + 1] = ("For %s, your tree."):format(tree)
+      why.verdict = ("For %s, your tree."):format(tree)
     elseif tree then
       group = "skip"
-      why[#why + 1] = ("For %s; you level as %s."):format(table.concat(a.t or {}, " and "), tree)
+      why.verdict = ("For %s; you level as %s."):format(table.concat(a.t or {}, " and "), tree)
     else
       group = "choice"
-      why[#why + 1] = ("For %s. Spend talent points (or pick your tree) and this gets clearer."):format(table.concat(a.t or {}, " and "))
+      why.verdict = ("For %s. Spend talent points and this gets clearer."):format(table.concat(a.t or {}, " and "))
     end
   elseif a.c == "nice" then
     group = "choice"
   else
     group = "skip"
   end
-  if a.k then why[#why + 1] = a.k end
-  if a.b then why[#why + 1] = a.b end
+  if a.k then why.notes[#why.notes + 1] = a.k end
+  if a.b then why.notes[#why.notes + 1] = a.b end
   -- A higher rank of a spell you know (owner, October 5: is a higher Polymorph worth it?),
   -- by the spell's rank rule (Codex's research): current = keep every rank (main
   -- attacks, upkeep); learn = the first rank does the job; used = upgrade only if you
@@ -88,16 +90,16 @@ function ns:SpellAdvice(name, knowsLower)
     local castLately = last and time() - last <= WEEK
     if a.p == "learn" then
       group = "choice"
-      why[#why + 1] = "You have it already, and the first rank does the job; a higher rank mostly lasts longer or reaches further. Buy it when you have gold to spare."
+      why.upgrade = "You have it, and the first rank does the job. A higher rank mostly lasts longer or reaches further: buy it with gold to spare."
     elseif a.p == "used" or a.p == "defer" then
       if counted and not castLately then
         group = "choice"
-        why[#why + 1] = "Upgrade it only while you use it: you haven't cast it in the last week."
+        why.upgrade = "Only while you use it, and you haven't cast it in the last week."
       else
-        why[#why + 1] = "Worth upgrading while you use it."
+        why.upgrade = "Worth it while you use it."
       end
     elseif a.p == "current" then
-      why[#why + 1] = "Keep it current: the old rank falls behind as you level."
+      why.upgrade = "Always: the old rank falls behind as you level."
     end
   end
   return group, why
@@ -148,8 +150,23 @@ local function row(i)
   r:SetScript("OnEnter", function(self)
     if not self.why then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    local w = self.why
     GameTooltip:AddLine(self.spell, 1, 1, 1)
-    for _, w in ipairs(self.why) do GameTooltip:AddLine(w, 0.8, 0.8, 0.8, true) end
+    -- The verdict in its group's colour, then short labelled sections (owner, October 6).
+    local col = self.color or "ffffff"
+    local r, g, b = tonumber(col:sub(1, 2), 16) / 255, tonumber(col:sub(3, 4), 16) / 255, tonumber(col:sub(5, 6), 16) / 255
+    if w.verdict then GameTooltip:AddLine(w.verdict, r, g, b, true) end
+    if w.reason then GameTooltip:AddLine(w.reason, 0.85, 0.85, 0.85, true) end
+    if w.upgrade then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine("When to upgrade", 1, 0.82, 0)
+      GameTooltip:AddLine(w.upgrade, 0.8, 0.8, 0.8, true)
+    end
+    if w.notes and #w.notes > 0 then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine("Note", 1, 0.82, 0)
+      for _, n in ipairs(w.notes) do GameTooltip:AddLine(n, 0.65, 0.65, 0.65, true) end
+    end
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -205,7 +222,7 @@ function ns:ShowTrainingAdvice(list)
         r:SetPoint("RIGHT", panel.content, "RIGHT", 0, 0)
         r.text:SetText(e.s.name .. "  |cff888888" .. e.tag .. "|r")
         r.cost:SetText(ns.Money(e.s.cost or 0))
-        r.why, r.spell = e.why, e.s.name
+        r.why, r.spell, r.color = e.why, e.s.name, g.color
         r:Show()
         y = y + 18
       end
