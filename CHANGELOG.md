@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Auction-sale values, shuffles and resale comparisons allow for one 24-hour listing that doesn't sell (its deposit is lost); cheap items can favour vendoring. Uses live quotes when available, otherwise a Classic estimate. The explanation stays in Help and the affected options.
+
 ### Added
 - Settings, Global settings, Modules: switch off Levelling help (training advice, the riding fund and counting your casts) in one place. The first of the modules; more follow.
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).

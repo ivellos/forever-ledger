@@ -713,6 +713,8 @@ function ns:ApiReport()
     "TooltipDataProcessor.AddTooltipPostCall", "C_Item.GetItemInfo",
     "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "GetInboxItem", "GetInboxNumItems",
     -- Your auctions (Auctions.lua).
+    "C_AuctionHouse.CalculateCommodityDeposit", "C_AuctionHouse.CalculateItemDeposit", "C_AuctionHouse.GetItemKeyInfo",
+    "ItemLocation.CreateFromBagAndSlot",
     "C_AuctionHouse.QueryOwnedAuctions", "C_AuctionHouse.GetNumOwnedAuctions", "C_AuctionHouse.GetOwnedAuctionInfo",
     "C_AuctionHouse.CancelAuction", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
     "BuyMerchantItem", "GetMerchantItemID", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
@@ -892,6 +894,11 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:ShowPricesCSV()
   elseif msg == "import" then
     ns:ShowImport()
+  elseif msg:match("^deposit") then
+    local id, qty, hours = msg:match("^deposit%s+(%d+)%s*(%d*)%s*(%d*)$")
+    local duration = ({ [12] = 1, [24] = 2, [48] = 3 })[tonumber(hours) or 24]
+    if not id or not duration then ns:Print("Use /fl deposit <item ID> [quantity] [12/24/48 hours].")
+    else ns:DepositReport(tonumber(id), tonumber(qty) or 1, duration) end
   elseif msg == "api" then
     ns:ApiReport()
   elseif msg == "debug" then

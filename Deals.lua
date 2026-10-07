@@ -183,6 +183,7 @@ local function neutralTip(self, d)
   local a = T.accent
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
   GameTooltip:AddLine(ns.ItemName(d.id) or "?", 1, 1, 1)
+  GameTooltip:AddLine("Allows for one listing that doesn't sell (its deposit is lost).", 0.7, 0.7, 0.7, true)
   GameTooltip:AddLine(" ")
   GameTooltip:AddLine("Booty Bay (15% cut)", a[1], a[2], a[3])
   GameTooltip:AddDoubleLine("  Cheapest", ns.Money(d.there) .. " |cff999999" .. d.listedThere .. " listed|r", 0.7, 0.7, 0.7, 1, 1, 1)
