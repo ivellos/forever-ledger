@@ -174,7 +174,7 @@ end
 ns.WHATS_NEW = {
   version = "0.15.0",
   lines = {
-    { "Training advice: beside your class trainer, what to learn now as Must have, Nice to have or Skip while levelling, following your talents and the spells you actually cast.", major = true },
+    { "Training advice: beside your class trainer, what to learn now as Must have, Nice to have or Skip while leveling, following your talents and the spells you actually cast.", major = true },
     { "Booty Bay prices: the neutral auction house kept as its own market, its 15% cut in the math, and a Deals view of what sells for more there or is cheaper to buy there.", major = true },
     { "Shopping lists from shuffles and the Disenchant finder: add them in one click; each Up to says where it came from (the shuffle, your usual price plus an allowance, or you).", major = true },
     "Riding fund: on the Dashboard, how close you are to riding at 40 and epic riding at 60, mount included.",

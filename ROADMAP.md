@@ -43,7 +43,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Cozy Sleeping Bag**: whether the trip is worth it for your route and pace, and the best time to get it.
 - **Training costs**: what the next levels of class and profession training will cost, so you can save for them.
 - **Riding fund**: in the addon since 0.15.0 (how close you are to riding at 40 and epic riding at 60, mount included, and about how many days at your pace). Next: a warning when you spend into it.
-- **Training advice**: in the addon since 0.15.0 for every class (Must have, Nice to have and Skip while levelling beside the class trainer, following your talents and the spells you cast). Next: checking each class in Forever, and the same for profession trainers.
+- **Training advice**: in the addon since 0.15.0 for every class (Must have, Nice to have and Skip while leveling beside the class trainer, following your talents and the spells you cast). Next: checking each class in Forever, and the same for profession trainers.
 - **Bag value**: in the addon since 0.14.0 (price per slot in bag tooltips, and the cheapest bag per slot).
 - **Legacy advisor**: which Legacy perks pay off for how you play (priced from your own vendor, flight and Favor spending), and the cheapest route to your next point.
 
@@ -63,7 +63,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Mail helper**: open all mail in one click (sales logged as it goes), and a warning when one mail carries many stacks.
 - **Plays nice with Auctionator and TSM**: features they already cover are switched off when they're installed, with a one-time message saying what and how to turn them back on. Later also Leatrix Plus and ForeverForge, for auto-selling and sniping.
 - **Prices for other addons' lists**: what GearQuest's suggested upgrades cost on the auction house right now, and what Dungeon Journal's boss loot is worth per run, when those addons are installed.
-- **A new look and a new Settings window**: in the addon since 0.14.0 (three themes, accent colours, Size, the new Settings with profiles). Next: looks based on WoW Forever's own windows and on Blizzard's.
+- **A new look and a new Settings window**: in the addon since 0.14.0 (three themes, accent colors, Size, the new Settings with profiles). Next: looks based on WoW Forever's own windows and on Blizzard's.
 - **Shopping list** across shuffles.
 - **Macro library**: a searchable library of useful macros by class and purpose, each explained, with one-click "create". Players will be able to suggest macros on the Discord and vote for the most useful ones.
 

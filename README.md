@@ -39,7 +39,7 @@
 ### Selling
 - **Your auctions:** what you have up, what's been undercut (with a reminder), and Cancel next undercut, one click each; sold ones show what you get and when the gold reaches your mailbox, and what sold while you were away is in chat when you come back.
 - **Price helper:** the usual price and the cheapest now on the Sell tab, with Undercut and Usual buttons that fill the price in, and a warning when someone is dumping.
-- **Sell protection:** a warning, and Post greyed out, before you list something for less than a vendor pays.
+- **Sell protection:** a warning, and Post grayed out, before you list something for less than a vendor pays.
 
 ### Crafting and professions
 - **Recipes and trainers:** every recipe for your professions, who knows it, where to get it, the skill needed and profit per craft; sort by any column.
@@ -54,11 +54,11 @@
 - **Sessions:** a small tracker for gold an hour, gold in and out and what you loot, and every session listed in the Ledger.
 - **Dungeon runs:** runs, time, coin and what dropped for you, per dungeon.
 - **Riding fund:** how close you are to riding at 40 and epic riding at 60, mount included.
-- **Training advice:** beside your class trainer, which spells and ranks are must haves, nice to have, or skippable while levelling, with what each costs.
+- **Training advice:** beside your class trainer, which spells and ranks are must haves, nice to have, or skippable while leveling, with what each costs.
 
 ### Getting around
 - **Welcome and Help:** a short guide the first time, Help by topic with common questions, and search boxes for Settings and Help.
-- **Your look:** three themes (FL Clean, FL Default, FL Gilded), your accent colour (or EllesmereUI's), and a Size from 75% to 150%.
+- **Your look:** three themes (FL Clean, FL Default, FL Gilded), your accent color (or EllesmereUI's), and a Size from 75% to 150%.
 - **Settings profiles:** characters can share a set of settings or each have their own; export a profile for a friend.
 - **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
 - **Two accounts?** Live sync shares prices and recipes between them while both are online, and bags and bank if you like. Remove characters you no longer have in Settings.

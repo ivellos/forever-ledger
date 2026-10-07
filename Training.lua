@@ -331,7 +331,7 @@ function ns:FundCommand()
   local c = ns.db.chars[ns.CharKey()]
   if c then c.noRidingFund = nil end
   if ns.db.settings.moduleLevelling == false then
-    ns:Print("Levelling help is switched off: Settings, Global settings, Modules.")
+    ns:Print("Leveling help is switched off: Settings, Global settings, Modules.")
   elseif ns.db.settings.ridingFund == false then
     ns:Print("The riding fund is switched off everywhere: Settings, Global settings, Modules.")
   else
@@ -361,7 +361,7 @@ function ns:TalentProbe()
   end
   local thirds = ns.TalentThirds and ns:TalentThirds()
   if thirds then
-    print(("  Points by tree: %s %d, %s %d, %s %d; levelling as: %s"):format(thirds.names[1], thirds.points[1],
+    print(("  Points by tree: %s %d, %s %d, %s %d; leveling as: %s"):format(thirds.names[1], thirds.points[1],
       thirds.names[2], thirds.points[2], thirds.names[3], thirds.points[3], tostring(ns:LevellingTree())))
   end
   if not (configID and C_Traits) then return end

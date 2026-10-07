@@ -15,7 +15,7 @@ local panel
 local GROUPS = {
   { key = "train", title = "Must have", color = "7fd39c" },
   { key = "choice", title = "Nice to have", color = "e8c27a" },
-  { key = "skip", title = "Skip while levelling", color = "ee8597" },
+  { key = "skip", title = "Skip while leveling", color = "ee8597" },
   { key = "unknown", title = "Not reviewed yet", color = "999999" },
 }
 
@@ -46,7 +46,7 @@ function ns:SpellAdvice(name, knowsLower)
       group = TIER[tier]
       if tree then
         why.verdict = ((tier == "must" and "Must have for %s, your tree.") or (tier == "nice" and "Nice to have for %s, your tree.")
-          or "Not needed levelling as %s."):format(tree)
+          or "Not needed leveling as %s."):format(tree)
       end
     else
       group = "choice"
@@ -91,7 +91,7 @@ function ns:SpellAdvice(name, knowsLower)
   local castLately = last and time() - last <= WEEK
   local tierGroup = group
   if group == "skip" then
-    why.upgrade = "Not while levelling. Come back to it at 60, or if you start using it."
+    why.upgrade = "Not while leveling. Come back to it at 60, or if you start using it."
   elseif a.p == "current" then
     why.upgrade = knowsLower and "Always: the old rank falls behind as you level."
       or "Keep every rank as it comes: it's a spell you lean on, and an old rank falls behind."
@@ -121,8 +121,8 @@ function ns:SpellAdvice(name, knowsLower)
       .. (tree and (" (a must have for %s)."):format(tree) or ".")
   end
   -- A plain verdict when the tree didn't give one, so every hover reads the same way.
-  why.verdict = why.verdict or (group == "train" and "Must have while levelling.")
-    or (group == "choice" and "Nice to have: worth it when gold allows.") or "Skip while levelling."
+  why.verdict = why.verdict or (group == "train" and "Must have while leveling.")
+    or (group == "choice" and "Nice to have: worth it when gold allows.") or "Skip while leveling."
   return group, why
 end
 
@@ -244,7 +244,7 @@ function ns:ShowTrainingAdvice(list)
   local tree = ns.LevellingTree and ns:LevellingTree()
   -- Two short lines (the long one wrapped to three: owner's screenshot, October 6).
   panel.sub:SetText((total > 0 and ("All of it %s, recommended %s.\n"):format(ns.Money(total), ns.Money(cost.train)) or "Nothing new to learn at this level.\n")
-    .. (tree and ("Levelling as %s (from your talents)."):format(tree) or "No talent points yet: spec spells are your choice."))
+    .. (tree and ("Leveling as %s (from your talents)."):format(tree) or "No talent points yet: spec spells are your choice."))
   local y, n = 0, 0
   for _, g in ipairs(GROUPS) do
     if #groups[g.key] > 0 then

@@ -24,7 +24,7 @@ local LIST = {
     ids = { 2770, 2840, 2835 },
     zone = { "Elwynn Forest, Dun Morogh, Darkshore", "Durotar, Mulgore" },
     how = "Mine the veins along your path and keep the Rough Stone. Smelt only when bars sell for more than the ore. Forever has fewer copper veins than Classic.",
-    why = "Many levelling professions need early metal and stone." },
+    why = "Many leveling professions need early metal and stone." },
   { title = "Pick herbs as you go", prof = "Herbalism", lvl = { 1, 20 },
     ids = { 2447, 765, 785, 2450, 2452, 2449 },
     zone = { "Elwynn, Dun Morogh, Teldrassil, then Westfall and Darkshore", "Durotar, Mulgore, Tirisfal, then the Barrens and Silverpine" },
@@ -33,7 +33,7 @@ local LIST = {
   { title = "Linen and coin from humanoid camps", lvl = { 6, 16 },
     ids = { 2589, 2996 },
     zone = { "Elwynn kobolds and gnolls, then the Defias in Westfall", "Razormane camps in Durotar, then the pirates south of Ratchet" },
-    how = "Kill humanoids on your quests: keep the Linen, vendor the grey items, check any greens. Move on when the camp is crowded.",
+    how = "Kill humanoids on your quests: keep the Linen, vendor the gray items, check any greens. Move on when the camp is crowded.",
     why = "Cloth, coin and vendor loot from the same kills." },
   { title = "Make Linen Bags", prof = "Tailoring", lvl = { 1, 20 }, forever = true,
     ids = { 4238, 2589, 2996, 2320, 4496 },
@@ -73,7 +73,7 @@ local LIST = {
     ids = { 118, 858, 2447, 3371 },
     zone = { "Any town", "Any town" },
     how = "Healing potions are First Aid in Forever. Make a few to order; otherwise sell the herbs.",
-    why = "Levellers buy them instead of training First Aid themselves." },
+    why = "Levelers buy them instead of training First Aid themselves." },
   { title = "Enchants as a service", prof = "Enchanting", lvl = { 5, 20 }, forever = true, service = true,
     zone = { "Trade chat or your group", "Trade chat or your group" },
     how = "Enchant with the customer's materials for a tip; the Customers window spots requests.",
@@ -190,7 +190,16 @@ function ns:BuildLevelling(parent)
   view.intro:SetPoint("TOPLEFT", 4, -24)
   view.intro:SetPoint("RIGHT", view, "RIGHT", -4, 0)
   view.intro:SetJustifyH("LEFT")
-  view.intro:SetText("Ways to make gold while levelling, best first, priced from your scans. Dimmed lines need a profession or class this character doesn't have. Hover a line for what to do.")
+  view.intro:SetText("Ways to make gold while leveling, best first, priced from your scans. Dimmed lines need a profession this character doesn't have. Hover a line for what to do.")
+  -- Only what this character can do: hides lines needing a profession it hasn't got
+  -- (owner, October 7). Class-only lines never show for other classes.
+  view.mine = T:Check(view, function(self)
+    ns.db.settings.levellingMine = self:GetChecked()
+    ns:RefreshLevelling()
+  end)
+  view.mine:SetPoint("TOPRIGHT", -150, -6)
+  view.mine.label:SetText("Only my professions")
+  view.mine:SetHitRectInsets(0, -140, 0, 0)
   view.sf, view.content = T:Scroll(view)
   view.sf:SetPoint("TOPLEFT", 0, -56)
   view.sf:SetPoint("BOTTOMRIGHT", 0, 0)
@@ -205,10 +214,14 @@ function ns:RefreshLevelling()
   local faction = UnitFactionGroup("player")
   local level = UnitLevel("player") or 1
   -- What this character can do first (in the list's order), then the rest, dimmed.
+  local onlyMine = ns.db.settings.levellingMine
+  view.mine:SetChecked(onlyMine)
   local yes, no = {}, {}
   for _, e in ipairs(LIST) do
     local ok, why = fits(e, profs, class, faction)
-    table.insert(ok and yes or no, { e = e, why = why })
+    -- Another class's or faction's line is no use to this character: left out.
+    local other = (e.class and e.class ~= class) or (e.faction and e.faction ~= faction)
+    if not other and (ok or not onlyMine) then table.insert(ok and yes or no, { e = e, why = why }) end
   end
   local y, n = 0, 0
   for _, group in ipairs({ yes, no }) do

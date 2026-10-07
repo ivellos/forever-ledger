@@ -53,11 +53,11 @@ local PAGES = {
       -- Parts of the addon you can switch off whole (owner, October 7: modules, so extras
       -- don't crowd the window). Off means not running at all. More join with the side tabs.
       { name = "Modules", rows = {
-        { sub = "Levelling help" },
-        { key = "moduleLevelling", label = "Levelling help", kind = "check", after = function() ns:LayoutTabs(); ns:RefreshUI() end,
-          help = "The Levelling tab (ways to make gold while levelling, under level 20), training advice at the class trainer and the riding fund on the Dashboard. Off: none of it runs, and the spells you cast aren't counted. It switches itself off on level 60 characters." },
+        { sub = "Leveling help" },
+        { key = "moduleLevelling", label = "Leveling help", kind = "check", after = function() ns:LayoutTabs(); ns:RefreshUI() end,
+          help = "The Leveling tab (ways to make gold while leveling, under level 20), training advice at the class trainer and the riding fund on the Dashboard. Off: none of it runs, and the spells you cast aren't counted. It switches itself off on level 60 characters." },
         { key = "trainerAdvice", label = "  Training advice beside the class trainer", kind = "check",
-          help = "When you open your class trainer, a panel beside it sorts what you can learn now into Must have, Nice to have and Skip while levelling, with what each costs and why (hover). It follows the tree your talent points are in and the spells you actually cast. Advice only: you still train in Blizzard's window." },
+          help = "When you open your class trainer, a panel beside it sorts what you can learn now into Must have, Nice to have and Skip while leveling, with what each costs and why (hover). It follows the tree your talent points are in and the spells you actually cast. Advice only: you still train in Blizzard's window." },
         { key = "ridingFund", label = "  Riding fund on the Dashboard", kind = "check", after = function() ns:RefreshUI() end,
           help = "A strip under the tiles: the riding this character doesn't know yet (then epic riding), what it costs, how much gold you have toward it and about how many days at your pace. It goes away once learned. Hide here (on the strip) hides it on one character; /fl fund shows it again." },
       } },
@@ -77,15 +77,15 @@ local PAGES = {
   { key = "appearance", title = "Appearance", icon = "Interface\\AddOns\\ForeverLedger\\media\\icons\\appearance",
     desc = "How Forever Ledger's windows look. A change shows after a reload.",
     rows = {
-      { sub = "Theme and colour" },
+      { sub = "Theme and color" },
       { key = "theme", label = "Theme", kind = "choice", after = function() ns:OfferReload() end, options = {
           { "clean", "FL Clean" }, { "default", "FL Default" }, { "gilded", "FL Gilded" } },
         help = "FL Clean: flat and quiet. FL Default: a bronze edge, gold titles, sections as cards, switches. FL Gilded: a bronze frame and gold serif titles. Looks based on WoW Forever's and Blizzard's own windows are coming." },
       { key = "uiScale", label = "Size", kind = "slider", min = 75, max = 150, step = 5, suffix = "%",
         after = function() if ns.ApplyScale then ns:ApplyScale() end end,
         help = "How big Forever Ledger's windows are, from 75% to 150%. Drag, then let go." },
-      { key = "accent", label = "Accent colour", kind = "accent", after = function() ns:OfferReload() end,
-        help = "The colour of what's active: the chosen tab, switches that are on, highlights. Auto uses EllesmereUI's colour when it's installed." },
+      { key = "accent", label = "Accent color", kind = "accent", after = function() ns:OfferReload() end,
+        help = "The color of what's active: the chosen tab, switches that are on, highlights. Auto uses EllesmereUI's color when it's installed." },
     } },
 
   { group = "Gold making" },
@@ -112,7 +112,7 @@ local PAGES = {
         { key = "priceHelper", label = "Price helper on the Sell tab", kind = "check",
           help = "Under the Create Auction button: the usual price and the cheapest now, and buttons to fill in 1 copper under the cheapest or the usual price. Says when the cheapest is well below usual." },
         { key = "sellGuard", label = "Stop posts below vendor price", kind = "check",
-          help = "On the Sell tab, when a vendor would pay more than the auction house after its cut, Post is greyed out until you click Post anyway. Off: just the warning." },
+          help = "On the Sell tab, when a vendor would pay more than the auction house after its cut, Post is grayed out until you click Post anyway. Off: just the warning." },
         { sub = "Your auctions" },
         { key = "undercutAlerts", label = "Undercut alerts", kind = "check",
           help = "When a scan finds one of your auctions undercut: a line in chat, once per price. The Auctions tab beside the auction house lists them all." },
@@ -164,7 +164,7 @@ local PAGES = {
         { key = "tipQuest", label = "Quests that need it", kind = "check",
           help = "Quests that ask for the item (original Classic quests; Forever may have changed some), and \"keep it\" when this character will want it later." },
         { key = "tipQuestMine", label = "  Only quests this character still needs", kind = "check",
-          help = "Leaves out quests this character has done, ones grey for its level, and other classes' quests. Off: all of them, marked (done), (too low) or (other class), handy when selling to others." },
+          help = "Leaves out quests this character has done, ones gray for its level, and other classes' quests. Off: all of them, marked (done), (too low) or (other class), handy when selling to others." },
         { key = "tipDrops", label = "Dungeon drops you've had", kind = "check",
           help = "\"Dropped for you: Deadmines, 2 in 14 runs\", from the dungeon runs Forever Ledger counts (/fl runs)." },
         { key = "tipDisenchant", label = "Disenchants to", kind = "check",

@@ -6,11 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
+- American spelling in everything players read (leveling, color, gray, armor), like the game itself.
 - Auction-sale values, shuffles and resale comparisons allow for one 8-hour listing that doesn't sell (its deposit is lost); cheap items can favour vendoring. Uses live quotes when available, otherwise Classic's formula (5% of the vendor price per 2 hours; Forever's durations are 2, 8 and 24 hours). The explanation stays in Help and the affected options. `/fl deposit` takes an item ID or a shift-clicked item.
 
 ### Added
-- Levelling tab, below level 20: ways to make gold while levelling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession or class; (Classic) until confirmed in Forever.
-- Settings, Global settings, Modules: switch off Levelling help (training advice, the riding fund and counting your casts) in one place. The first of the modules; more follow.
+- Leveling tab, below level 20: ways to make gold while levelling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession (Only my professions hides them); other classes' lines don't show; (Classic) until confirmed in Forever.
+- Settings, Global settings, Modules: switch off Leveling help (training advice, the riding fund and counting your casts) in one place. The first of the modules; more follow.
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).
 - Each class's talent layout is saved at login (and by `/fl talents`), to check the order of the three trees in Forever's single talent tree for every class.
 - `/fl api` lists which of Blizzard's tab templates and tab art the client has (for side tabs like the spellbook's).

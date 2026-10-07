@@ -879,18 +879,18 @@ local function statusText()
       ("Spent %s of %s. Raise Spend at most below to buy more, or it starts again next visit."):format(money(Q.spent), money(S().limit)),
       watching and "Stop" or "Watch flips"
   end
-  local poorText = spendable() < GetMoney() and "%d over your limit (greyed below)." or "%d you can't afford yet (greyed below)."
+  local poorText = spendable() < GetMoney() and "%d over your limit (grayed below)." or "%d you can't afford yet (grayed below)."
   local why
   if view() == "lists" then
     local any = false
     for _, l in ipairs(ns:ShoppingLists()) do if l.on then any = true end end
     why = (poor > 0 and poorText:format(poor))
-      or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
+      or (waiting > 0 and ("%d waiting for a lower price (grayed below)."):format(waiting))
       or (any and "Click Search my lists below to check the auction house for them.")
       or "No lists here yet: on the Shopping lists tab, tick Buy from this list in the Buy queue."
   else
     why = (poor > 0 and poorText:format(poor))
-      or (waiting > 0 and ("%d waiting for a lower price (greyed below)."):format(waiting))
+      or (waiting > 0 and ("%d waiting for a lower price (grayed below)."):format(waiting))
       or (watching and "Watching for flips; new ones show up here.")
       or "Click Watch flips below to keep scanning while you're here."
   end

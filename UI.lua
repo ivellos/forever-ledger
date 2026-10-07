@@ -113,7 +113,7 @@ local TABS = {
   { key = "recipes", label = "Recipes" },
   { key = "characters", label = "Characters" },
   -- Levelling help module, under level 20 (Levelling.lua; owner, October 7).
-  { key = "levelling", label = "Levelling", show = function() return ns.LevellingTabShown and ns:LevellingTabShown() end },
+  { key = "levelling", label = "Leveling", show = function() return ns.LevellingTabShown and ns:LevellingTabShown() end },
   { key = "settings", label = "Settings" },
   { key = "help", label = "Help" },
 }
