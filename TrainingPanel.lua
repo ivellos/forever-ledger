@@ -149,7 +149,8 @@ local function build()
   panel.foot:SetPoint("BOTTOMLEFT", 10, 7)
   panel.foot:SetPoint("RIGHT", panel, "RIGHT", -10, 0)
   panel.foot:SetJustifyH("LEFT")
-  panel.foot:SetText("Advice only: train in Blizzard's window. Hover a spell for why.")
+  panel.foot:SetWordWrap(false)
+  panel.foot:SetText("Hover a spell for why. Advice only.")
   panel.rows = {}
   panel:Hide()
 end
@@ -174,6 +175,13 @@ local function row(i)
   r.line:SetPoint("BOTTOMRIGHT", -2, 0)
   local c = T.theme.frame or T.accent
   r.line:SetColorTexture(c[1], c[2], c[3], T.theme.frame and 0.5 or 0.3)
+  -- A faint band behind a group heading (tinted in its colour), and a soft highlight on
+  -- a spell under the mouse, so it's clear the rows can be hovered.
+  r.band = r:CreateTexture(nil, "BACKGROUND")
+  r.band:SetAllPoints()
+  r.hl = r:CreateTexture(nil, "HIGHLIGHT")
+  r.hl:SetAllPoints()
+  r.hl:SetColorTexture(1, 1, 1, 0.05)
   r:SetScript("OnEnter", function(self)
     if not self.why then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -226,7 +234,8 @@ function ns:ShowTrainingAdvice(list)
     end
   end
   local tree = ns.LevellingTree and ns:LevellingTree()
-  panel.sub:SetText((total > 0 and ("Everything you can learn now: %s. Recommended: %s.\n"):format(ns.Money(total), ns.Money(cost.train)) or "Nothing new to learn at this level.\n")
+  -- Two short lines (the long one wrapped to three: owner's screenshot, October 6).
+  panel.sub:SetText((total > 0 and ("All of it %s, recommended %s.\n"):format(ns.Money(total), ns.Money(cost.train)) or "Nothing new to learn at this level.\n")
     .. (tree and ("Levelling as %s (from your talents)."):format(tree) or "No talent points yet: spec spells are your choice."))
   local y, n = 0, 0
   for _, g in ipairs(GROUPS) do
@@ -243,6 +252,9 @@ function ns:ShowTrainingAdvice(list)
       h.why, h.spell = nil, nil
       h:SetHeight(20)
       h.line:Show()
+      h.band:SetColorTexture(tonumber(g.color:sub(1, 2), 16) / 255, tonumber(g.color:sub(3, 4), 16) / 255, tonumber(g.color:sub(5, 6), 16) / 255, 0.07)
+      h.band:Show()
+      h.hl:Hide()
       h:Show()
       y = y + 24
       table.sort(groups[g.key], function(a, b) return a.s.name < b.s.name end)
@@ -255,6 +267,8 @@ function ns:ShowTrainingAdvice(list)
         T:Font(r.text, 11)
         r:SetHeight(18)
         r.line:Hide()
+        r.band:Hide()
+        r.hl:Show()
         r.text:SetText(e.s.name .. "  |cff888888" .. e.tag .. "|r")
         r.cost:SetText(ns.Money(e.s.cost or 0))
         r.why, r.spell, r.color = e.why, e.s.name, g.color
@@ -265,12 +279,19 @@ function ns:ShowTrainingAdvice(list)
     end
   end
   for i = n + 1, #panel.rows do panel.rows[i]:Hide() end
-  panel.content:SetWidth(panel.sf:GetWidth() - 12)
+  -- As tall as the list needs, up to the trainer window's height; past that it scrolls
+  -- (owner, October 6), and the footer says so.
+  local trainer = _G.ClassTrainerFrame
+  local maxH = math.max(260, (trainer and trainer:IsShown() and trainer:GetHeight()) or 440)
+  local want = 74 + math.max(y, 20) + 32
+  panel:SetHeight(math.min(want, maxH))
+  panel.foot:SetText(want > maxH and "Scroll for more. Hover a spell for why." or "Hover a spell for why. Advice only.")
+  panel.content:SetWidth(300 - 12 - 12)
   panel.content:SetHeight(math.max(y, 20))
+  panel.sf:SetVerticalScroll(0)
   if panel.sf.UpdateScrollBar then panel.sf.UpdateScrollBar() end
   -- Beside Blizzard's trainer window when it's there.
   panel:ClearAllPoints()
-  local trainer = _G.ClassTrainerFrame
   if trainer and trainer:IsShown() then
     panel:SetPoint("TOPLEFT", trainer, "TOPRIGHT", 4, 0)
   else
