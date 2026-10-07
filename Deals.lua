@@ -35,7 +35,7 @@ local NEUTRAL_COLUMNS = {
   { key = "better", label = "Better by", width = 80, right = true },
   { key = "npct", label = "%", width = 46, right = true },
   { key = "lthere", label = "Listed there", width = 80, right = true },
-  { key = "lhere", label = "Here", width = 50, right = true },
+  { key = "lhere", label = "Listed here", width = 80, right = true },   -- (UI pass, October 6: two "Here" columns)
 }
 local NEUTRAL_MIN = 0.10   -- at least 10% better after both cuts
 -- Listings needed on the side you'd sell to, unless "Show thin data too" (owner's
