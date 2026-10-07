@@ -22,6 +22,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl unpair` also removes the characters (and bags) that came from your partner; the auction prices stay. A partner's characters say so on the Characters tab and are never sent back.
 
 ### Fixed
+- Shopping lists: pressing Escape in a narrow Up to box no longer saves its shortened form (9999g 99s 99c became 9999g 99s, marked as set by you).
+- Training advice: a spell moved to Nice to have (you have a rank that does the job, or haven't cast it in a week) no longer says Must have on hover.
 - Disenchant finder: Add to shopping list leaves out items your Enchanting is too low for (marked "skill"), and says how many; right-clicking one still adds it.
 - UI pass: clearer wording after adding to a shopping list, a hover on the riding fund's Hide here, and the Booty Bay view's second "Here" column is now "Listed here".
 - Shopping lists: long amounts show in full ("9999g99s99c") with smaller text when needed, and the start always shows (an amount too long even at the smallest text drops its copper, then silver; hover for the exact amount); prices under Now and Cheapest keep their copper ("2s35c", not "2s"); vendor items say "vendor" after the name; headings line up with their columns (centred over the buttons and boxes, right-aligned over Have and Now).

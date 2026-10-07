@@ -60,6 +60,12 @@ T.test("Higher ranks follow the spell's rank rule", function()
   T.eq((ns:SpellAdvice("Frost Armor", true)), "train", "cast an hour ago")
   T.eq((ns:SpellAdvice("Polymorph", true)), "choice", "learn once: you have it")
   T.eq((ns:SpellAdvice("Polymorph", false)), "train", "learn once: first rank")
+  -- The verdict follows the group it ends up in (Codex review, October 6).
+  ns.db.casts[key]["Frost Armor"] = time() - 9 * 86400
+  local _, why = ns:SpellAdvice("Frost Armor", true)
+  T.ok(why.verdict:find("^Nice to have now"), "not Must have: " .. why.verdict)
+  _, why = ns:SpellAdvice("Polymorph", true)
+  T.ok(why.verdict:find("^Nice to have now"), "not Must have: " .. why.verdict)
   ns.db.castsSince, ns.db.casts = nil, nil
 end)
 

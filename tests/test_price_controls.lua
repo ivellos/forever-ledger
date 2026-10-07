@@ -39,6 +39,21 @@ T.test("Typing the same automatic price marks it as yours; Escape cancels", func
     box:SetText("99g"); box.scripts.OnTextChanged(box, true)
     box.scripts.OnEscapePressed(box)
     T.eq(e.src, "usual"); T.eq(e.max, 1357, "Escape doesn't commit")
+    -- A narrow box shows a shortened amount; Escape mustn't save that (Codex review,
+    -- October 6: 9999g 99s 99c became 9999g 99s, set by you).
+    local f = { id = 89002, max = 99999999, src = "usual" }
+    local narrow = ns.Theme:MoneyBox(widget(), function(v) ns:SetListItemPrice(f, v) end, "g", true)
+    narrow.GetFont = function() return "font", 12, "" end
+    narrow.GetWidth = function() return 66 end
+    narrow.compact, narrow.confirmSame = true, true
+    narrow:SetValue(99999999)
+    T.eq(narrow:GetText(), "9999g99s", "too long at the smallest size: copper dropped")
+    narrow.focus = true; narrow.scripts.OnEditFocusGained(narrow)
+    T.eq(narrow:GetText(), "9999g 99s 99c", "clicking in shows the exact amount")
+    narrow.scripts.OnEscapePressed(narrow)
+    T.eq(f.src, "usual"); T.eq(f.max, 99999999, "Escape keeps the exact amount")
+    narrow.scripts.OnEditFocusLost(narrow)
+    T.eq(f.max, 99999999, "clicking away from the short form changes nothing")
   end)
   CreateFrame, GameTooltip, ns.Theme = realFrame, realTip, realTheme
   assert(ok, err)

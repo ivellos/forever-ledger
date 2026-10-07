@@ -89,6 +89,7 @@ function ns:SpellAdvice(name, knowsLower)
   local counted = since and time() - since > WEEK
   local last = ns.LastCast and ns:LastCast(name)
   local castLately = last and time() - last <= WEEK
+  local tierGroup = group
   if group == "skip" then
     why.upgrade = "Not while levelling. Come back to it at 60, or if you start using it."
   elseif a.p == "current" then
@@ -111,6 +112,12 @@ function ns:SpellAdvice(name, knowsLower)
   elseif a.p == "defer" then
     if knowsLower and counted and not castLately and group == "train" then group = "choice" end
     why.upgrade = "Can wait: train it when you need it (see why above), not just because it's there."
+  end
+  -- Moved down a group by its rank rule: the tree's "Must have" verdict no longer fits
+  -- (Codex review, October 6: the hover said Must have under Nice to have).
+  if group ~= tierGroup then
+    why.verdict = (a.p == "learn") and "Nice to have now: you already have a rank that does the job."
+      or "Nice to have now: you haven't cast it in the last week."
   end
   -- A plain verdict when the tree didn't give one, so every hover reads the same way.
   why.verdict = why.verdict or (group == "train" and "Must have while levelling.")

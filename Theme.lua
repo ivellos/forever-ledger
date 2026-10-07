@@ -528,6 +528,10 @@ function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
   end)
   eb:HookScript("OnLeave", function() GameTooltip:Hide() end)
   eb:SetScript("OnEditFocusLost", function(self)
+    -- Nothing typed (Escape, or just clicking away): keep the value. The text may be the
+    -- shortened display form, which mustn't be read back as a price (Codex review,
+    -- October 6: Escape saved 9999g 99s 99c as 9999g 99s, "set by you").
+    if not self.priceEdited then show(self.value); return end
     local v = ns.ParseMoneyLoose(self:GetText(), plainUnit)
     if v == -1 and not allowAny then v = nil end
     if not v then
