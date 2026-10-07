@@ -10,6 +10,17 @@ local function asTree(tree)
   ns.db.chars[key].levelTree = tree
 end
 
+-- The test character is level 60 (stubs.lua), so the list was dropped at login.
+T.test("A level 60 doesn't keep the advice list", function()
+  T.eq(ns.TRAINER_ADVICE, nil, "dropped at 60")
+  local real = UnitLevel
+  UnitLevel = function() return 59 end
+  assert(loadfile("TrainerAdvice.lua"))("ForeverLedger", ns)
+  T.ready("Training.lua")
+  UnitLevel = real
+  T.ok(ns.TRAINER_ADVICE, "kept below 60")
+end)
+
 T.test("The data covers the nine classes", function()
   local n = 0
   for _ in pairs(ns.TRAINER_ADVICE) do n = n + 1 end
@@ -50,4 +61,16 @@ T.test("Higher ranks follow the spell's rank rule", function()
   T.eq((ns:SpellAdvice("Polymorph", true)), "choice", "learn once: you have it")
   T.eq((ns:SpellAdvice("Polymorph", false)), "train", "learn once: first rank")
   ns.db.castsSince, ns.db.casts = nil, nil
+end)
+
+T.test("Every reviewed spell's hover has a verdict, a reason and when to upgrade", function()
+  asTree("Frost")
+  local missing = {}
+  for name in pairs(ns.TRAINER_ADVICE.MAGE) do
+    for _, knows in ipairs({ false, true }) do
+      local _, why = ns:SpellAdvice(name, knows)
+      if not (why.verdict and why.reason and why.upgrade) then missing[#missing + 1] = name end
+    end
+  end
+  T.eq(table.concat(missing, ", "), "")
 end)

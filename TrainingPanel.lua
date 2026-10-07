@@ -78,30 +78,43 @@ function ns:SpellAdvice(name, knowsLower)
   end
   if a.k then why.notes[#why.notes + 1] = a.k end
   if a.b then why.notes[#why.notes + 1] = a.b end
-  -- A higher rank of a spell you know (owner, October 5: is a higher Polymorph worth it?),
-  -- by the spell's rank rule (Codex's research): current = keep every rank (main
-  -- attacks, upkeep); learn = the first rank does the job; used = upgrade only if you
-  -- cast it (after a week of counting your casts).
-  if group == "train" and knowsLower then
-    local key = ns.CharKey()
-    local since = ns.db.castsSince and ns.db.castsSince[key]
-    local counted = since and time() - since > WEEK
-    local last = ns.LastCast and ns:LastCast(name)
-    local castLately = last and time() - last <= WEEK
-    if a.p == "learn" then
-      group = "choice"
+  -- When to upgrade, for every spell (owner, October 6: some hovers had only one short
+  -- line), by its rank rule (Codex's research): current = keep every rank (main attacks,
+  -- upkeep); learn = the first rank does the job; used = upgrade while you cast it;
+  -- defer = wait until you need it. A higher rank of a spell you know (owner, October 5:
+  -- is a higher Polymorph worth it?) can move down a group: a learn spell, or a used one
+  -- you haven't cast in a week of counting.
+  local key = ns.CharKey()
+  local since = ns.db.castsSince and ns.db.castsSince[key]
+  local counted = since and time() - since > WEEK
+  local last = ns.LastCast and ns:LastCast(name)
+  local castLately = last and time() - last <= WEEK
+  if group == "skip" then
+    why.upgrade = "Not while levelling. Come back to it at 60, or if you start using it."
+  elseif a.p == "current" then
+    why.upgrade = knowsLower and "Always: the old rank falls behind as you level."
+      or "Keep every rank as it comes: it's a spell you lean on, and an old rank falls behind."
+  elseif a.p == "learn" then
+    if knowsLower then
+      if group == "train" then group = "choice" end
       why.upgrade = "You have it, and the first rank does the job. A higher rank mostly lasts longer or reaches further: buy it with gold to spare."
-    elseif a.p == "used" or a.p == "defer" then
-      if counted and not castLately then
-        group = "choice"
-        why.upgrade = "Only while you use it, and you haven't cast it in the last week."
-      else
-        why.upgrade = "Worth it while you use it."
-      end
-    elseif a.p == "current" then
-      why.upgrade = "Always: the old rank falls behind as you level."
+    else
+      why.upgrade = "The first rank does the job. Later ranks mostly last longer or reach further: buy them with gold to spare."
     end
+  elseif a.p == "used" then
+    if knowsLower and counted and not castLately then
+      if group == "train" then group = "choice" end
+      why.upgrade = "Only while you use it, and you haven't cast it in the last week."
+    else
+      why.upgrade = "Upgrade while you cast it often. Skip new ranks once you stop using it."
+    end
+  elseif a.p == "defer" then
+    if knowsLower and counted and not castLately and group == "train" then group = "choice" end
+    why.upgrade = "Can wait: train it when you need it (see why above), not just because it's there."
   end
+  -- A plain verdict when the tree didn't give one, so every hover reads the same way.
+  why.verdict = why.verdict or (group == "train" and "Must have while levelling.")
+    or (group == "choice" and "Nice to have: worth it when gold allows.") or "Skip while levelling."
   return group, why
 end
 
@@ -110,23 +123,30 @@ local function build()
   panel:SetSize(300, 360)
   panel:SetFrameStrata("HIGH")
   panel:SetClampedToScreen(true)
-  T:Fill(panel, T.bg or (T.theme and T.theme.bg) or { 0.06, 0.06, 0.07, 0.96 })
+  -- Dressed like the addon's other windows (owner, October 6: on Gilded it didn't fit):
+  -- the theme's frame, a title bar with its line, a tinted footer.
+  T:Fill(panel, { T.bg[1], T.bg[2], T.bg[3], 0.97 })
   T:Border(panel)
-  panel.title = T:Text(panel, 13)
-  panel.title:SetPoint("TOPLEFT", 10, -8)
+  local bar = CreateFrame("Frame", nil, panel)
+  bar:SetPoint("TOPLEFT", 1, -1)
+  bar:SetPoint("TOPRIGHT", -1, -1)
+  bar:SetHeight(28)
+  T:DecorateWindow(panel, 24, bar)
+  panel.title = T:Text(bar, 13)
+  panel.title:SetPoint("LEFT", 10, 0)
   panel.title:SetText("Training advice")
-  if T.StyleTitle then T:StyleTitle(panel.title, 13) end
-  panel.close = T:Button(panel, "x", 20, function() panel:Hide() end, 18)
-  panel.close:SetPoint("TOPRIGHT", -6, -6)
+  T:StyleTitle(panel.title, 13)
+  panel.close = T:Button(bar, "x", 20, function() panel:Hide() end, 18)
+  panel.close:SetPoint("RIGHT", -5, 0)
   panel.sub = T:Text(panel, 11, T.dim)
-  panel.sub:SetPoint("TOPLEFT", 10, -28)
+  panel.sub:SetPoint("TOPLEFT", 10, -36)
   panel.sub:SetPoint("RIGHT", panel, "RIGHT", -10, 0)
   panel.sub:SetJustifyH("LEFT")
   panel.sf, panel.content = T:Scroll(panel)
-  panel.sf:SetPoint("TOPLEFT", 6, -70)
-  panel.sf:SetPoint("BOTTOMRIGHT", -6, 26)
+  panel.sf:SetPoint("TOPLEFT", 6, -74)
+  panel.sf:SetPoint("BOTTOMRIGHT", -6, 28)
   panel.foot = T:Text(panel, 10, T.dim)
-  panel.foot:SetPoint("BOTTOMLEFT", 10, 8)
+  panel.foot:SetPoint("BOTTOMLEFT", 10, 7)
   panel.foot:SetPoint("RIGHT", panel, "RIGHT", -10, 0)
   panel.foot:SetJustifyH("LEFT")
   panel.foot:SetText("Advice only: train in Blizzard's window. Hover a spell for why.")
@@ -147,6 +167,13 @@ local function row(i)
   r.cost = T:Text(r, 11)
   r.cost:SetJustifyH("RIGHT")
   r.cost:SetPoint("RIGHT", -4, 0)
+  -- Under a group heading: a faint line in the theme's frame colour (bronze on Gilded).
+  r.line = r:CreateTexture(nil, "BORDER")
+  r.line:SetHeight(1)
+  r.line:SetPoint("BOTTOMLEFT", 2, 0)
+  r.line:SetPoint("BOTTOMRIGHT", -2, 0)
+  local c = T.theme.frame or T.accent
+  r.line:SetColorTexture(c[1], c[2], c[3], T.theme.frame and 0.5 or 0.3)
   r:SetScript("OnEnter", function(self)
     if not self.why then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -177,6 +204,7 @@ end
 -- list: the trainer's services as RecipeBook.lua read them (name, state, cost, level).
 function ns:ShowTrainingAdvice(list)
   if ns.db.settings.trainerAdvice == false or not T then return end   -- (no Theme in the tests)
+  if (UnitLevel("player") or 0) >= 60 then return end   -- nothing left to level for (owner, October 6)
   if not panel then build() end
   -- What you know, from the spellbook ("Rank 3"): the trainer list in Forever starts
   -- around level 20, so counting its entries gave every spell "rank 1" (owner's
@@ -208,11 +236,15 @@ function ns:ShowTrainingAdvice(list)
       h:ClearAllPoints()
       h:SetPoint("TOPLEFT", 0, -y)
       h:SetPoint("RIGHT", panel.content, "RIGHT", 0, 0)
+      -- Group headings in the theme's heading font (serif on Gilded), in the group's colour.
+      if T.theme.serif then h.text:SetFont(T.SERIF, 13, "") else T:Font(h.text, 12) end
       h.text:SetText(("|cff%s%s|r"):format(g.color, g.title))
       h.cost:SetText(ns.Money(cost[g.key]))
       h.why, h.spell = nil, nil
+      h:SetHeight(20)
+      h.line:Show()
       h:Show()
-      y = y + 20
+      y = y + 24
       table.sort(groups[g.key], function(a, b) return a.s.name < b.s.name end)
       for _, e in ipairs(groups[g.key]) do
         n = n + 1
@@ -220,6 +252,9 @@ function ns:ShowTrainingAdvice(list)
         r:ClearAllPoints()
         r:SetPoint("TOPLEFT", 10, -y)
         r:SetPoint("RIGHT", panel.content, "RIGHT", 0, 0)
+        T:Font(r.text, 11)
+        r:SetHeight(18)
+        r.line:Hide()
         r.text:SetText(e.s.name .. "  |cff888888" .. e.tag .. "|r")
         r.cost:SetText(ns.Money(e.s.cost or 0))
         r.why, r.spell, r.color = e.why, e.s.name, g.color

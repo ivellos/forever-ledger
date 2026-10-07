@@ -26,7 +26,7 @@ function ns:TrainerRead(list, npc, npcID, prof)
     if isRiding(s.name) then
       ns.db.riding[s.name] = { cost = s.cost, level = s.level, t = time() }
       riding = riding + 1
-    elseif not s.skill or s.skill == "" then
+    elseif s.state ~= "header" and (not s.skill or s.skill == "") then
       -- No profession needed: a class spell (profession trainers' recipes name a skill).
       -- By level: Forever's second value is the spell's icon, not "Rank 2" (owner's
       -- /fl trainer, October 5), so ranks are counted from the levels (ns:SpellRanks).
@@ -52,14 +52,24 @@ function ns:TrainerRead(list, npc, npcID, prof)
     end
     cat.t, cat.npc = time(), npc
     ns:Debug(("Training: %s teaches %d %s spells (%d services)."):format(npc or "?", n, class or "?", #list))
-    if ns.ShowTrainingAdvice then ns:ShowTrainingAdvice(list) end
+    -- The advice panel only where the trainer teaches spells on your class's list (owner,
+    -- October 6: not at the riding trainer; the portal trainer is fine).
+    local advice = ns.TRAINER_ADVICE and ns.TRAINER_ADVICE[class or ""]
+    local known = false
+    for name in pairs(spells) do if advice and advice[name] then known = true end end
+    if known and ns.ShowTrainingAdvice then ns:ShowTrainingAdvice(list) end
   end
   if riding > 0 then ns:Debug(("Training: %d riding services seen at %s."):format(riding, npc or "?")) end
 end
 
 -- Spells you cast, by name (ranks share a name): the last time each was cast.
+-- At 60 there's nothing left to level for (owner, October 6: the training advice shouldn't
+-- load on a level 60): the advice list is dropped at login, and casts aren't counted.
+local function maxLevel() return (UnitLevel("player") or 0) >= 60 end
+ns:OnReady(function() if maxLevel() then ns.TRAINER_ADVICE = nil end end)
+
 ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
-  if unit ~= "player" or not spellID then return end
+  if unit ~= "player" or not spellID or maxLevel() then return end
   local name = ns.SpellName(spellID)
   if not name then return end
   ns.db.casts = ns.db.casts or {}
