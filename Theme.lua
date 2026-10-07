@@ -472,25 +472,41 @@ function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
   -- A narrow box: smaller text when the amount is long, down to 7, so all of it shows.
   local measure = eb.CreateFontString and eb:CreateFontString(nil, "OVERLAY")
   if measure then measure:Hide() end
-  local function fit()
-    if not eb.compact or not measure then return end
+  -- Sets the box's text at the largest size (down to 7) where it fits. Still too wide
+  -- (owner's AH9, October 6: "9999g99s99c" at 7 only showed its end), the next shorter
+  -- form is tried: copper dropped, then silver (hovering shows the exact amount). The
+  -- font is set before the text, and the cursor put at the start, so the start shows.
+  local function fit(texts)
     local font, size, flags = eb:GetFont()
-    if not font or not size then return end
+    if not eb.compact or not measure or not font or not size then eb:SetText(texts[1]); return end
     eb.baseSize = eb.baseSize or size
-    size = eb.baseSize
-    measure:SetFont(font, size, flags)
-    measure:SetText(eb:GetText())
     local room = (eb:GetWidth() or 0) - 12
-    while room > 0 and measure:GetStringWidth() > room and size > 7 do
-      size = size - 1
+    local pick, pickSize = texts[#texts], 7
+    for _, text in ipairs(texts) do
+      size = eb.baseSize
       measure:SetFont(font, size, flags)
+      measure:SetText(text)
+      while room > 0 and measure:GetStringWidth() > room and size > 7 do
+        size = size - 1
+        measure:SetFont(font, size, flags)
+      end
+      if room <= 0 or measure:GetStringWidth() <= room then pick, pickSize = text, size; break end
     end
-    eb:SetFont(font, size, flags)
+    eb:SetFont(font, pickSize, flags)
+    eb:SetText(pick)
+    if eb.SetCursorPosition and not eb:HasFocus() then eb:SetCursorPosition(0) end
   end
   local function show(v, exact)
     v = v or 0
-    eb:SetText((v < 0 and "any") or (v > 0 and ((eb.compact and not exact) and shortPrice(v) or ns.MoneyPlain(v))) or offText or "off")
-    fit()
+    if v > 0 and eb.compact and not exact then
+      local g, s = math.floor(v / 10000), math.floor(v % 10000 / 100)
+      local texts = { shortPrice(v) }
+      if v % 100 > 0 and v >= 100 then texts[#texts + 1] = shortPrice(v - v % 100) end
+      if s > 0 and g > 0 then texts[#texts + 1] = shortPrice(g * 10000) end
+      fit(texts)
+    else
+      fit({ (v < 0 and "any") or (v > 0 and ns.MoneyPlain(v)) or offText or "off" })
+    end
   end
   function eb:SetValue(v) self.value = v; show(v, self:HasFocus()) end
   eb:HookScript("OnTextChanged", function(self, userInput)

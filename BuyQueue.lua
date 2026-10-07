@@ -2382,18 +2382,23 @@ refreshLists = function()
   v.again:SetShown(not search)
   -- Column headings for this layout.
   local H = v.headers
-  local function place(name, x, right)
+  -- how: "right" (x is the right edge), "center" (x is the middle), else x is the left.
+  local function place(name, x, how)
     local fs = H[name]
     fs:ClearAllPoints()
     if x then
-      if right then fs:SetPoint("RIGHT", v.header, "LEFT", x, 0) else fs:SetPoint("LEFT", x, 0) end
+      if how == true or how == "right" then fs:SetPoint("RIGHT", v.header, "LEFT", x, 0)
+      elseif how == "center" then fs:SetPoint("CENTER", v.header, "LEFT", x, 0)
+      else fs:SetPoint("LEFT", x, 0) end
     end
     fs:SetShown(x ~= nil)
   end
-  place("Buy/Craft", not search and C.get or nil)
-  -- Right-aligned over its box, clear of "Buy/Craft" (owner, October 6: "Buy/CraftUp to").
-  place("Up to", not search and (C.max + 62) or nil, true)
-  place("Want", not search and C.want or nil)
+  -- Headings line up like what's under them (owner, October 6: only Up to sat to the
+  -- right, which felt off): centred over the Buy buttons and the Up to and Want boxes,
+  -- right-aligned over the numbers in Have and Now.
+  place("Buy/Craft", not search and (C.get + 22) or nil, "center")
+  place("Up to", not search and (C.max + 33) or nil, "center")
+  place("Want", not search and (C.want + 21) or nil, "center")
   place("Checked", search and SC.checked or nil)
   place("Listed", search and SC.listed or nil, true)
   place("Have", search and SC.have or C.have, true)
