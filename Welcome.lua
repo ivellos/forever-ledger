@@ -321,6 +321,16 @@ end
 
 ns:OnReady(function()
   local v, s = ns.VERSION, ns.db.settings
+  -- A fresh install (nothing saved yet, welcome never seen): the window opens with the
+  -- welcome a few seconds after the first login, then never by itself again (owner,
+  -- October 6). Closing the welcome marks it seen.
+  if not s.welcomeSeen and not s.welcomeAutoShown and ns.db.lastFullScan == nil and not s.seenVersion and C_Timer then
+    C_Timer.After(4, function()
+      if s.welcomeSeen or (InCombatLockdown and InCombatLockdown()) then return end
+      s.welcomeAutoShown = true   -- once only, even if the window is closed without the welcome
+      ns:ToggleUI()
+    end)
+  end
   if v == "dev" then return end
   -- Versions before 0.10.0 didn't note the version seen: a saved full scan means it's
   -- an update, not a first install.

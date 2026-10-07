@@ -342,6 +342,8 @@ end
 function ns:TalentProbe()
   local function try(fn) local ok, a, b, c = pcall(fn); if ok then return a, b, c end end
   ns:Print("Talents (send this to Claude):")
+  local saved = ns:SaveTalentLayout()
+  print("  Layout saved: " .. (saved and "yes" or "no (talents not readable yet)"))
   local configID = try(function() return C_ClassTalents.GetActiveConfigID() end)
   print("  Active config: " .. tostring(configID))
   local spec = try(function() return C_SpecializationInfo.GetSpecialization() end)
@@ -381,6 +383,40 @@ function ns:TalentProbe()
       tostring(xs[#xs]), #picked > 0 and table.concat(picked, "; ") or "none"))
   end
 end
+
+-- Each class's talent layout, saved for checking the tree order (owner, October 6: a
+-- level 1 of each class, so nothing needs copying from chat): every talent's name and
+-- position, as "name:x:y;..." in ns.db.talentLayout[class] = { t, tree, nodes }. Read
+-- at login (a few seconds after, when talents are loaded) and by /fl talents.
+function ns:SaveTalentLayout()
+  local ok, layout = pcall(function()
+    local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    local info = configID and C_Traits and C_Traits.GetConfigInfo(configID)
+    local treeID = info and info.treeIDs and info.treeIDs[1]
+    if not treeID then return end
+    local parts = {}
+    for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
+      local node = C_Traits.GetNodeInfo(configID, nodeID)
+      if node and node.posX then
+        local entryID = (node.activeEntry and node.activeEntry.entryID) or (node.entryIDs and node.entryIDs[1])
+        local entry = entryID and C_Traits.GetEntryInfo(configID, entryID)
+        local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
+        local name = def and (def.overrideName or (def.spellID and ns.SpellName(def.spellID))) or tostring(nodeID)
+        parts[#parts + 1] = ("%s:%d:%d"):format(name:gsub("[:;]", " "), node.posX, node.posY or 0)
+      end
+    end
+    if #parts == 0 then return end
+    return { t = time(), tree = treeID, nodes = table.concat(parts, ";") }
+  end)
+  if not ok or not layout then return end
+  local _, class = UnitClass("player")
+  ns.db.talentLayout = ns.db.talentLayout or {}
+  ns.db.talentLayout[class or "?"] = layout
+  return layout
+end
+ns:On("PLAYER_ENTERING_WORLD", function()
+  if C_Timer then C_Timer.After(5, function() ns:SaveTalentLayout() end) end
+end)
 
 ---------------------------------------------------------------------------
 -- Which tree a character levels in. Forever has one talent tree per class (owner's

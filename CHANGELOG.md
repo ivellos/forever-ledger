@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- A fresh install opens the window with the welcome a few seconds after the first login (once only).
+- Each class's talent layout is saved at login (and by `/fl talents`), to check the order of the three trees in Forever's single talent tree for every class.
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights
