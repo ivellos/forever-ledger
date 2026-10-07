@@ -195,6 +195,9 @@ end
 
 function ns:GetVendorBuyPrice(id)
   local rec = ns.db.vendorBuy[id]
+  -- 0c is an old rounded-down price (ammo, before October 6), not free: unknown until
+  -- the next visit to that vendor saves the real one.
+  if rec and (rec.p or 0) <= 0 then return nil, rec end
   return rec and rec.p, rec
 end
 
@@ -219,8 +222,12 @@ local function captureMerchant()
       price, qty, avail, ext = p, q, a, e
     end
     if id and price and price > 0 and not ext then
+      -- Per item. Under a copper each (ammo: 1c for 5) it keeps the fraction, which
+      -- rounded to 0c before (known issue, fixed October 6); n = the stack it's sold in.
+      local each = price / math.max(qty or 1, 1)
       ns.db.vendorBuy[id] = {
-        p = math.floor(price / math.max(qty or 1, 1) + 0.5),
+        p = each < 1 and math.floor(each * 10000 + 0.5) / 10000 or math.floor(each + 0.5),
+        n = (qty and qty > 1) and qty or nil,
         t = time(),
         src = "merchant",
         lim = (avail and avail >= 0) or nil,

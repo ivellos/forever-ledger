@@ -250,7 +250,9 @@ local function addLines(tt, id, forceFull)
   if buy and on("tipPrice") then
     -- The standing it was seen at, when above Neutral (reputation discounts).
     local standing = buy.rep and buy.rep > 4 and (_G["FACTION_STANDING_LABEL" .. buy.rep] or ("standing " .. buy.rep))
-    tt:AddDoubleLine("Vendor sells it for", ns.Money(buy.p) .. (buy.lim and " |cff999999limited|r" or "")
+    -- Under a copper each (ammo): the stack price, "1c for 5".
+    local shown = (buy.p < 1 and buy.n) and (ns.Money(math.floor(buy.p * buy.n + 0.5)) .. " for " .. buy.n) or ns.Money(buy.p)
+    tt:AddDoubleLine("Vendor sells it for", shown .. (buy.lim and " |cff999999limited|r" or "")
       .. (standing and (" |cff999999at " .. standing .. "|r") or ""), LR, LG, LB, 1, 1, 1)
   end
 

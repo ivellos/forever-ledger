@@ -105,3 +105,11 @@ T.test("Adding a shuffle under a typed override retains an automatic source", fu
   T.eq((ns:AutomaticListItemPrice(l, e)), ns:VendorFlipLimit(200))
   ns:UseAutomaticListItemPrice(l, e); T.eq(e.src, "shuffle"); T.eq(e.max, ns:VendorFlipLimit(200))
 end)
+
+T.test("Vendor prices under a copper keep their fraction; an old 0c is unknown", function()
+  ns.db.vendorBuy[89901] = { p = 0.2, n = 5, t = time(), src = "merchant" }   -- ammo: 1c for 5
+  T.eq((ns:GetVendorBuyPrice(89901)), 0.2)
+  ns.db.vendorBuy[89902] = { p = 0, t = time(), src = "merchant" }   -- rounded down before
+  T.eq((ns:GetVendorBuyPrice(89902)), nil, "0c isn't free")
+  ns.db.vendorBuy[89901], ns.db.vendorBuy[89902] = nil, nil
+end)
