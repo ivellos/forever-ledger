@@ -68,8 +68,13 @@ end
 local function maxLevel() return (UnitLevel("player") or 0) >= 60 end
 ns:OnReady(function() if maxLevel() then ns.TRAINER_ADVICE = nil end end)
 
+-- The Levelling help module (Settings, Global settings, Modules): on, and not at 60.
+function ns:LevellingOn()
+  return ns.db.settings.moduleLevelling ~= false and not maxLevel()
+end
+
 ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
-  if unit ~= "player" or not spellID or maxLevel() then return end
+  if unit ~= "player" or not spellID or not ns:LevellingOn() then return end
   local name = ns.SpellName(spellID)
   if not name then return end
   ns.db.casts = ns.db.casts or {}
@@ -287,7 +292,7 @@ end
 -- Riding fund (Dashboard.lua): the next riding this character doesn't know, what it
 -- costs (as seen at a riding trainer, else the beta's reported price, marked "about"),
 -- and the gold and pace from the Dashboard's own numbers. nil when it shouldn't show:
--- switched off (Settings, Global settings, Advanced), hidden on this character (Hide
+-- switched off (Settings, Global settings, Modules), hidden on this character (Hide
 -- here; /fl fund brings it back), or the character knows epic riding.
 ---------------------------------------------------------------------------
 -- Training as seen in the beta (owner, October 5, Binjy Featherwhistle: Apprentice
@@ -299,7 +304,7 @@ local RIDING_GUESS = {
   { name = "Journeyman Riding", short = "Epic riding at 60", level = 60, training = 9000000, mount = 1000000, match = "Journeyman" },
 }
 function ns:RidingFund(goldNow, totals, goldFirst)
-  if ns.db.settings.ridingFund == false then return end
+  if ns.db.settings.ridingFund == false or ns.db.settings.moduleLevelling == false then return end
   local c = ns.db.chars[ns.CharKey()]
   if c and c.noRidingFund then return end
   local tier = ns:RidingTier()
@@ -325,8 +330,10 @@ end
 function ns:FundCommand()
   local c = ns.db.chars[ns.CharKey()]
   if c then c.noRidingFund = nil end
-  if ns.db.settings.ridingFund == false then
-    ns:Print("The riding fund is switched off everywhere: Settings, Global settings, Advanced.")
+  if ns.db.settings.moduleLevelling == false then
+    ns:Print("Levelling help is switched off: Settings, Global settings, Modules.")
+  elseif ns.db.settings.ridingFund == false then
+    ns:Print("The riding fund is switched off everywhere: Settings, Global settings, Modules.")
   else
     ns:Print("Riding fund shown on this character's Dashboard again.")
   end

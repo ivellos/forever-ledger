@@ -50,13 +50,18 @@ local PAGES = {
         { key = "dealUsualMin", label = "Least resale profit each", kind = "money",
           help = "Deals tab: profit after the auction house cut, reselling at the usual price or under the next listing. \"off\" for no minimum." },
       } },
-      { name = "Advanced", rows = {
-        { sub = "Dashboard" },
-        { key = "ridingFund", label = "Riding fund on the Dashboard", kind = "check", after = function() ns:RefreshUI() end,
-          help = "A strip under the tiles: the riding this character doesn't know yet (then epic riding), what it costs, how much gold you have toward it and about how many days at your pace. It goes away once learned. Hide here (on the strip) hides it on one character; /fl fund shows it again." },
-        { sub = "Training" },
-        { key = "trainerAdvice", label = "Training advice beside the class trainer", kind = "check",
+      -- Parts of the addon you can switch off whole (owner, October 7: modules, so extras
+      -- don't crowd the window). Off means not running at all. More join with the side tabs.
+      { name = "Modules", rows = {
+        { sub = "Levelling help" },
+        { key = "moduleLevelling", label = "Levelling help", kind = "check", after = function() ns:RefreshUI() end,
+          help = "Training advice at the class trainer and the riding fund on the Dashboard. Off: none of it runs, and the spells you cast aren't counted. It switches itself off on level 60 characters." },
+        { key = "trainerAdvice", label = "  Training advice beside the class trainer", kind = "check",
           help = "When you open your class trainer, a panel beside it sorts what you can learn now into Must have, Nice to have and Skip while levelling, with what each costs and why (hover). It follows the tree your talent points are in and the spells you actually cast. Advice only: you still train in Blizzard's window." },
+        { key = "ridingFund", label = "  Riding fund on the Dashboard", kind = "check", after = function() ns:RefreshUI() end,
+          help = "A strip under the tiles: the riding this character doesn't know yet (then epic riding), what it costs, how much gold you have toward it and about how many days at your pace. It goes away once learned. Hide here (on the strip) hides it on one character; /fl fund shows it again." },
+      } },
+      { name = "Advanced", rows = {
         { sub = "Sync with your other account" },
         { key = "syncBags", label = "Share bags and bank with your sync partner", kind = "check",
           after = function() if ns.SyncSend then ns:SyncSend(true) end end,

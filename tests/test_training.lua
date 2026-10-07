@@ -94,3 +94,15 @@ T.test("Talent positions fall in the right tree, even stray ones", function()
   T.eq(ns.TalentThird(9080), 3); T.eq(ns.TalentThird(10880), 3)
   T.eq(ns.TalentThird(102800), 3, "stray position")
 end)
+T.test("Levelling help off: no riding fund, no levelling features", function()
+  local real = UnitLevel
+  UnitLevel = function() return 20 end
+  T.ok(ns:LevellingOn(), "on below 60")
+  ns.db.settings.moduleLevelling = false
+  T.eq(ns:LevellingOn(), false, "module off")
+  T.eq(ns:RidingFund(0), nil, "no riding fund with the module off")
+  ns.db.settings.moduleLevelling = true
+  UnitLevel = function() return 60 end
+  T.eq(ns:LevellingOn(), false, "off at 60")
+  UnitLevel = real
+end)

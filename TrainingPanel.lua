@@ -7,7 +7,7 @@ local T = ns.Theme
 -- with the gold each costs and why (hover). From TrainerAdvice.lua (Codex's research,
 -- by class and spell name), the tree you level in (Training.lua LevellingTree: your
 -- talent points, or a choice), and the spells you cast. Advice only: you still click
--- Train in Blizzard's window for everything. Settings, Global settings, Advanced.
+-- Train in Blizzard's window for everything. Settings, Global settings, Modules.
 ---------------------------------------------------------------------------
 local WEEK = 7 * 86400
 local panel
@@ -220,7 +220,7 @@ end
 -- list: the trainer's services as RecipeBook.lua read them (name, state, cost, level).
 function ns:ShowTrainingAdvice(list)
   if ns.db.settings.trainerAdvice == false or not T then return end   -- (no Theme in the tests)
-  if (UnitLevel("player") or 0) >= 60 then return end   -- nothing left to level for (owner, October 6)
+  if not ns:LevellingOn() then return end   -- module off, or 60: nothing left to level for (owner, October 6)
   if not panel then build() end
   -- What you know, from the spellbook ("Rank 3"): the trainer list in Forever starts
   -- around level 20, so counting its entries gave every spell "rank 1" (owner's

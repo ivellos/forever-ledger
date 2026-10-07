@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Settings, Global settings, Modules: switch off Levelling help (training advice, the riding fund and counting your casts) in one place. The first of the modules; more follow.
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).
 - Each class's talent layout is saved at login (and by `/fl talents`), to check the order of the three trees in Forever's single talent tree for every class.
 - `/fl api` lists which of Blizzard's tab templates and tab art the client has (for side tabs like the spellbook's).
