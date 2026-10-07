@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).
 - Each class's talent layout is saved at login (and by `/fl talents`), to check the order of the three trees in Forever's single talent tree for every class.
+- `/fl api` lists which of Blizzard's tab templates and tab art the client has (for side tabs like the spellbook's).
 
 ### Fixed
 - `/fl csv` uses saved item names and Classic's list before "item N", and fills in names the server is still sending a few seconds later.

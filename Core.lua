@@ -764,6 +764,31 @@ function ns:ApiReport()
   try("Server type", function() return GetCVar and GetCVar("realmName"), GetCVar and GetCVar("portal") end)
   try("Talents", function() return ns.TalentReport and ns:TalentReport() end)
   try("Riding", function() return ns.RidingReport and ns:RidingReport() end)
+  -- Blizzard's tab art, for icon tabs on the window's right edge like the spellbook's
+  -- (owner, October 7): which templates, files and atlases this client has.
+  try("Tab art", function()
+    local found = {}
+    for _, t in ipairs({ "SpellBookSkillLineTabTemplate", "PanelTabButtonTemplate", "CharacterFrameTabButtonTemplate",
+                         "PanelTopTabButtonTemplate", "SideTabTemplate" }) do
+      -- C_XMLUtil knows templates without making a frame; else try making one.
+      local ok
+      if C_XMLUtil and C_XMLUtil.GetTemplateInfo then ok = C_XMLUtil.GetTemplateInfo(t) ~= nil
+      else ok = pcall(CreateFrame, "CheckButton", nil, nil, t) end
+      found[#found + 1] = (ok and "+" or "-") .. t
+    end
+    if GetFileIDFromPath then
+      for _, p in ipairs({ "Interface\\SpellBook\\SpellBook-SkillLineTab", "Interface\\PaperDollInfoFrame\\UI-Character-ActiveTab",
+                           "Interface\\PaperDollInfoFrame\\UI-Character-InActiveTab", "Interface\\HelpFrame\\HelpFrameTab-Active" }) do
+        found[#found + 1] = (GetFileIDFromPath(p) and "+" or "-") .. p:match("[^\\]+$")
+      end
+    end
+    if C_Texture and C_Texture.GetAtlasInfo then
+      for _, a in ipairs({ "uiframe-tab-left", "uiframe-activetab-left", "spellbook-skilllinetab", "QuestLog-tab", "Options_Tab_Left" }) do
+        found[#found + 1] = (C_Texture.GetAtlasInfo(a) and "+" or "-") .. "atlas " .. a
+      end
+    end
+    return table.concat(found, " ")
+  end)
   try("Spells cast saved", function()
     local n = 0
     for _ in pairs((ns.db.casts or {})[ns.CharKey()] or {}) do n = n + 1 end
