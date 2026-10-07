@@ -1239,9 +1239,13 @@ function ns:PricesCSV()
   for id in pairs(market) do if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
   for _, id in ipairs(ns:WatchList()) do if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
   table.sort(ids)
+  ns.csvMissing = 0
   for _, id in ipairs(ids) do
     local rec = market[id]
-    local name = ns.GetItemInfo(id) or ("item " .. id)
+    -- Saved names first, then the game (which asks the server for unloaded ones), then
+    -- Classic's list: "item N" showed for 168 of 2,135 when only the game was asked.
+    local name = ns.ItemName(id)
+    if name:find("^item %d+$") then ns.csvMissing = ns.csvMissing + 1 end
     local sell = ns:GetSellPrice(id)
     local buy = ns.db.vendorBuy[id]
     if rec or buy then
@@ -1262,6 +1266,16 @@ function ns:ShowPricesCSV()
   f.title:SetText("Export / import")
   f.help:SetText("Press Ctrl+A, then Ctrl+C. Paste this into a chat with Claude to check flips at today's prices.")
   f.eb:SetText(ns:PricesCSV())
+  -- Names the server is still sending: fill them in once, a few seconds later.
+  if (ns.csvMissing or 0) > 0 and C_Timer then
+    local token = {}
+    f.csvToken = token
+    C_Timer.After(3, function()
+      -- Still showing the price list (not another tab of the same window).
+      local text = f.eb:GetText() or ""
+      if f:IsShown() and f.csvToken == token and text:sub(1, 13) == "item_id,name," then f.eb:SetText(ns:PricesCSV()) end
+    end)
+  end
   f.action:Hide()
   f:Show()
   f:Raise()   -- in front of the main window, even when already open (owner's test, October 4)
