@@ -10,7 +10,7 @@ local ADDON, ns = "ForeverLedger", {}
 
 -- The files to load, in the .toc's order, up to the last one the tests need.
 local LOAD = { "Core.lua", "Prices.lua", "History.lua", "Inventory.lua", "RecipeBook.lua", "Professions.lua", "Deposits.lua", "Values.lua", "Shuffles.lua", "Crates.lua", "Settings.lua",
-  "Disenchant.lua", "Sessions.lua", "Training.lua", "TrainerAdvice.lua", "TrainingPanel.lua", "ShoppingLists.lua", "AuctionHouse.lua", "Auctions.lua" }
+  "Disenchant.lua", "Sessions.lua", "Training.lua", "TrainerAdvice.lua", "TrainingPanel.lua", "Levelling.lua", "ShoppingLists.lua", "AuctionHouse.lua", "Auctions.lua" }
 local wanted = {}
 for _, f in ipairs(LOAD) do wanted[f] = true end
 local order = {}

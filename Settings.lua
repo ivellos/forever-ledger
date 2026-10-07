@@ -54,8 +54,8 @@ local PAGES = {
       -- don't crowd the window). Off means not running at all. More join with the side tabs.
       { name = "Modules", rows = {
         { sub = "Levelling help" },
-        { key = "moduleLevelling", label = "Levelling help", kind = "check", after = function() ns:RefreshUI() end,
-          help = "Training advice at the class trainer and the riding fund on the Dashboard. Off: none of it runs, and the spells you cast aren't counted. It switches itself off on level 60 characters." },
+        { key = "moduleLevelling", label = "Levelling help", kind = "check", after = function() ns:LayoutTabs(); ns:RefreshUI() end,
+          help = "The Levelling tab (ways to make gold while levelling, under level 20), training advice at the class trainer and the riding fund on the Dashboard. Off: none of it runs, and the spells you cast aren't counted. It switches itself off on level 60 characters." },
         { key = "trainerAdvice", label = "  Training advice beside the class trainer", kind = "check",
           help = "When you open your class trainer, a panel beside it sorts what you can learn now into Must have, Nice to have and Skip while levelling, with what each costs and why (hover). It follows the tree your talent points are in and the spells you actually cast. Advice only: you still train in Blizzard's window." },
         { key = "ridingFund", label = "  Riding fund on the Dashboard", kind = "check", after = function() ns:RefreshUI() end,

@@ -38,6 +38,7 @@ Dungeons.lua
 Training.lua
 TrainerAdvice.lua
 TrainingPanel.lua
+Levelling.lua
 Sync.lua
 Version.lua
 AuctionHouse.lua

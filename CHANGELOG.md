@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Auction-sale values, shuffles and resale comparisons allow for one 24-hour listing that doesn't sell (its deposit is lost); cheap items can favour vendoring. Uses live quotes when available, otherwise a Classic estimate. The explanation stays in Help and the affected options.
 
 ### Added
+- Levelling tab, below level 20: ways to make gold while levelling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession or class; (Classic) until confirmed in Forever.
 - Settings, Global settings, Modules: switch off Levelling help (training advice, the riding fund and counting your casts) in one place. The first of the modules; more follow.
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).
 - Each class's talent layout is saved at login (and by `/fl talents`), to check the order of the three trees in Forever's single talent tree for every class.

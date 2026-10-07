@@ -106,3 +106,10 @@ T.test("Levelling help off: no riding fund, no levelling features", function()
   T.eq(ns:LevellingOn(), false, "off at 60")
   UnitLevel = real
 end)
+T.test("The Levelling tab's list is well formed", function()
+  for i, e in ipairs(ns.LEVELLING_START or {}) do
+    T.ok(e.title and e.how and e.why and e.lvl and e.zone, "entry " .. i .. " complete")
+    T.ok(e.service or (e.ids and #e.ids > 0), "entry " .. i .. " has items to price or is a service")
+  end
+  T.ok(#(ns.LEVELLING_START or {}) >= 10, "the list loaded")
+end)

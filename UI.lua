@@ -112,6 +112,8 @@ local TABS = {
   { key = "crates", label = "Crates", setting = "crates" },
   { key = "recipes", label = "Recipes" },
   { key = "characters", label = "Characters" },
+  -- Levelling help module, under level 20 (Levelling.lua; owner, October 7).
+  { key = "levelling", label = "Levelling", show = function() return ns.LevellingTabShown and ns:LevellingTabShown() end },
   { key = "settings", label = "Settings" },
   { key = "help", label = "Help" },
 }
@@ -136,7 +138,7 @@ function ns:LayoutTabs()
   local prev
   for _, tab in ipairs(TABS) do
     local b = main.tabs[tab.key]
-    local on = not tab.setting or ns.db.settings[tab.setting]
+    local on = (not tab.setting or ns.db.settings[tab.setting]) and (not tab.show or tab.show())
     b:ClearAllPoints()
     b:SetShown(on)
     if on then
@@ -176,6 +178,7 @@ local function buildMain()
     crates = ns:BuildCrates(main.body),
     recipes = ns:BuildRecipes(main.body),
     characters = ns:BuildCharacters(main.body),   -- Characters.lua
+    levelling = ns:BuildLevelling(main.body),   -- Levelling.lua
     help = ns:BuildHelp(main.body),   -- Help.lua
   }
   main.views.settings = ns:BuildSettings(main.body)   -- Settings.lua
@@ -361,6 +364,8 @@ function ns:RefreshUI()
     ns:RefreshRecipes()
   elseif main.view == "characters" then
     ns:RefreshCharacters()
+  elseif main.view == "levelling" then
+    ns:RefreshLevelling()
   elseif build then
     local L = {}
     build(function(s) L[#L + 1] = s or "" end)
