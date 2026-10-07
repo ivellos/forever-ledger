@@ -116,8 +116,9 @@ function ns:SpellAdvice(name, knowsLower)
   -- Moved down a group by its rank rule: the tree's "Must have" verdict no longer fits
   -- (Codex review, October 6: the hover said Must have under Nice to have).
   if group ~= tierGroup then
-    why.verdict = (a.p == "learn") and "Nice to have now: you already have a rank that does the job."
-      or "Nice to have now: you haven't cast it in the last week."
+    why.verdict = ((a.p == "learn") and "Nice to have now: you already have a rank that does the job"
+      or "Nice to have now: you haven't cast it in the last week")
+      .. (tree and (" (a must have for %s)."):format(tree) or ".")
   end
   -- A plain verdict when the tree didn't give one, so every hover reads the same way.
   why.verdict = why.verdict or (group == "train" and "Must have while levelling.")

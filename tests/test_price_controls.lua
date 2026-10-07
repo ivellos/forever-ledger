@@ -54,6 +54,14 @@ T.test("Typing the same automatic price marks it as yours; Escape cancels", func
     T.eq(f.src, "usual"); T.eq(f.max, 99999999, "Escape keeps the exact amount")
     narrow.scripts.OnEditFocusLost(narrow)
     T.eq(f.max, 99999999, "clicking away from the short form changes nothing")
+    -- Silver dropped too, then typing and Escape: still the exact amount and automatic.
+    f.max = 9999999999
+    narrow:SetValue(9999999999)
+    T.eq(narrow:GetText(), "999999g", "copper and silver dropped")
+    narrow.focus = true; narrow.scripts.OnEditFocusGained(narrow)
+    narrow:SetText("1g"); narrow.scripts.OnTextChanged(narrow, true)
+    narrow.scripts.OnEscapePressed(narrow)
+    T.eq(f.src, "usual"); T.eq(f.max, 9999999999, "typed then Escape keeps it")
   end)
   CreateFrame, GameTooltip, ns.Theme = realFrame, realTip, realTheme
   assert(ok, err)
