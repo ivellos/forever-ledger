@@ -901,8 +901,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       id = msg:match("item:(%d+)")
       qty, hours = msg:match("|h|r%s*(%d*)%s*(%d*)%s*$")
     end
-    local duration = ({ [12] = 1, [24] = 2, [48] = 3 })[tonumber(hours) or 24]
-    if not id or not duration then ns:Print("Use /fl deposit <item ID or shift-clicked item> [quantity] [12/24/48 hours].")
+    local duration = ({ [2] = 1, [8] = 2, [24] = 3 })[tonumber(hours) or 8]
+    if not id or not duration then ns:Print("Use /fl deposit <item ID or shift-clicked item> [quantity] [2/8/24 hours].")
     else ns:DepositReport(tonumber(id), tonumber(qty) or 1, duration) end
   elseif msg == "api" then
     ns:ApiReport()

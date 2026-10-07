@@ -307,7 +307,7 @@ function ns:ShuffleDetails(s)
   stepLines(s.opt, lines, { n = 0 }, true)
   lines[#lines + 1] = ("Profit %s %s (%d%%), about %s an hour."):format(
     ns.Money(s.profit), s.single and "each" or "per craft", returnPct(s), ns.Money(s.perHour))
-  if (s.deposit or 0) > 0 then lines[#lines + 1] = ("Allows for one 24-hour listing that doesn't sell (its deposit is lost): %s."):format(ns.Money(s.deposit)) end
+  if (s.deposit or 0) > 0 then lines[#lines + 1] = ("Allows for one 8-hour listing that doesn't sell (its deposit is lost): %s."):format(ns.Money(s.deposit)) end
   return table.concat(lines, "\n")
 end
 
@@ -523,7 +523,7 @@ end
 function ns:ShuffleSteps(s)
   local lines = {}
   stepLines(s.opt, lines, { n = 0 }, true)
-  if (s.deposit or 0) > 0 then lines[#lines + 1] = ("Allows for one 24-hour listing that doesn't sell (its deposit is lost): %s."):format(ns.Money(s.deposit)) end
+  if (s.deposit or 0) > 0 then lines[#lines + 1] = ("Allows for one 8-hour listing that doesn't sell (its deposit is lost): %s."):format(ns.Money(s.deposit)) end
   return table.concat(lines, "\n")
 end
 

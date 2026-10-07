@@ -19,7 +19,7 @@ function ns:AHCut(neutral)
 end
 
 -- One item at the neutral auction house (Booty Bay) against your faction's, each after
--- its own cut and one lost 24h deposit reserve (owner, October 5: see what sells for more there, without it mixing into
+-- its own cut and one lost 8-hour deposit reserve (owner, October 5: see what sells for more there, without it mixing into
 -- your normal prices). Neutral prices stay in their own market ("realm|Neutral"); only
 -- this reads them while you're away from it. nil when either side has no price.
 -- { there, here = cheapest each; netThere, netHere = after the cut; gain = netThere -
@@ -44,7 +44,7 @@ function ns:AfterCut(copper, neutral)
   return copper - math.floor(copper * ns:AHCut(neutral))
 end
 
--- What one unit fetches after the cut and one lost 24h deposit reserve. With needListings,
+-- What one unit fetches after the cut and one lost 8-hour deposit reserve. With needListings,
 -- thin markets (fewer than MIN_LISTED listed) don't count.
 -- What selling one on the auction house brings, after the cut. Selling means listing at
 -- or under the cheapest, so this is the lowest of the price used for buying (the average

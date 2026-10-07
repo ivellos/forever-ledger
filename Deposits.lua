@@ -1,22 +1,25 @@
 local _, ns = ...
 
--- Planning reserve: one failed 24-hour listing, then a successful sale. The latter's
+-- Planning reserve: one failed 8-hour listing, then a successful sale. The latter's
 -- deposit is refunded; this is risk allowance, not an extra fee on a successful sale.
 -- API reference: https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/AuctionHouseDocumentation.lua
 -- CalculateCommodityDeposit(itemID, duration, quantity) -> copper.
 -- CalculateItemDeposit(itemLocation, duration, quantity) -> copper; requires owned ItemLocation.
--- Duration indices 1/2/3 = 12/24/48 hours (Blizzard AuctionHouseSellFrame.lua).
+-- Duration indices 1/2/3 = 2/8/24 hours in Forever (Classic's; owner's Sell tab, October 7:
+-- "2 Hours" deposit 12c, and the API's index 2 gave 48c, four times as much). Retail's are 12/24/48.
 -- Forever's amounts still need a game check. Per-unit estimates may exceed one stack
 -- quote because of rounding; we use live quotes only at the matching open auction house.
-ns.DEPOSIT_DURATION = 2 -- 1/2/3 = 12/24/48 hours
+ns.DEPOSIT_DURATION = 2 -- 1/2/3 = 2/8/24 hours
 
--- Classic estimate, not a confirmed Forever formula. No retail minimum is assumed.
--- Integer arithmetic keeps rounding predictable for stacks and small copper amounts.
+-- Classic's formula, which matches Forever (owner's test, October 7: Small Green Pouch,
+-- vendor 2s 50c: 12c for 2 hours, 48c for 8): 5% of the vendor price per 2 hours (25% at a
+-- neutral auction house), rounded down, times 1, 4 or 12 for 2, 8 or 24 hours.
+local DURATION_HOURS, DURATION_TIMES = { 2, 8, 24 }, { 1, 4, 12 }
 function ns:DepositEstimate(vendor, duration, quantity, neutral)
   if type(vendor) ~= "number" or vendor < 0 or vendor ~= vendor or vendor == math.huge then return end
-  local hours = ({ 12, 24, 48 })[duration]
-  if not hours or type(quantity) ~= "number" or quantity < 1 or quantity == math.huge or quantity ~= math.floor(quantity) then return end
-  return math.floor(vendor * quantity * (neutral and 75 or 15) * hours / 1200)
+  local times = DURATION_TIMES[duration]
+  if not times or type(quantity) ~= "number" or quantity < 1 or quantity == math.huge or quantity ~= math.floor(quantity) then return end
+  return math.floor(vendor * quantity * (neutral and 25 or 5) / 100) * times
 end
 
 local locations
@@ -90,10 +93,10 @@ end
 function ns:DepositReport(id, quantity, duration)
   quantity, duration = quantity or 1, duration or ns.DEPOSIT_DURATION
   local amount, source = ns:AuctionDeposit(id, quantity, duration)
-  if not amount then ns:Print("Use /fl deposit <item ID or shift-clicked item> [quantity] [12/24/48 hours]."); return end
-  local hours = ({ 12, 24, 48 })[duration]
+  if not amount then ns:Print("Use /fl deposit <item ID or shift-clicked item> [quantity] [2/8/24 hours]."); return end
+  local hours = DURATION_HOURS[duration]
   local estimate = ns:DepositEstimate(ns:GetSellPrice(id) or 0, duration, quantity, ns.neutralAH)
-  ns:Print(("Deposit: item %d, quantity %d, %d hours: %s (%s); Classic estimate %s. Planning reserves one lost 24h listing."):format(id, quantity, hours, ns.Money(amount), source, ns.Money(estimate)))
+  ns:Print(("Deposit: item %d, quantity %d, %d hours: %s (%s); Classic estimate %s. Values allow for one unsold 8-hour listing."):format(id, quantity, hours, ns.Money(amount), source, ns.Money(estimate)))
 end
 
 -- Reserve carried by one input unit of a route, including multi-output crafts and DE.
