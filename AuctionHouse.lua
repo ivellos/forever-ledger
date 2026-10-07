@@ -477,11 +477,24 @@ local function buildFinder(side)
   finder.target = "new"
   finder.pick = T:Dropdown(finder, 230, function(value) finder.target = value end)
   finder.pick:SetPoint("TOPLEFT", 12, -y)
-  finder.add = T:Button(finder, "Add to shopping list", 180, function() addFinderRows(finder.items or {}) end)
+  -- Rows your Enchanting is too low for stay out (UI pass, October 6); right-clicking one
+  -- still adds it, for when you mean to.
+  finder.add = T:Button(finder, "Add to shopping list", 180, function()
+    local rows, skipped = {}, 0
+    for _, it in ipairs(finder.items or {}) do
+      if it.locked then skipped = skipped + 1 else rows[#rows + 1] = it end
+    end
+    if #rows == 0 and skipped > 0 then
+      ns:Print(("Your Enchanting is too low for all %d shown: nothing added. Right-click a row to add it anyway."):format(skipped))
+      return
+    end
+    addFinderRows(rows)
+    if skipped > 0 then ns:Print(("Left out %d your Enchanting is too low for (marked \"skill\")."):format(skipped)) end
+  end)
   finder.add:SetPoint("TOPLEFT", finder.pick, "TOPRIGHT", 6, 0)
   local note = T:Text(finder, 10, T.dim)
   note:SetPoint("TOPLEFT", 12, -(y + 28))
-  note:SetText("Adds one of each shown item. Right-click a row to add only it.")
+  note:SetText("Adds one of each you can disenchant. Right-click a row to add only it.")
   y = y + 50
 
   local header = CreateFrame("Frame", nil, finder)

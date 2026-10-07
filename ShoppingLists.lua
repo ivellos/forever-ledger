@@ -182,7 +182,7 @@ function ns:ShuffleToShoppingList(s, list, runs)
     e.done = nil   -- explicit additional purchases; bought and typed off stay
   end
   for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i); break end end
-  ns:Print(("Added %d %s for %s to shopping list \"%s\". Check Want and Up to there; tick Buy from this list in the Buy queue when ready (/fl lists)."):format(
+  ns:Print(("Added %d %s for %s to shopping list \"%s\". Check Want and Up to there; the Buy queue buys from the list while Buy from this list in the Buy queue is ticked (/fl lists)."):format(
     #buys, #buys == 1 and "item" or "items", ns:ShuffleName(s), list.name))
   if ns.RefreshListsView then ns:RefreshListsView() end
   return list
@@ -232,7 +232,7 @@ function ns:DisenchantToShoppingList(rows, list, name)
     e.done = nil
   end
   for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i); break end end
-  ns:Print(("Added %d %s to shopping list \"%s\" for disenchanting. Check Want and Up to; buying stays as you set it (/fl lists)."):format(
+  ns:Print(("Added %d %s to shopping list \"%s\" for disenchanting. Check Want and Up to there; the Buy queue buys from the list while Buy from this list in the Buy queue is ticked (/fl lists)."):format(
     #buys, #buys == 1 and "item" or "items", list.name))
   if ns.RefreshListsView then ns:RefreshListsView() end
   return list

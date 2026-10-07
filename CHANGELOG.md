@@ -22,6 +22,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl unpair` also removes the characters (and bags) that came from your partner; the auction prices stay. A partner's characters say so on the Characters tab and are never sent back.
 
 ### Fixed
+- Disenchant finder: Add to shopping list leaves out items your Enchanting is too low for (marked "skill"), and says how many; right-clicking one still adds it.
+- UI pass: clearer wording after adding to a shopping list, and a hover on the riding fund's Hide here.
 - Shopping lists: long amounts show in full ("9999g99s99c") with smaller text when needed, and the start always shows (an amount too long even at the smallest text drops its copper, then silver; hover for the exact amount); prices under Now and Cheapest keep their copper ("2s35c", not "2s"); vendor items say "vendor" after the name; headings line up with their columns (centred over the buttons and boxes, right-aligned over Have and Now).
 - Training advice: hovers in short sections (the verdict in its group's colour, why, when to upgrade, notes) instead of one block of text. Every spell now has the same sections, with when to upgrade; the panel matches the window theme (Gilded frame and headings), stays away from riding trainers, and is off for level 60 characters (its spell list isn't kept in memory there). It's as tall as the list needs, up to the trainer window, and scrolls past that.
 - Shopping lists: a price you typed shows in gold (automatic ones in white), and the hover says "Set by you" or "Automatic" on its own line; vendor items show just their price under Now (it ran into Have); a new list with a name already used gets "(2)", "(3)".
