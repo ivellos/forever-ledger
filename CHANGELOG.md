@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-06
+
+### Highlights
+- Δ **Training advice**: beside your class trainer, what to learn now as Must have, Nice to have or Skip while levelling, following your talents and the spells you actually cast.
+- Δ **Booty Bay prices**: the neutral auction house kept as its own market, its 15% cut in the math, and a Deals view of what sells for more there or is cheaper to buy there.
+- Δ **Shopping lists from shuffles and the Disenchant finder**: add them in one click; each Up to says where it came from (the shuffle, your usual price plus an allowance, or you).
+- + **Riding fund**: on the Dashboard, how close you are to riding at 40 and epic riding at 60, mount included.
+- + **Characters in Settings**: remove ones you've deleted; live sync can share bags and bank between your accounts.
+- ~ **Buy queue**: the corner shows your profit if you sold what you bought to a vendor.
+- ✓ **Fixes**: Booty Bay's 15% cut, its own Auctions list, long Up to amounts, dropdowns cut off at the edge.
 ### Added
 - Add the Disenchant finder's filtered rows, or one row by right-click, to a regular shopping list with refreshable disenchant buying limits. Typed prices stay protected; lower them for a bigger margin.
 - Training advice: beside your class trainer, what you can learn now in Must have / Nice to have / Skip while levelling, with costs and the reason on hover; it follows the tree your talent points are in and the spells you actually cast (Settings, Global settings, Advanced).

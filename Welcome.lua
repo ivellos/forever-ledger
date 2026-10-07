@@ -172,16 +172,15 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.14.0",
+  version = "0.15.0",
   lines = {
-    { "A new look: three themes (FL Clean, FL Default, FL Gilded), your accent colour, and a Size from 75% to 150%. FL Default is the new standard look; change it in Settings, Appearance.", major = true },
-    { "New Settings: a sidebar like EllesmereUI's, Global settings for every character, and profiles your characters can share.", major = true },
-    { "Dashboard redone: gold, profit, sales and expenses at a glance, the gold graph, your best sales and recent sessions.", major = true },
-    "Sessions list: every session in the Ledger, with where its gold came from.",
-    "Sold while you were away: one chat line when you open the auction house.",
-    "Bag value: bag tooltips show what a slot costs and the cheapest bag right now.",
-    { "Auction house panel: the Buy queue lights up when there's something to buy, and the Disenchant finder picks item levels from a dropdown.", change = true },
-    { "Fixes: long names in the Ledger, the Crates heading and controls in Settings no longer run over the edge.", fix = true },
+    { "Training advice: beside your class trainer, what to learn now as Must have, Nice to have or Skip while levelling, following your talents and the spells you actually cast.", major = true },
+    { "Booty Bay prices: the neutral auction house kept as its own market, its 15% cut in the math, and a Deals view of what sells for more there or is cheaper to buy there.", major = true },
+    { "Shopping lists from shuffles and the Disenchant finder: add them in one click; each Up to says where it came from (the shuffle, your usual price plus an allowance, or you).", major = true },
+    "Riding fund: on the Dashboard, how close you are to riding at 40 and epic riding at 60, mount included.",
+    "Characters in Settings: remove ones you've deleted; live sync can share bags and bank between your accounts.",
+    { "Buy queue: the corner shows your profit if you sold what you bought to a vendor.", change = true },
+    { "Fixes: Booty Bay's 15% cut, its own Auctions list, long Up to amounts, dropdowns cut off at the edge.", fix = true },
   },
 }
 
