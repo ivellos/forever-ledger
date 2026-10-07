@@ -90,7 +90,7 @@ end
 function ns:DepositReport(id, quantity, duration)
   quantity, duration = quantity or 1, duration or ns.DEPOSIT_DURATION
   local amount, source = ns:AuctionDeposit(id, quantity, duration)
-  if not amount then ns:Print("Use /fl deposit <item ID> [quantity] [12/24/48 hours]."); return end
+  if not amount then ns:Print("Use /fl deposit <item ID or shift-clicked item> [quantity] [12/24/48 hours]."); return end
   local hours = ({ 12, 24, 48 })[duration]
   local estimate = ns:DepositEstimate(ns:GetSellPrice(id) or 0, duration, quantity, ns.neutralAH)
   ns:Print(("Deposit: item %d, quantity %d, %d hours: %s (%s); Classic estimate %s. Planning reserves one lost 24h listing."):format(id, quantity, hours, ns.Money(amount), source, ns.Money(estimate)))

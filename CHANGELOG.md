@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
-- Auction-sale values, shuffles and resale comparisons allow for one 24-hour listing that doesn't sell (its deposit is lost); cheap items can favour vendoring. Uses live quotes when available, otherwise a Classic estimate. The explanation stays in Help and the affected options.
+- Auction-sale values, shuffles and resale comparisons allow for one 24-hour listing that doesn't sell (its deposit is lost); cheap items can favour vendoring. Uses live quotes when available, otherwise a Classic estimate. The explanation stays in Help and the affected options. `/fl deposit` takes an item ID or a shift-clicked item.
 
 ### Added
 - Levelling tab, below level 20: ways to make gold while levelling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession or class; (Classic) until confirmed in Forever.
