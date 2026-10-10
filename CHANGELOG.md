@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl api` lists which of Blizzard's tab templates and tab art the client has (for side tabs like the spellbook's).
 
 ### Fixed
+- Leveling tab, after the October 8 beta patch: wands now say vendors pay a little (Lesser 1s 10c, Greater 2s); Minor Wizard Oil (vendor 1s, less than its seed and vial cost) and Recipe: Peace Tea (10c) are off the list.
 - Switching off Leveling help or training advice in Settings now closes an open training advice panel at once.
 - Disenchant finder: the item-level hover values dust and essences the same way the disenchant itself does (no deposit allowance down the chain).
 - `/fl csv` uses saved item names and Classic's list before "item N", and fills in names the server is still sending a few seconds later.

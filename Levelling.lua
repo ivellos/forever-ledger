@@ -43,7 +43,7 @@ local LIST = {
   { title = "Wands for casters (sold to players)", prof = "Enchanting", lvl = { 5, 20 }, forever = true,
     ids = { 11287, 11288, 10938, 4470 },
     zone = { "Towns with new casters", "Towns with new casters" },
-    how = "Make a Lesser Magic Wand (later a Greater) for a caster who wants one. A vendor now pays 1c for crafted wands, so sell only to players.",
+    how = "Make a Lesser Magic Wand (later a Greater) for a caster who wants one. Vendors pay only a little for them (Lesser 1s 10c, Greater 2s since the October 8 patch), so sell to players; the vendor price is just a floor.",
     why = "A useful early weapon can sell above what it costs to make." },
   { title = "Wool from the next camps", lvl = { 18, 26 },
     ids = { 2592, 2997 },
@@ -55,11 +55,8 @@ local LIST = {
     zone = { "Loch Modan and Westfall, then Redridge", "The Barrens and Silverpine, then Ashenvale" },
     how = "Mine a safe loop. Smelt Bronze only when two bars sell for more than the copper and tin.",
     why = "Players moving past copper need tin and bronze." },
-  { title = "Minor Wizard Oil from Strange Dust", prof = "Enchanting", lvl = { 1, 20 }, forever = true,
-    ids = { 20744, 10940, 17034, 3371 },
-    zone = { "Any capital's reagent vendor", "Any capital's reagent vendor" },
-    how = "One dust, a Maple Seed and an Empty Vial make an oil that sells to a vendor. Worth it only when dust is cheap: check the Shuffles tab.",
-    why = "Turns cheap dust into vendor gold without waiting for a buyer." },
+  -- (Minor Wizard Oil left the list: since the October 8 patch a vendor pays 1s for it,
+  -- less than its Maple Seed and vial cost. Codex's research, October 10.)
   { title = "Disenchant cheap greens", prof = "Enchanting", lvl = { 5, 20 }, forever = true,
     ids = { 10940, 10938, 10939, 10978 },
     zone = { "The auction house", "The auction house" },
@@ -83,11 +80,7 @@ local LIST = {
     zone = { "Westfall and Darkshore coasts, Loch Modan", "Ratchet, Barrens oases, Silverpine" },
     how = "Try a pool and sell a small catch before fishing for an hour.",
     why = "No fighting over mobs, and some fish go into potions and food." },
-  { title = "Frostmane Seers: Recipe: Peace Tea", lvl = { 8, 12 }, faction = "Alliance", forever = true, vendor = true,
-    ids = { 249879 },
-    zone = { "Dun Morogh, the troll areas", "" },
-    how = "While on the troll quests, watch for the recipe: learn it at Cooking 25 or sell it to a vendor. A rare bonus, not a farm.",
-    why = "One lucky drop sells to a vendor for well over a silver." },
+  -- (Recipe: Peace Tea left the list: it vends for 10c since the October 8 patch.)
 }
 ns.LEVELLING_START = LIST
 
