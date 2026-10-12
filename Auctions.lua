@@ -82,12 +82,25 @@ local function cheapestNow(e)
   return rec.m, rec
 end
 
--- The buyout is per item in Forever (owner's test, October 4: Empty Vial x10 read 8c,
--- posted at 8c each), so no guessing (a guess could mark a fair auction undercut).
-local function eachPrice(info)
-  local buy = info.buyoutAmount or info.bidAmount
+-- The buyout is per unit for commodities (owner's test, October 4: Empty Vial x10 read 8c,
+-- posted at 8c each), but for the whole stack on an item auction (issue #14, October 12:
+-- 19 Goblin Deviled Clams sold for 19s showed 19s x 19 coming). The game says which
+-- (C_AuctionHouse.GetItemCommodityStatus: 1 item, 2 commodity); unknown keeps it as is.
+ns.COMMODITY_STATUS_ITEM = 1
+function ns.AuctionEachPrice(buy, quantity, status)
   if not buy or buy <= 0 then return nil end
+  if status == ns.COMMODITY_STATUS_ITEM and (quantity or 1) > 1 then
+    return math.floor(buy / quantity + 0.5)
+  end
   return buy
+end
+local function eachPrice(info, id)
+  local status
+  if AH and AH.GetItemCommodityStatus and id then
+    local ok, s = pcall(AH.GetItemCommodityStatus, id)
+    if ok then status = s end
+  end
+  return ns.AuctionEachPrice(info.buyoutAmount or info.bidAmount, info.quantity, status)
 end
 
 local ahOpen = false

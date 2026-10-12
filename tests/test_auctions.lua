@@ -366,3 +366,12 @@ T.test("A sale stays with the auction house it was listed at", function()
   local neutral = ns.db.myAuctions[ME .. " (neutral)"]
   T.ok(neutral and neutral.list[1] and neutral.list[1].a == 7, "still in Booty Bay's list")
 end)
+
+T.test("Item auctions price the whole stack; commodities each (issue #14)", function()
+  local each = ns.AuctionEachPrice
+  T.eq(each(1900, 19, 1), 100, "19 Goblin Deviled Clams for 19s: 1s each")
+  T.eq(each(8, 10, 2), 8, "commodity: Empty Vial x10 at 8c each")
+  T.eq(each(1900, 19, 0), 1900, "unknown: left as the game gave it")
+  T.eq(each(500, 1, 1), 500, "a single item")
+  T.eq(each(0, 5, 1), nil)
+end)
