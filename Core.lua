@@ -48,8 +48,10 @@ local DEFAULTS = {
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
     svcCrafting = true, svcFood = true, svcPortal = true, svcSummon = true, svcLockpick = true,
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
-    -- wheel starts off so nobody buys by accident (owner, October 2).
-    buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = false, tab = "queue" },
+    -- wheel: on from the start (owner, October 22: the fresh-install test found it hard to
+    -- find off; it was off from October 2 so nobody bought by accident). Buying still
+    -- needs the mouse over the top strip, and Up to and Spend at most still apply.
+    buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = true, tab = "queue" },
     tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false, worthAH = true, worthVendor = true, worthDisenchant = true, worthCraft = true, ridingFund = true, trainerAdvice = true, moduleLevelling = true, levellingMine = false,
     theme = "default", accent = "", uiScale = 100 },
 }

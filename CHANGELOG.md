@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Buy queue: Scroll to buy is on from the start for new installs (it was hard to find off). It still only buys with the mouse over the top strip, within Up to and Spend at most; untick it to buy by clicking only. A choice you already made is kept.
+
 ### Added
 - Settings, Tooltips: choose which ways Worth to you counts (auction house, vendor, disenchanting, crafting and conversions); Buy at or below and the Characters tab follow. Shuffles, the Buy queue and shopping lists still count every way. Issue #15.
 
