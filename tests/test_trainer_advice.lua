@@ -80,3 +80,25 @@ T.test("Every reviewed spell's hover has a verdict, a reason and when to upgrade
   end
   T.eq(table.concat(missing, ", "), "")
 end)
+T.test("Every advice entry has a known tier and a reason", function()
+  local TIERS = { must = true, nice = true, skip = true }
+  for class, spells in pairs(ns.TRAINER_ADVICE) do
+    for name, a in pairs(spells) do
+      local where = class .. " " .. name
+      if type(a.tr) == "table" then
+        for _, v in pairs(a.tr) do T.ok(TIERS[v], where .. ": tier " .. tostring(v)) end
+      else
+        T.ok(TIERS[a.tr], where .. ": tier " .. tostring(a.tr))
+      end
+      T.ok(type(a.r) == "string" and a.r ~= "", where .. ": reason")
+    end
+  end
+end)
+
+T.test("October 15: Salvation replaces the Salvation blessings; Frost Blast is new", function()
+  local pal, mage = ns.TRAINER_ADVICE.PALADIN, ns.TRAINER_ADVICE.MAGE
+  T.eq(pal["Blessing of Salvation"], nil)
+  T.eq(pal["Greater Blessing of Salvation"], nil)
+  T.ok(pal["Salvation"] and pal["Mass Salvation"] and pal["Revoke"], "Salvation, Mass Salvation and Revoke")
+  T.eq(mage["Frost Blast"].tr.Frost, "must")
+end)

@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
+- Training advice, after the October 15 beta patch: Salvation, Mass Salvation and Revoke replace Blessing of Salvation and Greater Blessing of Salvation; Frost Blast (Mage, level 24) is on the list; Lava Burst is the 21-point Elemental talent, in reach by level 30; Fire Nova costs much less mana; Shred is learned at 20.
 - Watch flips: the 120 items re-checked between full scans are picked by how close they are to the vendor price and how busy they are (units posted and bought a day, or how many are listed), with crafted items counting extra, instead of closeness alone.
 - American spelling in everything players read (leveling, color, gray, armor), like the game itself.
 - Selling an item on the auction house (Worth to you), resale deals and the Booty Bay view allow for one 8-hour listing that doesn't sell (its deposit is lost); cheap items can favor vendoring. Not counted down a chain: the Disenchant finder, shuffles, vendor flips and shopping-list limits are unchanged. Uses live quotes when available, otherwise Classic's formula (5% of the vendor price per 2 hours; Forever's durations are 2, 8 and 24 hours). The explanation stays in Help and the affected options. `/fl deposit` takes an item ID or a shift-clicked item.
@@ -18,6 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `/fl api` lists which of Blizzard's tab templates and tab art the client has (for side tabs like the spellbook's).
 
 ### Fixed
+- Prices: one silly listing no longer wrecks an item's typical price. Listings over 10 times the cheapest are left out of the average of the cheapest 20 (a 99,999g listing made Heavy Sharpening Stones, cheapest 21s 90c, average 679,012g), so price history, usual prices and deals stay sane.
 - Auctions tab: a stack posted as one auction (food, potions and other non-materials) no longer counts its whole price per item: 19 sold for 19s showed 19s x 19 coming in the mail.
 - Leveling tab, after the October 8 beta patch: wands now say vendors pay a little (Lesser 1s 10c, Greater 2s); Minor Wizard Oil (vendor 1s, less than its seed and vial cost) and Recipe: Peace Tea (10c) are off the list.
 - Switching off Leveling help or training advice in Settings now closes an open training advice panel at once.

@@ -107,3 +107,25 @@ T.test("RemoveBought: nothing at that price changes nothing", function()
   ns:RemoveBought(ID, 2, 50)
   T.eq(ns.db.prices[ns.MarketKey()][ID].l, "100:5")
 end)
+
+---------------------------------------------------------------------------
+-- The typical price (average of the cheapest 20) leaves out silly listings
+---------------------------------------------------------------------------
+T.test("TypicalPrice: the average of the cheapest 20 units", function()
+  T.eq(ns.TypicalPrice({ { 100, 10 }, { 200, 10 } }), 150)
+  T.eq(ns.TypicalPrice({ { 100, 15 }, { 300, 10 } }), 150, "only 5 of the dearer ones count")
+  T.eq(ns.TypicalPrice({ { 100, 3 } }), 100, "fewer than 20 listed: all of them")
+  T.eq(ns.TypicalPrice({}), nil)
+end)
+
+T.test("TypicalPrice: a listing over 10 times the cheapest is left out", function()
+  -- Heavy Sharpening Stone, owner's export (October 22): 21s 90c cheapest, one at 99,999g.
+  local units = {}
+  for i = 1, 19 do units[i] = { 2190 + i * 10, 1 } end
+  units[20] = { 999999990000, 1 }
+  local typical = ns.TypicalPrice(units)
+  T.ok(typical < 2400, "about 22s, not 5,000,000g: " .. tostring(typical))
+  T.eq(ns.TypicalPrice({ { 100, 1 }, { 1000, 1 } }), 550, "10 times the cheapest still counts")
+  T.eq(ns.TypicalPrice({ { 100, 1 }, { 1001, 1 } }), 100, "more than that doesn't")
+  T.eq(ns.TypicalPrice({ { 999999990000, 1 } }), 999999990000, "a lone listing is all there is")
+end)

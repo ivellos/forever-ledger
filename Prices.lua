@@ -475,6 +475,24 @@ if C_AuctionHouse and C_AuctionHouse.GetBrowseResults then
   end)
 end
 
+-- The typical price: the average of the cheapest 20 units listed (units sorted cheapest
+-- first, { unitPrice, quantity }). Listings over OUTLIER times the cheapest are left out:
+-- one 99,999g listing among Heavy Sharpening Stones at 21s 90c made their average
+-- 679,012g (owner's export, October 22), which went into price history and the usual price.
+local OUTLIER = 10
+function ns.TypicalPrice(units)
+  if not units[1] then return end
+  local cap = units[1][1] * OUTLIER
+  local total, qty, want = 0, 0, 20
+  for _, u in ipairs(units) do
+    if qty >= want or u[1] > cap then break end
+    local take = math.min(u[2], want - qty)
+    total = total + u[1] * take
+    qty = qty + take
+  end
+  return math.floor(total / math.max(qty, 1) + 0.5)
+end
+
 -- units: list of { unitPrice, quantity }
 local function record(id, units, src)
   if ns.InvalidateValues then ns:InvalidateValues() end
@@ -486,15 +504,8 @@ local function record(id, units, src)
     return
   end
   table.sort(units, function(a, b) return a[1] < b[1] end)
-  local total, qty, want, listed = 0, 0, 20, 0
-  for _, u in ipairs(units) do
-    listed = listed + u[2]
-    if qty < want then
-      local take = math.min(u[2], want - qty)
-      total = total + u[1] * take
-      qty = qty + take
-    end
-  end
+  local listed = 0
+  for _, u in ipairs(units) do listed = listed + u[2] end
   -- Price ladder: how many are listed at or below each of the cheapest price levels,
   -- as "price:count,price:count" (count is running total). Lets "runs" count only
   -- listings cheap enough to be worth buying.
@@ -530,7 +541,7 @@ local function record(id, units, src)
   end
   local rec = {
     m = units[1][1],
-    a = math.floor(total / math.max(qty, 1) + 0.5),
+    a = ns.TypicalPrice(units),
     q = listed,
     l = table.concat(ladder, ","),
     t = time(),
