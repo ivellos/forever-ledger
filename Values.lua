@@ -56,7 +56,10 @@ local function ahSale(id, needListings)
   if not p then return end
   if needListings and rec and rec.q and rec.q < MIN_LISTED then return end
   if rec and rec.m and not rec.none and rec.m < p then p = rec.m end
-  if ns.PriceStats then
+  -- This month's usual cheapest guards against a few hopeful listings. With 20 or more
+  -- listed, today's market is the real one (owner's screenshot, October 22: Medium
+  -- Leather at 2s 65c with 1,569 listed was valued at 43c from a month at about 54c).
+  if ns.PriceStats and not (rec and rec.q and rec.q >= 20) then
     local ok, st = pcall(ns.PriceStats, ns, id, "month")
     if ok and st and st.points >= 4 and st.low and st.low < p then p = st.low end
   end

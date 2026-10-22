@@ -152,14 +152,17 @@ local function addLines(tt, id, forceFull)
   end
   -- Why Worth to you is under today's price (CurseForge comment, October 22: "tooltip
   -- prices don't update after scans"): an auction sale is valued at the lowest of today's
-  -- cheapest, the average of the cheapest 20 and this month's usual cheapest, after the
-  -- cut and a deposit. When that's under what today's cheapest would bring, say why.
+  -- cheapest, the average of the cheapest 20 and, with under 20 listed, this month's usual
+  -- cheapest, after the cut and a deposit. When the auction house line is under what
+  -- today's cheapest would bring, say why.
   local function whyLower(best, options)
-    local o = options and options[1]
-    if not (o and o.kind == "ah" and rec and rec.m and not rec.none and src ~= "Auctionator" and src ~= "TSM" and src ~= "Auctioneer") then return end
+    if not (rec and rec.m and not rec.none and src ~= "Auctionator" and src ~= "TSM" and src ~= "Auctioneer") then return end
+    local o
+    for _, x in ipairs(options or {}) do if x.kind == "ah" then o = x; break end end
+    if not o then return end
     local today = ns:AfterCut(rec.m) - (o.deposit or 0)
-    if best < today - 1 then
-      tt:AddLine("  Lower than today's cheapest: it uses the usual price this month, so a sudden rise doesn't count yet.", 0.5, 0.5, 0.5, true)
+    if o.value < today - 1 then
+      tt:AddLine("  Auction house value is below today's cheapest: with few listed it uses this month's usual price, so a sudden rise doesn't count yet.", 0.5, 0.5, 0.5, true)
     end
   end
 

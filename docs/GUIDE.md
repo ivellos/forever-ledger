@@ -51,7 +51,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 - **Price history**: hold **Ctrl** over an item for the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen. It builds up with each scan.
 - **Bags**: a bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor) and the cheapest bag per slot right now, so you buy the cheapest space first.
 - **Settings → Tooltip size**: "Short, Shift for more" keeps tooltips to today's cheapest price and what the item is worth to you. Each part can be turned off.
-- **Why Worth to you can be below today's price**: selling on the auction house is valued at the lowest of today's cheapest, the average of the cheapest 20 and this month's usual cheapest, after the cut and a deposit, so one sudden rise doesn't fool it. When that's the reason, a grey line under Worth to you says so.
+- **Why Worth to you can be below today's price**: selling on the auction house is valued at the lower of today's cheapest and the average of the cheapest 20, after the cut and a deposit. With fewer than 20 listed it also uses this month's usual cheapest if that's lower, so a few hopeful listings don't fool it; then a grey line under Worth to you says so. With 20 or more listed, today's market counts.
 
 ![Tooltip for Strange Dust](images/tooltip.png)
 
