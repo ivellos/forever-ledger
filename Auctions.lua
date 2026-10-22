@@ -86,21 +86,25 @@ end
 -- posted at 8c each), but for the whole stack on an item auction (issue #14, October 12:
 -- 19 Goblin Deviled Clams sold for 19s showed 19s x 19 coming). The game says which
 -- (C_AuctionHouse.GetItemCommodityStatus: 1 item, 2 commodity); unknown keeps it as is.
+-- A sold auction gives the whole stack's money (owner's screenshot, October 22: 5 Minor
+-- Healing Potions posted at 34c each read 1s 70c once sold, Wool Cloth x14 at 85c read
+-- 11s 90c, the same as Blizzard's "Incoming Amount"), whatever kind of item it is.
 ns.COMMODITY_STATUS_ITEM = 1
-function ns.AuctionEachPrice(buy, quantity, status)
+function ns.AuctionEachPrice(buy, quantity, status, sold)
   if not buy or buy <= 0 then return nil end
-  if status == ns.COMMODITY_STATUS_ITEM and (quantity or 1) > 1 then
+  if (sold or status == ns.COMMODITY_STATUS_ITEM) and (quantity or 1) > 1 then
     return math.floor(buy / quantity + 0.5)
   end
   return buy
 end
-local function eachPrice(info, id)
+local function eachPrice(info, id, soldStatus)
   local status
   if AH and AH.GetItemCommodityStatus and id then
     local ok, s = pcall(AH.GetItemCommodityStatus, id)
     if ok then status = s end
   end
-  return ns.AuctionEachPrice(info.buyoutAmount or info.bidAmount, info.quantity, status)
+  return ns.AuctionEachPrice(info.buyoutAmount or info.bidAmount, info.quantity, status,
+    soldStatus ~= nil and info.status == soldStatus)
 end
 
 local ahOpen = false
@@ -147,7 +151,7 @@ local function readOwned()
     if ok and info and info.itemKey then
       id = info.itemKey.itemID
       e = { a = info.auctionID, id = id, link = info.itemLink, q = info.quantity or 1,
-        each = eachPrice(info, id), left = info.timeLeftSeconds, sold = info.status == sold or nil }
+        each = eachPrice(info, id, sold), left = info.timeLeftSeconds, sold = info.status == sold or nil }
       if e.sold and not before[e.a] and (elsewhere[e.a] or elsewhere[("%s:%s:%s"):format(id, e.each or 0, e.q)]) then
         e = nil   -- (the other auction house's)
       end

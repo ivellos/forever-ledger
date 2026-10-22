@@ -11,9 +11,11 @@ local ME = ns.CharKey()
 local HOUR, DAY = 3600, 86400
 local NOW = os.time({ year = 2026, month = 3, day = 15, hour = 12 })
 
--- An auction as GetOwnedAuctionInfo gives it.
+-- An auction as GetOwnedAuctionInfo gives it: the price each while it's up, the whole
+-- stack's money once sold (owner's screenshot, October 22).
 local function auction(a, id, each, q, left, sold)
-  return { auctionID = a, itemKey = { itemID = id }, quantity = q or 1, buyoutAmount = each,
+  return { auctionID = a, itemKey = { itemID = id }, quantity = q or 1,
+    buyoutAmount = sold and each * (q or 1) or each,
     timeLeftSeconds = left or 2 * DAY, status = sold and 1 or 0 }
 end
 
@@ -374,4 +376,9 @@ T.test("Item auctions price the whole stack; commodities each (issue #14)", func
   T.eq(each(1900, 19, 0), 1900, "unknown: left as the game gave it")
   T.eq(each(500, 1, 1), 500, "a single item")
   T.eq(each(0, 5, 1), nil)
+  -- Sold: the game gives the stack's money for any kind (owner's screenshot, October 22).
+  T.eq(each(170, 5, 2, true), 34, "5 Minor Healing Potions sold at 34c each")
+  T.eq(each(1190, 14, 2, true), 85, "Wool Cloth x14 sold at 85c each")
+  T.eq(each(1190, 14, 0, true), 85, "sold, kind unknown")
+  T.eq(each(20, 5, 2, false), 20, "still up: per item, as Blizzard shows")
 end)

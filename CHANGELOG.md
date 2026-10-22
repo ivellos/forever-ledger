@@ -20,7 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Prices: one silly listing no longer wrecks an item's typical price. Listings over 10 times the cheapest are left out of the average of the cheapest 20 (a 99,999g listing made Heavy Sharpening Stones, cheapest 21s 90c, average 679,012g), so price history, usual prices and deals stay sane.
-- Auctions tab: a stack posted as one auction (food, potions and other non-materials) no longer counts its whole price per item: 19 sold for 19s showed 19s x 19 coming in the mail.
+- Auctions tab: a sold stack no longer counts its whole price per item (19 sold for 19s showed 19s x 19 coming in the mail). Once an auction sells, the game gives the stack's money, not the price each; the same goes for a non-material stack posted as one auction.
 - Leveling tab, after the October 8 beta patch: wands now say vendors pay a little (Lesser 1s 10c, Greater 2s); Minor Wizard Oil (vendor 1s, less than its seed and vial cost) and Recipe: Peace Tea (10c) are off the list.
 - Switching off Leveling help or training advice in Settings now closes an open training advice panel at once.
 - Disenchant finder: the item-level hover values dust and essences the same way the disenchant itself does (no deposit allowance down the chain).
