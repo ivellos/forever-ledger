@@ -102,6 +102,20 @@ T.test("Flip watch: busy and crafted items come before quiet ones", function()
   T.eq(S(1.5, 50), 0, "150% of the vendor price: no chance")
 end)
 
+-- Owner's screenshot, October 22: Medium Leather's cheap listings were gone, the cheapest
+-- was 2s 65c, but the typical price stayed about 1s 60c.
+T.test("The typical price follows the ladder when the cheap end goes", function()
+  price({ m = 54, a = 160, q = 30, t = 1, l = "54:10,265:30" })
+  ns:DropBelow(ID, 265)
+  local rec = ns.db.prices[ns.MarketKey()][ID]
+  T.eq(rec.m, 265); T.eq(rec.a, 265, "the average of what's left")
+  price({ m = 100, a = 110, q = 10, t = 1, l = "100:5,120:10" })
+  ns:RemoveBought(ID, 5, 100)
+  T.eq(ns.db.prices[ns.MarketKey()][ID].a, 120)
+  price({ m = 265, a = 160, q = 20, t = os.time() })
+  T.eq((ns:GetPrice(ID)), 265, "an average under the cheapest isn't used")
+end)
+
 T.test("RemoveBought: nothing at that price changes nothing", function()
   price({ m = 100, a = 100, q = 5, t = 1, l = "100:5" })
   ns:RemoveBought(ID, 2, 50)

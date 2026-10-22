@@ -419,10 +419,27 @@ function ns:RemoveBought(id, qty, each)
     rec.l = table.concat(out, ",")
     rec.m = tonumber(out[1]:match("^(%d+)"))
   end
+  ns.LadderTypical(rec)
   ns:Debug("Took", qty - left, "bought", ns.ItemName(id) or id, "off the saved listings.")
   if ns.CheckFlip then ns:CheckFlip(id) end
   if ns.InvalidateValues then ns:InvalidateValues(true) end
   if ns.RefreshFlipsIfShown then C_Timer.After(0.5, function() ns:RefreshFlipsIfShown() end) end
+end
+
+-- After the cheap end of the ladder changed (bought, or gone): the typical price (average
+-- of the cheapest 20) again from what's left, never under the cheapest. It stayed at the
+-- old cheap listings' average before (owner's screenshot, October 22: Medium Leather
+-- cheapest 2s 65c, typical still about 1s 60c, so it was valued at 1s 52c).
+function ns.LadderTypical(rec)
+  if not (rec and rec.m) then return end
+  local units, prev = {}, 0
+  for p, c in (rec.l or ""):gmatch("(%d+):(%d+)") do
+    p, c = tonumber(p), tonumber(c)
+    if c > prev then units[#units + 1] = { p, c - prev } end
+    prev = c
+  end
+  local a = units[1] and ns.TypicalPrice and ns.TypicalPrice(units) or rec.m
+  rec.a = math.max(a or rec.m, rec.m)
 end
 
 -- The auction house says an item's cheapest listing is now `price`: saved listings below
@@ -447,6 +464,7 @@ function ns:DropBelow(id, price)
   rec.q = math.max(0, (rec.q or 0) - gone)
   rec.l = table.concat(out, ",")
   rec.m = price
+  ns.LadderTypical(rec)
   ns:Debug("Auction house list: cheapest", ns.ItemName(id) or id, "is now", ns.Money(price) .. ";", gone, "cheaper saved listings are gone.")
   if ns.CheckFlip then ns:CheckFlip(id) end
   if ns.InvalidateValues then ns:InvalidateValues(true) end
@@ -1372,7 +1390,8 @@ function ns:GetPrice(id)
   local fresh = rec and rec.m and (time() - (rec.t or 0)) <= maxAge
   if rec and rec.m and (src == "own" or (src == "auto" and fresh)) then
     local label = rec.src == "full" and "full scan" or rec.src or "scan"
-    return rec.a or rec.m, label, rec.t, rec
+    -- (An average under the cheapest is left over from older listings: use the cheapest.)
+    return math.max(rec.a or rec.m, rec.m), label, rec.t, rec
   end
   if src ~= "own" then
     for _, e in ipairs(ns.EXTERNAL) do
@@ -1382,7 +1401,7 @@ function ns:GetPrice(id)
       end
     end
   end
-  if rec and rec.m then return rec.a or rec.m, "scan", rec.t, rec end
+  if rec and rec.m then return math.max(rec.a or rec.m, rec.m), "scan", rec.t, rec end
   return nil, nil, rec and rec.t, rec
 end
 

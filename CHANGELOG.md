@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - Tooltips: the short tooltip shows today's cheapest auction price too, and a grey line under Worth to you explains when it's lower than today's cheapest. CurseForge comment: "prices don't update after scans".
+- Prices: when the cheap listings are gone (bought, or seen gone on the auction house), the typical price is worked out again from what's left; it kept the old cheap listings' average before, so an item could look worth far less than its cheapest listing.
 - Values: with 20 or more listed, selling on the auction house is valued from today's market; this month's usual price only steps in when few are listed (Medium Leather at 2s 65c with 1,569 listed was valued at 43c from a month at about 54c).
 - Shopping lists: type any in Want to keep buying an item whenever it's at or under Up to, with no limit (CurseForge request). It's never marked done, is left out of the cost of the rest, and shares as "want any". With Up to any as well it buys one, so a list can't buy every listing. A red warning (on the Want box and in chat when you type it) says it can spend all your gold if Up to is too high.
 - Leveling tab, below level 20: ways to make gold while leveling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession (Only my professions hides them); other classes' lines don't show; (Classic) until confirmed in Forever.
