@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
+- Training advice, after the October 8 beta patch (ranks far below your level get less from spell power and trigger talents less often): the rank 1 small-heal tip for Healing Touch is gone, and Frostbolt, Frost Nova and Lightning Bolt say a low rank still slows, roots or pulls but does little damage.
 - Training advice, after the October 15 beta patch: Salvation, Mass Salvation and Revoke replace Blessing of Salvation and Greater Blessing of Salvation; Frost Blast (Mage, level 24) is on the list; Lava Burst is the 21-point Elemental talent, in reach by level 30; Fire Nova costs much less mana; Shred is learned at 20.
 - Watch flips: the 120 items re-checked between full scans are picked by how close they are to the vendor price and how busy they are (units posted and bought a day, or how many are listed), with crafted items counting extra, instead of closeness alone.
 - American spelling in everything players read (leveling, color, gray, armor), like the game itself.
