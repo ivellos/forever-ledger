@@ -35,7 +35,7 @@
 ### Buying
 - **Buy queue:** flips and shopping list items beside the auction house, best profit you can afford first; click Buy or scroll over it to buy the next one.
 - **Spend at most:** cap what the queue spends each auction house visit, or always keep some gold back for repairs.
-- **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Add a shuffle's materials in one click; each price limit says where it came from. Share a list as text.
+- **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy (type any in Want to keep buying whatever is under your price) from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Add a shuffle's materials in one click; each price limit says where it came from. Share a list as text.
 ### Selling
 - **Your auctions:** what you have up, what's been undercut (with a reminder), and Cancel next undercut, one click each; sold ones show what you get and when the gold reaches your mailbox, and what sold while you were away is in chat when you come back.
 - **Price helper:** the usual price and the cheapest now on the Sell tab, with Undercut and Usual buttons that fill the price in, and a warning when someone is dumping.
@@ -54,6 +54,7 @@
 - **Sessions:** a small tracker for gold an hour, gold in and out and what you loot, and every session listed in the Ledger.
 - **Dungeon runs:** runs, time, coin and what dropped for you, per dungeon.
 - **Riding fund:** how close you are to riding at 40 and epic riding at 60, mount included.
+- **Leveling tab:** below level 20, ways to make gold while leveling (gathering, cloth, bags, crafts for players), best first and priced from your scans.
 - **Training advice:** beside your class trainer, which spells and ranks are must haves, nice to have, or skippable while leveling, with what each costs.
 
 ### Getting around

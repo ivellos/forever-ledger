@@ -172,15 +172,15 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.15.0",
+  version = "0.16.0",
   lines = {
-    { "Training advice: beside your class trainer, what to learn now as Must have, Nice to have or Skip while leveling, following your talents and the spells you actually cast.", major = true },
-    { "Booty Bay prices: the neutral auction house kept as its own market, its 15% cut in the math, and a Deals view of what sells for more there or is cheaper to buy there.", major = true },
-    { "Shopping lists from shuffles and the Disenchant finder: add them in one click; each Up to says where it came from (the shuffle, your usual price plus an allowance, or you).", major = true },
-    "Riding fund: on the Dashboard, how close you are to riding at 40 and epic riding at 60, mount included.",
-    "Characters in Settings: remove ones you've deleted; live sync can share bags and bank between your accounts.",
-    { "Buy queue: the corner shows your profit if you sold what you bought to a vendor.", change = true },
-    { "Fixes: Booty Bay's 15% cut, its own Auctions list, long Up to amounts, dropdowns cut off at the edge.", fix = true },
+    { "Auction house deposits: values allow for one listing that doesn't sell (Forever's 2, 8 and 24 hour deposits), and cheap items say Vendor it instead.", major = true },
+    { "Leveling tab: below level 20, ways to make gold while leveling, best first and priced from your scans.", major = true },
+    "Modules: switch Leveling help on or off in Settings.",
+    "Shopping lists: type any in Want to keep buying anything under Up to, with clear warnings.",
+    { "Tooltips: the short tooltip shows today's cheapest price, and says why Worth to you is lower when it is.", change = true },
+    { "Training advice: updated for the October 8 and 15 beta patches.", change = true },
+    { "Fixes: sold stacks on the Auctions tab; prices thrown off by silly listings, old averages and the 1s minimum deposit; ammo prices.", fix = true },
   },
 }
 

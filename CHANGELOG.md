@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-22
+
+### Highlights
+- Δ **Auction house deposits**: values allow for one listing that doesn't sell (Forever's 2, 8 and 24 hour deposits), and cheap items say "Vendor it instead".
+- Δ **Leveling tab**: below level 20, ways to make gold while leveling, best first and priced from your scans.
+- + **Modules**: switch Leveling help on or off in Settings.
+- + **Shopping lists**: type "any" in Want to keep buying anything under Up to, with clear warnings.
+- ~ **Tooltips**: the short tooltip shows today's cheapest price, and says why Worth to you is lower when it is.
+- ~ **Training advice**: updated for the October 8 and 15 beta patches.
+- ✓ **Fixes**: sold stacks on the Auctions tab; prices thrown off by silly listings, old averages and the 1s minimum deposit; ammo prices.
 ### Changed
 - Training advice, after the October 8 beta patch (ranks far below your level get less from spell power and trigger talents less often): the rank 1 small-heal tip for Healing Touch is gone, and Frostbolt, Frost Nova and Lightning Bolt say a low rank still slows, roots or pulls but does little damage.
 - Training advice, after the October 15 beta patch: Salvation, Mass Salvation and Revoke replace Blessing of Salvation and Greater Blessing of Salvation; Frost Blast (Mage, level 24) is on the list; Lava Burst is the 21-point Elemental talent, in reach by level 30; Fire Nova costs much less mana; Shred is learned at 20.

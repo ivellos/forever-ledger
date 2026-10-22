@@ -32,7 +32,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Auction house deposits**: count the deposit in shuffles that end on the auction house, so cheap items that cost more to post than they earn show as "vendor it instead".
 - **Transmog**: bind-on-equip items that sell well, what they're worth and where they drop, including "worth farming" per rare.
 - **Quest turn-in items**: in the addon now, from original Classic quests (tooltips list the quest and say "keep it" for your own leveling). Next: learning Forever's own quests from players' quest logs, and when these items sell best.
-- **Launch-day checklist**: early gold makers (bags, wands, vendor-worthy drops) with live prices.
+- **Launch-day checklist**: in the addon since 0.16.0 as the Leveling tab (ways to make gold below level 20, priced from your scans). Next: refresh it with launch prices, and your own to-do items.
 - **Hold or sell**: price history shows when something is the cheapest or dearest it has been.
 - **Auctionator**: send a shuffle's materials to an Auctionator shopping list, with the most worth paying as the maximum price.
 
