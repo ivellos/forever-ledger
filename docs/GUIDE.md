@@ -50,7 +50,8 @@ Settings and Help each have a **search box** above their list: type two letters 
 - **Quests**: items quests ask for (Bronze Tube, Spider Ichor, Flask of Oil and about a hundred more) show the quest, its level and how many, for your faction. The line is yellow and says **keep it** when this character hasn't reached that level yet, so you don't sell what you'll need. Quests the character has already done (read from the game's list of completed quests), ones gray for its level, and other classes' quests are left out; untick **Only quests this character still needs** in Settings to see them all, marked. Leveling players buy these once per character, which makes them good to sell, especially in the first weeks after launch; a deal's hover on the Deals tab says when it's a quest item. The list comes from original Classic quests, so Forever may have changed some.
 - **Price history**: hold **Ctrl** over an item for the cheapest price over the last 14 days, whether it's rising or falling, the usual price this month, how many are usually listed and the lowest price ever seen. It builds up with each scan.
 - **Bags**: a bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor) and the cheapest bag per slot right now, so you buy the cheapest space first.
-- **Settings → Tooltip size**: "One line, Shift for more" keeps tooltips short. Each part can be turned off.
+- **Settings → Tooltip size**: "Short, Shift for more" keeps tooltips to today's cheapest price and what the item is worth to you. Each part can be turned off.
+- **Why Worth to you can be below today's price**: selling on the auction house is valued at the lowest of today's cheapest, the average of the cheapest 20 and this month's usual cheapest, after the cut and a deposit, so one sudden rise doesn't fool it. When that's the reason, a grey line under Worth to you says so.
 
 ![Tooltip for Strange Dust](images/tooltip.png)
 

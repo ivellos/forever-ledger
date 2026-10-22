@@ -13,7 +13,7 @@ ns.HELP = {
     { "Open this window", "Type /fl, or click the minimap button." },
     { "Learn your recipes", "Open each profession window once on every character." },
     { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
-    { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it one line, with Shift for more." },
+    { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it short (today's cheapest price and what it's worth to you), with Shift for more. When Worth to you is below today's cheapest, the tooltip says why: it uses this month's usual price, so a sudden rise doesn't count yet." },
     { "Bags", "A bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor), and which bag is the cheapest per slot right now, so you buy the cheapest space first." },
     { sub = "Settings and look" },
     { "Search", "Settings and Help each have a search box above their list: type two letters or more to see everything that mentions it, from every section at once." },

@@ -145,8 +145,8 @@ local PAGES = {
         { sub = "Size and detail" },
         { key = "tooltip", label = "Tooltip lines", kind = "check", help = "Forever Ledger's lines on item tooltips." },
         { key = "tipMode", label = "Tooltip size", kind = "choice", options = {
-            { "full", "Everything" }, { "compact", "One line, Shift for more" } },
-          help = "One line shows just what an item is worth to you; press Shift for the rest." },
+            { "full", "Everything" }, { "compact", "Short, Shift for more" } },
+          help = "Short shows today's cheapest auction price and what an item is worth to you; press Shift for the rest." },
         { key = "tipOptions", label = "Ways under Worth to you", kind = "number", suffix = "ways", min = 1, max = 10,
           help = "How many ways to use an item to list, best first." },
       } },
