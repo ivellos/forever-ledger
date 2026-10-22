@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Selling an item on the auction house (Worth to you), resale deals and the Booty Bay view allow for one 8-hour listing that doesn't sell (its deposit is lost); cheap items can favor vendoring. Not counted down a chain: the Disenchant finder, shuffles, vendor flips and shopping-list limits are unchanged. Uses live quotes when available, otherwise Classic's formula (5% of the vendor price per 2 hours; Forever's durations are 2, 8 and 24 hours). The explanation stays in Help and the affected options. `/fl deposit` takes an item ID or a shift-clicked item.
 
 ### Added
+- Shopping lists: type any in Want to keep buying an item whenever it's at or under Up to, with no limit (CurseForge request). It's never marked done, is left out of the cost of the rest, and shares as "want any". With Up to any as well it buys one, so a list can't buy every listing.
 - Leveling tab, below level 20: ways to make gold while leveling, best first and priced from your scans, with what to do and why on hover. Dimmed when you lack the profession (Only my professions hides them); other classes' lines don't show; (Classic) until confirmed in Forever.
 - Settings, Global settings, Modules: switch off Leveling help (training advice, the riding fund and counting your casts) in one place. The first of the modules; more follow.
 - A fresh install opens the window with the welcome a few seconds after the first login (once only).

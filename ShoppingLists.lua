@@ -20,6 +20,9 @@ local _, ns = ...
 -- on: buying from it in the Buy queue.
 -- max: copper, 0 = no limit set (not bought by the queue), -1 = any price.
 -- qty: Want, how many to buy (what's bought since Buy again counts: e.bought), nil = 1.
+-- anyQty: Want "any" (CurseForge request, October 22): keep buying it while it's at or
+--   under Up to, never marked done. Counts as 1 with Up to "any" (that would buy every
+--   listing) and for crafting.
 -- countHave: crate lists only (Crates.lua): Want counts what you have, so the queue buys
 --   what a crate is short of. Not shown or offered anywhere else (owner, October 3).
 -- suffix: one version of a gear item ("of the Monkey"); found: the last Search all of a
@@ -28,6 +31,12 @@ local _, ns = ...
 local function data() return ns.db.shopping end
 
 function ns:ShoppingLists() return data().lists end
+
+-- How many of an item to buy: Want, 1 without one, no limit for Want "any".
+function ns:ListWant(e, anyPrice)
+  if e.anyQty and e.mode ~= "craft" and not anyPrice then return math.huge end
+  return e.qty or 1
+end
 
 function ns:CurrentShoppingList()
   local d = data()
@@ -420,7 +429,8 @@ function ns:ExportShoppingList(list)
     if e.mode == "craft" then parts[#parts + 1] = "craft" end
     if e.mode ~= "craft" and e.max == -1 then parts[#parts + 1] = "max any"
     elseif e.mode ~= "craft" and (e.max or 0) > 0 then parts[#parts + 1] = "max " .. ns.MoneyPlain(e.max) end
-    if e.qty then parts[#parts + 1] = "want " .. e.qty end
+    if e.anyQty then parts[#parts + 1] = "want any"
+    elseif e.qty then parts[#parts + 1] = "want " .. e.qty end
     lines[#lines + 1] = table.concat(parts, " | ")
   end
   return table.concat(lines, "\n")
@@ -476,17 +486,19 @@ function ns:ImportShoppingLists(text)
       if not id then id, suffix = ns:ResolveItemVersion(first) end
       if id then
         if not list then newList() end
-        local max, qty, craft
+        local max, qty, craft, anyQty
         for i = 2, #fields do
           local f = fields[i]:lower()
           if f == "craft" then craft = true
+          elseif f == "want any" then anyQty = true
           elseif f:match("^want%s") then qty = tonumber(f:match("^want%s+(%d+)"))
           elseif f:match("^version%s") then suffix = fields[i]:match("^%a+%s+(.+)$")
           elseif f:match("^max%s") then max = ns.ParseMoneyLoose(f:match("^max%s+(.+)$"), "g") end
         end
-        if max or qty or craft then buying = true end
+        if max or qty or craft or anyQty then buying = true end
         local e = ns:AddToShoppingList(list, id, max, qty, suffix)
         if craft then e.mode = "craft" end
+        if anyQty then e.anyQty = true end
         items = items + 1
       else
         unknown[#unknown + 1] = first
@@ -892,10 +904,10 @@ function ns:ItemDone(e, list)
           if not (list.matDone and list.matDone[r[1]]) then all = false end
         end
         if all then e.done = true end
-      elseif (e.bought or 0) >= (e.qty or 1) then
+      elseif (e.bought or 0) >= ns:ListWant(e, select(2, ns:ItemLimit(list, e)) == "any") then
         e.done = true
       end
-    elseif ns:HaveCount(e.id) >= (e.qty or 1) then
+    elseif ns:HaveCount(e.id) >= ns:ListWant(e, select(2, ns:ItemLimit(list, e)) == "any") then
       e.done = true
     end
   end
@@ -915,7 +927,7 @@ function ns:NoteListPurchase(id, qty)
     if ns:BuyMode(list) and qty > 0 then
       for _, e in ipairs(list.items) do
         if e.id == id and e.mode ~= "craft" and not e.done and qty > 0 then
-          local add = math.min(qty, (e.qty or 1) - (e.bought or 0))
+          local add = math.min(qty, ns:ListWant(e) - (e.bought or 0))
           if add > 0 then e.bought, qty = (e.bought or 0) + add, qty - add end
         end
       end
@@ -988,7 +1000,7 @@ function ns:ShoppingTargets()
           -- Without a Want number, just one, less what's been bought (crate lists: less
           -- what you have).
           local got = ns:BuyMode(list) and (e.bought or 0) or ns:HaveCount(e.id)
-          local want = math.max(0, (e.qty or 1) - got)
+          local want = math.max(0, ns:ListWant(e, how == "any") - got)
           if want > 0 then
             seen[e.id] = true
             out[#out + 1] = { id = e.id, limit = limit, any = how == "any", want = want, list = list.name }

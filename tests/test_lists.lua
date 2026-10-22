@@ -187,6 +187,29 @@ T.test("ListStillWanted: any price items stop too", function()
   T.eq(ns:ListStillWanted(50053), 0)
 end)
 
+-- Want "any" (CurseForge request, October 22): no limit while it's under Up to.
+T.test("Want any keeps buying and is never done", function()
+  buyList({ id = 50058, max = 1000, anyQty = true })
+  T.eq(ns:ListStillWanted(50058), math.huge)
+  ns:NoteListPurchase(50058, 5000)
+  T.eq(ns:ListStillWanted(50058), math.huge, "still wanted after 5000")
+  local list = ns.db.shopping.lists[1]
+  T.eq(ns:ItemDone(list.items[1], list), false)
+  T.eq(list.items[1].bought, 5000)
+end)
+
+T.test("Want any with Up to any buys only one", function()
+  price(50059, { m = 100, a = 100, q = 50 })
+  buyList({ id = 50059, max = -1, anyQty = true })
+  T.eq(ns:ListStillWanted(50059), 1, "any of both would buy every listing")
+end)
+
+T.test("Want any survives sharing a list", function()
+  local list = buyList({ id = 50060, max = 1000, anyQty = true })
+  local text = ns:ExportShoppingList(list or ns.db.shopping.lists[1])
+  T.ok(text:find("want any", 1, true), text)
+end)
+
 T.test("ListStillWanted: any price with no price known wants nothing yet", function()
   buyList({ id = 50054, max = 0, qty = 3 }, { anyPrice = true })
   T.eq(ns:ListStillWanted(50054), 0)

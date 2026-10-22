@@ -439,8 +439,8 @@ local function capToList(e)
   if e.reason ~= "list" or not ns.ListStillWanted then return true end
   local left = ns:ListStillWanted(e.id)
   if not e.want or e.want > left then
-    ns:Debug(("Buy queue: %s, the queue wanted %s, the list still wants %d."):format(ns.ItemName(e.id),
-      tostring(e.want), left))
+    ns:Debug(("Buy queue: %s, the queue wanted %s, the list still wants %s."):format(ns.ItemName(e.id),
+      tostring(e.want), tostring(left)))
     e.want = left
   end
   if left <= 0 then finishTarget("the list has all it wants."); return false end
@@ -830,7 +830,7 @@ local function reasonLine(e)
   if e.reason == "flip" then return ("Vendor flip: a vendor pays %s."):format(money(e.worth)) end
   if e.reason == "list" then
     return ("Shopping list %s: up to %s%s."):format(e.list or "", limitText(e),
-      e.want and (", %d more wanted"):format(e.want) or "")
+      (e.want == math.huge and ", no limit on how many") or (e.want and (", %d more wanted"):format(e.want)) or "")
   end
   return ""
 end
@@ -2193,29 +2193,44 @@ local function listRow(i)
   r.maxText = T:Text(r, 11, T.section)
   r.maxText:SetPoint("LEFT", C.max + 6, 0)
 
-  -- Want: whole numbers only, and clicking in selects what's there so typing replaces
-  -- it (owner's test, October 3: digits typed beside a number that didn't show).
+  -- Want: a whole number, or "any" for no limit (CurseForge request, October 22); empty is
+  -- one. Clicking in selects what's there so typing replaces it (owner's test, October 3:
+  -- digits typed beside a number that didn't show).
   r.qty = T:EditBox(r, 42)
   r.qty:SetPoint("LEFT", C.want, 0)
   r.qty:SetTextInsets(3, 3, 0, 0)
-  r.qty:SetNumeric(true)
   r.qty:SetMaxLetters(4)   -- the most is 9999, and the box shows all of it
   r.qty:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
   r.qty:SetScript("OnEditFocusLost", function(self)
-    local n = tonumber(self:GetText())
-    local old = r.entry.qty
-    r.entry.qty = n and n > 0 and math.floor(n) or nil
+    local text = (self:GetText() or ""):lower():gsub("%s", "")
+    local n = tonumber(text)
+    local old, oldAny = r.entry.qty, r.entry.anyQty
+    local any = text == "any" or text == "*" or nil
+    if any or (n and n > 0) or text == "" then
+      r.entry.anyQty = any
+      r.entry.qty = (not any and n and n > 0) and math.floor(n) or nil
+    else
+      ns:Print("Want: type how many to buy, or any to keep buying while it's at or under Up to.")
+    end
+    local changed = r.entry.qty ~= old or r.entry.anyQty ~= oldAny
     -- Wanting more than has been bought opens a done item again.
     local list = ns:CurrentShoppingList()
     local got = ns:BuyMode(list) and (r.entry.bought or 0) or ns:HaveCount(r.entry.id)
-    if r.entry.qty ~= old and got < (r.entry.qty or 1) then r.entry.done = nil end
-    self:SetText(r.entry.qty and tostring(r.entry.qty) or "")
-    if r.entry.qty ~= old then unpark({ r.entry.id }) end
+    if changed and got < ns:ListWant(r.entry) then r.entry.done = nil end
+    self:SetText(r.entry.anyQty and "any" or (r.entry.qty and tostring(r.entry.qty) or ""))
+    if changed then unpark({ r.entry.id }) end
     -- A crate list: the crate's Want is how many crates, so its items follow (Crates.lua).
-    if r.entry.qty ~= old and list and list.crateID == r.entry.id and ns.ScaleCrateList then
+    if changed and list and list.crateID == r.entry.id and ns.ScaleCrateList then
       unpark(ns:ScaleCrateList(list))
     end
   end)
+  r.qty:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Want", 1, 1, 1)
+    GameTooltip:AddLine("How many to buy. Empty is one. Type any to keep buying it whenever it's at or under Up to; it's never marked done. (With Up to any, it buys one: any of both would buy every listing.)", 0.85, 0.85, 0.85, true)
+    GameTooltip:Show()
+  end)
+  r.qty:HookScript("OnLeave", function() GameTooltip:Hide() end)
   -- Materials: how many are needed, in the Want column.
   r.need = T:Text(r, 11)
   r.need:SetPoint("RIGHT", r, "LEFT", C.want + 38, 0)
@@ -2338,8 +2353,9 @@ local function estimateText(list)
   for _, e in ipairs(list.items) do
     if e.mode ~= "craft" and not ns:ItemDone(e, list) then
       local got = buyMode and (e.bought or 0) or ns:HaveCount(e.id)
-      local need = math.max(0, (e.qty or 1) - got)
-      if need > 0 then add(e.id, need) end
+      -- (Want "any" has no end to cost: left out of the total.)
+      local need = math.max(0, ns:ListWant(e) - got)
+      if need > 0 and need ~= math.huge then add(e.id, need) end
     end
   end
   for _, m in ipairs((ns:ListMaterials(list))) do
@@ -2547,11 +2563,11 @@ refreshLists = function()
         -- Gold when you typed it, white when automatic (owner, October 6).
         if e.src == "you" then r.max:SetTextColor(1, 0.82, 0, 1) else r.max:SetTextColor(1, 1, 1, 1) end
       end
-      if not r.qty:HasFocus() then r.qty:SetText(e.qty and tostring(e.qty) or "") end
+      if not r.qty:HasFocus() then r.qty:SetText(e.anyQty and "any" or (e.qty and tostring(e.qty) or "")) end
       -- Have: bought for this list (yellow, green once its Want is bought), then what
       -- you own everywhere in brackets (owner, October 3: "##(##)"). Crate lists count
       -- what you have instead of what's bought. Done stays done until Buy again.
-      local want = e.qty or 1
+      local want = ns:ListWant(e)
       local got = buyMode and (e.bought or 0) or ns:HaveCount(e.id)
       local isDone = ns:ItemDone(e, list)
       if isDone then done = done + 1 end
