@@ -2213,6 +2213,10 @@ local function listRow(i)
       ns:Print("Want: type how many to buy, or any to keep buying while it's at or under Up to.")
     end
     local changed = r.entry.qty ~= old or r.entry.anyQty ~= oldAny
+    if r.entry.anyQty and not oldAny then
+      ns:Print(("|cffff4d4dWant any for %s: the Buy queue buys every one at or under Up to (%s), as many as you can afford. Set Spend at most to cap it.|r"):format(
+        ns.ItemName(r.entry.id), r.entry.max and r.entry.max > 0 and ns.Money(r.entry.max) or "not set"))
+    end
     -- Wanting more than has been bought opens a done item again.
     local list = ns:CurrentShoppingList()
     local got = ns:BuyMode(list) and (r.entry.bought or 0) or ns:HaveCount(r.entry.id)
@@ -2228,6 +2232,9 @@ local function listRow(i)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:AddLine("Want", 1, 1, 1)
     GameTooltip:AddLine("How many to buy. Empty is one. Type any to keep buying it whenever it's at or under Up to; it's never marked done. (With Up to any, it buys one: any of both would buy every listing.)", 0.85, 0.85, 0.85, true)
+    -- In red (owner, October 22: any bought as many as he could afford).
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Careful: any buys every listing at or under Up to, as many as you can afford. With Up to set too high it can spend all your gold. Set Spend at most in the Buy queue to cap it.", 1, 0.3, 0.3, true)
     GameTooltip:Show()
   end)
   r.qty:HookScript("OnLeave", function() GameTooltip:Hide() end)

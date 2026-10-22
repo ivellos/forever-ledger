@@ -166,9 +166,11 @@ local function addLines(tt, id, forceFull)
   if not full then
     questLines(true)
     -- Today's cheapest too, so a new scan shows at once (CurseForge comment, October 22).
+    local shownCheapest
     if price and on("tipPrice") and rec and rec.m and not rec.none and src ~= "Auctionator" and src ~= "TSM" and src ~= "Auctioneer" then
       local age = t and ns.Age(t) or ""
       tt:AddDoubleLine("Auction, cheapest", ns.Money(rec.m) .. (age ~= "" and (" |cff999999" .. age .. "|r") or ""), LR, LG, LB, 1, 1, 1)
+      shownCheapest = true
     end
     local best, options = ns:GetValue(id)
     if best then
@@ -176,8 +178,12 @@ local function addLines(tt, id, forceFull)
       tt:AddDoubleLine("Worth to you" .. (how and (" |cff999999(" .. how .. ")|r") or ""), ns.Money(best), LR, LG, LB, 1, 1, 1)
       whyLower(best, options)
     elseif price then
-      tt:AddDoubleLine("Auction price", ns.Money(price), LR, LG, LB, 1, 1, 1)
-    else
+      -- (Not again when "Auction, cheapest" above already says it: owner's screenshot,
+      -- October 22, Small Glimmering Shard showed 3s 4c twice.)
+      if not (shownCheapest and price == rec.m) then
+        tt:AddDoubleLine("Auction price", ns.Money(price), LR, LG, LB, 1, 1, 1)
+      end
+    elseif not shownCheapest then
       return
     end
     if withHistory then historyLines(tt, id) end
