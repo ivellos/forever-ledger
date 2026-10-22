@@ -53,7 +53,8 @@ local DEFAULTS = {
     -- needs the mouse over the top strip, and Up to and Spend at most still apply.
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = true, tab = "queue" },
     tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false, worthAH = true, worthVendor = true, worthDisenchant = true, worthCraft = true, ridingFund = true, trainerAdvice = true, moduleLevelling = true, levellingMine = false,
-    theme = "default", accent = "", uiScale = 100 },
+    -- theme: FL Gilded for new installs (owner, October 22); "default" is FL Bronze now.
+    theme = "gilded", accent = "", uiScale = 100 },
 }
 -- For Settings: "Default: Auto." under each choice (UI.lua).
 ns.DEFAULT_SETTINGS = DEFAULTS.settings

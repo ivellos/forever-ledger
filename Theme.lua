@@ -43,7 +43,7 @@ T.THEMES = {
   clean = { name = "FL Clean", accent = TEAL,
     bg = { 0.071, 0.071, 0.071, 0.97 }, header = { 0.09, 0.09, 0.09, 1 },
     button = { 0.105, 0.105, 0.105, 0.95 }, border = { 1, 1, 1, 0.10 } },
-  default = { name = "FL Default", accent = TEAL,
+  default = { name = "FL Bronze", accent = TEAL,
     bg = { 0.071, 0.065, 0.059, 0.97 }, header = { 0.094, 0.082, 0.071, 1 },
     button = { 0.118, 0.106, 0.094, 0.95 }, border = { 1, 0.92, 0.80, 0.10 },
     font = "Fonts\\ARIALN.TTF", fontAdd = 1, labelAdd = 1, dimAlpha = 0.5,
@@ -83,7 +83,7 @@ end
 function T:Apply()
   local s = ns.db and ns.db.settings
   local key = s and s.theme
-  T.themeKey = T.THEMES[key or ""] and key or "default"
+  T.themeKey = T.THEMES[key or ""] and key or "gilded"
   T.theme = T.THEMES[T.themeKey]
   T.bg, T.header = T.theme.bg, T.theme.header
   T.button, T.border = T.theme.button or T.button, T.theme.border or T.border
@@ -114,7 +114,7 @@ end
 function T:NeedsReload()
   local s = ns.db and ns.db.settings
   if not s then return false end
-  local want = T.THEMES[s.theme or ""] and s.theme or "default"
+  local want = T.THEMES[s.theme or ""] and s.theme or "gilded"
   local accent = T:FromHex(s.accent) or euiAccent() or T.THEMES[want].accent
   return want ~= T.themeKey or T:ToHex(accent) ~= T:ToHex(T.accent)
 end

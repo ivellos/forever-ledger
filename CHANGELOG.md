@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
+- Themes: FL Gilded is the look for new installs, and FL Default is now called FL Bronze. Your chosen theme stays as it is.
 - Buy queue: Scroll to buy is on from the start for new installs (it was hard to find off). It still only buys with the mouse over the top strip, within Up to and Spend at most; untick it to buy by clicking only. A choice you already made is kept.
 
 ### Added

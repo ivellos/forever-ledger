@@ -59,7 +59,7 @@
 
 ### Getting around
 - **Welcome and Help:** a short guide the first time, Help by topic with common questions, and search boxes for Settings and Help.
-- **Your look:** three themes (FL Clean, FL Default, FL Gilded), your accent color (or EllesmereUI's), and a Size from 75% to 150%.
+- **Your look:** three themes (FL Clean, FL Bronze, FL Gilded), your accent color (or EllesmereUI's), and a Size from 75% to 150%.
 - **Settings profiles:** characters can share a set of settings or each have their own; export a profile for a friend.
 - **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
 - **Two accounts?** Live sync shares prices and recipes between them while both are online, and bags and bank if you like. Remove characters you no longer have in Settings.

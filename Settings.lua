@@ -83,8 +83,8 @@ local PAGES = {
     rows = {
       { sub = "Theme and color" },
       { key = "theme", label = "Theme", kind = "choice", after = function() ns:OfferReload() end, options = {
-          { "clean", "FL Clean" }, { "default", "FL Default" }, { "gilded", "FL Gilded" } },
-        help = "FL Clean: flat and quiet. FL Default: a bronze edge, gold titles, sections as cards, switches. FL Gilded: a bronze frame and gold serif titles. Looks based on WoW Forever's and Blizzard's own windows are coming." },
+          { "clean", "FL Clean" }, { "default", "FL Bronze" }, { "gilded", "FL Gilded" } },
+        help = "FL Clean: flat and quiet. FL Bronze: a bronze edge, gold titles, sections as cards, switches. FL Gilded: a bronze frame and gold serif titles. Looks based on WoW Forever's and Blizzard's own windows are coming." },
       { key = "uiScale", label = "Size", kind = "slider", min = 75, max = 150, step = 5, suffix = "%",
         after = function() if ns.ApplyScale then ns:ApplyScale() end end,
         help = "How big Forever Ledger's windows are, from 75% to 150%. Drag, then let go." },
