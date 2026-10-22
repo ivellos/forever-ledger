@@ -229,6 +229,18 @@ local function onPost(loc)
   local id = itemOf(loc)
   if id then posting = { id = id, money = GetMoney(), t = GetTime() } end
 end
+-- Sold auctions saved before 5e46d01 kept the stack's money as the price each (issue
+-- #14); once gone from the game's list they're never read again. Corrected once.
+ns:OnReady(function()
+  if ns.db.soldEachFixed then return end
+  for _, rec in pairs(store()) do
+    for _, e in ipairs(rec.list or {}) do
+      if e.sold and e.each and (e.q or 1) > 1 then e.each = math.floor(e.each / e.q + 0.5) end
+    end
+  end
+  ns.db.soldEachFixed = true
+end)
+
 ns:OnReady(function()
   if AH and AH.PostItem then hooksecurefunc(AH, "PostItem", onPost) end
   if AH and AH.PostCommodity then hooksecurefunc(AH, "PostCommodity", onPost) end
