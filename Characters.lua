@@ -156,7 +156,7 @@ local function worth(id)
     if vendor > 0 then return vendor, "Vendor", "Sell to vendor (it binds)", "vendor" end
     return 0, dim("can't be sold"), "It binds and no vendor buys it", "none"
   end
-  local best, options = ns:GetValue(id)
+  local best, options = ns:GetValue(id, true)
   local o = options and options[1]
   if best and best > 0 and o then
     local short = (o.kind == "ah" and "Auction house") or (o.kind == "vendor" and "Vendor")

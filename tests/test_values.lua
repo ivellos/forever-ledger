@@ -40,6 +40,20 @@ T.test("The auction house, after the cut", function()
   T.eq(opts[2].kind, "vendor", "the vendor next")
 end)
 
+-- Issue #15 (October 22): choose which ways Worth to you counts; only what's shown.
+T.test("Worth to you counts only the ticked ways, in tooltips only", function()
+  me()
+  price(60005, 1000)
+  ns.db.vendorSell[60005] = 100
+  ns.db.settings.worthAH = false
+  T.eq((ns:GetValue(60005, true)), 100, "auction house off: the vendor")
+  T.eq((ns:GetValue(60005)), 930, "everything else still counts the auction house")
+  ns.db.settings.worthVendor = false
+  T.eq((ns:GetValue(60005, true)), nil, "nothing left to count")
+  ns.db.settings.worthAH, ns.db.settings.worthVendor = nil, nil
+  T.eq((ns:GetValue(60005, true)), 930)
+end)
+
 T.test("The cut follows the setting", function()
   me()
   ns.db.settings.ahCut = 15

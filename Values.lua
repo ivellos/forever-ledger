@@ -396,10 +396,10 @@ end
 -- The most worth paying for an item: its best value without relisting it on the
 -- auction house, less the safety margin. Only for items you can craft with,
 -- disenchant or convert. Returns the price and the option it comes from.
-function ns:BuyAtOrBelow(id)
+function ns:BuyAtOrBelow(id, shown)
   local bestNonAH, useful
   for _, o in ipairs(ns:Options(id)) do
-    if o.kind ~= "ah" then
+    if o.kind ~= "ah" and not (shown and not ns:WorthCounts(o)) then
       bestNonAH = bestNonAH or o
       if o.kind ~= "vendor" then useful = true end
     end
@@ -467,14 +467,27 @@ function ns:OptionLabel(o)
   return label
 end
 
+-- Which ways Worth to you counts (issue #15, October 22: "turn off the craft value"):
+-- Settings, Tooltips. Only what tooltips and the Characters tab show; shuffles, the Buy
+-- queue and shopping lists value every way.
+local WORTH_SETTING = { ah = "worthAH", vendor = "worthVendor", disenchant = "worthDisenchant",
+  craft = "worthCraft", convert = "worthCraft" }
+function ns:WorthCounts(o)
+  local key = WORTH_SETTING[o.kind]
+  return not key or ns.db.settings[key] ~= false
+end
+
 -- Returns the best value and a list of options (each with a label), best first.
--- Only the three best recipes are listed, so tooltips stay short.
-function ns:GetValue(id)
+-- Only the three best recipes are listed, so tooltips stay short. shown: only the ways
+-- ticked in Settings, Tooltips, Worth to you counts.
+function ns:GetValue(id, shown)
   if not id or not ns.db then return end
   freshCache()
   local list, crafts, seen = {}, 0, {}
   for _, o in ipairs(allOptions(id)) do
-    if o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
+    if shown and not ns:WorthCounts(o) then
+      -- left out
+    elseif o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
       if o.kind == "craft" then seen[o.step] = true; crafts = crafts + 1 end
       o.label = ns:OptionLabel(o)
       list[#list + 1] = o

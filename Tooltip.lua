@@ -175,7 +175,7 @@ local function addLines(tt, id, forceFull)
       tt:AddDoubleLine("Auction, cheapest", ns.Money(rec.m) .. (age ~= "" and (" |cff999999" .. age .. "|r") or ""), LR, LG, LB, 1, 1, 1)
       shownCheapest = true
     end
-    local best, options = ns:GetValue(id)
+    local best, options = ns:GetValue(id, true)
     if best then
       local how = options and options[1] and options[1].label
       tt:AddDoubleLine("Worth to you" .. (how and (" |cff999999(" .. how .. ")|r") or ""), ns.Money(best), LR, LG, LB, 1, 1, 1)
@@ -284,7 +284,7 @@ local function addLines(tt, id, forceFull)
       .. (standing and (" |cff999999at " .. standing .. "|r") or ""), LR, LG, LB, 1, 1, 1)
   end
 
-  local best, options = ns:GetValue(id)
+  local best, options = ns:GetValue(id, true)
   if best and on("tipWorth") then
     tt:AddDoubleLine("Worth to you", ns.Money(best), LR, LG, LB, 1, 1, 1)
     whyLower(best, options)
@@ -303,7 +303,7 @@ local function addLines(tt, id, forceFull)
   end
 
   -- Green when the auction price is already at or below it.
-  local maxBuy = on("tipBuy") and ns:BuyAtOrBelow(id)
+  local maxBuy = on("tipBuy") and ns:BuyAtOrBelow(id, true)
   if maxBuy then
     if price and price <= maxBuy then
       tt:AddDoubleLine("Buy at or below", ns.Money(maxBuy), LR, LG, LB, 0.5, 0.83, 0.61)

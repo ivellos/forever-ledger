@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Settings, Tooltips: choose which ways Worth to you counts (auction house, vendor, disenchanting, crafting and conversions); Buy at or below and the Characters tab follow. Shuffles, the Buy queue and shopping lists still count every way. Issue #15.
+
 ## [0.16.0] - 2026-10-22
 
 ### Highlights

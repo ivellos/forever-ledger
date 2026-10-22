@@ -160,6 +160,16 @@ local PAGES = {
           help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by (and, in the first day, at least 3 sales)." },
         { key = "tipWorth", label = "Worth to you", kind = "check",
           help = "The best way to use the item (auction house, vendor, disenchanting or crafting it into something) and the next best few." },
+        -- Which ways count (issue #15, October 22). Only the tooltip and the Characters
+        -- tab; shuffles, the Buy queue and shopping lists still use every way.
+        { key = "worthAH", label = "  Counts selling on the auction house", kind = "check",
+          help = "Worth to you and Buy at or below include selling it on the auction house. Shuffles, the Buy queue and shopping lists always count every way." },
+        { key = "worthVendor", label = "  Counts selling to a vendor", kind = "check",
+          help = "Worth to you and Buy at or below include what a vendor pays." },
+        { key = "worthDisenchant", label = "  Counts disenchanting", kind = "check",
+          help = "Worth to you and Buy at or below include disenchanting it and selling the dust and essences." },
+        { key = "worthCraft", label = "  Counts crafting and conversions", kind = "check",
+          help = "Worth to you and Buy at or below include crafting it into something (any of your characters' recipes) or converting it, like splitting an essence. Turn off if you'd rather not count what your alts could make." },
         { key = "tipBuy", label = "Buy at or below", kind = "check",
           help = "The most worth paying for it, after your safety margin. Green when it's already cheaper." },
         { key = "tipNeutral", label = "Booty Bay, when it pays clearly more", kind = "check",
