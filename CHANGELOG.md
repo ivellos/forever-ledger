@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-22
+
+### Highlights
+- + **Worth to you switches**: choose what it counts in Settings, Tooltips (auction house, vendor, disenchanting, crafting); shuffles and the Buy queue still count everything.
+- ~ **Scroll to buy**: on from the start, so new players can buy flips with the mouse wheel right away.
+- ~ **Themes**: FL Gilded is the look for new installs, and FL Default is now called FL Bronze.
 ### Changed
 - Themes: FL Gilded is the look for new installs, and FL Default is now called FL Bronze. Your chosen theme stays as it is.
 - Buy queue: Scroll to buy is on from the start for new installs (it was hard to find off). It still only buys with the mouse over the top strip, within Up to and Spend at most; untick it to buy by clicking only. A choice you already made is kept.

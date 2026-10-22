@@ -24,7 +24,7 @@
 ## Everything it does
 
 ### Finding gold
-- **Tooltips:** what an item is worth to you and the best few ways to use it, the auction price, how fast it sells, what it disenchants into, which of your recipes use it, and quests that need it ("keep it" if you will). Hold Ctrl for its price history. One line with Shift for more, if you prefer.
+- **Tooltips:** what an item is worth to you (you choose which ways count) and the best few ways to use it, the auction price, how fast it sells, what it disenchants into, which of your recipes use it, and quests that need it ("keep it" if you will). Hold Ctrl for its price history. One line with Shift for more, if you prefer.
 - **Deals:** listings well below their usual price, with the usual price, how many days of scans it's based on, the next listing up and the resale profit, rated Good, Fair or Thin. A Booty Bay view compares the neutral auction house with yours, each after its own cut.
 - **Vendor flips:** things on the auction house for less than a vendor pays. Watch flips keeps scanning while the auction house is open and chimes when one turns up.
 - **Shuffles:** buy materials, craft, disenchant or convert, and sell, ranked by gold an hour, with every step spelled out.

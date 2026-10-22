@@ -172,15 +172,11 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.16.0",
+  version = "0.17.0",
   lines = {
-    { "Auction house deposits: values allow for one listing that doesn't sell (Forever's 2, 8 and 24 hour deposits), and cheap items say Vendor it instead.", major = true },
-    { "Leveling tab: below level 20, ways to make gold while leveling, best first and priced from your scans.", major = true },
-    "Modules: switch Leveling help on or off in Settings.",
-    "Shopping lists: type any in Want to keep buying anything under Up to, with clear warnings.",
-    { "Tooltips: the short tooltip shows today's cheapest price, and says why Worth to you is lower when it is.", change = true },
-    { "Training advice: updated for the October 8 and 15 beta patches.", change = true },
-    { "Fixes: sold stacks on the Auctions tab; prices thrown off by silly listings, old averages and the 1s minimum deposit; ammo prices.", fix = true },
+    "Worth to you switches: choose what it counts in Settings, Tooltips (auction house, vendor, disenchanting, crafting); shuffles and the Buy queue still count everything.",
+    { "Scroll to buy: on from the start, so new players can buy flips with the mouse wheel right away.", change = true },
+    { "Themes: FL Gilded is the look for new installs, and FL Default is now called FL Bronze.", change = true },
   },
 }
 
