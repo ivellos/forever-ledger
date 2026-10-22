@@ -48,6 +48,27 @@ T.test("Commodity and item quotes use their distinct arguments, fallback survive
   C_AuctionHouse, ns.IsAHOpen, C_Container, ItemLocation = realAH, realOpen, realC, realLocation
   ns.neutralAH = nil; T.fire("BAG_UPDATE_DELAYED"); T.runTimers(); assert(ok, err)
 end)
+-- Owner's Sell tab, October 22: a commodity listing costs at least 1s whatever the
+-- quantity, so the deposit is per unit of a full stack (Medium Leather 2s 65c read 1s 52c).
+T.test("A commodity's minimum deposit is spread over a stack", function()
+  local realAH, realOpen = C_AuctionHouse, ns.IsAHOpen
+  local ok, err = pcall(function()
+    local LEATHER = 99031
+    S.items[LEATHER] = { name = "Medium Leather", stack = 20, sell = 50 }
+    ns.db.vendorSell[LEATHER] = 50; ns.neutralAH = false
+    ns.IsAHOpen = function() return true end
+    C_AuctionHouse = {
+      GetItemKeyInfo = function() return { isCommodity = true } end,
+      CalculateCommodityDeposit = function() return 100 end,   -- the 1s minimum
+    }
+    local net, deposit = ns:AuctionSaleValue(LEATHER, 265)
+    T.eq(deposit, 5, "1s over a stack of 20")
+    T.eq(net, 252 - 5)
+  end)
+  C_AuctionHouse, ns.IsAHOpen = realAH, realOpen
+  ns.neutralAH = nil; assert(ok, err)
+end)
+
 T.test("One failed deposit can select vendor instead, without changing vendor proceeds", function()
   ns.db.settings.ahCut = 5; ns.db.vendorSell[ID] = 100
   ns.db.prices[ns.MarketKey()] = { [ID] = { m = 120, a = 120, q = 20, t = S.now } }

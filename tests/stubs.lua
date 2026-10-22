@@ -63,7 +63,7 @@ S.items, S.bags, S.bank = {}, {}, {}
 function GetItemInfo(id)
   local i = S.items[id]
   if not i then return end
-  return i.name, "|Hitem:" .. id .. "|h[" .. i.name .. "]|h", i.quality or 1, i.ilvl or 1, 1, "", "", 1,
+  return i.name, "|Hitem:" .. id .. "|h[" .. i.name .. "]|h", i.quality or 1, i.ilvl or 1, 1, "", "", i.stack or 1,
     i.equipLoc or "", 0, i.sell or 0, i.classID or 15
 end
 -- A vendor: S.merchant[slot] = itemID. History.lua hooks BuyMerchantItem at login.

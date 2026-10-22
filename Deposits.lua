@@ -85,8 +85,15 @@ function ns:AuctionDeposit(id, quantity, duration, neutral)
   return estimate or 0, vendor and "Classic estimate" or "no vendor price: estimate 0"
 end
 
+-- The deposit for one unit, as part of a full stack: Forever charges at least 1s per
+-- commodity listing (owner's Sell tab, October 22: 14 Wool Cloth or 5 potions for 2
+-- hours, 1s each), so asking for a single unit charged that 1s to every unit (Medium
+-- Leather at 2s 65c valued at 1s 52c). Stackables are posted many at a time.
 function ns:AuctionSaleValue(id, price, neutral)
-  local deposit, source = ns:AuctionDeposit(id, 1, nil, neutral)
+  local stack = (ns.GetItemInfo and select(8, ns.GetItemInfo(id))) or 1
+  stack = math.max(1, math.floor(tonumber(stack) or 1))
+  local whole, source = ns:AuctionDeposit(id, stack, nil, neutral)
+  local deposit = math.floor((whole or 0) / stack + 0.5)
   return ns:AfterCut(price, neutral) - deposit, deposit, source
 end
 
