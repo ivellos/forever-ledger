@@ -465,7 +465,7 @@ end
 function ns:CharChoiceHas(choice, key)
   local c = ns.db.chars[key]
   if not c then return false end
-  local realm = GetRealmName and GetRealmName()
+  local realm = ns.RealmName()
   local sameRealm = not c.realm or not realm or c.realm == realm
   if choice == "all" then return ns:SameMarketChar(key) end
   if choice == "realm" then return sameRealm end
@@ -502,7 +502,7 @@ function ns:CharacterOptions()
     opts[#opts + 1] = { heading = true, label = "" }
     opts[#opts + 1] = { value = "faction:" .. otherName, label = ("All %s characters"):format(otherName) }
     for _, k in ipairs(other) do opts[#opts + 1] = { value = k, label = "  " .. name(k) } end
-    local realm = (GetRealmName() or "this"):gsub("^Classic Beta%s+", "")
+    local realm = (ns.RealmName() or "this"):gsub("^Classic Beta%s+", "")
     opts[#opts + 1] = { heading = true, label = "" }
     opts[#opts + 1] = { value = "realm", label = ("Whole %s realm, both factions"):format(realm) }
   end

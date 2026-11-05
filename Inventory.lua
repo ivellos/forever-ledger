@@ -93,7 +93,7 @@ function ns:ItemLocations(id)
   local alts, byAlt = 0, {}
   -- Only characters that could hand it over: same ruleset (realm) and faction, the same
   -- auction house (Magic, October 3: characters on other rulesets counted too).
-  local realm, faction = GetRealmName and GetRealmName(), UnitFactionGroup and UnitFactionGroup("player")
+  local realm, faction = ns.RealmName(), UnitFactionGroup and UnitFactionGroup("player")
   for key, inv in pairs(ns.db.inventory) do
     local c = ns.db.chars[key]
     local same = not c or ((not c.realm or c.realm == realm) and (not c.faction or c.faction == faction))

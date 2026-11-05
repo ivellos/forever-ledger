@@ -308,7 +308,7 @@ end
 
 -- The Booty Bay rows: items at least NEUTRAL_MIN better one way round, after both cuts.
 local function neutralList(dir, kind, search, thin)
-  local realm = GetRealmName() or "?"
+  local realm = ns.RealmName() or "?"
   local list, filtered, newest, any, hidden = {}, 0, nil, false, 0
   for id in pairs(ns.db.prices[realm .. "|Neutral"] or {}) do
     any = true

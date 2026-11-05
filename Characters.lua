@@ -43,11 +43,11 @@ local function classWord(c)
 end
 
 ---------------------------------------------------------------------------
--- Realm and faction groups. Forever's realm name is its ruleset; the beta's servers
--- were "Classic Beta PvE 2", shown as "PvE 2". Characters saved before realm and
--- faction were recorded count as this one.
+-- Realm and faction groups. Forever's realm name is its ruleset (ns.RealmName); the
+-- beta's servers were "Classic Beta PvE 2", shown as "PvE 2". Characters saved before
+-- realm and faction were recorded count as this one.
 ---------------------------------------------------------------------------
-local function realmOf(c) return c.realm or GetRealmName() or "?" end
+local function realmOf(c) return c.realm or ns.RealmName() or "?" end
 local function factionOf(c) return c.faction or UnitFactionGroup("player") or "?" end
 
 -- "Classic Beta PvE 2" without the prefix and the number: "PvE". At launch there's one
@@ -67,7 +67,7 @@ local function shortRealm(realm)
   return base
 end
 
-local function hereGroup() return (GetRealmName() or "?") .. "|" .. (UnitFactionGroup("player") or "?") end
+local function hereGroup() return (ns.RealmName() or "?") .. "|" .. (UnitFactionGroup("player") or "?") end
 
 -- Does a character belong to a group: "realm|faction", "realm|*" (both factions) or "*".
 local function inGroup(key, group)
@@ -93,7 +93,7 @@ local function groupOptions()
     if not realms[r] then realms[r] = {}; order[#order + 1] = r end
     realms[r][factionOf(c)] = true
   end
-  local here = GetRealmName() or "?"
+  local here = ns.RealmName() or "?"
   table.sort(order, function(a, b)
     if (a == here) ~= (b == here) then return a == here end
     return a < b
@@ -122,7 +122,7 @@ end
 local function whoName(key)
   local c = ns.db.chars[key]
   local name = c and c.name or key
-  if state.group == "*" and c and realmOf(c) ~= GetRealmName() then name = name .. " (" .. shortRealm(realmOf(c)) .. ")" end
+  if state.group == "*" and c and realmOf(c) ~= ns.RealmName() then name = name .. " (" .. shortRealm(realmOf(c)) .. ")" end
   return name
 end
 
@@ -501,7 +501,7 @@ function ns:RefreshCharacters()
       end
       b.name:SetText(className(c) .. (me and dim("  (you)") or ""))
       local g = goldOf(e.key)
-      local other = state.group == "*" and realmOf(c) ~= GetRealmName()
+      local other = state.group == "*" and realmOf(c) ~= ns.RealmName()
       b.sub:SetText(("Level %s %s%s"):format(c.level or "?", classWord(c), other and (", " .. shortRealm(realmOf(c))) or ""))
       b.gold:SetText(g and ns.MoneyPlain(g) or "")
     end

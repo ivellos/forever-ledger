@@ -10,7 +10,7 @@ end
 ns.PREFIX = "|cffb9a2ffForever Ledger:|r"
 
 local DEFAULTS = {
-  schema = 7,
+  schema = 8,
   chars = {},       -- [charKey] = { name, realm, class, level, faction, updated, profs = { [profName] = { rank, max, updated, recipes = {...} } } }
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
   vendorSell = {},  -- [itemID] = copper the vendor pays you
@@ -218,8 +218,51 @@ local function moveCharacterKey(old, new)
   return moved
 end
 
+-- Forever's realm is its ruleset, but the live game names the server each character
+-- lives on: "CAMWOW US2 Realm 3 PvE". Characters on Realm 1 and Realm 3 are on the same
+-- realm with the same auction house (owner, November 5), so saved data is filed under
+-- what's left: "PvE". Also turns "Name-CAMWOW US2 Realm 3 PvE" into "Name-PvE".
+function ns.PlainRealm(s) return (s:gsub("CAMWOW%s+%S+%s+Realm%s+%d+%s+", "")) end
+function ns.RealmName()
+  local realm = GetRealmName and GetRealmName()
+  return realm and ns.PlainRealm(realm)
+end
+
+-- Two records for the same place under different server names: the newer record wins
+-- where they have times, else both are kept; of two price histories, the longer.
+local function combine(into, from)
+  for k, v in pairs(from) do
+    local mine = into[k]
+    if mine == nil then into[k] = v
+    elseif type(mine) == "table" and type(v) == "table" then
+      if type(mine.t) == "number" and type(v.t) == "number" then
+        if v.t > mine.t then into[k] = v end
+      else combine(mine, v) end
+    elseif type(mine) == "string" and type(v) == "string" and #v > #mine then into[k] = v end
+  end
+end
+
+-- Puts every key and value in saved or received data under the plain realm.
+function ns.PlainRealmData(t)
+  local renames
+  for k, v in pairs(t) do
+    if type(v) == "table" then ns.PlainRealmData(v)
+    elseif type(v) == "string" and v:find("CAMWOW", 1, true) then t[k] = ns.PlainRealm(v) end
+    if type(k) == "string" and k:find("CAMWOW", 1, true) then
+      renames = renames or {}
+      renames[#renames + 1] = k
+    end
+  end
+  for _, k in ipairs(renames or {}) do
+    local v, new = t[k], ns.PlainRealm(k)
+    t[k] = nil
+    if t[new] == nil then t[new] = v
+    elseif type(t[new]) == "table" and type(v) == "table" then combine(t[new], v) end
+  end
+end
+
 function ns.CharKey()
-  local realm = GetRealmName() or "?"
+  local realm = ns.RealmName() or "?"
   local first = UnitName("player") or "?"
   local key = ns.FullName() .. "-" .. realm
   local old = first .. "-" .. realm
@@ -241,7 +284,7 @@ end
 function ns:SameMarketChar(key)
   local c = ns.db and ns.db.chars[key]
   if not c then return true end
-  local realm, faction = GetRealmName and GetRealmName(), UnitFactionGroup and UnitFactionGroup("player")
+  local realm, faction = ns.RealmName(), UnitFactionGroup and UnitFactionGroup("player")
   if c.realm and realm and c.realm ~= realm then return false end
   if c.faction and faction and c.faction ~= faction then return false end
   return true
@@ -251,7 +294,7 @@ end
 -- While a neutral (goblin) auction house is open, its prices are kept apart, since in
 -- Classic it's a separate market shared with the other faction, with a 15% cut.
 function ns.MarketKey()
-  return (GetRealmName() or "?") .. "|" .. (ns.neutralAH and "Neutral" or UnitFactionGroup("player") or "?")
+  return (ns.RealmName() or "?") .. "|" .. (ns.neutralAH and "Neutral" or UnitFactionGroup("player") or "?")
 end
 
 -- The auctioneer has no faction and stands in a town with a neutral auction house:
@@ -315,9 +358,23 @@ function ns.Timed(label, fn)
   end
 end
 
+-- The live game hides some event text from addons (a "secret" value; seen on system chat
+-- messages, November 5): even looking at one is an error, so that event is skipped.
+-- /fl api lists what was skipped.
+ns.secretSkipped = {}
+local function anySecret(...)
+  for i = 1, select("#", ...) do
+    if issecretvalue((select(i, ...))) then return true end
+  end
+end
+
 frame:SetScript("OnEvent", function(_, event, ...)
   local list = handlers[event]
   if not list then return end
+  if issecretvalue and anySecret(...) then
+    ns.secretSkipped[event] = (ns.secretSkipped[event] or 0) + 1
+    return
+  end
   local t = clock()
   for i = 1, #list do
     local ok, err = pcall(list[i], ...)
@@ -499,6 +556,12 @@ ns:On("ADDON_LOADED", function(name)
   -- Schema 7 adds an optional disenchant source to shopping entries. Existing limits
   -- and their provenance remain unchanged; no old entry becomes a DE purchase.
   if ForeverLedgerDB.schema < 7 then ForeverLedgerDB.schema = 7 end
+  -- Schema 8: characters, prices and history filed under one server of a realm ("CAMWOW
+  -- US2 Realm 3 PvE") move to the plain realm ("PvE"), so they all count as one realm.
+  if ForeverLedgerDB.schema < 8 then
+    ns.PlainRealmData(ForeverLedgerDB)
+    ForeverLedgerDB.schema = 8
+  end
   -- Settings per character (below): while a character used its own, the shared settings
   -- were also kept under settingsAccount. If the game ever saved the stand-in instead of
   -- the real table, this brings them back.
@@ -621,6 +684,7 @@ end
 -- bags changed.
 function ns:MergeData(data, via)
   local db, nChars, nPrices, nVendor, nBags = ns.db, 0, 0, 0, 0
+  ns.PlainRealmData(data)   -- (from someone still on a version that files by server)
   for key, c in pairs(data.chars or {}) do
     local mine = db.chars[key]
     if via and ns:IsOwnChar(key) then
@@ -763,6 +827,12 @@ function ns:ApiReport()
   end
   try("Realm", function() return GetRealmName(), GetNormalizedRealmName and GetNormalizedRealmName() end)
   try("Realm ID", function() return GetRealmID and GetRealmID() end)
+  try("Hidden from addons", function()
+    local skipped = {}
+    for event, n in pairs(ns.secretSkipped) do skipped[#skipped + 1] = ("%s %d"):format(event, n) end
+    table.sort(skipped)
+    return #skipped > 0 and table.concat(skipped, ", ") or "nothing so far"
+  end)
   try("Season", function() return C_Seasons and C_Seasons.GetActiveSeason and C_Seasons.GetActiveSeason() end)
   try("Hardcore", function() return C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive() end)
   try("PvP server", function() return C_PvP and C_PvP.IsWarModeDesired and C_PvP.IsWarModeDesired(), IsPVPTimerRunning and IsPVPTimerRunning() end)

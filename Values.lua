@@ -26,7 +26,7 @@ end
 --   netHere (selling there instead); pct = gain / netHere; buyProfit = netHere - there
 --   (buying there, selling here); listedThere, listedHere; t = when Booty Bay was seen }
 function ns:NeutralCompare(id)
-  local realm, faction = GetRealmName() or "?", UnitFactionGroup("player") or "?"
+  local realm, faction = ns.RealmName() or "?", UnitFactionGroup("player") or "?"
   local there = (ns.db.prices[realm .. "|Neutral"] or {})[id]
   local here = (ns.db.prices[realm .. "|" .. faction] or {})[id]
   if not (there and here and there.m and here.m and not there.none and not here.none) then return end

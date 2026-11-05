@@ -18,7 +18,7 @@ function ns:GetChar()
   if not c then c = { profs = {} }; ns.db.chars[key] = c end
   c.profs = c.profs or {}
   c.name = ns.FullName()
-  c.realm = GetRealmName()
+  c.realm = ns.RealmName()
   c.class = select(2, UnitClass("player"))
   c.level = UnitLevel("player")
   c.faction = UnitFactionGroup("player")

@@ -123,7 +123,7 @@ T.test("Schema 7 leaves existing typed and automatic entries intact", function()
   fresh(); ForeverLedgerDB = ns.Deserialize(ns.Serialize(ns.db)); ForeverLedgerDB.schema = 6
   ForeverLedgerDB.shopping.lists = { { name = "Old", on = true, items = { { id = A, src = "you", max = 15 }, { id = W, src = "usual", max = 40 } } } }
   T.fire("ADDON_LOADED", "ForeverLedger")
-  T.eq(ns.db.schema, 7); T.eq(ns.db.shopping.lists[1].items[1].max, 15)
+  T.eq(ns.db.schema, 8); T.eq(ns.db.shopping.lists[1].items[1].max, 15)
   T.eq(ns.db.shopping.lists[1].items[1].src, "you"); T.eq(ns.db.shopping.lists[1].items[2].src, "usual")
   T.eq(ns.db.shopping.lists[1].items[1].disenchant, nil)
 end)
