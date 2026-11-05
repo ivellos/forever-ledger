@@ -461,8 +461,10 @@ ns:OnReady(function() ns:UpdateMinimapButton() end)
 local ROW_HEIGHT = 26
 local MAX_ROWS = 60
 local SUBTABS = {
-  { key = "vendor", label = "Sells to a vendor" },
+  -- Sells on the auction house first: Blizzard nerfed most vendor shuffles at launch
+  -- (owner, November 5). If none turn up for a few weeks, the vendor tab may go.
   { key = "ah", label = "Sells on the auction house" },
+  { key = "vendor", label = "Sells to a vendor" },
   { key = "oneOff", label = "Limited supply" },
 }
 local COLUMNS = {
@@ -494,7 +496,7 @@ local SORT_VALUE = {
   total = function(s) return s.profit * (ns:ShuffleRuns(s) or 0) end,
 }
 local sortBy = { shuffles = { key = "hour", desc = true }, flips = { key = "total", desc = true } }
-local subtab = "vendor"
+local subtab = "ah"
 local openKeys = {}
 local rows, details, boxes, headerCells = {}, {}, {}, {}
 
@@ -576,6 +578,11 @@ buildTable = function()
   f.empty = T:Text(f.content, 12, T.dim)
   f.empty:SetPoint("TOPLEFT", 8, -8)
   f.empty:SetText("None at current prices. Scan the auction house, then click Refresh.")
+  f.vendorNote = T:Text(f, 12, T.dim)
+  f.vendorNote:SetPoint("BOTTOMLEFT", 8, 4)
+  f.vendorNote:SetPoint("BOTTOMRIGHT", -8, 4)
+  f.vendorNote:SetJustifyH("LEFT")
+  f.vendorNote:SetText("Blizzard nerfed most vendor shuffles, so this tab may often be empty.")
   return f
 end
 
@@ -906,8 +913,10 @@ layoutShuffles = function()
 
   -- Rows, sorted
   f.sf:ClearAllPoints()
+  local vendorNote = not flips and subtab == "vendor"
+  f.vendorNote:SetShown(vendorNote)
   f.sf:SetPoint("TOPLEFT", 0, -top)
-  f.sf:SetPoint("BOTTOMRIGHT")
+  f.sf:SetPoint("BOTTOMRIGHT", 0, vendorNote and 22 or 0)
   local content = f.content
   content:SetWidth(width - 12)
   local list = flips and data.flips or data[subtab]

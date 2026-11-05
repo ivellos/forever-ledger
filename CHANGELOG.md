@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Shuffles: Sells on the auction house is now the first tab and Sells to a vendor the second, with a note that Blizzard nerfed most vendor shuffles, so it may often be empty.
+
 ### Added
 - Live sync shares gold and sales: both accounts' Dashboards and Ledgers show the same, history included. Switch it off with Share gold and sales (Global settings, Advanced).
 
