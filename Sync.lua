@@ -12,6 +12,9 @@ local SEND_GAP = 0.3         -- seconds between messages, about 800 characters a
 local THROTTLE_WAIT = 1.5    -- seconds to wait when the game says we're sending too fast
 local PRICE_HOURS = 48       -- only prices this recent are sent
 local DEBOUNCE = 5           -- seconds to wait after a change before sending
+local BOOKS_WAIT = 60        -- gold and sales changes go at most this often
+local BOOKS_OVERLAP = 300    -- each send repeats this many seconds (recent entries can change)
+local BOOKS_FULL_DAYS = 20   -- away longer: send everything (older entries become monthly totals)
 local REASSEMBLE_TIMEOUT = 120
 
 local queue, sending = {}, false
@@ -21,6 +24,8 @@ local lastSentTo             -- when a message was last sent, for hiding "no pla
 local test                   -- running /fl sync test
 local ping                   -- running /fl sync ping: { name, ok, failed }
 local counter = 0
+local booksChanged = true    -- anything new for the partner's Dashboard and Ledger
+local booksWaiting = false
 
 -- In Forever, UnitName's second value is the last name ("Iveilos", "Veren"), not a server.
 local function me()
@@ -108,7 +113,8 @@ local function failed()
   sending = false
   if unsent and partner() then
     local st = state()
-    st.sentUpTo = st.previous
+    st.sentUpTo, st.booksUpTo = st.previous, st.booksPrevious
+    booksChanged = true
   end
   if ping then
     ping.failed = true
@@ -181,10 +187,21 @@ function ns:SyncSend(full)
   local who, data, now = changes(full and 0 or (st.sentUpTo or 0))
   local nWho = count(who.chars) + count(who.inventory)
   local nData = countPrices(data.prices) + count(data.vendorBuy) + count(data.vendorSell)
-  if nWho + nData == 0 then return end
-  local n = (nWho > 0 and send(who, to) or 0) + (nData > 0 and send(data, to) or 0)
+  -- The Dashboard and Ledger's books: everything the first time, then what's new.
+  local books
+  if ns.db.settings.syncMoney == false then
+    st.booksUpTo = nil   -- (turned on again: everything goes again)
+  elseif full or booksChanged then
+    local from = (not full and st.booksUpTo or 0) - BOOKS_OVERLAP
+    if from < now - BOOKS_FULL_DAYS * 86400 then from = 0 end
+    books = ns:BooksSince(from)
+  end
+  if nWho + nData == 0 and not books then return end
+  local n = (nWho > 0 and send(who, to) or 0) + (books and send({ k = "d", books = books }, to) or 0)
+    + (nData > 0 and send(data, to) or 0)
   -- If the partner goes offline before it all arrives, send it again next time.
   st.previous, st.sentUpTo = st.sentUpTo, now
+  if books then st.booksPrevious, st.booksUpTo, booksChanged = st.booksUpTo, now, false end
   ns:Debug(("Sync: sending %d characters, %d with bags, %d prices, %d vendor prices to %s in %d messages."):format(
     count(who.chars), count(who.inventory), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), to, n))
 end
@@ -195,6 +212,17 @@ function ns:SyncSoon()
   if not partner() or not partnerOnline then return end
   if soon then soon:Cancel() end
   soon = C_Timer.NewTimer(DEBOUNCE, function() soon = nil; ns:SyncSend(false) end)
+end
+
+-- Gold changed or a sale was logged (History.lua).
+function ns:BooksChanged()
+  booksChanged = true
+  if booksWaiting or not partner() or not partnerOnline then return end
+  booksWaiting = true
+  C_Timer.After(BOOKS_WAIT, function()
+    booksWaiting = false
+    ns:SyncSend(false)
+  end)
 end
 
 local function hello(reply)
@@ -225,9 +253,9 @@ local function handle(payload, sender)
   elseif payload.k == "d" then
     partnerOnline = true
     -- Tagged with the partner's name, so /fl unpair can take it out again.
-    local c, p, v, b = ns:MergeData(payload, partner())
-    ns:Debug(("Sync: received %d characters, %d with bags, %d prices, %d vendor prices from %s."):format(c, b, p, v, sender))
-    if c + p + v + b > 0 then ns:RefreshUI() end
+    local c, p, v, b, m = ns:MergeData(payload, partner())
+    ns:Debug(("Sync: received %d characters, %d with bags, %d prices, %d vendor prices, %d sets of books from %s."):format(c, b, p, v, m, sender))
+    if c + p + v + b + m > 0 then ns:RefreshUI() end
   end
 end
 

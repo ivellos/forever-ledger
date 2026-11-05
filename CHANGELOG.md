@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Live sync shares gold and sales: both accounts' Dashboards and Ledgers show the same, history included. Switch it off with Share gold and sales (Global settings, Advanced).
+
 ### Fixed
 - Characters on the same realm showed as different realms, with separate prices: the live game names each character's server ("CAMWOW US2 Realm 3 PvE"). They now all count as one realm, and existing data moves over by itself.
 - No more errors when the game hides a chat message from addons. `/fl api` lists what was hidden.

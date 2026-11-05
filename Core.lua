@@ -54,7 +54,7 @@ local DEFAULTS = {
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = true, tab = "queue" },
     tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false, worthAH = true, worthVendor = true, worthDisenchant = true, worthCraft = true, ridingFund = true, trainerAdvice = true, moduleLevelling = true, levellingMine = false,
     -- theme: FL Gilded for new installs (owner, October 22); "default" is FL Bronze now.
-    theme = "gilded", accent = "", uiScale = 100 },
+    theme = "gilded", accent = "", uiScale = 100, syncMoney = true },
 }
 -- For Settings: "Default: Auto." under each choice (UI.lua).
 ns.DEFAULT_SETTINGS = DEFAULTS.settings
@@ -727,9 +727,10 @@ function ns:MergeData(data, via)
   for id, v in pairs(data.vendorSell or {}) do
     if db.vendorSell[id] == nil then db.vendorSell[id] = v; nVendor = nVendor + 1 end
   end
+  local nBooks = via and data.books and ns:MergeBooks(data.books) or 0
   if nChars > 0 and ns.BuildUsageIndex then ns:BuildUsageIndex() end
   if (nPrices > 0 or nVendor > 0 or nBags > 0) and ns.InvalidateValues then ns:InvalidateValues() end
-  return nChars, nPrices, nVendor, nBags
+  return nChars, nPrices, nVendor, nBags, nBooks
 end
 
 -- Forget a character: its level, professions, recipes, bags and bank, and the profile it
@@ -748,7 +749,10 @@ function ns:RemoveSyncedFrom(name)
   local who, n = (name or ""):lower(), 0
   -- Never one played on this account, whatever its mark says.
   for key, c in pairs(ns.db.chars) do
-    if c.via and c.via:lower() == who and not ns:IsOwnChar(key) and ns:RemoveCharacter(key) then n = n + 1 end
+    if c.via and c.via:lower() == who and not ns:IsOwnChar(key) and ns:RemoveCharacter(key) then
+      n = n + 1
+      ns:DropBooks(key)
+    end
   end
   for key, inv in pairs(ns.db.inventory) do
     if inv.via and inv.via:lower() == who and key ~= ns.CharKey() then ns.db.inventory[key] = nil end

@@ -252,12 +252,102 @@ local function addLog(list, entry)
   end
 end
 
+---------------------------------------------------------------------------
+-- The books: what the Dashboard and Ledger show, by character. Live sync sends your
+-- characters' books to your partner (Sync.lua), who replaces their copy of that stretch.
+-- An entry can change after it's made (vendor trades merge, today's totals grow), so
+-- it's replaced by time rather than added to.
+---------------------------------------------------------------------------
+local BOOK_LOGS = { "sales", "purchases", "vendorLog", "sessions" }
+
+-- Keep only the entries keep(e) wants, in the same table (addLog compares tables).
+local function filterLog(list, keep)
+  local n = 0
+  for i = 1, #list do
+    local e = list[i]
+    list[i] = nil
+    if keep(e) then n = n + 1; list[n] = e end
+  end
+end
+
+-- Your characters' books from the time `from` on; from 0, everything, with the monthly
+-- totals too (entries over 30 days old are only there).
+function ns:BooksSince(from)
+  local b = { from = from, chars = {} }
+  local firstDay = ns.LocalDay(from)
+  for key, c in pairs(ns.db.chars) do
+    if not c.via then
+      local gold, money = {}, {}
+      for h, v in pairs(ns.db.gold[key] or {}) do
+        if h * 3600 >= from - 3600 then gold[h] = v end
+      end
+      for day, src in pairs(ns.db.money[key] or {}) do
+        if day >= firstDay then money[day] = src end
+      end
+      b.chars[key] = { gold = gold, money = money }
+    end
+  end
+  local function mine(e) return e.c and b.chars[e.c] ~= nil end
+  for _, name in ipairs(BOOK_LOGS) do
+    b[name] = {}
+    for _, e in ipairs(ns.db[name] or {}) do
+      if (e.t or 0) >= from and mine(e) then table.insert(b[name], e) end
+    end
+  end
+  if from == 0 then
+    b.months = {}
+    for _, m in ipairs(ns.db.ledgerMonths or {}) do
+      if mine(m) then table.insert(b.months, m) end
+    end
+  end
+  return b
+end
+
+-- A partner's books. Never touches a character played on this account. Returns how many
+-- characters' books came in.
+function ns:MergeBooks(b)
+  local theirs, n = {}, 0
+  for key, c in pairs(b.chars or {}) do
+    if not ns:IsOwnChar(key) then
+      theirs[key] = true
+      n = n + 1
+      ns.db.gold[key] = ns.db.gold[key] or {}
+      ns.db.money[key] = ns.db.money[key] or {}
+      for h, v in pairs(c.gold or {}) do ns.db.gold[key][h] = v end
+      for day, src in pairs(c.money or {}) do ns.db.money[key][day] = src end
+    end
+  end
+  local from = b.from or 0
+  local function replace(list, new)
+    filterLog(list, function(e) return not (theirs[e.c] and (e.t or 0) >= from) end)
+    for _, e in ipairs(new) do
+      if theirs[e.c] then list[#list + 1] = e end
+    end
+    table.sort(list, function(x, y) return (x.t or 0) < (y.t or 0) end)
+  end
+  for _, name in ipairs(BOOK_LOGS) do
+    ns.db[name] = ns.db[name] or {}
+    if b[name] then replace(ns.db[name], b[name]) end
+  end
+  if b.months then replace(ns.db.ledgerMonths, b.months) end
+  return n
+end
+
+-- /fl unpair: what came from a partner goes.
+function ns:DropBooks(key)
+  ns.db.gold[key], ns.db.money[key] = nil, nil
+  local function notTheirs(e) return e.c ~= key end
+  for _, name in ipairs(BOOK_LOGS) do filterLog(ns.db[name] or {}, notTheirs) end
+  filterLog(ns.db.ledgerMonths, notTheirs)
+end
+
 local function onMoney()
   local now = GetMoney()
   if not lastMoney then lastMoney = now; return end
   local delta = now - lastMoney
   lastMoney = now
   snapshotGold()
+  if ns.BooksChanged then ns:BooksChanged() end
   if delta == 0 then return end
 
   local hints = takeHints(delta)

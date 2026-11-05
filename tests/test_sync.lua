@@ -57,6 +57,80 @@ T.test("Unpairing removes the partner's characters and bags, and keeps prices", 
   T.ok(ns.db.chars["Old Friend-Testrealm"], "another partner's character stays")
 end)
 
+local PARTNER = "Regoril Bastiane-Testrealm"
+local function partnerChar()
+  ns.db.chars[PARTNER] = char("Regoril Bastiane", 500)
+  ns.db.chars[PARTNER].via = "Regoril Bastiane"
+end
+
+T.test("Books: your characters' gold, money and logs from a time on, not a partner's", function()
+  local me = ns.CharKey()
+  ns.db.chars[me] = char("Tester", 100)
+  partnerChar()
+  local hour, day = 500000, ns.LocalDay(500000 * 3600)
+  ns.db.gold[me] = { [hour - 100] = 1, [hour] = 2 }
+  ns.db.gold[PARTNER] = { [hour] = 9 }
+  ns.db.money[me] = { [day - 2] = { quest = 1 }, [day] = { quest = 2 } }
+  ns.db.sales = { { t = hour * 3600 - 9999, c = me, a = 1 }, { t = hour * 3600, c = me, a = 2 }, { t = hour * 3600, c = PARTNER, a = 3 } }
+  ns.db.sessions = { { t = 1, kind = "shuffle" } }
+  ns.db.ledgerMonths = { { t = 1, c = me, k = "sale", a = 5 } }
+  local b = ns:BooksSince(hour * 3600)
+  T.eq(b.chars[me].gold[hour], 2)
+  T.eq(b.chars[me].gold[hour - 100], nil)
+  T.eq(b.chars[me].money[day].quest, 2)
+  T.eq(b.chars[me].money[day - 2], nil)
+  T.eq(b.chars[PARTNER], nil)
+  T.eq(#b.sales, 1)
+  T.eq(b.months, nil, "monthly totals only with everything")
+  T.eq(#ns:BooksSince(0).months, 1)
+end)
+
+T.test("Books: a partner's stretch is replaced, so sending twice counts once", function()
+  local me = ns.CharKey()
+  ns.db.chars[me] = char("Tester", 100)
+  partnerChar()
+  ns.db.gold, ns.db.money = {}, {}
+  ns.db.sales = { { t = 50, c = PARTNER, a = 1 }, { t = 150, c = PARTNER, a = 2 }, { t = 160, c = me, a = 3 } }
+  local mine = ns.db.sales
+  local books = { from = 100, chars = { [PARTNER] = { gold = { [7] = 70 }, money = { [3] = { quest = 4 } } } },
+    sales = { { t = 150, c = PARTNER, a = 20 }, { t = 170, c = PARTNER, a = 30 } } }
+  T.eq(ns:MergeBooks(books), 1)
+  ns:MergeBooks(books)
+  T.eq(ns.db.sales, mine, "the same table")
+  T.eq(#ns.db.sales, 4)
+  T.eq(ns.db.sales[1].a, 1, "before the stretch: kept")
+  T.eq(ns.db.sales[2].a, 20, "changed")
+  T.eq(ns.db.sales[3].a, 3, "yours kept, in time order")
+  T.eq(ns.db.sales[4].a, 30, "new")
+  T.eq(ns.db.gold[PARTNER][7], 70)
+  T.eq(ns.db.money[PARTNER][3].quest, 4)
+end)
+
+T.test("Books: a partner never touches a character played on this account", function()
+  local me = ns.CharKey()
+  ns.db.gold[me], ns.db.sales = { [7] = 1 }, { { t = 5, c = me, a = 1 } }
+  T.eq(ns:MergeBooks({ from = 0, chars = { [me] = { gold = { [7] = 99 } } }, sales = {} }), 0)
+  T.eq(ns.db.gold[me][7], 1)
+  T.eq(#ns.db.sales, 1)
+end)
+
+T.test("Books: come through a partner's sync only, and go with unpairing", function()
+  partnerChar()
+  ns.db.gold, ns.db.money = {}, {}
+  ns.db.sales, ns.db.ledgerMonths = {}, {}
+  local books = { from = 0, chars = { [PARTNER] = { gold = { [7] = 70 } } }, sales = { { t = 1, c = PARTNER, a = 1 } },
+    months = { { t = 1, c = PARTNER, k = "sale", a = 1 } } }
+  ns:MergeData({ books = books })
+  T.eq(ns.db.gold[PARTNER], nil, "an import brings none")
+  local _, _, _, _, n = ns:MergeData({ books = books }, "Regoril Bastiane")
+  T.eq(n, 1)
+  T.eq(#ns.db.ledgerMonths, 1)
+  ns:RemoveSyncedFrom("Regoril Bastiane")
+  T.eq(ns.db.gold[PARTNER], nil)
+  T.eq(#ns.db.sales, 0)
+  T.eq(#ns.db.ledgerMonths, 0)
+end)
+
 T.test("Remove never takes the character you're on", function()
   local me = ns.CharKey()
   ns.db.chars[me] = char("Tester", 100)
