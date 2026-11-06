@@ -172,8 +172,20 @@ local function active()
   return shown() and Q.armed ~= nil
 end
 
+-- The last 200 steps, to see why a purchase goes round again (owner, November 5: looking
+-- up, Buy, final price, over and over, with no auction house error).
+local function trace(text)
+  local log = ns.db.buyTrace or {}
+  ns.db.buyTrace = log
+  log[#log + 1] = ("%s %.1f %s"):format(date("%H:%M:%S"), GetTime(), text)
+  while #log > 200 do table.remove(log, 1) end
+end
+
 local function setState(state)
   Q.state, Q.tok = state, Q.tok + 1
+  local throttle = AH.IsThrottledMessageSystemReady and not AH.IsThrottledMessageSystemReady()
+  trace(("%s item=%s qty=%s note=%s%s%s"):format(state, tostring(Q.cur and Q.cur.id), tostring(Q.plan and Q.plan.qty),
+    tostring(Q.note), throttle and " throttled" or "", ns.Scan.active and " scanning" or ""))
   if refreshQueue then refreshQueue() end
 end
 
@@ -713,6 +725,8 @@ end)
 ns:On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
   if Q.state ~= "price" or not (Q.cur and Q.plan) then return end
   local total = totalPrice or (unitPrice and unitPrice * Q.plan.qty)
+  trace(("final price: unit=%s total=%s planned=%s limit=%s can spend=%s"):format(tostring(unitPrice), tostring(total),
+    tostring(Q.plan.cost), tostring(Q.cur.limit), tostring(spendable())))
   if total and total <= Q.cur.limit * Q.plan.qty and total <= spendable() then
     Q.plan.total = total
     setState("confirm")
@@ -726,6 +740,7 @@ end)
 
 ns:On("COMMODITY_PRICE_UNAVAILABLE", function()
   if Q.state ~= "price" then return end
+  trace("final price unavailable")
   Q.note = "Those listings were just bought: checking again."
   again()
 end)
@@ -741,6 +756,7 @@ ns:On("COMMODITY_PURCHASE_SUCCEEDED", function()
 end)
 
 ns:On("COMMODITY_PURCHASE_FAILED", function()
+  trace("purchase failed event, state " .. Q.state)
   if Q.state ~= "buying" then return end
   Q.note = "That purchase failed: the listings changed. Checking again."
   again()
