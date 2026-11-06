@@ -13,7 +13,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: what a lookup found is checked again if you take over 15 seconds to buy it, so old listings aren't refused.
 - Full scans: after the game answers one with an error, the next wait 5 minutes, so the flip watch doesn't keep asking.
 - Flip watch: its quick checks wait while you're on an item's buy or sell page, so they don't replace what the page shows.
-- Sell protection: an error stopped it whenever a vendor paid more than the listing, so Post wasn't held. It warns and holds Post again.
 - Buy queue: waits until the auction house is ready before sending a purchase, and pauses for a moment after an auction house error instead of retrying at once. The flip watch steps aside as soon as the queue needs the auction house, so it starts on a flip sooner. The last 30 errors are saved, to find what's behind "Internal auction error".
 
 ### Changed
@@ -25,6 +24,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 - Live sync: big sends arrive however long they take. Large price syncs could be thrown away after 2 minutes, and were then counted as sent.
 - Characters on the same realm showed as different realms, with separate prices: the live game names each character's server ("CAMWOW US2 Realm 3 PvE"). They now all count as one realm, and existing data moves over by itself.
+
+## [0.17.1] - 2026-11-06
+
+### Highlights
+- ✓ **Sell protection**: an error stopped it whenever a vendor paid more than the listing, so Post wasn't held. It warns and holds Post again.
+- ✓ **Hidden game messages**: no more errors when the live game hides a chat message from addons. `/fl api` lists what was hidden.
+
+### Fixed
+- Sell protection: an error stopped it whenever a vendor paid more than the listing, so Post wasn't held. It warns and holds Post again.
 - No more errors when the game hides a chat message from addons. `/fl api` lists what was hidden.
 
 ## [0.17.0] - 2026-10-22

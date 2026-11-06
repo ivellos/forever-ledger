@@ -220,8 +220,8 @@ end
 
 -- Forever's realm is its ruleset, but the live game names the server each character
 -- lives on: "CAMWOW US2 Realm 3 PvE". Characters on Realm 1 and Realm 3 are on the one
--- PvE realm (owner, November 5), so saved data is filed under what's left: "PvE". That
--- they share an auction house is assumed, until a listing is seen from both. Also turns
+-- PvE realm and share an auction house (owner's test, November 6: a listing seen from
+-- both), so saved data is filed under what's left: "PvE". Also turns
 -- "Name-CAMWOW US2 Realm 3 PvE" into "Name-PvE".
 function ns.PlainRealm(s) return (s:gsub("CAMWOW%s+%S+%s+Realm%s+%d+%s+", "")) end
 function ns.RealmName()
