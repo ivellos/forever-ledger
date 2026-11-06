@@ -241,11 +241,12 @@ function ns:DisenchantFinderItems()
       else
         local yield = ns:DisenchantYield(id)
         if yield and s.bands[yield.band] and s[yield.kind] then
-          local limit, worth = ns:DisenchantBuyLimit(id)
+          local limit, worth, _, withCrafts = ns:DisenchantBuyLimit(id)
           local locked = skill < (yield.skill or 1) and yield.skill or nil
           local profit = worth and worth - rec.m or nil
           if not s.profitable or (profit and profit > 0) then
-            out[#out + 1] = { id = id, ilvl = ilvl, price = rec.m, worth = worth, profit = profit, locked = locked, max = limit }
+            out[#out + 1] = { id = id, ilvl = ilvl, price = rec.m, worth = worth, profit = profit, locked = locked, max = limit,
+              withCrafts = withCrafts }
           end
         end
       end
@@ -380,7 +381,7 @@ local function buildFinder(side)
     add("Worth per item, on average", dim, per(function(y)
       local worth = 0
       for _, m in ipairs(y) do
-        local best = ns:MaterialOption(m[1])
+        local best = ns:MaterialSale(m[1])
         if best then worth = worth + best.value * m[2] end
       end
       return worth > 0 and ns.Money(worth) or "?"
@@ -391,7 +392,7 @@ local function buildFinder(side)
       local function roll(y, best)
         local pick
         for _, o in ipairs(y.odds or {}) do
-          local b = ns:MaterialOption(o[1])
+          local b = ns:MaterialSale(o[1])
           if b then
             local v = b.value * (best and o[4] or o[3])
             if not pick or (best and v > pick) or (not best and v < pick) then pick = v end
@@ -560,6 +561,20 @@ local function finderRow(i)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetItemByID(self.id)
     if self.locked then GameTooltip:AddLine(("Needs Enchanting %d to disenchant."):format(self.locked), 1, 0.4, 0.4) end
+    -- How Worth adds up, so the row's number can be checked by hand.
+    local total, parts = ns:DisenchantSaleValue(self.id)
+    if total and #parts > 0 then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddDoubleLine("Selling the materials, on average", ns.Money(math.floor(total)), 1, 0.82, 0, 1, 1, 1)
+      for _, p in ipairs(parts) do
+        GameTooltip:AddDoubleLine(("  %.2f %s at %s"):format(p.count, ns:DisenchantMaterialName(p.id), ns.Money(math.floor(p.each))),
+          ns.Money(math.floor(p.count * p.each)), 0.8, 0.8, 0.8, 0.8, 0.8, 0.8)
+      end
+      local crafted = self.item.withCrafts
+      if crafted and crafted >= total + 1 then
+        GameTooltip:AddDoubleLine("If you craft with them", ns.Money(math.floor(crafted)), 0.8, 0.8, 0.8, 0.8, 0.8, 0.8)
+      end
+    end
     if self.item.max then GameTooltip:AddLine("Up to for disenchanting: " .. ns.Money(self.item.max), 1, 0.82, 0) end
     GameTooltip:AddLine("Right-click to add one to the shopping list picked above. Any stat version will do.", 0.8, 0.8, 0.8, true)
     GameTooltip:AddLine("Click to search the auction house for it.", T.accent[1], T.accent[2], T.accent[3])

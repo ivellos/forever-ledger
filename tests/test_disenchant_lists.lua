@@ -43,6 +43,28 @@ T.test("DE limit is floored DE value minus safety margin, never vendor value", f
   T.ok(list.name:find("16-20 armor", 1, true))
   T.ok(ns:ListPriceSourceText(list, list.items[1]):find("From disenchanting", 1, true))
 end)
+T.test("Finder worth is what the materials sell for, not what they could be crafted into", function()
+  fresh()
+  local OIL = 89505
+  S.items[OIL] = { name = "Dear oil", quality = 1 }
+  price(OIL, 100000)
+  local saved = ns.recipesByReagent
+  ns.recipesByReagent = { [DUST] = { { key = ns.CharKey(), who = "Tester", prof = "Enchanting", recipeID = 1,
+    rec = { n = "Dear oil", out = OIL, oq = 1, r = { { DUST, 1 } } } } } }
+  ns:InvalidateValues(true)
+  T.eq(ns:MaterialOption(DUST).kind, "craft", "a craft is the best way for dust")
+  T.eq(ns:MaterialSale(DUST).kind, "ah", "but it's sold here")
+  local cap, worth, _, withCrafts = ns:DisenchantBuyLimit(A)
+  local total, parts = ns:DisenchantSaleValue(A)
+  T.eq(worth, total)
+  T.eq(cap, math.floor(total * .9))
+  T.ok(withCrafts > worth * 10, "the craft is still known")
+  T.eq(#parts, 2, "dust and essence have prices; the shard has none")
+  T.eq(parts[1].id, DUST)
+  T.eq(math.floor(parts[1].each), math.floor(ns:MaterialSale(DUST).value))
+  ns.recipesByReagent = saved
+  ns:InvalidateValues(true)
+end)
 T.test("Filter names describe multiple bands; duplicate new lists get numbers", function()
   fresh(); ns.db.settings.deFinder.bands[25] = true
   local name = ns:DisenchantFinderListName(); T.ok(name:find("16-20, 21-25", 1, true))

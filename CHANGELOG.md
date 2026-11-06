@@ -16,6 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: waits until the auction house is ready before sending a purchase, and pauses for a moment after an auction house error instead of retrying at once. The flip watch steps aside as soon as the queue needs the auction house, so it starts on a flip sooner. The last 30 errors are saved, to find what's behind "Internal auction error".
 
 ### Changed
+- Disenchant finder: Worth, profit and Up to now count what the materials sell for, not what they could be crafted into. Hover a row to see how it adds up and what crafting could bring.
 - Shuffles: Sells on the auction house is now the first tab and Sells to a vendor the second, with a note that Blizzard nerfed most vendor shuffles, so it may often be empty.
 
 ### Added

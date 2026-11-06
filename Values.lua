@@ -393,6 +393,49 @@ function ns:MaterialOption(id)
   return best(id, 1)
 end
 
+-- A material as something you sell: the best way with no crafting in it (selling it,
+-- or splitting or combining and selling that). Not used inside options(): this reads
+-- them, and starting a chain over from there could go round for good.
+local function noCraft(o)
+  if o.kind == "convert" then return noCraft(o.next) end
+  return o.kind == "ah" or o.kind == "vendor"
+end
+
+function ns:MaterialSale(id)
+  if not id or not ns.db then return end
+  freshCache()
+  local key = "sale:" .. id
+  local hit = cache[key]
+  if hit == nil then
+    hit = false
+    local listKey = "all:" .. id .. ":1"
+    local list = cache[listKey]
+    if not list then list = options(id, 1); cache[listKey] = list end
+    for _, o in ipairs(list) do
+      if noCraft(o) then hit = o; break end
+    end
+    cache[key] = hit
+  end
+  return hit or nil
+end
+
+-- What one disenchant brings on average if you just sell the materials (Magic and the
+-- owner, November 6: crafts made a 3s disenchant look like 6s, with nothing saying why).
+-- Returns the total and { { id, count, each } }.
+function ns:DisenchantSaleValue(id)
+  local yield = ns:DisenchantYield(id)
+  if not yield then return end
+  local total, parts = 0, {}
+  for _, y in ipairs(yield) do
+    local o = ns:MaterialSale(y[1])
+    if o then
+      total = total + o.value * y[2]
+      parts[#parts + 1] = { id = y[1], count = y[2], each = o.value }
+    end
+  end
+  return total, parts
+end
+
 -- The most worth paying for an item: its best value without relisting it on the
 -- auction house, less the safety margin. Only for items you can craft with,
 -- disenchant or convert. Returns the price and the option it comes from.
@@ -410,14 +453,17 @@ function ns:BuyAtOrBelow(id, shown)
 end
 
 -- The finder and its saved shopping source use the disenchant route specifically,
--- even when selling/crafting the gear would be worth more. Copper limits round down.
+-- even when selling/crafting the gear would be worth more, and count what the materials
+-- sell for, not what they could be crafted into: a limit shouldn't rest on a craft you
+-- may never make. Copper limits round down. The fourth value is the worth with crafts.
 function ns:DisenchantBuyLimit(id, source)
   local yield = ns:DisenchantYield(id)
   if not yield or (source and (source.id ~= id or source.band ~= yield.band or source.kind ~= yield.kind)) then return end
   for _, o in ipairs(ns:Options(id)) do
     if o.kind == "disenchant" then
-      local cap = math.floor(o.value * (1 - (ns.db.settings.margin or 10) / 100))
-      return cap > 0 and cap or nil, o.value, yield
+      local worth = ns:DisenchantSaleValue(id)
+      local cap = math.floor(worth * (1 - (ns.db.settings.margin or 10) / 100))
+      return cap > 0 and cap or nil, worth, yield, o.value
     end
   end
 end
