@@ -266,7 +266,10 @@ function search()
   local e = Q.cur
   if not e or not active() then setState("idle"); return end
   -- Only a full scan (a few seconds) is waited for. Other scans pause for a moment after
-  -- each lookup and purchase of ours instead (Prices.lua Scan:Next).
+  -- each lookup and purchase of ours instead (Prices.lua Scan:Next). Asked before waiting:
+  -- a scan that carries on keeps the game busy, and flips went while the queue waited
+  -- 3 seconds for it (owner's test, November 5: Golem Isospring).
+  ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 2)
   if throttled() or (ns.Scan.active and ns.Scan.full) then
     Q.waitFor = ns.Scan.full and "the full scan to finish" or "the auction house"
     setState("wait")
@@ -284,7 +287,6 @@ function search()
     return
   end
   Q.userPicked, Q.waitText = nil, nil
-  ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 2)
   leaveStalePage()
   Q.tries = (Q.tries or 0) + 1
   if Q.tries > 3 then finishTarget("no reply from the auction house."); return end
@@ -561,6 +563,7 @@ end
 -- One tick of the mouse wheel or a click on Buy: the next step of the purchase.
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
+local CATCHING_UP = "The auction house is catching up: try again in a moment."
 -- clicked: a click on the button (not the wheel). With nothing to buy, the button runs
 -- the flip watch instead (owner, October 3: "Look again" seemed odd); the wheel never
 -- starts a scan.
@@ -583,10 +586,11 @@ function ns:BuyQueueAct(clicked)
   -- The game's own buy buttons wait for this; a purchase sent anyway can come back as an
   -- auction house error (owner, November 5: "Internal auction error" at launch).
   if (Q.state == "ready" or Q.state == "confirm") and throttled() then
-    Q.note = "The auction house is catching up: try again in a moment."
+    Q.note = CATCHING_UP
     if refreshQueue then refreshQueue() end
     return
   end
+  if Q.note == CATCHING_UP then Q.note = nil end
   -- Scans step aside for a few seconds after each buy, and longer while you keep going.
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 4)
   local e, p = Q.cur, Q.plan

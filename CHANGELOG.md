@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 - Flip watch: its quick checks wait while you're on an item's buy or sell page, so they don't replace what the page shows.
 - Sell protection: an error stopped it whenever a vendor paid more than the listing, so Post wasn't held. It warns and holds Post again.
-- Buy queue: waits until the auction house is ready before sending a purchase, and pauses for a moment after an auction house error instead of retrying at once. The last 30 errors are saved, to find what's behind "Internal auction error".
+- Buy queue: waits until the auction house is ready before sending a purchase, and pauses for a moment after an auction house error instead of retrying at once. The flip watch steps aside as soon as the queue needs the auction house, so it starts on a flip sooner. The last 30 errors are saved, to find what's behind "Internal auction error".
 
 ### Changed
 - Shuffles: Sells on the auction house is now the first tab and Sells to a vendor the second, with a note that Blizzard nerfed most vendor shuffles, so it may often be empty.
