@@ -68,6 +68,23 @@ T.test("Disenchanting counts what the materials sell for, never what they could 
   ns.recipesByReagent = saved
   ns:InvalidateValues(true)
 end)
+T.test("A disenchant's essence can be split and sold, even when crafting beats that", function()
+  fresh()
+  local LESSER, WAND = 10938, 89506
+  S.items[WAND] = { name = "Dear wand", quality = 1 }
+  price(WAND, 100000); price(LESSER, 100)
+  local saved = ns.recipesByReagent
+  ns.recipesByReagent = { [LESSER] = { { key = ns.CharKey(), who = "Tester", prof = "Enchanting", recipeID = 2,
+    rec = { n = "Dear wand", out = WAND, oq = 1, r = { { LESSER, 1 } } } } } }
+  ns:InvalidateValues(true)
+  local o = ns:MaterialSale(ESSENCE)
+  T.eq(o.kind, "convert")
+  T.eq(o.next.kind, "ah", "sold, not crafted")
+  T.eq(o.value, 3 * 95, "three Lesser after the cut")
+  T.ok(ns:BestOption(ESSENCE).value > o.value, "the craft is still the essence's own best way")
+  ns.recipesByReagent = saved
+  ns:InvalidateValues(true)
+end)
 T.test("Filter names describe multiple bands; duplicate new lists get numbers", function()
   fresh(); ns.db.settings.deFinder.bands[25] = true
   local name = ns:DisenchantFinderListName(); T.ok(name:find("16-20, 21-25", 1, true))

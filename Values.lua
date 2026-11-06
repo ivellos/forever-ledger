@@ -278,18 +278,25 @@ end
 -- (selling it, or splitting or combining and selling that). Crafts made a 3s disenchant
 -- look like 6s, with nothing saying why, and after the nerfs they rarely matter (Magic and
 -- the owner, November 6).
-local function noCraft(o)
-  if o.kind == "convert" then return noCraft(o.next) end
-  return o.kind == "ah" or o.kind == "vendor"
-end
-
-local function sellable(id, depth)
+-- A split whose best next step is a craft still counts as split and sold (owner's
+-- screenshot, November 6: Greater Magic Essence). from: the item this came from, so
+-- splitting doesn't combine straight back.
+local function sellable(id, depth, from)
   local key = "all:" .. id .. ":" .. (depth + 1)
   local list = cache[key]
   if not list then list = options(id, depth + 1); cache[key] = list end
+  local found
   for _, o in ipairs(list) do
-    if noCraft(o) then return o end
+    local way
+    if o.kind == "ah" or o.kind == "vendor" then
+      way = o
+    elseif o.kind == "convert" and o.next.id ~= from then
+      local after = sellable(o.next.id, depth + 1, id)
+      if after then way = { kind = "convert", id = id, value = after.value * o.per, step = o.step, next = after, per = o.per } end
+    end
+    if way and (not found or way.value > found.value) then found = way end
   end
+  return found
 end
 
 -- All options for `id` with `depth` steps already taken. Results don't depend on
