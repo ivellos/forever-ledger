@@ -1326,7 +1326,7 @@ function ns:StopFlipWatch(silent)
     ns:Print("Flip watch stopped.")
   end
   if ns.UpdateWatchButton then ns:UpdateWatchButton() end
-  ns:UpdateQuiet()
+  if ns.UpdateQuiet then ns:UpdateQuiet() end
 end
 
 -- quiet: no explanation in chat (resumed by itself).
@@ -1339,7 +1339,7 @@ function ns:ToggleFlipWatch(quiet)
       "A chime means a new flip. It pauses when you close the auction house and picks up when you come back.")
   end
   if ns.UpdateWatchButton then ns:UpdateWatchButton() end
-  ns:UpdateQuiet()
+  if ns.UpdateQuiet then ns:UpdateQuiet() end
   if not Scan.active then watchPass() end
 end
 function ns:IsFlipWatching() return watching end
