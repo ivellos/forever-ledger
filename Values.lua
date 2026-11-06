@@ -257,6 +257,13 @@ end
 
 local options
 
+-- Ties favour the vendor (no listing risk), then name for a stable order.
+local function bestFirst(a, b)
+  if a.value ~= b.value then return a.value > b.value end
+  if a.kind == "vendor" or b.kind == "vendor" then return a.kind == "vendor" end
+  return (a.step or a.kind) < (b.step or b.kind)
+end
+
 -- Best option for the next item in a chain that doesn't lead back to `from`. If the
 -- best one loops back, take the next best instead of treating the item as worthless:
 -- otherwise which items looked profitable depended on the order they were worked out,
@@ -341,12 +348,7 @@ options = function(id, depth)
 
   end
 
-  -- Ties favour the vendor (no listing risk), then name for a stable order.
-  table.sort(list, function(a, b)
-    if a.value ~= b.value then return a.value > b.value end
-    if a.kind == "vendor" or b.kind == "vendor" then return a.kind == "vendor" end
-    return (a.step or a.kind) < (b.step or b.kind)
-  end)
+  table.sort(list, bestFirst)
   return list
 end
 
@@ -441,8 +443,8 @@ end
 -- disenchant or convert. Returns the price and the option it comes from.
 function ns:BuyAtOrBelow(id, shown)
   local bestNonAH, useful
-  for _, o in ipairs(ns:Options(id)) do
-    if o.kind ~= "ah" and not (shown and not ns:WorthCounts(o)) then
+  for _, o in ipairs(shown and ns:ShownOptions(id) or ns:Options(id)) do
+    if o.kind ~= "ah" then
       bestNonAH = bestNonAH or o
       if o.kind ~= "vendor" then useful = true end
     end
@@ -523,6 +525,32 @@ function ns:WorthCounts(o)
   return not key or ns.db.settings[key] ~= false
 end
 
+-- The ways tooltips and the Characters tab show: only the ticked ones, and disenchanting
+-- at what the materials sell for, the same as the Disenchant finder (Magic and the owner,
+-- November 6: 6s 29c in the tooltip for materials that sell for about 3s, and it ignored
+-- crafting being switched off). Shuffles and the Buy queue plan real crafts and still use
+-- ns:Options.
+function ns:ShownOptions(id)
+  local list = {}
+  for _, o in ipairs(ns:Options(id)) do
+    if ns:WorthCounts(o) then
+      if o.kind == "disenchant" then
+        local sale = ns:DisenchantSaleValue(id)
+        if sale and sale > 0 then
+          local copy = {}
+          for k, v in pairs(o) do copy[k] = v end
+          copy.value = sale
+          list[#list + 1] = copy
+        end
+      else
+        list[#list + 1] = o
+      end
+    end
+  end
+  table.sort(list, bestFirst)
+  return list
+end
+
 -- Returns the best value and a list of options (each with a label), best first.
 -- Only the three best recipes are listed, so tooltips stay short. shown: only the ways
 -- ticked in Settings, Tooltips, Worth to you counts.
@@ -530,10 +558,8 @@ function ns:GetValue(id, shown)
   if not id or not ns.db then return end
   freshCache()
   local list, crafts, seen = {}, 0, {}
-  for _, o in ipairs(allOptions(id)) do
-    if shown and not ns:WorthCounts(o) then
-      -- left out
-    elseif o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
+  for _, o in ipairs(shown and ns:ShownOptions(id) or allOptions(id)) do
+    if o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
       if o.kind == "craft" then seen[o.step] = true; crafts = crafts + 1 end
       o.label = ns:OptionLabel(o)
       list[#list + 1] = o

@@ -62,6 +62,17 @@ T.test("Finder worth is what the materials sell for, not what they could be craf
   T.eq(#parts, 2, "dust and essence have prices; the shard has none")
   T.eq(parts[1].id, DUST)
   T.eq(math.floor(parts[1].each), math.floor(ns:MaterialSale(DUST).value))
+  -- Tooltips say the same as the finder; what plans real crafts still counts them.
+  local shown, ways = ns:GetValue(A, true)
+  T.eq(shown, total, "Worth to you")
+  T.eq(ways[1].kind, "disenchant")
+  T.ok(math.abs(ns:BuyAtOrBelow(A, true) - total * .9) < 0.01, "Buy at or below")
+  T.ok((ns:GetValue(A)) > total * 10, "everything else")
+  T.ok(ns:BuyAtOrBelow(A) > total * 9)
+  ns.db.settings.worthDisenchant = false
+  local _, left = ns:GetValue(A, true)
+  for _, o in ipairs(left) do T.ok(o.kind ~= "disenchant", "unticked: left out") end
+  ns.db.settings.worthDisenchant = nil
   ns.recipesByReagent = saved
   ns:InvalidateValues(true)
 end)
