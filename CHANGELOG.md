@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Quiet mode: `/fl quiet` turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background. A setting does it while the flip watch runs, and `/fl pair` offers to turn that on for your auction house character. Your sound settings come back afterward.
 
 ### Fixed
+- Buy queue: after the auction house refuses an item twice, or its real price comes back over your limit twice, the item is set aside for a while instead of going round again.
 - Buy queue: what a lookup found is checked again if you take over 15 seconds to buy it, so old listings aren't refused.
 - Full scans: after the game answers one with an error, the next wait 5 minutes, so the flip watch doesn't keep asking.
 - Flip watch: its quick checks wait while you're on an item's buy or sell page, so they don't replace what the page shows.

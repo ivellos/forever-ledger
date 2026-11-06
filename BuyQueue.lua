@@ -234,6 +234,19 @@ local function finishTarget(note)
   C_Timer.After(0.3, prepare)
 end
 
+-- The search can show listings the auction house won't sell: Shadowgems at 2s 25c, each
+-- final price 2s 33c to 2s 50c, 14 times running, with a tick for every go (owner's test,
+-- November 5), and Linen Bags refused 3 times. Two refusals and the item is set aside,
+-- so the queue moves on. True if it was.
+local function refusedTwice(note)
+  local e = Q.cur
+  if not e then return false end
+  e.refused = (e.refused or 0) + 1
+  if e.refused < 2 then return false end
+  finishTarget(note)
+  return true
+end
+
 -- What the queue spends is counted from the gold that actually leaves you, in the
 -- seconds after one of its purchases (code review, October 4: a purchase whose reply came
 -- late, or after an unrelated error, was never counted, so Spend at most could be
@@ -745,6 +758,7 @@ ns:On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
     setState("confirm")
   else
     pcall(AH.CancelCommoditiesPurchase)
+    if total and refusedTwice(("the real price is %s each, over %s."):format(money(math.ceil(total / Q.plan.qty)), limitText(Q.cur))) then return end
     Q.note = (total and total <= Q.cur.limit * Q.plan.qty) and "The final price would go over your limit: checking again."
       or "The price went up before buying: checking again."
     again()
@@ -754,6 +768,7 @@ end)
 ns:On("COMMODITY_PRICE_UNAVAILABLE", function()
   if Q.state ~= "price" then return end
   trace("final price unavailable")
+  if refusedTwice("those listings aren't there any more.") then return end
   Q.note = "Those listings were just bought: checking again."
   again()
 end)
@@ -771,6 +786,7 @@ end)
 ns:On("COMMODITY_PURCHASE_FAILED", function()
   trace("purchase failed event, state " .. Q.state)
   if Q.state ~= "buying" then return end
+  if refusedTwice("the auction house wouldn't sell it.") then return end
   Q.note = "That purchase failed: the listings changed. Checking again."
   again()
 end)
@@ -809,6 +825,7 @@ local function failed(code, msg)
   noteError(msg, code)
   if Q.state ~= "buying" and Q.state ~= "price" then return end
   if Q.state == "price" then pcall(AH.CancelCommoditiesPurchase) end
+  if refusedTwice("the auction house wouldn't sell it.") then return end
   if type(msg) == "string" and msg ~= "" then Q.note = msg end
   -- A moment before looking again: on a busy auction house, an instant retry fails too.
   Q.waitFor = "the auction house"
