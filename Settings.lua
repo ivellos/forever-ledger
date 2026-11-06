@@ -69,10 +69,10 @@ local PAGES = {
         { sub = "Sync with your other account" },
         { key = "syncMoney", label = "Share gold and sales with your sync partner", kind = "check",
           after = function() if ns.SyncSend then ns:SyncSend(true) end end,
-          help = "Sends your characters' gold, money in and out, Ledger entries and sessions to the character you paired with (/fl pair), so both accounts' Dashboards and Ledgers show the same. These include your buyers' names, so leave it off if you paired with a friend. /fl unpair removes what you got from them." },
+          help = "Sends your characters' gold, money in and out, Ledger entries and sessions to the character you linked (Settings, Characters), so both accounts' Dashboards and Ledgers show the same. These include your buyers' names, so leave it off if you linked a friend. Unlinking removes what you got from them." },
         { key = "syncBags", label = "Share bags and bank with your sync partner", kind = "check",
           after = function() if ns.SyncSend then ns:SyncSend(true) end end,
-          help = "Sends what your characters carry and keep in the bank to the character you paired with (/fl pair), so it counts in Have, shopping lists and the Characters tab there. Only for your own second account: off by default. /fl unpair removes what you got from them." },
+          help = "Sends what your characters carry and keep in the bank to the character you linked (Settings, Characters), so it counts in Have, shopping lists and the Characters tab there. Only for your own second account: off by default. Unlinking removes what you got from them." },
         { sub = "Testing" },
         { key = "debug", label = "Debug messages", kind = "check", help = "Extra chat lines for testing." },
       } },
@@ -257,7 +257,7 @@ local PAGES = {
   -- being deleted, and a sync partner's stayed; rare and permanent, so here, not on the
   -- Characters tab).
   { key = "characters", title = "Characters", custom = true,
-    desc = "Every character Forever Ledger knows about, and removing ones you no longer have." },
+    desc = "Link your other account, see every character Forever Ledger knows about, and remove ones you no longer have." },
 }
 
 -- Every page gets a tab list (one unnamed tab when it has none), and every setting is
@@ -891,6 +891,28 @@ end
 
 local function buildChars(box)
   local C = CreateFrame("Frame", nil, box)
+  -- Linking your other account (owner, November 5): chat can't show at a glance whether
+  -- the other side is there. /fl pair and /fl unpair still work.
+  C.linkHead = makeSub(C, "Link your other account")
+  C.linkText = T:Text(C, 12, T.dim)
+  C.linkText:SetJustifyH("LEFT")
+  local function link()
+    local name = C.linkBox:GetText()
+    C.linkBox:ClearFocus()
+    ns:SyncCommand("pair " .. name)
+    if ns:SyncInfo() then C.linkBox:SetText("") end
+    ns:RefreshSettings()
+  end
+  C.linkBox = T:EditBox(C, 200, "LEFT")
+  C.linkBox:SetScript("OnEnterPressed", link)
+  C.linkBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  C.linkButton = T:Button(C, "Link", 80, link)
+  C.linkButton:SetPoint("LEFT", C.linkBox, "RIGHT", 6, 0)
+  C.linkButton:SetPrimary(true)
+  C.unlink = confirmButton(C, "Unlink", 130, function()
+    ns:SyncCommand("unpair")
+    ns:RefreshSettings()
+  end)
   C.intro = T:Text(C, 12, T.dim)
   C.intro:SetJustifyH("LEFT")
   C.intro:SetText("Addons can't see a character being deleted or renamed, so it stays here (and on the Characters tab, in Have and in recipes) until you remove it. Remove forgets its level, professions, recipes, bags and bank; prices and gold history stay. One of yours comes back when you log in on it.")
@@ -936,7 +958,27 @@ local function charRow(C, i)
 end
 
 local function layoutChars(C, width)
-  local y = 4
+  local y = layoutRows(C, { C.linkHead }, width, 4) + 2
+  local partner, online = ns:SyncInfo()
+  C.linkText:ClearAllPoints()
+  C.linkText:SetPoint("TOPLEFT", 12, -y)
+  C.linkText:SetWidth(width - 24)
+  if not partner then
+    C.linkText:SetText("Share prices and recipes with a character on your other account while both are online. Type its first and last name, click Link, then do the same on that character for this one.")
+  elseif online then
+    C.linkText:SetText(("Linked to %s: |cff7fd39conline|r. Share gold and sales, or bags and bank, in Global settings, Advanced."):format(partner))
+  else
+    C.linkText:SetText(("Linked to %s: |cffee8597not seen online yet|r. Both characters need to be online and linked to each other."):format(partner))
+  end
+  y = y + C.linkText:GetStringHeight() + 8
+  C.linkBox:ClearAllPoints()
+  C.linkBox:SetPoint("TOPLEFT", 12, -y)
+  C.linkBox:SetShown(not partner)
+  C.linkButton:SetShown(not partner)
+  C.unlink:ClearAllPoints()
+  C.unlink:SetPoint("TOPLEFT", 12, -y)
+  C.unlink:SetShown(partner ~= nil)
+  y = y + 32
   C.intro:ClearAllPoints()
   C.intro:SetPoint("TOPLEFT", 12, -y)
   C.intro:SetWidth(width - 24)

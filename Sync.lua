@@ -130,6 +130,7 @@ local function failed()
   elseif partnerOnline then
     partnerOnline = false
     ns:Print(("Sync: %s went offline."):format(partner()))
+    if ns.RefreshSettings then ns:RefreshSettings() end
   end
 end
 
@@ -264,7 +265,10 @@ local function handle(payload, sender)
     partnerOnline = true
     partnerBooks = payload.books == 2   -- (2: says when they've arrived)
     if not payload.reply then hello(true) end
-    if first then ns:Print(("Sync: connected to %s."):format(partner())) end
+    if first then
+      ns:Print(("Sync: connected to %s."):format(partner()))
+      if ns.RefreshSettings then ns:RefreshSettings() end
+    end
     ns:SyncSend(false)
   elseif payload.k == "d" then
     partnerOnline = true
@@ -361,6 +365,9 @@ function ns:SyncCommand(args)
   if cmd == "pair" then
     local name = titleCase(rest)
     if name == "" then ns:Print("Use /fl pair First Last, on both characters."); return end
+    -- Whispers need the whole name, and addon whispers to yourself never arrive.
+    if not name:find(" ", 1, true) then ns:Print("Use the character's first and last name."); return end
+    if name:lower() == me():lower() then ns:Print("That's this character: link a character on your other account."); return end
     ns.db.settings.syncPartner = name
     partnerOnline = false
     ns:Print(("Paired with %s. Do /fl pair %s on that character too. Syncing starts when both are online."):format(name, me()))
@@ -436,6 +443,9 @@ function ns:SyncCommand(args)
     print("  /fl pair Name, /fl unpair, /fl sync now (send everything), /fl sync ping Name (check whispers reach someone online)")
   end
 end
+
+-- Who you're linked to and whether they're online, for the Settings page.
+function ns:SyncInfo() return partner(), partnerOnline end
 
 function ns:SyncStatus()
   local p = partner()

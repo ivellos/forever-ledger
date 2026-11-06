@@ -120,4 +120,22 @@ T.test("The sync chat filter doesn't look at hidden system text", function()
   T.eq(asked, "hidden")
 end)
 
+T.test("Linking needs a whole name that isn't this character, and unlinking clears it", function()
+  sent = {}
+  ns.db.settings.syncPartner = nil
+  ns:SyncCommand("pair regoril")
+  T.eq((ns:SyncInfo()), nil, "first name only")
+  ns:SyncCommand("pair " .. "tester")
+  T.eq((ns:SyncInfo()), nil, "this character")
+  ns:SyncCommand("pair regoril bastiane")
+  local name, online = ns:SyncInfo()
+  T.eq(name, PARTNER)
+  T.eq(online, false)
+  deliver({ k = "h", v = 1, books = 2, reply = true })
+  T.eq(select(2, ns:SyncInfo()), true, "online once they say hello")
+  ns:SyncCommand("unpair")
+  T.eq((ns:SyncInfo()), nil)
+  T.eq(select(2, ns:SyncInfo()), false)
+end)
+
 ns.db.settings.syncPartner = nil
