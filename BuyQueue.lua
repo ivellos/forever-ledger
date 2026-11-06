@@ -575,16 +575,6 @@ function ns:BuyQueueAct(clicked)
     if refreshQueue then refreshQueue() end
     return
   end
-  -- The final price is only good for a short while: ask for it again once it's run out.
-  if Q.state == "confirm" and AH.GetQuoteDurationRemaining then
-    local ok, left = pcall(AH.GetQuoteDurationRemaining)
-    if ok and left and left <= 0 then
-      pcall(AH.CancelCommoditiesPurchase)
-      Q.note = "That price ran out: checking again."
-      again()
-      return
-    end
-  end
   -- Scans step aside for a few seconds after each buy, and longer while you keep going.
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 4)
   local e, p = Q.cur, Q.plan
