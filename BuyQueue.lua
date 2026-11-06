@@ -235,7 +235,7 @@ local function finishTarget(note)
 end
 
 -- The search can show listings the auction house won't sell: Shadowgems at 2s 25c, each
--- final price 2s 33c to 2s 50c, 14 times running, with a tick for every go (owner's test,
+-- final price 2s 33c to 2s 50c, 12 times running, with a tick for every go (owner's test,
 -- November 5), and Linen Bags refused 3 times. Two refusals and the item is set aside,
 -- so the queue moves on. True if it was.
 local function refusedTwice(note)
