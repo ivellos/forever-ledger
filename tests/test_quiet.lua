@@ -34,6 +34,40 @@ T.test("Quiet mode: your settings are saved once, not over themselves", function
   T.eq(vars.Sound_MasterVolume, "0.4")
 end)
 
+-- Codex review, November 5.
+T.test("Quiet mode: a sound setting you change meanwhile stays yours", function()
+  reset()
+  ns:ToggleQuiet()
+  vars.Sound_MasterVolume = "0.2"
+  vars.Sound_EnableMusic = "1"
+  ns:ToggleQuiet()
+  T.eq(vars.Sound_MasterVolume, "0.2")
+  T.eq(vars.Sound_EnableMusic, "1")
+  T.eq(vars.Sound_EnableSFX, "1", "the rest come back")
+end)
+
+T.test("Quiet mode: /fl quiet turns it off during the flip watch, until the next watch", function()
+  reset()
+  local watching = ns.IsFlipWatching
+  ns.IsFlipWatching = function() return true end
+  ns.db.settings.quietWatch = true
+  ns:UpdateQuiet()
+  T.ok(ns:IsQuiet())
+  ns:ToggleQuiet()
+  T.ok(not ns:IsQuiet(), "off by hand")
+  ns:UpdateQuiet()
+  T.ok(not ns:IsQuiet(), "stays off while this watch runs")
+  ns.IsFlipWatching = function() return false end
+  ns:UpdateQuiet()
+  ns.IsFlipWatching = function() return true end
+  ns:UpdateQuiet()
+  T.ok(ns:IsQuiet(), "on again with the next watch")
+  ns.IsFlipWatching = function() return false end
+  ns:UpdateQuiet()
+  ns.IsFlipWatching = watching
+  ns.db.settings.quietWatch = false
+end)
+
 T.test("Quiet mode: follows the flip watch only with the setting on", function()
   reset()
   local watching = ns.IsFlipWatching

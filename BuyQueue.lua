@@ -147,6 +147,7 @@ buildQueue = ns.Timed("Buy queue", buildQueue)
 -- Q.lanes: the sections' lists. Q.armed: the one section that looks things up and buys,
 -- chosen by you (a click, or the wheel over its strip); nil = none. Q.cur is from it.
 local Q = { lanes = { flips = {}, lists = {} }, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
+ns.buyQueueState = Q   -- (for the tests)
 
 -- The armed section's list.
 local function laneList() return (Q.armed and Q.lanes[Q.armed]) or {} end
@@ -261,8 +262,8 @@ ns:On("PLAYER_MONEY", function()
 end)
 ns:On("AUCTION_HOUSE_SHOW", function() Q.lastMoney = GetMoney() end)
 
-local function bought(n, cost)
-  local e = Q.cur
+local function bought(n, cost, e)
+  e = e or Q.cur
   Q.bought = Q.bought + n
   -- Profit if you vendored what you bought (owner, October 6: "Profit" instead of
   -- "worth"): what a vendor pays for it less what it cost, over items a vendor buys.
@@ -773,8 +774,31 @@ ns:On("COMMODITY_PRICE_UNAVAILABLE", function()
   again()
 end)
 
+-- A general auction house error came while a purchase was on its way, and then the
+-- purchase went through after all (Codex review, November 5): it still counts, whatever
+-- the queue has moved on to. True if this success was that one.
+local LATE_SECONDS = 15
+local function lateSuccess(kind)
+  local late = Q.lateBuy
+  Q.lateBuy = nil
+  if not late or late.plan.kind ~= kind or GetTime() - late.at > LATE_SECONDS then return false end
+  local plan, e = late.plan, late.cur
+  if kind == "commodity" then
+    bought(plan.qty, plan.total or plan.cost, e)
+    if ns.RemoveBought then pcall(ns.RemoveBought, ns, e.id, plan.qty, e.limit) end
+  else
+    bought(1, plan.price, e)
+    e.boughtIDs = e.boughtIDs or {}
+    e.boughtIDs[plan.auctionID] = true
+  end
+  return true
+end
+
 ns:On("COMMODITY_PURCHASE_SUCCEEDED", function()
-  if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "commodity") then return end
+  if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "commodity") then
+    lateSuccess("commodity")
+    return
+  end
   bought(Q.plan.qty, Q.plan.total or Q.plan.cost)
   -- Take what was bought off the saved listings (all at or under the limit), or they
   -- look like a flip again on the next visit (owner, October 3: Linen Bandage, Flask of
@@ -785,14 +809,17 @@ end)
 
 ns:On("COMMODITY_PURCHASE_FAILED", function()
   trace("purchase failed event, state " .. Q.state)
-  if Q.state ~= "buying" then return end
+  if Q.state ~= "buying" then Q.lateBuy = nil; return end
   if refusedTwice("the auction house wouldn't sell it.") then return end
   Q.note = "That purchase failed: the listings changed. Checking again."
   again()
 end)
 
 local function itemBought()
-  if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "item") then return end
+  if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "item") then
+    lateSuccess("item")
+    return
+  end
   bought(1, Q.plan.price)
   again(true)
 end
@@ -825,6 +852,7 @@ local function failed(code, msg)
   noteError(msg, code)
   if Q.state ~= "buying" and Q.state ~= "price" then return end
   if Q.state == "price" then pcall(AH.CancelCommoditiesPurchase) end
+  if Q.state == "buying" and Q.cur and Q.plan then Q.lateBuy = { plan = Q.plan, cur = Q.cur, at = GetTime() } end
   if refusedTwice("the auction house wouldn't sell it.") then return end
   if type(msg) == "string" and msg ~= "" then Q.note = msg end
   -- A moment before looking again: on a busy auction house, an instant retry fails too.

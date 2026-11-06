@@ -350,7 +350,6 @@ end)
 ns:On("PLAYER_ENTERING_WORLD", function()
   C_Timer.After(3, function()
     lastFavor = favorNow()
-    lastMoney = GetMoney and GetMoney()
     if lastFavor and ns.db then ns.db.favor[ns.CharKey()] = lastFavor end
     cratesInBags = crateCounts()
   end)

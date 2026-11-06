@@ -54,7 +54,7 @@ local DEFAULTS = {
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = true, tab = "queue" },
     tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false, worthAH = true, worthVendor = true, worthDisenchant = true, worthCraft = true, ridingFund = true, trainerAdvice = true, moduleLevelling = true, levellingMine = false,
     -- theme: FL Gilded for new installs (owner, October 22); "default" is FL Bronze now.
-    theme = "gilded", accent = "", uiScale = 100, syncMoney = true, quietWatch = false },
+    theme = "gilded", accent = "", uiScale = 100, syncMoney = false, quietWatch = false },
 }
 -- For Settings: "Default: Auto." under each choice (UI.lua).
 ns.DEFAULT_SETTINGS = DEFAULTS.settings
@@ -219,26 +219,88 @@ local function moveCharacterKey(old, new)
 end
 
 -- Forever's realm is its ruleset, but the live game names the server each character
--- lives on: "CAMWOW US2 Realm 3 PvE". Characters on Realm 1 and Realm 3 are on the same
--- realm with the same auction house (owner, November 5), so saved data is filed under
--- what's left: "PvE". Also turns "Name-CAMWOW US2 Realm 3 PvE" into "Name-PvE".
+-- lives on: "CAMWOW US2 Realm 3 PvE". Characters on Realm 1 and Realm 3 are on the one
+-- PvE realm (owner, November 5), so saved data is filed under what's left: "PvE". That
+-- they share an auction house is assumed, until a listing is seen from both. Also turns
+-- "Name-CAMWOW US2 Realm 3 PvE" into "Name-PvE".
 function ns.PlainRealm(s) return (s:gsub("CAMWOW%s+%S+%s+Realm%s+%d+%s+", "")) end
 function ns.RealmName()
   local realm = GetRealmName and GetRealmName()
   return realm and ns.PlainRealm(realm)
 end
 
--- Two records for the same place under different server names: the newer record wins
--- where they have times, else both are kept; of two price histories, the longer.
-local function combine(into, from)
+-- Two records for the same place under different server names. A price history is dated
+-- ("day:cheapest:typical|..."): every day from both is kept, in order, and of the same
+-- day the cheaper (Codex review, November 5: keeping the longer string lost days).
+local function isDated(s) return s:find("^%d+:%d+") and not s:find(",", 1, true) end
+
+local function combineDated(a, b)
+  local byDay, days = {}, {}
+  for _, s in ipairs({ a, b }) do
+    for part in s:gmatch("[^|]+") do
+      local day = tonumber(part:match("^(%d+):"))
+      if day then
+        local have = byDay[day]
+        if not have then
+          byDay[day] = part
+          days[#days + 1] = day
+        elseif tonumber(part:match("^%d+:(%d+)") or 0) < tonumber(have:match("^%d+:(%d+)") or 0) then
+          byDay[day] = part
+        end
+      end
+    end
+  end
+  table.sort(days)
+  for i, day in ipairs(days) do days[i] = byDay[day] end
+  return table.concat(days, "|")
+end
+
+-- A character: the newer record, keeping recipes and finished quests only the older knew.
+local function combineChar(a, b)
+  local new, old = a, b
+  if (b.updated or 0) > (a.updated or 0) then new, old = b, a end
+  for k, v in pairs(old) do
+    if new[k] == nil then new[k] = v end
+  end
+  for quest, v in pairs(old.questsDone or {}) do new.questsDone[quest] = v end
+  for name, prof in pairs(old.profs or {}) do
+    local q = new.profs[name]
+    if not q then new.profs[name] = prof
+    else
+      q.recipes = q.recipes or {}
+      for id, recipe in pairs(prof.recipes or {}) do
+        if q.recipes[id] == nil then q.recipes[id] = recipe end
+      end
+    end
+  end
+  return new
+end
+
+-- Bags and bank: each the newer of the two by its own time.
+local function combineBags(a, b)
+  if (b.t or 0) > (a.t or 0) then a.bags, a.t = b.bags, b.t end
+  if (b.bankT or 0) > (a.bankT or 0) then a.bank, a.bankT = b.bank, b.bankT end
+  return a
+end
+
+local combine
+local function combineRecord(a, b)
+  if a.profs or b.profs or a.updated or b.updated then return combineChar(a, b) end
+  if a.bags or b.bags or a.bank or b.bank then return combineBags(a, b) end
+  if type(a.t) == "number" and type(b.t) == "number" then return b.t > a.t and b or a end
+  combine(a, b)
+  return a
+end
+
+-- The newer record wins where they have times, else both are kept.
+function combine(into, from)
   for k, v in pairs(from) do
     local mine = into[k]
     if mine == nil then into[k] = v
-    elseif type(mine) == "table" and type(v) == "table" then
-      if type(mine.t) == "number" and type(v.t) == "number" then
-        if v.t > mine.t then into[k] = v end
-      else combine(mine, v) end
-    elseif type(mine) == "string" and type(v) == "string" and #v > #mine then into[k] = v end
+    elseif type(mine) == "table" and type(v) == "table" then into[k] = combineRecord(mine, v)
+    elseif type(mine) == "string" and type(v) == "string" and isDated(mine) and isDated(v) then
+      into[k] = combineDated(mine, v)
+    end
   end
 end
 
@@ -257,7 +319,7 @@ function ns.PlainRealmData(t)
     local v, new = t[k], ns.PlainRealm(k)
     t[k] = nil
     if t[new] == nil then t[new] = v
-    elseif type(t[new]) == "table" and type(v) == "table" then combine(t[new], v) end
+    elseif type(t[new]) == "table" and type(v) == "table" then t[new] = combineRecord(t[new], v) end
   end
 end
 
@@ -359,28 +421,44 @@ function ns.Timed(label, fn)
 end
 
 -- The live game hides some event text from addons (a "secret" value; seen on system chat
--- messages, November 5): even looking at one is an error, so that event is skipped.
--- /fl api lists what was skipped.
+-- messages, November 5): even looking at one is an error. If the first argument is hidden
+-- (the message itself), the event is skipped and /fl api lists it; a later one hidden
+-- (Codex review: a cast's GUID, say) reaches the handlers as nil, so readable text isn't lost.
 ns.secretSkipped = {}
-local function anySecret(...)
+local function firstSecret(...)
   for i = 1, select("#", ...) do
-    if issecretvalue((select(i, ...))) then return true end
+    if issecretvalue((select(i, ...))) then return i end
   end
 end
 
-frame:SetScript("OnEvent", function(_, event, ...)
-  local list = handlers[event]
-  if not list then return end
-  if issecretvalue and anySecret(...) then
-    ns.secretSkipped[event] = (ns.secretSkipped[event] or 0) + 1
-    return
+local function withoutSecrets(...)
+  local n, args = select("#", ...), { ... }
+  for i = 1, n do
+    if issecretvalue(args[i]) then args[i] = nil end
   end
+  return unpack(args, 1, n)
+end
+
+local function dispatch(list, event, ...)
   local t = clock()
   for i = 1, #list do
     local ok, err = pcall(list[i], ...)
     if not ok then geterrorhandler()(err) end
   end
   note(event, clock() - t)
+end
+
+frame:SetScript("OnEvent", function(_, event, ...)
+  local list = handlers[event]
+  if not list then return end
+  local secret = issecretvalue and firstSecret(...)
+  if secret == 1 then
+    ns.secretSkipped[event] = (ns.secretSkipped[event] or 0) + 1
+  elseif secret then
+    dispatch(list, event, withoutSecrets(...))
+  else
+    dispatch(list, event, ...)
+  end
 end)
 
 function ns:PrintPerf(reset)
@@ -727,7 +805,7 @@ function ns:MergeData(data, via)
   for id, v in pairs(data.vendorSell or {}) do
     if db.vendorSell[id] == nil then db.vendorSell[id] = v; nVendor = nVendor + 1 end
   end
-  local nBooks = via and data.books and ns:MergeBooks(data.books) or 0
+  local nBooks = via and data.books and ns:MergeBooks(data.books, via) or 0
   if nChars > 0 and ns.BuildUsageIndex then ns:BuildUsageIndex() end
   if (nPrices > 0 or nVendor > 0 or nBags > 0) and ns.InvalidateValues then ns:InvalidateValues() end
   return nChars, nPrices, nVendor, nBags, nBooks
@@ -752,6 +830,14 @@ function ns:RemoveSyncedFrom(name)
     if c.via and c.via:lower() == who and not ns:IsOwnChar(key) and ns:RemoveCharacter(key) then
       n = n + 1
       ns:DropBooks(key)
+    end
+  end
+  -- Their books go even for a character already removed from Settings, which keeps its
+  -- history while it's yours to keep (Codex review, November 5).
+  for key, from in pairs(ns.db.booksFrom or {}) do
+    if from:lower() == who then
+      if not ns:IsOwnChar(key) then ns:DropBooks(key) end
+      ns.db.booksFrom[key] = nil
     end
   end
   for key, inv in pairs(ns.db.inventory) do

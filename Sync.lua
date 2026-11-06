@@ -15,7 +15,8 @@ local DEBOUNCE = 5           -- seconds to wait after a change before sending
 local BOOKS_WAIT = 60        -- gold and sales changes go at most this often
 local BOOKS_OVERLAP = 300    -- each send repeats this many seconds (recent entries can change)
 local BOOKS_FULL_DAYS = 20   -- away longer: send everything (older entries become monthly totals)
-local REASSEMBLE_TIMEOUT = 120
+local BOOKS_REPLY_WAIT = 60  -- seconds after the last message before sending them again
+local REASSEMBLE_TIMEOUT = 120   -- seconds with nothing new for a half-received message
 
 local queue, sending = {}, false
 local incoming = {}          -- [sender .. id] = { parts, n, got, t }
@@ -27,6 +28,7 @@ local counter = 0
 local booksChanged = true    -- anything new for the partner's Dashboard and Ledger
 local booksWaiting = false
 local partnerBooks = false   -- the partner's version takes them (said in its hello)
+local booksSent              -- books on their way: { to = cursor, waitUntil = GetTime() }
 
 -- In Forever, UnitName's second value is the last name ("Iveilos", "Veren"), not a server.
 local function me()
@@ -100,6 +102,8 @@ end
 -- stop sending (once is enough), note they're offline, and hide the message.
 local NOT_FOUND = ERR_CHAT_PLAYER_NOT_FOUND_S and ERR_CHAT_PLAYER_NOT_FOUND_S:match("^(.-)%%s") or "No player named "
 local function notFound(msg)
+  -- (the chat filter below runs outside ns:On, which keeps hidden text away from handlers)
+  if issecretvalue and issecretvalue(msg) then return false end
   if not (lastSentTo and GetTime() - lastSentTo < 5 and type(msg) == "string") then return false end
   if msg:sub(1, #NOT_FOUND) ~= NOT_FOUND and not msg:find("No player named", 1, true) then return false end
   local target = (ping and ping.name) or (test and me()) or partner()
@@ -114,9 +118,9 @@ local function failed()
   sending = false
   if unsent and partner() then
     local st = state()
-    st.sentUpTo, st.booksTo = st.previous, st.booksBefore
-    booksChanged = true
+    st.sentUpTo = st.previous
   end
+  if booksSent then booksSent, booksChanged = nil, true end
   if ping then
     ping.failed = true
   elseif test then
@@ -190,21 +194,29 @@ function ns:SyncSend(full)
   local nData = countPrices(data.prices) + count(data.vendorBuy) + count(data.vendorSell)
   -- The Dashboard and Ledger's books: everything the first time, then what's new.
   -- Only to a version that takes them: an older one would drop them, and they wouldn't
-  -- be sent again (owner's test, November 5: one client not reloaded yet).
+  -- be sent again (owner's test, November 5: one client not reloaded yet). Off until you
+  -- say so: these name your buyers, and a partner can be a friend (Codex review).
+  -- st.booksTo moves on only when the partner says they arrived.
   local books
-  if ns.db.settings.syncMoney == false then
+  if not ns.db.settings.syncMoney then
     st.booksTo = nil   -- (turned on again: everything goes again)
-  elseif partnerBooks and (full or booksChanged) then
+  elseif partnerBooks and (full or booksChanged)
+    and not (booksSent and GetTime() < booksSent.waitUntil) then
     local from = (not full and st.booksTo or 0) - BOOKS_OVERLAP
     if from < now - BOOKS_FULL_DAYS * 86400 then from = 0 end
     books = ns:BooksSince(from)
+    books.to = now
   end
   if nWho + nData == 0 and not books then return end
-  local n = (nWho > 0 and send(who, to) or 0) + (books and send({ k = "d", books = books }, to) or 0)
-    + (nData > 0 and send(data, to) or 0)
+  local n = nWho > 0 and send(who, to) or 0
+  if books then
+    n = n + send({ k = "d", books = books }, to)
+    booksSent = { to = now, waitUntil = GetTime() + (#queue * SEND_GAP) + BOOKS_REPLY_WAIT }
+    booksChanged = false
+  end
+  n = n + (nData > 0 and send(data, to) or 0)
   -- If the partner goes offline before it all arrives, send it again next time.
   st.previous, st.sentUpTo = st.sentUpTo, now
-  if books then st.booksBefore, st.booksTo, booksChanged = st.booksTo, now, false end
   ns:Debug(("Sync: sending %d characters, %d with bags, %d prices, %d vendor prices to %s in %d messages."):format(
     count(who.chars), count(who.inventory), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), to, n))
 end
@@ -229,7 +241,7 @@ function ns:BooksChanged()
 end
 
 local function hello(reply)
-  send({ k = "h", v = 1, books = true, reply = reply or nil, from = ns.CharKey() }, partner())
+  send({ k = "h", v = 1, books = 2, reply = reply or nil, from = ns.CharKey() }, partner())
 end
 
 ---------------------------------------------------------------------------
@@ -250,7 +262,7 @@ local function handle(payload, sender)
   if payload.k == "h" then
     local first = not partnerOnline
     partnerOnline = true
-    partnerBooks = payload.books == true
+    partnerBooks = payload.books == 2   -- (2: says when they've arrived)
     if not payload.reply then hello(true) end
     if first then ns:Print(("Sync: connected to %s."):format(partner())) end
     ns:SyncSend(false)
@@ -260,6 +272,14 @@ local function handle(payload, sender)
     local c, p, v, b, m = ns:MergeData(payload, partner())
     ns:Debug(("Sync: received %d characters, %d with bags, %d prices, %d vendor prices, %d sets of books from %s."):format(c, b, p, v, m, sender))
     if c + p + v + b + m > 0 then ns:RefreshUI() end
+    if type(payload.books) == "table" and payload.books.to then send({ k = "a", books = payload.books.to }, partner()) end
+  elseif payload.k == "a" then
+    -- The partner has the books up to here.
+    if booksSent and payload.books == booksSent.to then
+      state().booksTo = booksSent.to
+      booksSent = nil
+      if booksChanged then ns:BooksChanged() end
+    end
   end
 end
 
@@ -275,7 +295,10 @@ ns:On("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
   if not id or not i or not n then return end
   local key = name .. id
   local r = incoming[key]
-  if not r then r = { parts = {}, n = n, got = 0, t = GetTime() }; incoming[key] = r end
+  if not r then r = { parts = {}, n = n, got = 0 }; incoming[key] = r end
+  -- Timed from the last piece, not the first: a big send takes minutes (Codex review,
+  -- November 5: 1,500 sales take almost 4, and were thrown away after 2).
+  r.t = GetTime()
   if not r.parts[i] then r.parts[i] = chunk; r.got = r.got + 1 end
   if r.got < r.n then return end
   incoming[key] = nil
@@ -304,6 +327,24 @@ end)
 ---------------------------------------------------------------------------
 -- Paired characters are often one that plays and one that waits at the auction house, so
 -- pairing offers quiet mode (owner, November 5). Settings has it too.
+local function offerQuiet()
+  if not ns.db.settings.quietWatch and StaticPopup_Show then StaticPopup_Show("FOREVER_LEDGER_BANK_CHAR") end
+end
+
+-- Gold and sales go only if you say the other character is yours: they name your buyers.
+StaticPopupDialogs["FOREVER_LEDGER_SHARE_BOOKS"] = {
+  text = "Is this your own account?\n\nForever Ledger can share your gold, sales and purchases with it, so both Dashboards and Ledgers show the same. These include your buyers' names, so only say yes if it's yours. You can change this later in Settings, Global settings, Advanced.",
+  button1 = "Yes, share", button2 = "No",
+  OnAccept = function()
+    ns.db.settings.syncMoney = true
+    ns:BooksChanged()
+    ns:Print("Your gold and sales will be shared with your sync partner.")
+    offerQuiet()
+  end,
+  OnCancel = offerQuiet,
+  timeout = 0, whileDead = true, hideOnEscape = true,
+}
+
 StaticPopupDialogs["FOREVER_LEDGER_BANK_CHAR"] = {
   text = "Is this your auction house character?\n\nForever Ledger can turn the game's sound off while the flip watch runs and play its chimes at full volume, even with the game in the background. You can change this later in Settings, Auction house, Alerts.",
   button1 = "Yes, turn it on", button2 = "No",
@@ -324,11 +365,12 @@ function ns:SyncCommand(args)
     partnerOnline = false
     ns:Print(("Paired with %s. Do /fl pair %s on that character too. Syncing starts when both are online."):format(name, me()))
     hello(false)
-    if not ns.db.settings.quietWatch and StaticPopup_Show then StaticPopup_Show("FOREVER_LEDGER_BANK_CHAR") end
+    if not ns.db.settings.syncMoney and StaticPopup_Show then StaticPopup_Show("FOREVER_LEDGER_SHARE_BOOKS")
+    else offerQuiet() end
   elseif cmd == "unpair" then
     local p = partner()
     ns.db.settings.syncPartner, partnerOnline = nil, false
-    queue, sending = {}, false
+    queue, sending, booksSent = {}, false, nil
     if p then ns.db.sync[p:lower()] = nil end
     -- What came from them goes (their characters, bags and bank); prices stay.
     local n = p and ns:RemoveSyncedFrom(p) or 0

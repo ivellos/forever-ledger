@@ -243,12 +243,25 @@ local function addLog(list, entry)
   end
   list[#list + 1] = entry
   -- Over the cap, the oldest goes into its month's total rather than away (the tests
-  -- found it was dropped, losing its copper from the Ledger, PR #8, October 4).
-  while #list > LOG_SIZE do
-    local old = table.remove(list, 1)
-    local kind = (list == ns.db.sales and "sale") or (list == ns.db.purchases and "buy")
-      or (old.s == "sell" and "vsell" or "vbuy")
-    foldEntry(old, kind)
+  -- found it was dropped, losing its copper from the Ledger, PR #8, October 4). Only your
+  -- own: a partner's are theirs to fold, or the next sync brings one back and it counts
+  -- twice (Codex review, November 5).
+  if #list <= LOG_SIZE then return end
+  local from = ns.db.booksFrom or {}
+  local own = 0
+  for i = 1, #list do
+    if not from[list[i].c] then own = own + 1 end
+  end
+  local i = 1
+  while own > LOG_SIZE do
+    if from[list[i].c] then i = i + 1
+    else
+      local old = table.remove(list, i)
+      own = own - 1
+      local kind = (list == ns.db.sales and "sale") or (list == ns.db.purchases and "buy")
+        or (old.s == "sell" and "vsell" or "vbuy")
+      foldEntry(old, kind)
+    end
   end
 end
 
@@ -259,6 +272,10 @@ end
 -- it's replaced by time rather than added to.
 ---------------------------------------------------------------------------
 local BOOK_LOGS = { "sales", "purchases", "vendorLog", "sessions" }
+
+-- When an entry last changed: a session's end, not its start (Codex review, November 5:
+-- a long session started before the stretch being sent, so it never went).
+local function bookTime(e) return e.stop or e.t or 0 end
 
 -- Keep only the entries keep(e) wants, in the same table (addLog compares tables).
 local function filterLog(list, keep)
@@ -291,7 +308,7 @@ function ns:BooksSince(from)
   for _, name in ipairs(BOOK_LOGS) do
     b[name] = {}
     for _, e in ipairs(ns.db[name] or {}) do
-      if (e.t or 0) >= from and mine(e) then table.insert(b[name], e) end
+      if bookTime(e) >= from and mine(e) then table.insert(b[name], e) end
     end
   end
   if from == 0 then
@@ -304,22 +321,33 @@ function ns:BooksSince(from)
 end
 
 -- A partner's books. Never touches a character played on this account. Returns how many
--- characters' books came in.
-function ns:MergeBooks(b)
+-- characters' books came in. The whole stretch sent is replaced, gold and money too: the
+-- sender may have folded old days together (Codex review, November 5). via = the partner,
+-- remembered in booksFrom so /fl unpair can take these out again.
+function ns:MergeBooks(b, via)
   local theirs, n = {}, 0
+  local from = b.from or 0
+  local firstDay = ns.LocalDay(from)
+  ns.db.booksFrom = ns.db.booksFrom or {}
   for key, c in pairs(b.chars or {}) do
     if not ns:IsOwnChar(key) then
       theirs[key] = true
       n = n + 1
-      ns.db.gold[key] = ns.db.gold[key] or {}
-      ns.db.money[key] = ns.db.money[key] or {}
-      for h, v in pairs(c.gold or {}) do ns.db.gold[key][h] = v end
-      for day, src in pairs(c.money or {}) do ns.db.money[key][day] = src end
+      ns.db.booksFrom[key] = via or ns.db.booksFrom[key]
+      local gold, money = ns.db.gold[key] or {}, ns.db.money[key] or {}
+      ns.db.gold[key], ns.db.money[key] = gold, money
+      for h in pairs(gold) do
+        if h * 3600 >= from - 3600 then gold[h] = nil end
+      end
+      for day in pairs(money) do
+        if day >= firstDay then money[day] = nil end
+      end
+      for h, v in pairs(c.gold or {}) do gold[h] = v end
+      for day, src in pairs(c.money or {}) do money[day] = src end
     end
   end
-  local from = b.from or 0
   local function replace(list, new)
-    filterLog(list, function(e) return not (theirs[e.c] and (e.t or 0) >= from) end)
+    filterLog(list, function(e) return not (theirs[e.c] and bookTime(e) >= from) end)
     for _, e in ipairs(new) do
       if theirs[e.c] then list[#list + 1] = e end
     end

@@ -70,3 +70,19 @@ T.test("A full log doesn't lose an entry from the last 30 days", function()
   for _, m in ipairs(ns.db.ledgerMonths) do total = total + m.a end
   T.eq(total, 10000 + 100, "every copper still counted")
 end)
+
+-- Codex review, November 5: folded here, then sent again by the partner, it counted twice.
+T.test("A full log folds your own entries, never a partner's", function()
+  atVendor(159)
+  ns.db.booksFrom = { ["Partner-Testrealm"] = "Partner" }
+  ns.db.ledgerMonths = {}
+  local log = ns.db.vendorLog
+  log[1] = { t = NOW - 25 * 86400, c = "Partner-Testrealm", id = 99, q = 1, a = 100, s = "buy" }
+  for i = 1, 10000 do log[i + 1] = { t = NOW - 20 * 86400 + i * 60, c = ME, id = 100000 + i, q = 1, a = 1, s = "buy" } end
+  S.now = NOW + 10000 * 60
+  buy(1, 100)
+  T.eq(ns.db.vendorLog[1].c, "Partner-Testrealm", "theirs stays")
+  T.eq(ns.db.vendorLog[2].id, 100002, "your oldest went")
+  T.eq(#ns.db.ledgerMonths, 1)
+  T.eq(ns.db.ledgerMonths[1].c, ME)
+end)

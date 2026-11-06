@@ -131,6 +131,55 @@ T.test("Books: come through a partner's sync only, and go with unpairing", funct
   T.eq(#ns.db.ledgerMonths, 0)
 end)
 
+-- Codex review, November 5.
+T.test("Books: a full send replaces gold and money the sender has folded", function()
+  partnerChar()
+  ns.db.gold[PARTNER] = { [10] = 1, [11] = 2 }
+  ns.db.money[PARTNER] = { [100] = { quest = 100 }, [101] = { quest = 50 } }
+  ns:MergeBooks({ from = 0, chars = { [PARTNER] = { gold = { [11] = 2 }, money = { [100] = { quest = 150 } } } } })
+  T.eq(ns.db.gold[PARTNER][10], nil)
+  T.eq(ns.db.money[PARTNER][100].quest, 150)
+  T.eq(ns.db.money[PARTNER][101], nil, "not counted twice")
+end)
+
+T.test("Books: a later stretch leaves older gold and money", function()
+  partnerChar()
+  local hour = 500000
+  local day = ns.LocalDay(hour * 3600)
+  ns.db.gold[PARTNER] = { [hour - 100] = 1, [hour] = 2 }
+  ns.db.money[PARTNER] = { [day - 5] = { quest = 1 }, [day] = { quest = 2 } }
+  ns:MergeBooks({ from = hour * 3600, chars = { [PARTNER] = { gold = { [hour] = 3 }, money = { [day] = { quest = 3 } } } } })
+  T.eq(ns.db.gold[PARTNER][hour - 100], 1)
+  T.eq(ns.db.gold[PARTNER][hour], 3)
+  T.eq(ns.db.money[PARTNER][day - 5].quest, 1)
+  T.eq(ns.db.money[PARTNER][day].quest, 3)
+end)
+
+T.test("Books: a long session goes when it ends, once", function()
+  local me = ns.CharKey()
+  ns.db.chars[me] = char("Tester", 100)
+  partnerChar()
+  ns.db.sessions = { { c = me, t = 1000, stop = 5000 } }
+  T.eq(#ns:BooksSince(4700).sessions, 1)
+  ns.db.sessions = { { c = PARTNER, t = 1000, stop = 5000, secs = 1 } }
+  ns:MergeBooks({ from = 4700, chars = { [PARTNER] = {} }, sessions = { { c = PARTNER, t = 1000, stop = 5000, secs = 2 } } })
+  T.eq(#ns.db.sessions, 1)
+  T.eq(ns.db.sessions[1].secs, 2)
+end)
+
+T.test("Books: a partner's go with unpairing even after their character was removed", function()
+  partnerChar()
+  ns.db.gold, ns.db.money, ns.db.sales = {}, {}, {}
+  ns:MergeData({ books = { from = 0, chars = { [PARTNER] = { gold = { [7] = 70 } } }, sales = { { t = 1, c = PARTNER, a = 1 } } } }, "Regoril Bastiane")
+  T.eq(ns.db.gold[PARTNER][7], 70)
+  ns:RemoveCharacter(PARTNER)
+  T.eq(ns.db.gold[PARTNER][7], 70, "removing a character keeps its history")
+  ns:RemoveSyncedFrom("Regoril Bastiane")
+  T.eq(ns.db.gold[PARTNER], nil)
+  T.eq(#ns.db.sales, 0)
+  T.eq(ns.db.booksFrom[PARTNER], nil)
+end)
+
 T.test("Remove never takes the character you're on", function()
   local me = ns.CharKey()
   ns.db.chars[me] = char("Tester", 100)

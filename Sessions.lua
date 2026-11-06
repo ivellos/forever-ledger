@@ -298,6 +298,7 @@ function ns:StopGeneralSession(quiet)
   table.insert(ns.db.sessions, { kind = "general", name = "Session", c = s.char, t = s.t, stop = time(), secs = st.secs, earned = st.earned,
     spent = st.spent, loot = st.loot, top = top, runs = 0, money = s.money })
   while #ns.db.sessions > 100 do table.remove(ns.db.sessions, 1) end
+  if ns.BooksChanged then ns:BooksChanged() end
   if quiet then
     if ns.RefreshUI then ns:RefreshUI() end
     return true

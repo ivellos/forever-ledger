@@ -94,11 +94,14 @@ InCombatLockdown = function() return false end
 IsLoggedIn = function() return false end
 
 -- Timers run never on their own (the tests don't wait); tickers can be cancelled.
--- Timers wait in S.timers until a test runs them (T.runTimers); tickers never run.
-S.timers = {}
+-- Timers wait in S.timers until a test runs them (T.runTimers); tickers wait in S.tickers
+-- for a test that calls them.
+S.timers, S.tickers = {}, {}
+S.chatFilters = {}
+function ChatFrame_AddMessageEventFilter(_, fn) S.chatFilters[#S.chatFilters + 1] = fn end
 C_Timer = {
   After = function(_, fn) S.timers[#S.timers + 1] = fn end,
-  NewTicker = function() return { Cancel = function() end } end,
+  NewTicker = function(_, fn) S.tickers[#S.tickers + 1] = fn; return { Cancel = function() end } end,
   NewTimer = function() return { Cancel = function() end } end,
 }
 

@@ -69,7 +69,7 @@ local PAGES = {
         { sub = "Sync with your other account" },
         { key = "syncMoney", label = "Share gold and sales with your sync partner", kind = "check",
           after = function() if ns.SyncSend then ns:SyncSend(true) end end,
-          help = "Sends your characters' gold, money in and out, Ledger entries and sessions to the character you paired with (/fl pair), so both accounts' Dashboards and Ledgers show the same. Turn it off if you paired with a friend and would rather keep these to yourself. /fl unpair removes what you got from them." },
+          help = "Sends your characters' gold, money in and out, Ledger entries and sessions to the character you paired with (/fl pair), so both accounts' Dashboards and Ledgers show the same. These include your buyers' names, so leave it off if you paired with a friend. /fl unpair removes what you got from them." },
         { key = "syncBags", label = "Share bags and bank with your sync partner", kind = "check",
           after = function() if ns.SyncSend then ns:SyncSend(true) end end,
           help = "Sends what your characters carry and keep in the bank to the character you paired with (/fl pair), so it counts in Have, shopping lists and the Characters tab there. Only for your own second account: off by default. /fl unpair removes what you got from them." },
