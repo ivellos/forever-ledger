@@ -148,6 +148,7 @@ buildQueue = ns.Timed("Buy queue", buildQueue)
 -- chosen by you (a click, or the wheel over its strip); nil = none. Q.cur is from it.
 local Q = { lanes = { flips = {}, lists = {} }, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
 ns.buyQueueState = Q   -- (for the tests)
+Q.lateBuys = {}        -- purchases with no clear answer yet, oldest first (see settleLater)
 
 -- The armed section's list.
 local function laneList() return (Q.armed and Q.lanes[Q.armed]) or {} end
@@ -254,25 +255,60 @@ end
 -- seconds after one of its purchases (code review, October 4: a purchase whose reply came
 -- late, or after an unrelated error, was never counted, so Spend at most could be
 -- passed). bought() counts items, not gold.
--- A purchase that got an unclear error may still go through (Q.lateBuy): nothing else is
--- bought until that's settled, so it can't use the same part of Spend at most, and its
--- reply can't be mistaken for the next one's (Codex review, November 6).
-local LATE_SECONDS = 15
+-- A purchase that got an unclear error, or no answer at all, may still go through. Silence
+-- proves nothing (Codex review, November 6), so it stays in Q.lateBuys until it's settled:
+-- by its success or failure, or by its gold leaving (paid). Meanwhile:
+-- - Nothing else is bought for up to LATE_SECONDS, so two replies can't be mixed up.
+-- - Its cost stays held against Spend at most for the rest of the visit, however late.
+-- - A success with no purchase under way still counts for it, however late.
+-- After LATE_SECONDS it's probably lost, so a purchase under way takes its own success:
+-- only a reply that late while another of the same kind is under way can be mixed up.
+local LATE_SECONDS = 60
 local function awaitingLate()
-  local late = Q.lateBuy
-  return late ~= nil and GetTime() - late.at <= LATE_SECONDS
+  for _, late in ipairs(Q.lateBuys) do
+    if not late.paid and GetTime() - late.at <= LATE_SECONDS then return true end
+  end
+  return false
+end
+
+local function owedLate()
+  local total = 0
+  for _, late in ipairs(Q.lateBuys) do
+    if not late.paid then total = total + late.cost end
+  end
+  return total
+end
+
+local function settleLater()
+  local p, e = Q.plan, Q.cur
+  if not (p and e) then return end
+  Q.lateBuys[#Q.lateBuys + 1] = { plan = p, cur = e, at = GetTime(), cost = p.total or p.cost or p.price or 0,
+    paid = Q.buyFrom ~= nil and GetMoney() < Q.buyFrom }
 end
 
 ns:On("PLAYER_MONEY", function()
   local now = GetMoney()
   local before = Q.lastMoney
   Q.lastMoney = now
-  local buying = awaitingLate() or (Q.buyAt and GetTime() - Q.buyAt < 15)
-  if before and now < before and buying and ns:IsAHOpen() then
+  if not (before and now < before and ns:IsAHOpen()) then return end
+  local late
+  if Q.state ~= "buying" then
+    for _, l in ipairs(Q.lateBuys) do
+      if not l.paid then late = l; break end
+    end
+  end
+  if late or (Q.buyAt and GetTime() - Q.buyAt < 15) then
     Q.spent = Q.spent + (before - now)
+    if late then late.paid = true end
   end
 end)
-ns:On("AUCTION_HOUSE_SHOW", function() Q.lastMoney = GetMoney() end)
+ns:On("AUCTION_HOUSE_SHOW", function()
+  Q.lastMoney = GetMoney()
+  -- A new visit counts from nothing, but closing the window doesn't skip the wait.
+  for i = #Q.lateBuys, 1, -1 do
+    if GetTime() - Q.lateBuys[i].at > LATE_SECONDS then table.remove(Q.lateBuys, i) end
+  end
+end)
 
 local function bought(n, cost, e)
   e = e or Q.cur
@@ -356,8 +392,9 @@ end
 -- each time the auction house opens.
 local function visitLeft()
   local lim = S().limit
-  if lim and lim > 0 then return math.max(lim - Q.spent, 0) end
+  if lim and lim > 0 then return math.max(lim - Q.spent - owedLate(), 0) end
 end
+Q.visitLeft = visitLeft   -- (for the tests)
 spendable = function()
   local cash = GetMoney() - (ns.db.settings.keepGold or 0)
   local left = visitLeft()
@@ -586,6 +623,12 @@ local function again(reuse)
   search()
 end
 
+-- No answer in time: look again, but it isn't known to have failed.
+function Q.noReply()
+  settleLater()
+  again()
+end
+
 -- One tick of the mouse wheel or a click on Buy: the next step of the purchase.
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
@@ -663,20 +706,20 @@ function ns:BuyQueueAct(clicked)
     setState("price")
     timeout(6, function() pcall(AH.CancelCommoditiesPurchase); Q.note = "No final price came back: checking again."; again() end)
   elseif Q.state == "confirm" and p and p.kind == "commodity" then
-    Q.buyAt, Q.lastMoney = GetTime(), GetMoney()
+    Q.buyAt, Q.lastMoney, Q.buyFrom = GetTime(), GetMoney(), GetMoney()
     local ok, err = pcall(AH.ConfirmCommoditiesPurchase, e.id, p.qty)
     if not ok then ns:Print("Couldn't confirm that purchase: " .. tostring(err)); again(); return end
     setState("buying")
-    timeout(10, again)
+    timeout(10, Q.noReply)
   elseif Q.state == "ready" and p and p.kind == "item" then
     -- So the purchase is logged under the right item (History.lua's PlaceBid hook).
     ns.queueBidItem = e.id
-    Q.buyAt, Q.lastMoney = GetTime(), GetMoney()
+    Q.buyAt, Q.lastMoney, Q.buyFrom = GetTime(), GetMoney(), GetMoney()
     local ok, err = pcall(AH.PlaceBid, p.auctionID, p.price)
     ns.queueBidItem = nil
     if not ok then ns:Print("Couldn't buy that: " .. tostring(err)); again(); return end
     setState("buying")
-    timeout(6, again)
+    timeout(6, Q.noReply)
   elseif Q.state == "wait" and Q.waitText then
     -- Paused for your own searching: Buy means go now.
     Q.userPicked = true
@@ -793,16 +836,22 @@ ns:On("COMMODITY_PRICE_UNAVAILABLE", function()
   again()
 end)
 
--- A general auction house error came while a purchase was on its way, and then the
--- purchase went through after all (Codex review, November 5): it still counts, whatever
--- the queue has moved on to. True if this success was that one.
-local function lateSuccess(kind)
-  local late = Q.lateBuy
-  local live = awaitingLate()
-  Q.lateBuy = nil
-  if not live or late.plan.kind ~= kind then return false end
-  Q.buyAt = GetTime()   -- (its gold can leave just after this)
-  local plan, e = late.plan, late.cur
+-- A purchase with no clear answer went through after all (Codex review, November 5): it
+-- still counts, whatever the queue has moved on to. Anything that doesn't match leaves
+-- the record alone. paidOnly: only one whose gold has already left, which can't fail now.
+-- True if this success was one of those.
+local function lateSuccess(kind, auctionID, paidOnly)
+  local found
+  for i, late in ipairs(Q.lateBuys) do
+    if late.plan.kind == kind and (not auctionID or late.plan.auctionID == auctionID)
+      and (late.paid or not paidOnly) then
+      found = table.remove(Q.lateBuys, i)
+      break
+    end
+  end
+  if not found then return false end
+  if not found.paid then Q.buyAt = GetTime() end   -- (its gold can leave just after this)
+  local plan, e = found.plan, found.cur
   if kind == "commodity" then
     bought(plan.qty, plan.total or plan.cost, e)
     if ns.RemoveBought then pcall(ns.RemoveBought, ns, e.id, plan.qty, e.limit) end
@@ -819,6 +868,7 @@ ns:On("COMMODITY_PURCHASE_SUCCEEDED", function()
     lateSuccess("commodity")
     return
   end
+  if lateSuccess("commodity", nil, true) then return end
   bought(Q.plan.qty, Q.plan.total or Q.plan.cost)
   -- Take what was bought off the saved listings (all at or under the limit), or they
   -- look like a flip again on the next visit (owner, October 3: Linen Bandage, Flask of
@@ -829,15 +879,23 @@ end)
 
 ns:On("COMMODITY_PURCHASE_FAILED", function()
   trace("purchase failed event, state " .. Q.state)
-  if Q.state ~= "buying" then Q.lateBuy = nil; return end
+  if Q.state ~= "buying" then
+    for i, late in ipairs(Q.lateBuys) do
+      if late.plan.kind == "commodity" then table.remove(Q.lateBuys, i); break end
+    end
+    return
+  end
   if refusedTwice("the auction house wouldn't sell it.") then return end
   Q.note = "That purchase failed: the listings changed. Checking again."
   again()
 end)
 
-local function itemBought()
-  if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "item") then
-    lateSuccess("item")
+-- auctionID: which one, from the event. The chat line below doesn't say, and a purchase
+-- from the game's own page has an ID the queue never used.
+local function itemBought(auctionID)
+  local current = Q.state == "buying" and Q.plan and Q.plan.kind == "item"
+  if not current or (auctionID and auctionID ~= Q.plan.auctionID) then
+    lateSuccess("item", auctionID)
     return
   end
   bought(1, Q.plan.price)
@@ -875,9 +933,7 @@ local function failed(code, msg)
   noteError(msg, code)
   if Q.state ~= "buying" and Q.state ~= "price" then return end
   if Q.state == "price" then pcall(AH.CancelCommoditiesPurchase) end
-  if Q.state == "buying" and Q.cur and Q.plan and msg ~= ERR_ITEM_NOT_FOUND then
-    Q.lateBuy = { plan = Q.plan, cur = Q.cur, at = GetTime() }
-  end
+  if Q.state == "buying" and msg ~= ERR_ITEM_NOT_FOUND then settleLater() end
   if refusedTwice("the auction house wouldn't sell it.") then return end
   if type(msg) == "string" and msg ~= "" then Q.note = msg end
   -- A moment before looking again: on a busy auction house, an instant retry fails too.
