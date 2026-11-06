@@ -26,6 +26,7 @@ local ping                   -- running /fl sync ping: { name, ok, failed }
 local counter = 0
 local booksChanged = true    -- anything new for the partner's Dashboard and Ledger
 local booksWaiting = false
+local partnerBooks = false   -- the partner's version takes them (said in its hello)
 
 -- In Forever, UnitName's second value is the last name ("Iveilos", "Veren"), not a server.
 local function me()
@@ -113,7 +114,7 @@ local function failed()
   sending = false
   if unsent and partner() then
     local st = state()
-    st.sentUpTo, st.booksUpTo = st.previous, st.booksPrevious
+    st.sentUpTo, st.booksTo = st.previous, st.booksBefore
     booksChanged = true
   end
   if ping then
@@ -188,11 +189,13 @@ function ns:SyncSend(full)
   local nWho = count(who.chars) + count(who.inventory)
   local nData = countPrices(data.prices) + count(data.vendorBuy) + count(data.vendorSell)
   -- The Dashboard and Ledger's books: everything the first time, then what's new.
+  -- Only to a version that takes them: an older one would drop them, and they wouldn't
+  -- be sent again (owner's test, November 5: one client not reloaded yet).
   local books
   if ns.db.settings.syncMoney == false then
-    st.booksUpTo = nil   -- (turned on again: everything goes again)
-  elseif full or booksChanged then
-    local from = (not full and st.booksUpTo or 0) - BOOKS_OVERLAP
+    st.booksTo = nil   -- (turned on again: everything goes again)
+  elseif partnerBooks and (full or booksChanged) then
+    local from = (not full and st.booksTo or 0) - BOOKS_OVERLAP
     if from < now - BOOKS_FULL_DAYS * 86400 then from = 0 end
     books = ns:BooksSince(from)
   end
@@ -201,7 +204,7 @@ function ns:SyncSend(full)
     + (nData > 0 and send(data, to) or 0)
   -- If the partner goes offline before it all arrives, send it again next time.
   st.previous, st.sentUpTo = st.sentUpTo, now
-  if books then st.booksPrevious, st.booksUpTo, booksChanged = st.booksUpTo, now, false end
+  if books then st.booksBefore, st.booksTo, booksChanged = st.booksTo, now, false end
   ns:Debug(("Sync: sending %d characters, %d with bags, %d prices, %d vendor prices to %s in %d messages."):format(
     count(who.chars), count(who.inventory), countPrices(data.prices), count(data.vendorBuy) + count(data.vendorSell), to, n))
 end
@@ -226,7 +229,7 @@ function ns:BooksChanged()
 end
 
 local function hello(reply)
-  send({ k = "h", v = 1, reply = reply or nil, from = ns.CharKey() }, partner())
+  send({ k = "h", v = 1, books = true, reply = reply or nil, from = ns.CharKey() }, partner())
 end
 
 ---------------------------------------------------------------------------
@@ -247,6 +250,7 @@ local function handle(payload, sender)
   if payload.k == "h" then
     local first = not partnerOnline
     partnerOnline = true
+    partnerBooks = payload.books == true
     if not payload.reply then hello(true) end
     if first then ns:Print(("Sync: connected to %s."):format(partner())) end
     ns:SyncSend(false)
