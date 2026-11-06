@@ -16,6 +16,7 @@ local BOOKS_WAIT = 60        -- gold and sales changes go at most this often
 local BOOKS_OVERLAP = 300    -- each send repeats this many seconds (recent entries can change)
 local BOOKS_FULL_DAYS = 20   -- away longer: send everything (older entries become monthly totals)
 local BOOKS_REPLY_WAIT = 60  -- seconds after the last message before sending them again
+local BOOKS_TRIES = 3        -- sends with no reply before waiting for the next hello or change
 local REASSEMBLE_TIMEOUT = 120   -- seconds with nothing new for a half-received message
 
 local queue, sending = {}, false
@@ -28,7 +29,8 @@ local counter = 0
 local booksChanged = true    -- anything new for the partner's Dashboard and Ledger
 local booksWaiting = false
 local partnerBooks = false   -- the partner's version takes them (said in its hello)
-local booksSent              -- books on their way: { to = cursor, waitUntil = GetTime() }
+local booksSent              -- books on their way: { to = cursor, waitUntil = GetTime(), tries }
+local askedFor               -- who the question about gold and sales was about
 
 -- In Forever, UnitName's second value is the last name ("Iveilos", "Veren"), not a server.
 local function me()
@@ -197,12 +199,14 @@ function ns:SyncSend(full)
   -- Only to a version that takes them: an older one would drop them, and they wouldn't
   -- be sent again (owner's test, November 5: one client not reloaded yet). Off until you
   -- say so: these name your buyers, and a partner can be a friend (Codex review).
-  -- st.booksTo moves on only when the partner says they arrived.
+  -- st.booksTo moves on only when the partner says they arrived. With no reply in time
+  -- they go again, even with nothing new (Codex review, November 6: the partner reloaded
+  -- partway through and the history stayed missing).
   local books
+  local waiting = booksSent and GetTime() < booksSent.waitUntil
   if not ns.db.settings.syncMoney then
     st.booksTo = nil   -- (turned on again: everything goes again)
-  elseif partnerBooks and (full or booksChanged)
-    and not (booksSent and GetTime() < booksSent.waitUntil) then
+  elseif partnerBooks and not waiting and (full or booksChanged or booksSent) then
     local from = (not full and st.booksTo or 0) - BOOKS_OVERLAP
     if from < now - BOOKS_FULL_DAYS * 86400 then from = 0 end
     books = ns:BooksSince(from)
@@ -212,8 +216,15 @@ function ns:SyncSend(full)
   local n = nWho > 0 and send(who, to) or 0
   if books then
     n = n + send({ k = "d", books = books }, to)
-    booksSent = { to = now, waitUntil = GetTime() + (#queue * SEND_GAP) + BOOKS_REPLY_WAIT }
+    local wait = (#queue * SEND_GAP) + BOOKS_REPLY_WAIT
+    local these = { to = now, waitUntil = GetTime() + wait, tries = (booksSent and booksSent.tries or 0) + 1 }
+    booksSent = these
     booksChanged = false
+    if these.tries < BOOKS_TRIES then
+      C_Timer.After(wait + 1, function()
+        if booksSent == these then ns:SyncSend(false) end
+      end)
+    end
   end
   n = n + (nData > 0 and send(data, to) or 0)
   -- If the partner goes offline before it all arrives, send it again next time.
@@ -340,6 +351,9 @@ StaticPopupDialogs["FOREVER_LEDGER_SHARE_BOOKS"] = {
   text = "Is this your own account?\n\nForever Ledger can share your gold, sales and purchases with it, so both Dashboards and Ledgers show the same. These include your buyers' names, so only say yes if it's yours. You can change this later in Settings, Global settings, Advanced.",
   button1 = "Yes, share", button2 = "No",
   OnAccept = function()
+    -- The yes was about one character: a link changed since then doesn't get it.
+    local p = partner()
+    if not (p and askedFor and p:lower() == askedFor:lower()) then return end
     ns.db.settings.syncMoney = true
     ns:BooksChanged()
     ns:Print("Your gold and sales will be shared with your sync partner.")
@@ -360,6 +374,19 @@ StaticPopupDialogs["FOREVER_LEDGER_BANK_CHAR"] = {
   timeout = 0, whileDead = true, hideOnEscape = true,
 }
 
+-- What goes to a partner was agreed for that partner, never for whoever is linked next
+-- (Codex review, November 6: your own account, Unlink, then a friend, and the friend got
+-- your buyers' names without being asked). Nothing already on its way goes on to them.
+-- True if something was being shared.
+local function endLink()
+  local s = ns.db.settings
+  local shared = s.syncMoney or s.syncBags
+  s.syncMoney, s.syncBags = false, false
+  queue, sending, booksSent, booksChanged, partnerBooks, partnerOnline = {}, false, nil, true, false, false
+  askedFor = nil
+  return shared
+end
+
 function ns:SyncCommand(args)
   local cmd, rest = (args or ""):match("^(%S*)%s*(.-)$")
   if cmd == "pair" then
@@ -368,21 +395,28 @@ function ns:SyncCommand(args)
     -- Whispers need the whole name, and addon whispers to yourself never arrive.
     if not name:find(" ", 1, true) then ns:Print("Use the character's first and last name."); return end
     if name:lower() == me():lower() then ns:Print("That's this character: link a character on your other account."); return end
+    local old = partner()
+    if not (old and old:lower() == name:lower()) then endLink() end
     ns.db.settings.syncPartner = name
     partnerOnline = false
     ns:Print(("Paired with %s. Do /fl pair %s on that character too. Syncing starts when both are online."):format(name, me()))
     hello(false)
-    if not ns.db.settings.syncMoney and StaticPopup_Show then StaticPopup_Show("FOREVER_LEDGER_SHARE_BOOKS")
-    else offerQuiet() end
+    if not ns.db.settings.syncMoney and StaticPopup_Show then
+      askedFor = name
+      StaticPopup_Show("FOREVER_LEDGER_SHARE_BOOKS")
+    else
+      offerQuiet()
+    end
   elseif cmd == "unpair" then
     local p = partner()
-    ns.db.settings.syncPartner, partnerOnline = nil, false
-    queue, sending, booksSent = {}, false, nil
+    ns.db.settings.syncPartner = nil
+    local shared = endLink()
     if p then ns.db.sync[p:lower()] = nil end
     -- What came from them goes (their characters, bags and bank); prices stay.
     local n = p and ns:RemoveSyncedFrom(p) or 0
     ns:Print(n > 0 and ("Sync turned off. Removed %d %s from %s; the auction prices stay."):format(n, n == 1 and "character" or "characters", p)
       or "Sync turned off.")
+    if shared then ns:Print("Sharing gold, sales, bags and bank is off too. Your next link starts fresh.") end
   elseif cmd == "test" then
     test = { start = GetTime(), sent = 0, got = 0 }
     local who, data = changes(0)

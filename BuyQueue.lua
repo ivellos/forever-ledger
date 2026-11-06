@@ -174,8 +174,10 @@ local function active()
 end
 
 -- The last 200 steps, to see why a purchase goes round again (owner, November 5: looking
--- up, Buy, final price, over and over, with no auction house error).
+-- up, Buy, final price, over and over, with no auction house error). Only with /fl debug
+-- on: nobody else's buying gets written down (owner, November 6).
 local function trace(text)
+  if not ns.db.settings.debug then return end
   local log = ns.db.buyTrace or {}
   ns.db.buyTrace = log
   log[#log + 1] = ("%s %.1f %s"):format(date("%H:%M:%S"), GetTime(), text)
@@ -252,11 +254,21 @@ end
 -- seconds after one of its purchases (code review, October 4: a purchase whose reply came
 -- late, or after an unrelated error, was never counted, so Spend at most could be
 -- passed). bought() counts items, not gold.
+-- A purchase that got an unclear error may still go through (Q.lateBuy): nothing else is
+-- bought until that's settled, so it can't use the same part of Spend at most, and its
+-- reply can't be mistaken for the next one's (Codex review, November 6).
+local LATE_SECONDS = 15
+local function awaitingLate()
+  local late = Q.lateBuy
+  return late ~= nil and GetTime() - late.at <= LATE_SECONDS
+end
+
 ns:On("PLAYER_MONEY", function()
   local now = GetMoney()
   local before = Q.lastMoney
   Q.lastMoney = now
-  if before and now < before and Q.buyAt and GetTime() - Q.buyAt < 15 and ns:IsAHOpen() then
+  local buying = awaitingLate() or (Q.buyAt and GetTime() - Q.buyAt < 15)
+  if before and now < before and buying and ns:IsAHOpen() then
     Q.spent = Q.spent + (before - now)
   end
 end)
@@ -578,6 +590,7 @@ end
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
 local CATCHING_UP = "The auction house is catching up: try again in a moment."
+local HEARING_BACK = "Waiting to hear whether the last purchase went through."
 local PLAN_SECONDS = 15   -- how long what a lookup found is trusted
 -- clicked: a click on the button (not the wheel). With nothing to buy, the button runs
 -- the flip watch instead (owner, October 3: "Look again" seemed odd); the wheel never
@@ -596,6 +609,12 @@ function ns:BuyQueueAct(clicked)
       return
     end
   end
+  if (Q.state == "ready" or Q.state == "confirm") and awaitingLate() then
+    Q.note = HEARING_BACK
+    if refreshQueue then refreshQueue() end
+    return
+  end
+  if Q.note == HEARING_BACK then Q.note = nil end
   if not active() or GetTime() - lastAct < 0.15 then return end
   lastAct = GetTime()
   -- The game's own buy buttons wait for this; a purchase sent anyway can come back as an
@@ -777,11 +796,12 @@ end)
 -- A general auction house error came while a purchase was on its way, and then the
 -- purchase went through after all (Codex review, November 5): it still counts, whatever
 -- the queue has moved on to. True if this success was that one.
-local LATE_SECONDS = 15
 local function lateSuccess(kind)
   local late = Q.lateBuy
+  local live = awaitingLate()
   Q.lateBuy = nil
-  if not late or late.plan.kind ~= kind or GetTime() - late.at > LATE_SECONDS then return false end
+  if not live or late.plan.kind ~= kind then return false end
+  Q.buyAt = GetTime()   -- (its gold can leave just after this)
   local plan, e = late.plan, late.cur
   if kind == "commodity" then
     bought(plan.qty, plan.total or plan.cost, e)
@@ -837,6 +857,7 @@ end)
 -- The last few auction house errors, to see what they have in common (owner, November 5):
 -- what was being bought, how old the plan was, what else was running.
 local function noteError(msg, code)
+  if not ns.db.settings.debug then return end
   local log = ns.db.buyErrors or {}
   ns.db.buyErrors = log
   local e, p = Q.cur, Q.plan
@@ -848,11 +869,15 @@ local function noteError(msg, code)
   while #log > 30 do table.remove(log, 1) end
 end
 
+-- "The item was not found": the listing's gone, so this purchase can't still go through,
+-- and there's nothing to wait for (29 of the owner's last 30 errors, November 6).
 local function failed(code, msg)
   noteError(msg, code)
   if Q.state ~= "buying" and Q.state ~= "price" then return end
   if Q.state == "price" then pcall(AH.CancelCommoditiesPurchase) end
-  if Q.state == "buying" and Q.cur and Q.plan then Q.lateBuy = { plan = Q.plan, cur = Q.cur, at = GetTime() } end
+  if Q.state == "buying" and Q.cur and Q.plan and msg ~= ERR_ITEM_NOT_FOUND then
+    Q.lateBuy = { plan = Q.plan, cur = Q.cur, at = GetTime() }
+  end
   if refusedTwice("the auction house wouldn't sell it.") then return end
   if type(msg) == "string" and msg ~= "" then Q.note = msg end
   -- A moment before looking again: on a busy auction house, an instant retry fails too.

@@ -138,4 +138,93 @@ T.test("Linking needs a whole name that isn't this character, and unlinking clea
   T.eq(select(2, ns:SyncInfo()), false)
 end)
 
+local function countBooks(messages)
+  local n = 0
+  for _, m in ipairs(messages) do
+    if m.k == "d" and m.books then n = n + 1 end
+  end
+  return n
+end
+
+-- Each timer runs well after the one before, as if the waits really passed.
+local function letTimePass()
+  while #S.timers > 0 do
+    S.now = S.now + 100
+    table.remove(S.timers, 1)()
+  end
+end
+
+T.test("Unanswered gold and sales go again, a few times, until the partner says so", function()
+  ns:SyncCommand("unpair")
+  setup(true)
+  letTimePass()
+  T.eq(countBooks(read()), 3, "three tries, then no more by themselves")
+  local st = ns.db.sync[PARTNER:lower()]
+  T.eq(st.booksTo, nil, "no reply, so nothing counts as arrived")
+  S.now = S.now + 1000
+  deliver({ k = "h", v = 1, books = 2, reply = true })
+  local messages = read()
+  T.eq(countBooks(messages), 1, "the partner's next hello brings them again")
+  local m = find(messages, "books")
+  deliver({ k = "a", books = m.books.to })
+  T.eq(st.booksTo, m.books.to)
+  S.now = S.now + 1000
+  ns:SyncSend(false)
+  T.eq(countBooks(read()), 0, "answered, so nothing goes")
+end)
+
+T.test("Gold and sales don't go again while the reply can still come", function()
+  ns:SyncCommand("unpair")
+  setup(true)
+  T.eq(countBooks(read()), 1)
+  ns:SyncSend(false)
+  T.eq(countBooks(read()), 0)
+end)
+
+T.test("A new link is asked about sharing: nothing carries over from the last one", function()
+  local asked = 0
+  StaticPopup_Show = function(which) if which == "FOREVER_LEDGER_SHARE_BOOKS" then asked = asked + 1 end end
+  ns:SyncCommand("unpair")
+  setup(true)
+  ns.db.settings.syncBags = true
+  read()
+  ns:SyncCommand("pair regoril bastiane")
+  T.eq(ns.db.settings.syncMoney, true, "the same link again keeps it")
+  T.eq(ns.db.settings.syncBags, true)
+  T.eq(asked, 0)
+  ns:SyncCommand("unpair")
+  T.eq(ns.db.settings.syncMoney, false)
+  T.eq(ns.db.settings.syncBags, false)
+  ns:SyncCommand("pair regoril bastiane")
+  T.eq(asked, 1, "asked after unlinking")
+  deliver({ k = "h", v = 1, books = 2, reply = true })
+  T.eq(countBooks(read()), 0, "nothing goes before the answer")
+  -- Replaced without unlinking.
+  ns.db.settings.syncMoney = true
+  ns:SyncCommand("pair someone else")
+  T.eq(ns.db.settings.syncMoney, false)
+  T.eq(asked, 2, "asked about the new one")
+  ns:SyncCommand("unpair")
+  StaticPopup_Show = nil
+end)
+
+T.test("A yes applies only to the character it was asked about", function()
+  StaticPopup_Show = function() end
+  ns:SyncCommand("unpair")
+  ns:SyncCommand("pair regoril bastiane")
+  local dialog = StaticPopupDialogs.FOREVER_LEDGER_SHARE_BOOKS
+  ns.db.settings.syncPartner = "Someone Else"
+  dialog.OnAccept()
+  T.eq(ns.db.settings.syncMoney, false, "the link changed underneath it")
+  ns.db.settings.syncPartner = PARTNER
+  ns:SyncCommand("unpair")
+  dialog.OnAccept()
+  T.eq(ns.db.settings.syncMoney, false, "unlinked since")
+  ns:SyncCommand("pair regoril bastiane")
+  dialog.OnAccept()
+  T.eq(ns.db.settings.syncMoney, true, "still the same one")
+  ns:SyncCommand("unpair")
+  StaticPopup_Show = nil
+end)
+
 ns.db.settings.syncPartner = nil

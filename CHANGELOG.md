@@ -11,6 +11,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Quiet mode: `/fl quiet` turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background. A setting does it while the flip watch runs, and `/fl pair` offers to turn that on for your auction house character. Your sound settings come back afterward.
 
 ### Fixed
+- Sync: sharing gold, sales, bags and bank now belongs to one link. Linking someone new starts with it off and asks again, so what you agreed for your own account never goes to a friend.
+- Sync: gold and sales go again if the other side never says they arrived, for example after a reload partway through.
+- Buy queue: after an unclear auction house error, it waits up to 15 seconds to hear whether that purchase went through before buying anything else, so Spend at most holds and the purchase is counted against the right item.
 - Disenchant finder: Worth and Profit round the same way as the tooltip, so they no longer differ by a copper.
 - Buy queue: after the auction house refuses an item twice, or its real price comes back over your limit twice, the item is set aside for a while instead of going round again.
 - Buy queue: what a lookup found is checked again if you take over 15 seconds to buy it, so old listings aren't refused.
