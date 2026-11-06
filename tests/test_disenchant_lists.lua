@@ -68,6 +68,23 @@ T.test("Disenchanting counts what the materials sell for, never what they could 
   ns.recipesByReagent = saved
   ns:InvalidateValues(true)
 end)
+T.test("A disenchant's total is the average of its results, each with its own chance", function()
+  fresh()
+  price(10978, 300)
+  ns:InvalidateValues(true)
+  local total, parts = ns:DisenchantSaleValue(A)
+  T.eq(#parts, 3)
+  T.eq(parts[1].chance, 75); T.eq(parts[1].low, 2); T.eq(parts[1].high, 3)
+  T.eq(parts[2].chance, 20); T.eq(parts[3].chance, 5)
+  local chances, average = 0, 0
+  for _, p in ipairs(parts) do
+    chances = chances + p.chance
+    average = average + p.when * p.chance / 100
+  end
+  T.eq(chances, 100, "one result each time")
+  T.ok(math.abs(average - total) < 0.001, "the chances weigh back to the total")
+  T.eq(parts[1].when, 2.5 * parts[1].each, "when dust comes up, the average of 2-3")
+end)
 T.test("A disenchant's essence can be split and sold, even when crafting beats that", function()
   fresh()
   local LESSER, WAND = 10938, 89506

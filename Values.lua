@@ -418,16 +418,24 @@ function ns:MaterialSale(id)
 end
 
 -- What one disenchant brings on average, for showing how it adds up. Works without an
--- enchanter too. Returns the total and { { id, count, each } }.
+-- enchanter too. Returns the total and { { id, count, each, chance, low, high, when } }:
+-- count is the average per disenchant with its chance already in it, and when is what
+-- that result brings on the times it comes up. Each disenchant gives only one result, so
+-- the total is an average (owner's screenshot, November 6: read as getting all three).
 function ns:DisenchantSaleValue(id)
   local yield = ns:DisenchantYield(id)
   if not yield then return end
+  local odds = {}
+  for _, row in ipairs(yield.odds or {}) do odds[row[1]] = row end
   local total, parts = 0, {}
   for _, y in ipairs(yield) do
     local o = ns:MaterialSale(y[1])
     if o then
       total = total + o.value * y[2]
-      parts[#parts + 1] = { id = y[1], count = y[2], each = o.value }
+      local row = odds[y[1]]
+      parts[#parts + 1] = { id = y[1], count = y[2], each = o.value,
+        chance = row and row[2], low = row and row[3], high = row and row[4],
+        when = row and y[2] / (row[2] / 100) * o.value }
     end
   end
   return total, parts
