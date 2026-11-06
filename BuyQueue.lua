@@ -499,6 +499,14 @@ local function dropCurrent()
 end
 Q.dropCurrent = dropCurrent   -- (for the tests)
 
+-- Right-click on a row: not this one. A purchase of it on its way still stays open.
+function Q.skip(e)
+  skipped[e.id] = true
+  if Q.cur ~= e then return end
+  if Q.state == "buying" then settleLater() end
+  finishTarget("skipped.")
+end
+
 -- Make a section the one that looks things up and buys. Only you do this (a click, or
 -- the wheel over its strip); scans and the flip watch never switch it.
 local function arm(key, quiet)
@@ -1135,8 +1143,7 @@ local function laneRow(L, i)
   r.profit:SetPoint("RIGHT", r, "LEFT", 432, 0)
   r:SetScript("OnClick", function(self, button)
     if button == "RightButton" then
-      skipped[self.entry.id] = true
-      if Q.cur == self.entry then finishTarget("skipped.") end
+      Q.skip(self.entry)
       local list = Q.lanes[self.entry.lane] or {}
       for k, x in ipairs(list) do if x == self.entry then table.remove(list, k); break end end
       refreshQueue()

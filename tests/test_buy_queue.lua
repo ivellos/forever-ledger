@@ -202,6 +202,20 @@ T.test("Buy queue: a purchase on its way stays open if you click elsewhere", fun
   T.eq(#Q.lateBuys, 0, "nothing sent, nothing to keep")
 end)
 
+T.test("Buy queue: skipping an item with a purchase on its way keeps that purchase", function()
+  local a = buying(91034)
+  Q.skip(a)
+  T.eq(Q.cur, nil, "skipped")
+  T.eq(#Q.lateBuys, 1)
+  T.fire("COMMODITY_PURCHASE_SUCCEEDED")
+  T.eq(Q.bought, 3)
+  T.eq(a.want, 7)
+  local b = buying(91035)
+  Q.state = "ready"
+  Q.skip(b)
+  T.eq(#Q.lateBuys, 0, "nothing sent, nothing to keep")
+end)
+
 T.test("Buy queue: no answer at all is treated like an unclear error", function()
   local a = buying(91016)
   Q.noReply()
