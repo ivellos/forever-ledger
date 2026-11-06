@@ -133,6 +133,8 @@ local PAGES = {
       { name = "Alerts", rows = {
         { sub = "New flips and deals" },
         { key = "dealSound", label = "Chime for new flips and deals", kind = "check", help = "Plays the raid warning sound when a scan finds new vendor flips or deals." },
+        { key = "quietWatch", label = "Quiet mode while the flip watch runs", kind = "check", after = function() ns:UpdateQuiet() end,
+          help = "While the flip watch runs: the game's music, effects, ambience and voices go off, and Forever Ledger's chimes play at full volume, even with the game in the background. Your sound settings come back when the watch stops. /fl quiet does the same by hand." },
         { key = "dealScreen", label = "Big message on screen", kind = "check", help = "Shows new flips and deals in large text at the top of the screen, where raid warnings go. Turn it off if it covers your windows; chat still lists them." },
       } },
       { name = "Disenchant finder", rows = {

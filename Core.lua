@@ -54,7 +54,7 @@ local DEFAULTS = {
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = true, tab = "queue" },
     tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false, worthAH = true, worthVendor = true, worthDisenchant = true, worthCraft = true, ridingFund = true, trainerAdvice = true, moduleLevelling = true, levellingMine = false,
     -- theme: FL Gilded for new installs (owner, October 22); "default" is FL Bronze now.
-    theme = "gilded", accent = "", uiScale = 100, syncMoney = true },
+    theme = "gilded", accent = "", uiScale = 100, syncMoney = true, quietWatch = false },
 }
 -- For Settings: "Default: Auto." under each choice (UI.lua).
 ns.DEFAULT_SETTINGS = DEFAULTS.settings
@@ -800,7 +800,7 @@ function ns:ApiReport()
     -- Buy queue (BuyQueue.lua): buying needs these, each from a click or a mouse wheel tick.
     "C_AuctionHouse.StartCommoditiesPurchase", "C_AuctionHouse.CancelCommoditiesPurchase", "C_AuctionHouse.PlaceBid",
     "C_AuctionHouse.SendBrowseQuery", "C_AuctionHouse.GetBrowseResults", "C_AuctionHouse.HasFullBrowseResults",
-    "C_AuctionHouse.GetItemCommodityStatus", "C_AuctionHouse.GetQuoteDurationRemaining", "C_AuctionHouse.IsThrottledMessageSystemReady", "SetOverrideBindingClick",
+    "C_AuctionHouse.GetItemCommodityStatus", "C_AuctionHouse.GetQuoteDurationRemaining", "C_AuctionHouse.IsThrottledMessageSystemReady", "C_CVar.SetCVar", "SetOverrideBindingClick",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
     -- Pets (owner, September 30: planning a pet collection module; Forever's collection
     -- window has no pet tab yet). Modern journal, and Classic's older companion list.
@@ -941,6 +941,8 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns.Scan:Start("full")
   elseif msg == "watch" then
     ns:ToggleFlipWatch()
+  elseif msg == "quiet" then
+    ns:ToggleQuiet()
   elseif msg == "queue" or msg == "buy" then
     ns:ShowSidePanel("queue")
   elseif msg == "lists" or msg == "list" then
