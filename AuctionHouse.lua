@@ -593,9 +593,9 @@ function ns:RefreshDisenchantFinder()
     r.icon:SetTexture(ns:ItemIcon(it.id))
     r.name:SetText(("%s |cff888888(%d)|r"):format(ns.ItemName(it.id), it.ilvl or 0))
     r.price:SetText(ns.Money(it.price))
-    r.worth:SetText(it.locked and "|cffee8597skill|r" or (it.worth and ns.Money(math.floor(it.worth)) or "?"))
-    local p = it.profit
-    r.profit:SetText(p and ("|cff" .. (p >= 0 and "7fd39c" or "ee8597") .. (p < 0 and "-" or "") .. ns.Money(math.abs(math.floor(p))) .. "|r") or "")
+    r.worth:SetText(it.locked and "|cffee8597skill|r" or (it.worth and ns.Money(it.worth) or "?"))
+    local p = it.profit and math.floor(it.profit + 0.5)
+    r.profit:SetText(p and ("|cff" .. (p >= 0 and "7fd39c" or "ee8597") .. (p < 0 and "-" or "") .. ns.Money(math.abs(p)) .. "|r") or "")
     r:Show()
   end
   for i = n + 1, #finder.rows do finder.rows[i]:Hide() end

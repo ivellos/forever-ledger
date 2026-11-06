@@ -126,10 +126,10 @@ function ns:AddDisenchantLines(tt, id)
     tt:AddLine("Disenchants to about " .. table.concat(names, ", "), LR, LG, LB, true)
     return true
   end
-  tt:AddDoubleLine("Disenchants to, after the cut", ns.Money(math.floor(total)), LR, LG, LB, 1, 1, 1)
+  tt:AddDoubleLine("Disenchants to, after the cut", ns.Money(total), LR, LG, LB, 1, 1, 1)
   for _, p in ipairs(parts) do
-    tt:AddDoubleLine(("  %.2f %s at %s"):format(p.count, ns:DisenchantMaterialName(p.id), ns.Money(math.floor(p.each))),
-      ns.Money(math.floor(p.count * p.each)), 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
+    tt:AddDoubleLine(("  %.2f %s at %s"):format(p.count, ns:DisenchantMaterialName(p.id), ns.Money(p.each)),
+      ns.Money(p.count * p.each), 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
   end
   return true
 end
