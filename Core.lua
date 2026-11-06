@@ -800,7 +800,7 @@ function ns:ApiReport()
     -- Buy queue (BuyQueue.lua): buying needs these, each from a click or a mouse wheel tick.
     "C_AuctionHouse.StartCommoditiesPurchase", "C_AuctionHouse.CancelCommoditiesPurchase", "C_AuctionHouse.PlaceBid",
     "C_AuctionHouse.SendBrowseQuery", "C_AuctionHouse.GetBrowseResults", "C_AuctionHouse.HasFullBrowseResults",
-    "C_AuctionHouse.GetItemCommodityStatus", "SetOverrideBindingClick",
+    "C_AuctionHouse.GetItemCommodityStatus", "C_AuctionHouse.GetQuoteDurationRemaining", "C_AuctionHouse.IsThrottledMessageSystemReady", "SetOverrideBindingClick",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
     -- Pets (owner, September 30: planning a pet collection module; Forever's collection
     -- window has no pet tab yet). Modern journal, and Classic's older companion list.

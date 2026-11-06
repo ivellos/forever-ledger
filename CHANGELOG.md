@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- Buy queue: waits until the auction house is ready before sending a purchase, asks for a new final price once the old one runs out, and pauses for a moment after an auction house error instead of retrying at once. The last 30 errors are saved, to find what's behind "Internal auction error".
+
 ### Changed
 - Shuffles: Sells on the auction house is now the first tab and Sells to a vendor the second, with a note that Blizzard nerfed most vendor shuffles, so it may often be empty.
 

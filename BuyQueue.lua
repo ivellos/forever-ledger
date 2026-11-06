@@ -474,7 +474,7 @@ local function planCommodity()
     finishTarget(("none left at %s or less."):format(limitText(e)))
     return
   end
-  Q.plan = { kind = "commodity", qty = qty, cost = cost, all = all }
+  Q.plan = { kind = "commodity", qty = qty, cost = cost, all = all, at = GetTime() }
   setState("ready")
 end
 
@@ -516,7 +516,7 @@ local function planItem(key)
       or ("none left at %s or less."):format(limitText(e)))
     return
   end
-  Q.plan = { kind = "item", auctionID = best.auctionID, price = best.buyoutAmount, key = key, count = count }
+  Q.plan = { kind = "item", auctionID = best.auctionID, price = best.buyoutAmount, key = key, count = count, at = GetTime() }
   setState("ready")
 end
 
@@ -534,6 +534,7 @@ local function again(reuse)
     e.boughtIDs[p.auctionID] = true
     setState("search")
     planItem(p.key)
+    if Q.plan then Q.plan.fromPage = true end
     -- The page had gone after all: search for real.
     if Q.state == "search" and Q.cur == e then search() end
     return
@@ -567,6 +568,23 @@ function ns:BuyQueueAct(clicked)
   end
   if not active() or GetTime() - lastAct < 0.15 then return end
   lastAct = GetTime()
+  -- The game's own buy buttons wait for this; a purchase sent anyway can come back as an
+  -- auction house error (owner, November 5: "Internal auction error" at launch).
+  if (Q.state == "ready" or Q.state == "confirm") and throttled() then
+    Q.note = "The auction house is catching up: try again in a moment."
+    if refreshQueue then refreshQueue() end
+    return
+  end
+  -- The final price is only good for a short while: ask for it again once it's run out.
+  if Q.state == "confirm" and AH.GetQuoteDurationRemaining then
+    local ok, left = pcall(AH.GetQuoteDurationRemaining)
+    if ok and left and left <= 0 then
+      pcall(AH.CancelCommoditiesPurchase)
+      Q.note = "That price ran out: checking again."
+      again()
+      return
+    end
+  end
   -- Scans step aside for a few seconds after each buy, and longer while you keep going.
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 4)
   local e, p = Q.cur, Q.plan
@@ -754,10 +772,29 @@ ns:On("CHAT_MSG_SYSTEM", function(msg)
   if wonPattern and msg:find(wonPattern) and Q.plan and Q.plan.kind == "item" then itemBought() end
 end)
 
-local function failed(_, msg)
-  if Q.state ~= "buying" then return end
+-- The last few auction house errors, to see what they have in common (owner, November 5):
+-- what was being bought, how old the plan was, what else was running.
+local function noteError(msg, code)
+  local log = ns.db.buyErrors or {}
+  ns.db.buyErrors = log
+  local e, p = Q.cur, Q.plan
+  local quote = AH.GetQuoteDurationRemaining and select(2, pcall(AH.GetQuoteDurationRemaining))
+  log[#log + 1] = { t = time(), msg = msg, code = code, state = Q.state, id = e and e.id, lane = e and e.lane,
+    kind = p and p.kind, qty = p and p.qty, age = p and p.at and math.floor(GetTime() - p.at), fromPage = p and p.fromPage,
+    quote = type(quote) == "number" and quote or nil, throttled = throttled() and true or nil,
+    scan = ns.Scan.active and (ns.Scan.full and "full" or "scan") or nil }
+  while #log > 30 do table.remove(log, 1) end
+end
+
+local function failed(code, msg)
+  noteError(msg, code)
+  if Q.state ~= "buying" and Q.state ~= "price" then return end
+  if Q.state == "price" then pcall(AH.CancelCommoditiesPurchase) end
   if type(msg) == "string" and msg ~= "" then Q.note = msg end
-  again()
+  -- A moment before looking again: on a busy auction house, an instant retry fails too.
+  Q.waitFor = "the auction house"
+  setState("wait")
+  timeout(2, again)
 end
 -- Only the auction house's own errors mean the purchase failed (code review, October 4:
 -- "Not enough energy" from a keybind counted as one, so a purchase that went through
@@ -773,7 +810,7 @@ ns:On("UI_ERROR_MESSAGE", function(errType, msg)
   end
   if auctionErrors[msg] then failed(errType, msg) end
 end)
-ns:On("AUCTION_HOUSE_SHOW_ERROR", function() failed(nil, "The auction house refused that purchase.") end)
+ns:On("AUCTION_HOUSE_SHOW_ERROR", function(code) failed(code, "The auction house refused that purchase.") end)
 
 -- If the game won't let an addon buy (it could restrict these calls), say so plainly.
 local function blocked(addon, fn)
