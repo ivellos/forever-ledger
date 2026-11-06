@@ -172,11 +172,15 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.17.0",
+  version = "0.18.0",
   lines = {
-    "Worth to you switches: choose what it counts in Settings, Tooltips (auction house, vendor, disenchanting, crafting); shuffles and the Buy queue still count everything.",
-    { "Scroll to buy: on from the start, so new players can buy flips with the mouse wheel right away.", change = true },
-    { "Themes: FL Gilded is the look for new installs, and FL Default is now called FL Bronze.", change = true },
+    { "One realm: characters on the same realm showed as different realms, with separate prices. They now count as one, and your data moves over by itself.", major = true },
+    { "Gold and sales on both accounts: Live sync can share them, so both Dashboards and Ledgers match. It's off until you say the other character is your own.", major = true },
+    "Link your accounts in Settings: Settings, Characters has a name box, Link and Unlink, and shows whether the other side is online.",
+    "Quiet mode: /fl quiet turns the game's sound off and plays Forever Ledger's chimes at full volume, for a character waiting at the auction house.",
+    { "Disenchanting: now worth what the materials sell for, not what they could be crafted into, and tooltips list each material with its price.", change = true },
+    { "Shuffles: Sells on the auction house comes first, since Blizzard nerfed most vendor shuffles.", change = true },
+    { "Buy queue: no more going round in circles on refused items, and Spend at most holds even when the auction house is slow to answer.", fix = true },
   },
 }
 

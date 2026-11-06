@@ -62,7 +62,7 @@
 - **Your look:** three themes (FL Clean, FL Bronze, FL Gilded), your accent color (or EllesmereUI's), and a Size from 75% to 150%.
 - **Settings profiles:** characters can share a set of settings or each have their own; export a profile for a friend.
 - **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
-- **Two accounts?** Live sync shares prices and recipes between them while both are online, and bags and bank if you like. Remove characters you no longer have in Settings.
+- **Two accounts?** Live sync shares prices and recipes between them while both are online, and your gold, sales, bags and bank if you like. Remove characters you no longer have in Settings.
 - **Update notice:** hear from your guild or group when a newer version is out.
 
 ![The Forever Ledger window, Dashboard tab](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/dashboard.png)
@@ -78,7 +78,7 @@ Plans, not promises: the full list is in the [roadmap](https://github.com/ivello
 Forever Ledger keeps everything in its saved file on your own PC (`WTF\Account\...\SavedVariables\ForeverLedger.lua`). Nothing is sent to the author or anyone else.
 
 - **What it keeps:** auction house and vendor prices and their history; recipe, vendor and trainer locations you've seen; your characters' professions and recipes, gold over time, sales, purchases and vendor trades; bag and bank contents (this account only); requests the customer finder spotted in chat; and your work-done log.
-- **What it sends:** only two things, and only when you choose to. Live sync whispers prices and recipes to **your own** paired character (off until you use `/fl pair`), and the ad buttons post your ad in Trade chat when you click them.
+- **What it sends:** only two things, and only when you choose to. Live sync whispers prices and recipes to **your own** linked character (off until you link one), and your gold, sales, bags and bank only if you say yes for that link, and the ad buttons post your ad in Trade chat when you click them.
 - **Export / import** copies your data as text for you to paste on your other account; it goes nowhere by itself.
 
 If a feature ever shares anything with other players (an idea on the roadmap: sharing where vendors and trainers are, so everyone's data fills in faster), it will be world facts only, never names, gold or bags, it will ask first, and you can turn it off.
@@ -132,6 +132,7 @@ Most things have a button; these are for when you'd rather type. The main ones:
 | `/fl de` | Disenchant results so far, against what the addon expects (`/fl de reset` to start over) |
 | `/fl new`, `/fl welcome` | What's new in this version; the welcome again |
 | `/fl pair First Last` | Pair with your character on another account for live sync (do it on both); `/fl unpair` stops it and removes their characters |
+| `/fl quiet` | Turns the game's sound off and plays Forever Ledger's chimes at full volume; again to stop |
 | `/fl sync` | Sync status; `/fl sync now` sends everything, `/fl sync ping First Last` checks whispers reach someone |
 | `/fl minimap` | Hide or show the minimap button |
 | `/fl pull` | Copy prices from Auctionator, TSM or Auctioneer |

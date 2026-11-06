@@ -5,32 +5,39 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-06
+
+### Highlights
+- Δ **One realm**: characters on the same realm showed as different realms, with separate prices. They now count as one, and your data moves over by itself.
+- Δ **Gold and sales on both accounts**: Live sync can share them, so both Dashboards and Ledgers match. It's off until you say the other character is your own.
+- + **Link your accounts in Settings**: Settings, Characters has a name box, Link and Unlink, and shows whether the other side is online.
+- + **Quiet mode**: `/fl quiet` turns the game's sound off and plays Forever Ledger's chimes at full volume, for a character waiting at the auction house.
+- ~ **Disenchanting**: now worth what the materials sell for, not what they could be crafted into, and tooltips list each material with its price.
+- ~ **Shuffles**: Sells on the auction house comes first, since Blizzard nerfed most vendor shuffles.
+- ✓ **Buy queue**: no more going round in circles on refused items, and Spend at most holds even when the auction house is slow to answer.
+
 ### Added
-- Development: CI checks Lua globals with Luacheck and a maintained WoW API configuration.
 - Settings, Characters: link your other account with a name box and Link and Unlink buttons, and see whether it's online. `/fl pair` and `/fl unpair` still work.
 - Quiet mode: `/fl quiet` turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background. A setting does it while the flip watch runs, and `/fl pair` offers to turn that on for your auction house character. Your sound settings come back afterward.
-
-### Fixed
-- Sync: sharing gold, sales, bags and bank now belongs to one link. Linking someone new starts with it off and asks again, so what you agreed for your own account never goes to a friend.
-- Sync: gold and sales go again if the other side never says they arrived, for example after a reload partway through.
-- Buy queue: after an unclear auction house error or no reply, it waits up to a minute to hear whether that purchase went through before buying anything else, and whatever of its cost hasn't left your gold stays held against Spend at most, even if you click elsewhere, so the limit holds and the purchase is counted against the right item.
-- Disenchant finder: Worth and Profit round the same way as the tooltip, so they no longer differ by a copper.
-- Buy queue: after the auction house refuses an item twice, or its real price comes back over your limit twice, the item is set aside for a while instead of going round again.
-- Buy queue: what a lookup found is checked again if you take over 15 seconds to buy it, so old listings aren't refused.
-- Full scans: after the game answers one with an error, the next wait 5 minutes, so the flip watch doesn't keep asking.
-- Flip watch: its quick checks wait while you're on an item's buy or sell page, so they don't replace what the page shows.
-- Buy queue: waits until the auction house is ready before sending a purchase, and pauses for a moment after an auction house error instead of retrying at once. The flip watch steps aside as soon as the queue needs the auction house, so it starts on a flip sooner. The last 30 errors are saved, to find what's behind "Internal auction error".
+- Live sync can share gold and sales: both accounts' Dashboards and Ledgers show the same, history included. It's off until you say the other character is your own: `/fl pair` asks, or tick Share gold and sales (Global settings, Advanced).
+- Development: CI checks Lua globals with Luacheck and a maintained WoW API configuration.
 
 ### Changed
 - Disenchanting is now worth what the materials sell for, not what they could be crafted into, everywhere: tooltips, the Disenchant finder and shuffles. Tooltips list each material with its price.
 - Shuffles: Sells on the auction house is now the first tab and Sells to a vendor the second, with a note that Blizzard nerfed most vendor shuffles, so it may often be empty.
 
-### Added
-- Live sync can share gold and sales: both accounts' Dashboards and Ledgers show the same, history included. It's off until you say the other character is your own: `/fl pair` asks, or tick Share gold and sales (Global settings, Advanced).
-
 ### Fixed
-- Live sync: big sends arrive however long they take. Large price syncs could be thrown away after 2 minutes, and were then counted as sent.
 - Characters on the same realm showed as different realms, with separate prices: the live game names each character's server ("CAMWOW US2 Realm 3 PvE"). They now all count as one realm, and existing data moves over by itself.
+- Sync: sharing gold, sales, bags and bank now belongs to one link. Linking someone new starts with it off and asks again, so what you agreed for your own account never goes to a friend.
+- Sync: gold and sales go again if the other side never says they arrived, for example after a reload partway through.
+- Live sync: big sends arrive however long they take. Large price syncs could be thrown away after 2 minutes, and were then counted as sent.
+- Buy queue: after an unclear auction house error or no reply, it waits up to a minute to hear whether that purchase went through before buying anything else, and whatever of its cost hasn't left your gold stays held against Spend at most, even if you click elsewhere, so the limit holds and the purchase is counted against the right item.
+- Buy queue: after the auction house refuses an item twice, or its real price comes back over your limit twice, the item is set aside for a while instead of going round again.
+- Buy queue: what a lookup found is checked again if you take over 15 seconds to buy it, so old listings aren't refused.
+- Buy queue: waits until the auction house is ready before sending a purchase, and pauses for a moment after an auction house error instead of retrying at once. The flip watch steps aside as soon as the queue needs the auction house, so it starts on a flip sooner.
+- Full scans: after the game answers one with an error, the next wait 5 minutes, so the flip watch doesn't keep asking.
+- Flip watch: its quick checks wait while you're on an item's buy or sell page, so they don't replace what the page shows.
+- Disenchant finder: Worth and Profit round the same way as the tooltip, so they no longer differ by a copper.
 
 ## [0.17.1] - 2026-11-06
 
