@@ -94,6 +94,8 @@ end
 -- stop sending (once is enough), note they're offline, and hide the message.
 local NOT_FOUND = ERR_CHAT_PLAYER_NOT_FOUND_S and ERR_CHAT_PLAYER_NOT_FOUND_S:match("^(.-)%%s") or "No player named "
 local function notFound(msg)
+  -- (the chat filter below runs outside ns:On, which keeps hidden text away from handlers)
+  if issecretvalue and issecretvalue(msg) then return false end
   if not (lastSentTo and GetTime() - lastSentTo < 5 and type(msg) == "string") then return false end
   if msg:sub(1, #NOT_FOUND) ~= NOT_FOUND and not msg:find("No player named", 1, true) then return false end
   local target = (ping and ping.name) or (test and me()) or partner()

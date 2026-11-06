@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-06
+
+### Highlights
+- ✓ **Sell protection**: an error stopped it whenever a vendor paid more than the listing, so Post wasn't held. It warns and holds Post again.
+- ✓ **Hidden game messages**: no more errors when the live game hides a chat message from addons. `/fl api` lists what was hidden.
+
+### Fixed
+- Sell protection: an error stopped it whenever a vendor paid more than the listing, so Post wasn't held. It warns and holds Post again.
+- No more errors when the game hides a chat message from addons. `/fl api` lists what was hidden.
+
 ## [0.17.0] - 2026-10-22
 
 ### Highlights

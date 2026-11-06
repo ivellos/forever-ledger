@@ -172,11 +172,10 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.17.0",
+  version = "0.17.1",
   lines = {
-    "Worth to you switches: choose what it counts in Settings, Tooltips (auction house, vendor, disenchanting, crafting); shuffles and the Buy queue still count everything.",
-    { "Scroll to buy: on from the start, so new players can buy flips with the mouse wheel right away.", change = true },
-    { "Themes: FL Gilded is the look for new installs, and FL Default is now called FL Bronze.", change = true },
+    { "Sell protection: an error stopped it whenever a vendor paid more than the listing, so Post wasn't held. It warns and holds Post again.", fix = true },
+    { "Hidden game messages: no more errors when the live game hides a chat message from addons. /fl api lists what was hidden.", fix = true },
   },
 }
 

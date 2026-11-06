@@ -315,15 +315,45 @@ function ns.Timed(label, fn)
   end
 end
 
-frame:SetScript("OnEvent", function(_, event, ...)
-  local list = handlers[event]
-  if not list then return end
+-- The live game hides some event text from addons (a "secret" value; seen on system chat
+-- messages, November 5): even looking at one is an error. If the first argument is hidden
+-- (the message itself), the event is skipped and /fl api lists it; a later one hidden
+-- reaches the handlers as nil, so readable text isn't lost.
+ns.secretSkipped = {}
+local function firstSecret(...)
+  for i = 1, select("#", ...) do
+    if issecretvalue((select(i, ...))) then return i end
+  end
+end
+
+local function withoutSecrets(...)
+  local n, args = select("#", ...), { ... }
+  for i = 1, n do
+    if issecretvalue(args[i]) then args[i] = nil end
+  end
+  return unpack(args, 1, n)
+end
+
+local function dispatch(list, event, ...)
   local t = clock()
   for i = 1, #list do
     local ok, err = pcall(list[i], ...)
     if not ok then geterrorhandler()(err) end
   end
   note(event, clock() - t)
+end
+
+frame:SetScript("OnEvent", function(_, event, ...)
+  local list = handlers[event]
+  if not list then return end
+  local secret = issecretvalue and firstSecret(...)
+  if secret == 1 then
+    ns.secretSkipped[event] = (ns.secretSkipped[event] or 0) + 1
+  elseif secret then
+    dispatch(list, event, withoutSecrets(...))
+  else
+    dispatch(list, event, ...)
+  end
 end)
 
 function ns:PrintPerf(reset)
@@ -763,6 +793,12 @@ function ns:ApiReport()
   end
   try("Realm", function() return GetRealmName(), GetNormalizedRealmName and GetNormalizedRealmName() end)
   try("Realm ID", function() return GetRealmID and GetRealmID() end)
+  try("Hidden from addons", function()
+    local skipped = {}
+    for event, n in pairs(ns.secretSkipped) do skipped[#skipped + 1] = ("%s %d"):format(event, n) end
+    table.sort(skipped)
+    return #skipped > 0 and table.concat(skipped, ", ") or "nothing so far"
+  end)
   try("Season", function() return C_Seasons and C_Seasons.GetActiveSeason and C_Seasons.GetActiveSeason() end)
   try("Hardcore", function() return C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive() end)
   try("PvP server", function() return C_PvP and C_PvP.IsWarModeDesired and C_PvP.IsWarModeDesired(), IsPVPTimerRunning and IsPVPTimerRunning() end)

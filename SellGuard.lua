@@ -44,7 +44,7 @@ local function evaluate(g)
   end
   -- Two short lines, centred under Post (owner, October 3: "centered and clean").
   g.text:SetText(("|cffff7070Vendor pays: %s|r"):format(ns.Money(sell)))
-  g.text2:SetText(("Auction house: %s after the %d%% cut"):format(ns.Money(net), math.floor(cut * 100 + 0.5)))
+  g.text2:SetText(("Auction house: %s after the %d%% cut"):format(ns.Money(net), math.floor(ns:AHCut() * 100 + 0.5)))
   local lock = ns.db.settings.sellGuard ~= false and not unlocked[g.key]
   g.anyway:SetShown(lock)
   if lock and post and post:IsEnabled() then post:Disable() end
