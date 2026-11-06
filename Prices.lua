@@ -765,7 +765,7 @@ local FULL_COOLDOWN = 15 * 60   -- Blizzard allows a full scan about every 15 mi
 -- Seconds until a full scan is allowed again (0 if it is now).
 function Scan:FullWait()
   if not C_AuctionHouse.ReplicateItems then return math.huge end
-  return math.max(0, (ns.db.lastFullScan or 0) + FULL_COOLDOWN - time())
+  return math.max(0, (ns.db.lastFullScan or 0) + FULL_COOLDOWN - time(), (self.heldUntil or 0) - time())
 end
 
 -- mode: "auto" (full scan if allowed, otherwise materials), "full" or "watch" (materials only).
@@ -1029,6 +1029,14 @@ function Scan:StartFull(fallback)
     end
   end)
 end
+
+-- The game answered a full scan with an error ("Internal auction error", November 5, with
+-- the buy queue idle). Nothing marks that scan as done, so the flip watch would ask again
+-- at every pass: leave it a few minutes.
+local FULL_HOLD = 5 * 60
+ns:On("AUCTION_HOUSE_SHOW_ERROR", function()
+  if Scan.active and Scan.full then Scan.heldUntil = time() + FULL_HOLD end
+end)
 
 -- The results arrive for every addon, so a full scan started by another addon
 -- (Auctionator, TSM...) is read too. They share Blizzard's 15-minute limit.

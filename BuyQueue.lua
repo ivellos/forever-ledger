@@ -564,6 +564,7 @@ end
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
 local CATCHING_UP = "The auction house is catching up: try again in a moment."
+local PLAN_SECONDS = 15   -- how long what a lookup found is trusted
 -- clicked: a click on the button (not the wheel). With nothing to buy, the button runs
 -- the flip watch instead (owner, October 3: "Look again" seemed odd); the wheel never
 -- starts a scan.
@@ -594,6 +595,14 @@ function ns:BuyQueueAct(clicked)
   -- Scans step aside for a few seconds after each buy, and longer while you keep going.
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 4)
   local e, p = Q.cur, Q.plan
+  -- Sat on Buy a while: look again first. A listing found 81 seconds earlier was refused
+  -- and a stack's price had moved after 18 (owner's test, November 5).
+  if Q.state == "ready" and p and p.at and GetTime() - p.at > PLAN_SECONDS then
+    Q.note = "That was a while ago: checking it's still there."
+    Q.userPicked = true
+    again()
+    return
+  end
   -- The limit (or your gold) may have changed since this was planned: never over it.
   local need = p and ((Q.state == "confirm" and p.total) or (Q.state == "ready" and (p.cost or p.price)))
   if need and need > spendable() then
