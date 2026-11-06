@@ -25,7 +25,7 @@ end
 local function budget(cost)
   ns.db.settings.buyQueue.limit = cost
   Q.spent, Q.lastMoney, Q.buyAt, Q.buyFrom, S.money = 0, 1000, GetTime(), 1000, 1000
-  Q.plan.cost = cost
+  Q.plan.cost, Q.lastPlan = cost, Q.plan
 end
 
 local function withAHOpen(fn)
@@ -125,13 +125,81 @@ T.test("Buy queue: gold leaving settles a purchase with no reply", function()
     buying(91015)
     budget(100)
     S.money = 900
-    T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
-    T.eq(Q.lateBuys[1].paid, true, "gold had already left when the error came")
-    T.eq(Q.visitLeft(), 100, "so nothing more is held")
     T.fire("PLAYER_MONEY")
+    T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+    T.eq(Q.lateBuys[1].left, 0, "gold had already left when the error came")
     T.eq(Q.spent, 100)
+    T.eq(Q.visitLeft(), 0, "counted once")
+    buying(91026)
+    budget(100)
+    S.money = 900
+    T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+    T.eq(Q.lateBuys[1].left, 100, "gold gone, but not reported yet")
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.lateBuys[1].left, 0)
+    T.eq(Q.spent, 100)
+    T.eq(Q.visitLeft(), 0, "still once")
+  end)
+end)
+
+T.test("Buy queue: a small gold loss frees only that much of what's held", function()
+  withAHOpen(function()
+    buying(91027)
+    budget(100)
+    T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+    S.money = 999            -- a deposit, say
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.spent, 1)
+    T.eq(Q.lateBuys[1].left, 99)
+    T.eq(Q.visitLeft(), 0)
+    Q.state, Q.plan = "confirm", { kind = "commodity", qty = 1, cost = 9, total = 9 }
+    ns:BuyQueueAct()
+    T.eq(Q.note, HEARING_BACK, "and the wait goes on")
+    buying(91028)
+    budget(100)
+    S.money = 999
+    T.fire("PLAYER_MONEY")   -- before the error this time
+    T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+    T.eq(Q.lateBuys[1].left, 99)
     T.eq(Q.visitLeft(), 0)
   end)
+end)
+
+T.test("Buy queue: a newer purchase's gold frees nothing held for an older one", function()
+  withAHOpen(function()
+    buying(91029)
+    budget(100)
+    Q.plan.cost = 40
+    T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+    S.now = S.now + 61
+    local b = { id = 91030, lane = "flips", want = 10, limit = 9 }
+    S.items[b.id] = { name = "Item B", sell = 1 }
+    Q.cur, Q.plan, Q.state = b, { kind = "commodity", qty = 5, cost = 50 }, "buying"
+    Q.buyAt, Q.lastPlan = GetTime(), Q.plan
+    T.fire("COMMODITY_PURCHASE_SUCCEEDED")
+    S.money = 950
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.spent, 50)
+    T.eq(Q.lateBuys[1].left, 40)
+    T.eq(Q.visitLeft(), 10)
+  end)
+end)
+
+T.test("Buy queue: a purchase on its way stays open if you click elsewhere", function()
+  local a = buying(91031)
+  Q.dropCurrent()
+  T.eq(#Q.lateBuys, 1, "a row or section click")
+  T.eq(Q.lateBuys[1].cur, a)
+  local b = buying(91032)
+  T.fire("AUCTION_HOUSE_CLOSED")
+  T.eq(#Q.lateBuys, 1, "closing the auction house")
+  T.eq(Q.lateBuys[1].cur, b)
+  T.fire("COMMODITY_PURCHASE_SUCCEEDED")
+  T.eq(b.want, 7)
+  buying(91033)
+  Q.state = "ready"
+  Q.dropCurrent()
+  T.eq(#Q.lateBuys, 0, "nothing sent, nothing to keep")
 end)
 
 T.test("Buy queue: no answer at all is treated like an unclear error", function()

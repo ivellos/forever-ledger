@@ -257,7 +257,7 @@ end
 -- passed). bought() counts items, not gold.
 -- A purchase that got an unclear error, or no answer at all, may still go through. Silence
 -- proves nothing (Codex review, November 6), so it stays in Q.lateBuys until it's settled:
--- by its success or failure, or by its gold leaving (paid). Meanwhile:
+-- by its success or failure, or by all its gold leaving (left, what's still to come). Meanwhile:
 -- - Nothing else is bought for up to LATE_SECONDS, so two replies can't be mixed up.
 -- - Its cost stays held against Spend at most for the rest of the visit, however late.
 -- - A success with no purchase under way still counts for it, however late.
@@ -266,7 +266,7 @@ end
 local LATE_SECONDS = 60
 local function awaitingLate()
   for _, late in ipairs(Q.lateBuys) do
-    if not late.paid and GetTime() - late.at <= LATE_SECONDS then return true end
+    if late.left > 0 and GetTime() - late.at <= LATE_SECONDS then return true end
   end
   return false
 end
@@ -274,7 +274,7 @@ end
 local function owedLate()
   local total = 0
   for _, late in ipairs(Q.lateBuys) do
-    if not late.paid then total = total + late.cost end
+    total = total + late.left
   end
   return total
 end
@@ -282,8 +282,16 @@ end
 local function settleLater()
   local p, e = Q.plan, Q.cur
   if not (p and e) then return end
-  Q.lateBuys[#Q.lateBuys + 1] = { plan = p, cur = e, at = GetTime(), cost = p.total or p.cost or p.price or 0,
-    paid = Q.buyFrom ~= nil and GetMoney() < Q.buyFrom }
+  -- (Gold already counted in Q.spent; gold not reported yet comes off in PLAYER_MONEY.)
+  local counted = Q.buyFrom and Q.lastMoney and math.max(Q.buyFrom - Q.lastMoney, 0) or 0
+  Q.lateBuys[#Q.lateBuys + 1] = { plan = p, cur = e, at = GetTime(), left = math.max((p.total or p.cost or p.price or 0) - counted, 0) }
+end
+
+local function isLate(plan)
+  for _, late in ipairs(Q.lateBuys) do
+    if late.plan == plan then return true end
+  end
+  return false
 end
 
 ns:On("PLAYER_MONEY", function()
@@ -291,15 +299,19 @@ ns:On("PLAYER_MONEY", function()
   local before = Q.lastMoney
   Q.lastMoney = now
   if not (before and now < before and ns:IsAHOpen()) then return end
+  local paid = before - now
+  local recent = Q.buyAt and GetTime() - Q.buyAt < 15
+  -- Gold counted as spent comes off what's held, copper for copper, so a small loss frees
+  -- only that much. The latest purchase's own gold frees nothing held for an older one.
   local late
-  if Q.state ~= "buying" then
+  if not recent or isLate(Q.lastPlan) then
     for _, l in ipairs(Q.lateBuys) do
-      if not l.paid then late = l; break end
+      if l.left > 0 then late = l; break end
     end
   end
-  if late or (Q.buyAt and GetTime() - Q.buyAt < 15) then
-    Q.spent = Q.spent + (before - now)
-    if late then late.paid = true end
+  if late or recent then
+    Q.spent = Q.spent + paid
+    if late then late.left = math.max(late.left - paid, 0) end
   end
 end)
 ns:On("AUCTION_HOUSE_SHOW", function()
@@ -481,9 +493,11 @@ end
 -- Let go of the current item (a purchase waiting for its confirm tick is cancelled).
 local function dropCurrent()
   if Q.state == "price" or Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
+  if Q.state == "buying" then settleLater() end   -- (on its way: it can't be called back)
   Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
   Q.state = "idle"
 end
+Q.dropCurrent = dropCurrent   -- (for the tests)
 
 -- Make a section the one that looks things up and buys. Only you do this (a click, or
 -- the wheel over its strip); scans and the flip watch never switch it.
@@ -706,7 +720,7 @@ function ns:BuyQueueAct(clicked)
     setState("price")
     timeout(6, function() pcall(AH.CancelCommoditiesPurchase); Q.note = "No final price came back: checking again."; again() end)
   elseif Q.state == "confirm" and p and p.kind == "commodity" then
-    Q.buyAt, Q.lastMoney, Q.buyFrom = GetTime(), GetMoney(), GetMoney()
+    Q.buyAt, Q.lastMoney, Q.buyFrom, Q.lastPlan = GetTime(), GetMoney(), GetMoney(), p
     local ok, err = pcall(AH.ConfirmCommoditiesPurchase, e.id, p.qty)
     if not ok then ns:Print("Couldn't confirm that purchase: " .. tostring(err)); again(); return end
     setState("buying")
@@ -714,7 +728,7 @@ function ns:BuyQueueAct(clicked)
   elseif Q.state == "ready" and p and p.kind == "item" then
     -- So the purchase is logged under the right item (History.lua's PlaceBid hook).
     ns.queueBidItem = e.id
-    Q.buyAt, Q.lastMoney, Q.buyFrom = GetTime(), GetMoney(), GetMoney()
+    Q.buyAt, Q.lastMoney, Q.buyFrom, Q.lastPlan = GetTime(), GetMoney(), GetMoney(), p
     local ok, err = pcall(AH.PlaceBid, p.auctionID, p.price)
     ns.queueBidItem = nil
     if not ok then ns:Print("Couldn't buy that: " .. tostring(err)); again(); return end
@@ -844,13 +858,13 @@ local function lateSuccess(kind, auctionID, paidOnly)
   local found
   for i, late in ipairs(Q.lateBuys) do
     if late.plan.kind == kind and (not auctionID or late.plan.auctionID == auctionID)
-      and (late.paid or not paidOnly) then
+      and (late.left <= 0 or not paidOnly) then
       found = table.remove(Q.lateBuys, i)
       break
     end
   end
   if not found then return false end
-  if not found.paid then Q.buyAt = GetTime() end   -- (its gold can leave just after this)
+  if found.left > 0 then Q.buyAt, Q.lastPlan = GetTime(), found.plan end   -- (its gold can leave just after this)
   local plan, e = found.plan, found.cur
   if kind == "commodity" then
     bought(plan.qty, plan.total or plan.cost, e)
@@ -2901,6 +2915,7 @@ local function showTab(tab)
   else
     -- Leaving the queue: let go of a purchase that was waiting for its confirm tick.
     if Q.state == "price" or Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
+    if Q.state == "buying" then settleLater() end
     Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
     Q.state = "idle"
   end
@@ -2992,6 +3007,7 @@ local function ensureSide()
   end)
   side:SetScript("OnHide", function()
     if Q.state == "price" or Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
+    if Q.state == "buying" then settleLater() end
     Q.cur, Q.plan, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"
     updateBinding()
     if ns.UpdateAHScanButtons then ns:UpdateAHScanButtons() end
@@ -3078,6 +3094,7 @@ ns:On("AUCTION_HOUSE_SHOW", function()
   Q.vendorValue, Q.vendorCost = nil, nil
 end)
 ns:On("AUCTION_HOUSE_CLOSED", function()
+  if Q.state == "buying" then settleLater() end
   Q.cur, Q.plan, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"
   -- Next visit, nothing is armed until you click (a lone flips section arms by itself).
   Q.armed = nil
