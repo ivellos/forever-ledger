@@ -809,6 +809,18 @@ function Scan:StartList(ids, label)
   self:Next()
 end
 
+-- You're on one item's page, buying or listing: the auction house keeps one item search
+-- at a time, so a quiet check would replace what that page shows, however long you stay
+-- (owner, November 5: looking up an item and listing it with the flip watch on).
+local function itemPageOpen()
+  local ah = AuctionHouseFrame
+  if not ah then return false end
+  for _, page in ipairs({ ah.ItemBuyFrame, ah.CommoditiesBuyFrame, ah.ItemSellFrame, ah.CommoditiesSellFrame }) do
+    if page:IsShown() then return true end
+  end
+  return false
+end
+
 function Scan:Next()
   if not self.active then return end
   if #self.queue == 0 then
@@ -838,7 +850,7 @@ function Scan:Next()
   end
   -- The flip watch's quiet checks wait while you're searching yourself, so they don't
   -- talk over the page you're buying from.
-  if self.quiet and ns.lastUserSearch and GetTime() - ns.lastUserSearch < 20 then
+  if self.quiet and ((ns.lastUserSearch and GetTime() - ns.lastUserSearch < 20) or itemPageOpen()) then
     C_Timer.After(2, function() self:Next() end)
     return
   end

@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- Flip watch: its quick checks wait while you're on an item's buy or sell page, so they don't replace what the page shows.
 - Sell protection: an error stopped it whenever a vendor paid more than the listing, so Post wasn't held. It warns and holds Post again.
 - Buy queue: waits until the auction house is ready before sending a purchase, asks for a new final price once the old one runs out, and pauses for a moment after an auction house error instead of retrying at once. The last 30 errors are saved, to find what's behind "Internal auction error".
 
