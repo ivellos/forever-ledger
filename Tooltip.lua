@@ -113,6 +113,27 @@ local function cheapestPerSlot()
   return best
 end
 
+-- What a disenchant gives and what each material brings, so the number can be checked by
+-- hand (Magic and the owner, November 6). True if anything was added.
+function ns:AddDisenchantLines(tt, id)
+  local total, parts = ns:DisenchantSaleValue(id)
+  if not total then return end
+  if #parts == 0 then
+    local names = {}
+    for _, y in ipairs(ns:DisenchantYield(id)) do
+      names[#names + 1] = ("%.2f %s"):format(y[2], ns:DisenchantMaterialName(y[1]))
+    end
+    tt:AddLine("Disenchants to about " .. table.concat(names, ", "), LR, LG, LB, true)
+    return true
+  end
+  tt:AddDoubleLine("Disenchants to, after the cut", ns.Money(math.floor(total)), LR, LG, LB, 1, 1, 1)
+  for _, p in ipairs(parts) do
+    tt:AddDoubleLine(("  %.2f %s at %s"):format(p.count, ns:DisenchantMaterialName(p.id), ns.Money(math.floor(p.each))),
+      ns.Money(math.floor(p.count * p.each)), 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
+  end
+  return true
+end
+
 local function bagLines(tt, id)
   local slots = slotsOf(id)
   if not slots or slots <= 0 then return end
@@ -317,14 +338,7 @@ local function addLines(tt, id, forceFull)
 
   if on("tipBagSlot") then bagLines(tt, id) end
 
-  local yield = on("tipDisenchant") and ns:DisenchantYield(id)
-  if yield then
-    local parts = {}
-    for _, y in ipairs(yield) do
-      parts[#parts + 1] = ("%.2f %s"):format(y[2], ns:DisenchantMaterialName(y[1]))
-    end
-    tt:AddLine("Disenchants to about " .. table.concat(parts, ", "), LR, LG, LB, true)
-  end
+  if on("tipDisenchant") and ns:AddDisenchantLines(tt, id) then ns.disenchantLinesFor = id end
 
   local users = on("tipUsedBy") and ns.usage and ns.usage[id]
   if users then

@@ -257,13 +257,6 @@ end
 
 local options
 
--- Ties favour the vendor (no listing risk), then name for a stable order.
-local function bestFirst(a, b)
-  if a.value ~= b.value then return a.value > b.value end
-  if a.kind == "vendor" or b.kind == "vendor" then return a.kind == "vendor" end
-  return (a.step or a.kind) < (b.step or b.kind)
-end
-
 -- Best option for the next item in a chain that doesn't lead back to `from`. If the
 -- best one loops back, take the next best instead of treating the item as worthless:
 -- otherwise which items looked profitable depended on the order they were worked out,
@@ -278,6 +271,24 @@ local function follow(nextID, depth, from)
   if not list then list = options(nextID, depth + 1); cache[key] = list end
   for _, alt in ipairs(list) do
     if not passesThrough(alt, from) then return alt end
+  end
+end
+
+-- A disenchant's material as something you sell: the best way with no crafting in it
+-- (selling it, or splitting or combining and selling that). Crafts made a 3s disenchant
+-- look like 6s, with nothing saying why, and after the nerfs they rarely matter (Magic and
+-- the owner, November 6).
+local function noCraft(o)
+  if o.kind == "convert" then return noCraft(o.next) end
+  return o.kind == "ah" or o.kind == "vendor"
+end
+
+local function sellable(id, depth)
+  local key = "all:" .. id .. ":" .. (depth + 1)
+  local list = cache[key]
+  if not list then list = options(id, depth + 1); cache[key] = list end
+  for _, o in ipairs(list) do
+    if noCraft(o) then return o end
   end
 end
 
@@ -305,7 +316,7 @@ options = function(id, depth)
     if yield and skill >= (yield.skill or 1) then
       local total, mats = 0, {}
       for _, y in ipairs(yield) do
-        local o = follow(y[1], depth, id)
+        local o = sellable(y[1], depth)
         if o then
           total = total + o.value * y[2]
           mats[#mats + 1] = { id = y[1], count = y[2], opt = o }
@@ -348,7 +359,12 @@ options = function(id, depth)
 
   end
 
-  table.sort(list, bestFirst)
+  -- Ties favour the vendor (no listing risk), then name for a stable order.
+  table.sort(list, function(a, b)
+    if a.value ~= b.value then return a.value > b.value end
+    if a.kind == "vendor" or b.kind == "vendor" then return a.kind == "vendor" end
+    return (a.step or a.kind) < (b.step or b.kind)
+  end)
   return list
 end
 
@@ -386,44 +402,16 @@ function ns:BestOption(id)
   return best(id, 0)
 end
 
--- A material as something you get from a disenchant or craft (one step down a chain):
--- no deposit allowance, thin markets left out, exactly as the disenchant option counts
--- it (Codex review, October 7: the Disenchant finder's level hover used BestOption).
-function ns:MaterialOption(id)
-  if not id or not ns.db then return end
-  freshCache()
-  return best(id, 1)
-end
-
--- A material as something you sell: the best way with no crafting in it (selling it,
--- or splitting or combining and selling that). Not used inside options(): this reads
--- them, and starting a chain over from there could go round for good.
-local function noCraft(o)
-  if o.kind == "convert" then return noCraft(o.next) end
-  return o.kind == "ah" or o.kind == "vendor"
-end
-
+-- A material as something you get from a disenchant: no deposit allowance, thin markets
+-- left out, no crafting, exactly as the disenchant option counts it.
 function ns:MaterialSale(id)
   if not id or not ns.db then return end
   freshCache()
-  local key = "sale:" .. id
-  local hit = cache[key]
-  if hit == nil then
-    hit = false
-    local listKey = "all:" .. id .. ":1"
-    local list = cache[listKey]
-    if not list then list = options(id, 1); cache[listKey] = list end
-    for _, o in ipairs(list) do
-      if noCraft(o) then hit = o; break end
-    end
-    cache[key] = hit
-  end
-  return hit or nil
+  return sellable(id, 0)
 end
 
--- What one disenchant brings on average if you just sell the materials (Magic and the
--- owner, November 6: crafts made a 3s disenchant look like 6s, with nothing saying why).
--- Returns the total and { { id, count, each } }.
+-- What one disenchant brings on average, for showing how it adds up. Works without an
+-- enchanter too. Returns the total and { { id, count, each } }.
 function ns:DisenchantSaleValue(id)
   local yield = ns:DisenchantYield(id)
   if not yield then return end
@@ -443,8 +431,8 @@ end
 -- disenchant or convert. Returns the price and the option it comes from.
 function ns:BuyAtOrBelow(id, shown)
   local bestNonAH, useful
-  for _, o in ipairs(shown and ns:ShownOptions(id) or ns:Options(id)) do
-    if o.kind ~= "ah" then
+  for _, o in ipairs(ns:Options(id)) do
+    if o.kind ~= "ah" and not (shown and not ns:WorthCounts(o)) then
       bestNonAH = bestNonAH or o
       if o.kind ~= "vendor" then useful = true end
     end
@@ -455,17 +443,14 @@ function ns:BuyAtOrBelow(id, shown)
 end
 
 -- The finder and its saved shopping source use the disenchant route specifically,
--- even when selling/crafting the gear would be worth more, and count what the materials
--- sell for, not what they could be crafted into: a limit shouldn't rest on a craft you
--- may never make. Copper limits round down. The fourth value is the worth with crafts.
+-- even when selling/crafting the gear would be worth more. Copper limits round down.
 function ns:DisenchantBuyLimit(id, source)
   local yield = ns:DisenchantYield(id)
   if not yield or (source and (source.id ~= id or source.band ~= yield.band or source.kind ~= yield.kind)) then return end
   for _, o in ipairs(ns:Options(id)) do
     if o.kind == "disenchant" then
-      local worth = ns:DisenchantSaleValue(id)
-      local cap = math.floor(worth * (1 - (ns.db.settings.margin or 10) / 100))
-      return cap > 0 and cap or nil, worth, yield, o.value
+      local cap = math.floor(o.value * (1 - (ns.db.settings.margin or 10) / 100))
+      return cap > 0 and cap or nil, o.value, yield
     end
   end
 end
@@ -525,32 +510,6 @@ function ns:WorthCounts(o)
   return not key or ns.db.settings[key] ~= false
 end
 
--- The ways tooltips and the Characters tab show: only the ticked ones, and disenchanting
--- at what the materials sell for, the same as the Disenchant finder (Magic and the owner,
--- November 6: 6s 29c in the tooltip for materials that sell for about 3s, and it ignored
--- crafting being switched off). Shuffles and the Buy queue plan real crafts and still use
--- ns:Options.
-function ns:ShownOptions(id)
-  local list = {}
-  for _, o in ipairs(ns:Options(id)) do
-    if ns:WorthCounts(o) then
-      if o.kind == "disenchant" then
-        local sale = ns:DisenchantSaleValue(id)
-        if sale and sale > 0 then
-          local copy = {}
-          for k, v in pairs(o) do copy[k] = v end
-          copy.value = sale
-          list[#list + 1] = copy
-        end
-      else
-        list[#list + 1] = o
-      end
-    end
-  end
-  table.sort(list, bestFirst)
-  return list
-end
-
 -- Returns the best value and a list of options (each with a label), best first.
 -- Only the three best recipes are listed, so tooltips stay short. shown: only the ways
 -- ticked in Settings, Tooltips, Worth to you counts.
@@ -558,8 +517,10 @@ function ns:GetValue(id, shown)
   if not id or not ns.db then return end
   freshCache()
   local list, crafts, seen = {}, 0, {}
-  for _, o in ipairs(shown and ns:ShownOptions(id) or allOptions(id)) do
-    if o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
+  for _, o in ipairs(allOptions(id)) do
+    if shown and not ns:WorthCounts(o) then
+      -- left out
+    elseif o.kind ~= "craft" or (not seen[o.step] and crafts < 3) then
       if o.kind == "craft" then seen[o.step] = true; crafts = crafts + 1 end
       o.label = ns:OptionLabel(o)
       list[#list + 1] = o

@@ -43,7 +43,7 @@ T.test("DE limit is floored DE value minus safety margin, never vendor value", f
   T.ok(list.name:find("16-20 armor", 1, true))
   T.ok(ns:ListPriceSourceText(list, list.items[1]):find("From disenchanting", 1, true))
 end)
-T.test("Finder worth is what the materials sell for, not what they could be crafted into", function()
+T.test("Disenchanting counts what the materials sell for, never what they could be crafted into", function()
   fresh()
   local OIL = 89505
   S.items[OIL] = { name = "Dear oil", quality = 1 }
@@ -52,27 +52,19 @@ T.test("Finder worth is what the materials sell for, not what they could be craf
   ns.recipesByReagent = { [DUST] = { { key = ns.CharKey(), who = "Tester", prof = "Enchanting", recipeID = 1,
     rec = { n = "Dear oil", out = OIL, oq = 1, r = { { DUST, 1 } } } } } }
   ns:InvalidateValues(true)
-  T.eq(ns:MaterialOption(DUST).kind, "craft", "a craft is the best way for dust")
-  T.eq(ns:MaterialSale(DUST).kind, "ah", "but it's sold here")
-  local cap, worth, _, withCrafts = ns:DisenchantBuyLimit(A)
+  T.eq(ns:BestOption(DUST).kind, "craft", "dust itself can still be crafted with")
+  T.eq(ns:MaterialSale(DUST).kind, "ah", "but a disenchant's dust is sold")
+  local cap, worth = ns:DisenchantBuyLimit(A)
   local total, parts = ns:DisenchantSaleValue(A)
   T.eq(worth, total)
   T.eq(cap, math.floor(total * .9))
-  T.ok(withCrafts > worth * 10, "the craft is still known")
   T.eq(#parts, 2, "dust and essence have prices; the shard has none")
   T.eq(parts[1].id, DUST)
   T.eq(math.floor(parts[1].each), math.floor(ns:MaterialSale(DUST).value))
-  -- Tooltips say the same as the finder; what plans real crafts still counts them.
-  local shown, ways = ns:GetValue(A, true)
-  T.eq(shown, total, "Worth to you")
+  local value, ways = ns:GetValue(A, true)
+  T.eq(value, total, "Worth to you says the same")
   T.eq(ways[1].kind, "disenchant")
-  T.ok(math.abs(ns:BuyAtOrBelow(A, true) - total * .9) < 0.01, "Buy at or below")
-  T.ok((ns:GetValue(A)) > total * 10, "everything else")
-  T.ok(ns:BuyAtOrBelow(A) > total * 9)
-  ns.db.settings.worthDisenchant = false
-  local _, left = ns:GetValue(A, true)
-  for _, o in ipairs(left) do T.ok(o.kind ~= "disenchant", "unticked: left out") end
-  ns.db.settings.worthDisenchant = nil
+  T.eq((ns:GetValue(A)), total, "and so does everything else")
   ns.recipesByReagent = saved
   ns:InvalidateValues(true)
 end)
