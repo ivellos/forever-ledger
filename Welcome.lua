@@ -172,8 +172,9 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.18.0",
+  version = "0.18.1",
   lines = {
+    { "Disenchant tooltips: each result now shows its chance, and the total says it's an average, so it no longer looks like you get all of them.", fix = true },
     { "One realm: characters on the same realm showed as different realms, with separate prices. They now count as one, and your data moves over by itself.", major = true },
     { "Gold and sales on both accounts: Live sync can share them, so both Dashboards and Ledgers match. It's off until you say the other character is your own.", major = true },
     "Link your accounts in Settings: Settings, Characters has a name box, Link and Unlink, and shows whether the other side is online.",

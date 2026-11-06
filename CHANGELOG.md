@@ -5,7 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-### Changed
+## [0.18.1] - 2026-11-06
+
+### Highlights
+- ✓ **Disenchant tooltips**: each result now shows its chance, and the total says it's an average, so it no longer looks like you get all of them.
+
+### Fixed
 - Disenchant tooltips show each result's chance and what it brings when it comes up, under an average total, so the lines no longer read as if you get all of them. The value itself is unchanged.
 
 ## [0.18.0] - 2026-11-06
