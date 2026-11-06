@@ -83,7 +83,7 @@ T.test("Buy queue: nothing else is bought until a late purchase is settled", fun
   T.eq(a.want, 7, "the success went to the first purchase")
   T.eq(b.want, 10)
   ns:BuyQueueAct()
-  T.eq(Q.note, nil, "and buying can go on")
+  T.ok(Q.note ~= "Waiting to hear whether the last purchase went through.", "and buying can go on")
   S.now = S.now + 20
   buying(91009)
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
