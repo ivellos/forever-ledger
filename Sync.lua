@@ -302,6 +302,19 @@ end)
 ---------------------------------------------------------------------------
 -- Commands
 ---------------------------------------------------------------------------
+-- Paired characters are often one that plays and one that waits at the auction house, so
+-- pairing offers quiet mode (owner, November 5). Settings has it too.
+StaticPopupDialogs["FOREVER_LEDGER_BANK_CHAR"] = {
+  text = "Is this your auction house character?\n\nForever Ledger can turn the game's sound off while the flip watch runs and play its chimes at full volume, even with the game in the background. You can change this later in Settings, Auction house, Alerts.",
+  button1 = "Yes, turn it on", button2 = "No",
+  OnAccept = function()
+    ns.db.settings.quietWatch = true
+    if ns.UpdateQuiet then ns:UpdateQuiet() end
+    ns:Print("Quiet mode will come on while the flip watch runs.")
+  end,
+  timeout = 0, whileDead = true, hideOnEscape = true,
+}
+
 function ns:SyncCommand(args)
   local cmd, rest = (args or ""):match("^(%S*)%s*(.-)$")
   if cmd == "pair" then
@@ -311,6 +324,7 @@ function ns:SyncCommand(args)
     partnerOnline = false
     ns:Print(("Paired with %s. Do /fl pair %s on that character too. Syncing starts when both are online."):format(name, me()))
     hello(false)
+    if not ns.db.settings.quietWatch and StaticPopup_Show then StaticPopup_Show("FOREVER_LEDGER_BANK_CHAR") end
   elseif cmd == "unpair" then
     local p = partner()
     ns.db.settings.syncPartner, partnerOnline = nil, false

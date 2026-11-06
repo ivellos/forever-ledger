@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Quiet mode: `/fl quiet` turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background. A setting does it while the flip watch runs. Your sound settings come back afterward.
+- Quiet mode: `/fl quiet` turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background. A setting does it while the flip watch runs, and `/fl pair` offers to turn that on for your auction house character. Your sound settings come back afterward.
 
 ### Fixed
 - Buy queue: what a lookup found is checked again if you take over 15 seconds to buy it, so old listings aren't refused.

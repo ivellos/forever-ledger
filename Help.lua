@@ -29,7 +29,7 @@ ns.HELP = {
     { "Full scan", "Reads every listing in a few seconds." },
     { "Scan materials", "Checks just what your recipes use." },
     { "Watch flips", "On the auction house: keeps scanning while it stays open and chimes when a new vendor flip turns up. It can only scan with the auction house open: it pauses when you close it and picks up again when you come back (Settings, Auction house: Resume the flip watch)." },
-    { "Quiet mode", "Doing something else while you wait for a chime? /fl quiet turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background. Quiet mode while the flip watch runs (Settings, Auction house, Alerts) does it by itself. Your sound settings come back afterward." },
+    { "Quiet mode", "Doing something else while you wait for a chime? /fl quiet turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background. Quiet mode while the flip watch runs (Settings, Auction house, Alerts) does it by itself, and /fl pair offers to turn that on. Your sound settings come back afterward." },
     { "Other addons", "If Auctionator or another addon runs a full scan, Forever Ledger reads it too. With Auctionator, TSM or ForeverForge installed, features they already cover (like auction prices in tooltips, or a sound when an auction sells) are switched off once, with a message; turn them back on in Settings." },
     { "Neutral auction houses", "Booty Bay, Gadgetzan and Everlook keep their own prices and take a 15% cut (your faction's takes 5%), which values, sell protection and the Auctions tab count while you're there. The Auctions tab lists what you have up there apart from your faction's." },
     { sub = "Selling" },
