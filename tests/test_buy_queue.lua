@@ -216,6 +216,27 @@ T.test("Buy queue: skipping an item with a purchase on its way keeps that purcha
   T.eq(#Q.lateBuys, 0, "nothing sent, nothing to keep")
 end)
 
+T.test("Buy queue: scans wait while a purchase is ready for your click", function()
+  buying(91040)
+  ns.queueBusyUntil = 0
+  Q.setState("search")
+  T.eq(ns.queueBusyUntil, 0, "looking something up doesn't hold them here")
+  Q.setState("ready")
+  T.ok(ns.queueBusyUntil > GetTime(), "ready holds them")
+  ns.queueBusyUntil = 0
+  Q.setState("confirm")
+  T.ok(ns.queueBusyUntil > GetTime(), "so does the final price")
+  -- A click held back (the queue isn't on screen here, as it isn't when anything stops it)
+  -- still makes room, or the scan takes the next gap and the one after.
+  ns.queueBusyUntil = 0
+  ns:BuyQueueAct()
+  T.ok(ns.queueBusyUntil > GetTime(), "a click that's held back holds them too")
+  ns.queueBusyUntil = 0
+  Q.state = "idle"
+  ns:BuyQueueAct()
+  T.eq(ns.queueBusyUntil, 0, "nothing ready: scans carry on")
+end)
+
 T.test("Buy queue: no answer at all is treated like an unclear error", function()
   local a = buying(91016)
   Q.noReply()

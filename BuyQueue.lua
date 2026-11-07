@@ -185,13 +185,24 @@ local function trace(text)
   while #log > 200 do table.remove(log, 1) end
 end
 
+-- Scans wait while a purchase is ready for your click. The game takes one auction house
+-- request at a time and a scan sends its next one the moment that's free, so on a slow
+-- server it always got in first and Buy was held back until you stopped the scan or
+-- reloaded (owner's log, November 6: Moss Agate, 21 clicks in 13 seconds, none let through).
+local SCAN_ROOM = 4
+local function holdScans()
+  ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + SCAN_ROOM)
+end
+
 local function setState(state)
   Q.state, Q.tok = state, Q.tok + 1
+  if state == "ready" or state == "confirm" then holdScans() end
   local throttle = AH.IsThrottledMessageSystemReady and not AH.IsThrottledMessageSystemReady()
   trace(("%s item=%s qty=%s note=%s%s%s"):format(state, tostring(Q.cur and Q.cur.id), tostring(Q.plan and Q.plan.qty),
     tostring(Q.note), throttle and " throttled" or "", ns.Scan.active and " scanning" or ""))
   if refreshQueue then refreshQueue() end
 end
+Q.setState = setState   -- (for the tests)
 
 -- Run fn after secs unless the state has changed since.
 local function timeout(secs, fn)
@@ -662,6 +673,8 @@ local PLAN_SECONDS = 15   -- how long what a lookup found is trusted
 -- the flip watch instead (owner, October 3: "Look again" seemed odd); the wheel never
 -- starts a scan.
 function ns:BuyQueueAct(clicked)
+  -- (Before the checks below: a click they hold back must still make room for the next.)
+  if Q.state == "ready" or Q.state == "confirm" then holdScans() end
   if clicked and Q.state == "idle" and not Q.cur then
     local any = false
     for _, x in ipairs(laneList()) do
@@ -700,7 +713,7 @@ function ns:BuyQueueAct(clicked)
   end
   if Q.note == CATCHING_UP then Q.note = nil end
   -- Scans step aside for a few seconds after each buy, and longer while you keep going.
-  ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 4)
+  holdScans()
   local e, p = Q.cur, Q.plan
   -- Sat on Buy a while: look again first. A listing found 81 seconds earlier was refused
   -- and a stack's price had moved after 18 (owner's test, November 5).
