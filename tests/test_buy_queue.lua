@@ -251,6 +251,21 @@ T.test("Full scan: no reply isn't asked for again at every flip watch pass", fun
   ns.Scan.heldUntil = nil
 end)
 
+T.test("Full scan: one that arrives minutes late is still yours", function()
+  wipe(S.timers)
+  ns.db.lastFullScan, ns.Scan.heldUntil, ns.db.fullScanLog = nil, nil, nil
+  ns.db.settings.debug = true
+  ns.Scan:StartFull(false)
+  T.runTimers()
+  S.now = S.now + 211
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  wipe(S.timers)
+  local log = ns.db.fullScanLog
+  T.eq(log[#log].what, "done: 0 listings, 211 seconds after asking")
+  T.ok(ns.db.lastFullScan, "counts as a finished scan")
+  ns.db.settings.debug, ns.Scan.heldUntil = false, nil
+end)
+
 T.test("Buy queue: no answer at all is treated like an unclear error", function()
   local a = buying(91016)
   Q.noReply()

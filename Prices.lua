@@ -1009,6 +1009,10 @@ local FULL_TIMEOUT = 30
 -- marks it as done, so the flip watch would ask at every pass, and the Buy queue waits for
 -- each try: 30 seconds out of every minute (owner's log, November 6, three tries running).
 local FULL_HOLD = 5 * 60
+-- A scan that arrives this long after we asked is ours, however late: November 6 at a busy
+-- hour, 142,376 listings came 3 and a half minutes after asking, long after FULL_TIMEOUT,
+-- and chat said another addon had run it.
+local FULL_LATE = 10 * 60
 -- The last 30 full scan requests and how each ended, with /fl debug on (owner, November 6:
 -- none finished after 19:57, and nothing showed whether they were asked for or refused).
 local function fullNote(what)
@@ -1028,6 +1032,7 @@ function Scan:StartFull(fallback)
   local tok = self.fullToken
   ns:Print("Requesting a full scan of the auction house. This usually takes a few seconds.")
   fullNote("asked")
+  self.askedAt = GetTime()
   C_AuctionHouse.ReplicateItems()
   -- Nothing comes back if Blizzard's 15-minute limit hasn't passed (for example after
   -- a full scan on another character).
@@ -1038,10 +1043,10 @@ function Scan:StartFull(fallback)
     self.heldUntil = time() + FULL_HOLD
     if not fallback and ns.FlipWatchNext then ns.FlipWatchNext() end
     if fallback then
-      ns:Print("The auction house didn't send a full scan yet. Scanning your materials instead.")
+      ns:Print("The auction house hasn't sent the full scan yet. Scanning your materials instead; keep the auction house open and it's read if it arrives.")
       self:StartWatch()
     else
-      ns:Print("The auction house didn't send a full scan. It allows one about every 15 minutes, so try again later, or use /fl scan materials.")
+      ns:Print("The auction house hasn't sent the full scan yet. It can take minutes when it's busy: keep it open and it's read when it arrives. It allows one about every 15 minutes.")
     end
   end)
 end
@@ -1154,7 +1159,10 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
           probe.tl and (#bands > 0 and table.concat(bands, ", ") or "none read") or "function missing"))
       end
       ns.db.lastFullScan = time()
-      fullNote(("done: %d listings%s"):format(n, mine and "" or ", not asked for by this request"))
+      local waited = not mine and Scan.askedAt and GetTime() - Scan.askedAt
+      if waited and waited >= FULL_LATE then waited = nil end
+      Scan.askedAt = nil
+      fullNote(("done: %d listings%s"):format(n, mine and "" or waited and (", %d seconds after asking"):format(waited) or ", not asked for by this request"))
       readingFull = false
       if not ahOpen and ns.neutralAH then
         ns.neutralAH = nil
@@ -1165,6 +1173,8 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       local secs = math.floor(GetTime() - started + 0.5)
       if mine then
         ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
+      elseif waited then
+        ns:Print(("Full scan done: %d listings across %d items. The auction house took about %d min to send it."):format(n, items, math.max(1, math.floor(waited / 60 + 0.5))))
       else
         ns:Print(("Another addon ran a full scan; Forever Ledger read it too: %d listings across %d items in %ds."):format(n, items, secs))
       end

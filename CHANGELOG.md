@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 - Buy queue: Buy no longer gets stuck on "The auction house is catching up" while a scan or the flip watch runs on a slow server. Scans now wait while a purchase is ready for your click.
 - Flip watch: when the auction house doesn't answer a full scan, it waits 5 minutes before asking again, instead of asking every minute and holding up the Buy queue for 30 seconds each time.
+- A full scan that arrives late on a busy auction house now says so, instead of saying another addon ran it, and the message while waiting no longer suggests it failed.
 
 ## [0.18.1] - 2026-11-06
 
