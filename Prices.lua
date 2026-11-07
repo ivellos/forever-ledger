@@ -1005,6 +1005,10 @@ end)
 -- Full scan of every listing. Blizzard only allows this about every 15 minutes.
 -- fallback: scan materials instead if the auction house doesn't send the full scan.
 local FULL_TIMEOUT = 30
+-- A full scan refused or left unanswered isn't asked for again for a few minutes. Nothing
+-- marks it as done, so the flip watch would ask at every pass, and the Buy queue waits for
+-- each try: 30 seconds out of every minute (owner's log, November 6, three tries running).
+local FULL_HOLD = 5 * 60
 -- The last 30 full scan requests and how each ended, with /fl debug on (owner, November 6:
 -- none finished after 19:57, and nothing showed whether they were asked for or refused).
 local function fullNote(what)
@@ -1031,6 +1035,7 @@ function Scan:StartFull(fallback)
     if not (self.active and self.full and self.fullToken == tok) then return end
     fullNote("no reply in 30 seconds")
     self.active, self.full = false, false
+    self.heldUntil = time() + FULL_HOLD
     if not fallback and ns.FlipWatchNext then ns.FlipWatchNext() end
     if fallback then
       ns:Print("The auction house didn't send a full scan yet. Scanning your materials instead.")
@@ -1042,9 +1047,7 @@ function Scan:StartFull(fallback)
 end
 
 -- The game answered a full scan with an error ("Internal auction error", November 5, with
--- the buy queue idle). Nothing marks that scan as done, so the flip watch would ask again
--- at every pass: leave it a few minutes.
-local FULL_HOLD = 5 * 60
+-- the buy queue idle).
 ns:On("AUCTION_HOUSE_SHOW_ERROR", function(code)
   fullNote(("auction house error %s, %s"):format(tostring(code), (Scan.active and Scan.full) and "during a full scan" or "no full scan waiting"))
   if Scan.active and Scan.full then Scan.heldUntil = time() + FULL_HOLD end

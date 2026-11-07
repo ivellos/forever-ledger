@@ -237,6 +237,20 @@ T.test("Buy queue: scans wait while a purchase is ready for your click", functio
   T.eq(ns.queueBusyUntil, 0, "nothing ready: scans carry on")
 end)
 
+T.test("Full scan: no reply isn't asked for again at every flip watch pass", function()
+  wipe(S.timers)
+  ns.db.lastFullScan, ns.Scan.heldUntil = nil, nil
+  T.eq(ns.Scan:FullWait(), 0)
+  ns.Scan:StartFull(false)
+  T.ok(ns.Scan.active and ns.Scan.full, "asked")
+  T.runTimers()
+  T.ok(not ns.Scan.active and not ns.Scan.full, "gave up waiting")
+  T.eq(ns.Scan:FullWait(), 300, "five minutes before the next try")
+  S.now = S.now + 300
+  T.eq(ns.Scan:FullWait(), 0, "then it can ask again")
+  ns.Scan.heldUntil = nil
+end)
+
 T.test("Buy queue: no answer at all is treated like an unclear error", function()
   local a = buying(91016)
   Q.noReply()
