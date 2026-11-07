@@ -74,6 +74,21 @@ function ns:ToggleQuiet()
     or "Quiet mode off: your sound settings are back.")
 end
 
+-- Quiet mode turns the game's effects off, and the game's own sound for winning an
+-- auction with them (owner, November 7: "include the chime when you win an auction").
+-- So while quiet, a purchase plays a chime on the Master channel: from the Buy queue
+-- or the game's own page. One per 2 seconds, so a run of Buy clicks doesn't stack them.
+local lastChime
+local function wonChime()
+  if not (ns.db and ns:IsQuiet() and PlaySound) then return end
+  local now = GetTime()
+  if lastChime and now - lastChime < 2 and now >= lastChime then return end
+  lastChime = now
+  pcall(PlaySound, (SOUNDKIT and SOUNDKIT.IG_QUEST_LIST_COMPLETE) or 878, "Master")
+end
+ns:On("COMMODITY_PURCHASE_SUCCEEDED", wonChime)
+ns:On("AUCTION_HOUSE_PURCHASE_COMPLETED", wonChime)
+
 ns:On("PLAYER_LOGOUT", function()
   if ns.db then restore() end
 end)

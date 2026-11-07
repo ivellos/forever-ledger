@@ -68,6 +68,26 @@ T.test("Quiet mode: /fl quiet turns it off during the flip watch, until the next
   ns.db.settings.quietWatch = false
 end)
 
+T.test("Quiet mode: winning an auction chimes, once per 2 seconds, only while quiet", function()
+  reset()
+  local S = T.S
+  local now = S.now
+  wipe(S.sounds)
+  T.fire("COMMODITY_PURCHASE_SUCCEEDED")
+  T.eq(#S.sounds, 0, "not when quiet mode is off")
+  ns:ToggleQuiet()
+  S.now = S.now + 10
+  T.fire("COMMODITY_PURCHASE_SUCCEEDED")
+  T.eq(#S.sounds, 1, "commodity bought")
+  T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 555)
+  T.eq(#S.sounds, 1, "not twice in a row")
+  S.now = S.now + 3
+  T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 555)
+  T.eq(#S.sounds, 2, "item bought")
+  ns:ToggleQuiet()
+  S.now = now
+end)
+
 T.test("Quiet mode: follows the flip watch only with the setting on", function()
   reset()
   local watching = ns.IsFlipWatching

@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Quiet mode: winning an auction plays a chime, since the game's own sound for it is off while quiet.
+
 ## [0.18.2] - 2026-11-06
 
 ### Highlights
