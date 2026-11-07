@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
-- With `/fl debug` on, the Buy queue's log also notes clicks it held back or ignored, and purchases with no reply.
+- With `/fl debug` on, the Buy queue's log also notes clicks it held back or ignored, and purchases with no reply, and a new log keeps how each full scan request ended.
 
 ### Fixed
 - Buy queue: Buy no longer gets stuck on "The auction house is catching up" while a scan or the flip watch runs on a slow server. Scans now wait while a purchase is ready for your click.

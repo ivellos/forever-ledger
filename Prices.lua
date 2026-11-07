@@ -1005,6 +1005,15 @@ end)
 -- Full scan of every listing. Blizzard only allows this about every 15 minutes.
 -- fallback: scan materials instead if the auction house doesn't send the full scan.
 local FULL_TIMEOUT = 30
+-- The last 30 full scan requests and how each ended, with /fl debug on (owner, November 6:
+-- none finished after 19:57, and nothing showed whether they were asked for or refused).
+local function fullNote(what)
+  if not ns.db.settings.debug then return end
+  local log = ns.db.fullScanLog or {}
+  ns.db.fullScanLog = log
+  log[#log + 1] = { t = time(), what = what }
+  while #log > 30 do table.remove(log, 1) end
+end
 function Scan:StartFull(fallback)
   if not C_AuctionHouse.ReplicateItems then
     ns:Print("Full scans aren't available in this client. Use /fl scan materials instead.")
@@ -1014,11 +1023,13 @@ function Scan:StartFull(fallback)
   self.fullToken = (self.fullToken or 0) + 1
   local tok = self.fullToken
   ns:Print("Requesting a full scan of the auction house. This usually takes a few seconds.")
+  fullNote("asked")
   C_AuctionHouse.ReplicateItems()
   -- Nothing comes back if Blizzard's 15-minute limit hasn't passed (for example after
   -- a full scan on another character).
   C_Timer.After(FULL_TIMEOUT, function()
     if not (self.active and self.full and self.fullToken == tok) then return end
+    fullNote("no reply in 30 seconds")
     self.active, self.full = false, false
     if not fallback and ns.FlipWatchNext then ns.FlipWatchNext() end
     if fallback then
@@ -1034,7 +1045,8 @@ end
 -- the buy queue idle). Nothing marks that scan as done, so the flip watch would ask again
 -- at every pass: leave it a few minutes.
 local FULL_HOLD = 5 * 60
-ns:On("AUCTION_HOUSE_SHOW_ERROR", function()
+ns:On("AUCTION_HOUSE_SHOW_ERROR", function(code)
+  fullNote(("auction house error %s, %s"):format(tostring(code), (Scan.active and Scan.full) and "during a full scan" or "no full scan waiting"))
   if Scan.active and Scan.full then Scan.heldUntil = time() + FULL_HOLD end
 end)
 
@@ -1139,6 +1151,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
           probe.tl and (#bands > 0 and table.concat(bands, ", ") or "none read") or "function missing"))
       end
       ns.db.lastFullScan = time()
+      fullNote(("done: %d listings%s"):format(n, mine and "" or ", not asked for by this request"))
       readingFull = false
       if not ahOpen and ns.neutralAH then
         ns.neutralAH = nil
