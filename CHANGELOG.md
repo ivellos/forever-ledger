@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-11-06
+
+### Highlights
+- ✓ **Buy queue**: Buy no longer gets stuck on "The auction house is catching up" while a scan runs on a slow server.
+- ✓ **Flip watch**: when a full scan gets no answer, it waits 5 minutes before asking again, so it doesn't hold up the Buy queue.
+- ✓ **Full scans**: one that arrives late on a busy auction house now says so, instead of saying another addon ran it.
+
 ### Changed
 - With `/fl debug` on, the Buy queue's log also notes clicks it held back or ignored, and purchases with no reply, and a new log keeps how each full scan request ended.
 
