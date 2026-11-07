@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- With `/fl debug` on, the Buy queue's log also notes clicks it held back or ignored, and purchases with no reply.
+
 ## [0.18.1] - 2026-11-06
 
 ### Highlights

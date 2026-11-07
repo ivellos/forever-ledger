@@ -647,6 +647,7 @@ end
 
 -- No answer in time: look again, but it isn't known to have failed.
 function Q.noReply()
+  trace("no reply to the purchase, state " .. Q.state)
   settleLater()
   again()
 end
@@ -674,17 +675,25 @@ function ns:BuyQueueAct(clicked)
       return
     end
   end
+  -- (The trace notes every refused click: owner, November 6, "I have to reload to buy
+  -- things half the time", with nothing to show which of these it was.)
   if (Q.state == "ready" or Q.state == "confirm") and awaitingLate() then
+    trace(("click held: waiting on %d earlier purchases, state %s"):format(#Q.lateBuys, Q.state))
     Q.note = HEARING_BACK
     if refreshQueue then refreshQueue() end
     return
   end
   if Q.note == HEARING_BACK then Q.note = nil end
-  if not active() or GetTime() - lastAct < 0.15 then return end
+  if not active() then
+    trace(("click ignored: shown=%s armed=%s state %s"):format(tostring(shown()), tostring(Q.armed), Q.state))
+    return
+  end
+  if GetTime() - lastAct < 0.15 then return end
   lastAct = GetTime()
   -- The game's own buy buttons wait for this; a purchase sent anyway can come back as an
   -- auction house error (owner, November 5: "Internal auction error" at launch).
   if (Q.state == "ready" or Q.state == "confirm") and throttled() then
+    trace("click held: auction house throttled, state " .. Q.state)
     Q.note = CATCHING_UP
     if refreshQueue then refreshQueue() end
     return
