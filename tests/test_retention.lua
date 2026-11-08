@@ -253,8 +253,8 @@ local function days(list)
 end
 
 local function somePrices(id)
-  market("history")[id] = days({ { D - 28, 100, 110 }, { D - 21, 200, 210 }, { D - 14, 300, 310 },
-    { D - 13, 400, 410 }, { D - 1, 500, 510 }, { D, 600, 610 } })
+  market("history")[id] = days({ { D - 104, 100, 110 }, { D - 97, 200, 210 }, { D - 90, 300, 310 },
+    { D - 89, 400, 410 }, { D - 1, 500, 510 }, { D, 600, 610 } })
   market("historyQty")[id] = days({ { D - 31, 5 }, { D - 30, 6 }, { D - 29, 7 }, { D, 8 } })
   market("historySold2")[id] = days({ { D - 30, 1, 2, 3 }, { D - 29, 4, 5, 6 } })
 end
@@ -263,13 +263,14 @@ local function trimmed(id)
     market("historyAll")[id] }
 end
 
-T.test("Prices: the last 14 days stay daily, older days become weekly", function()
+-- 14 days until Frank asked for 90, for price graphs (November 7).
+T.test("Prices: the last 90 days stay daily, older days become weekly", function()
   start()
   somePrices(60001)
   tidy()
-  T.eq(market("history")[60001], days({ { D - 13, 400, 410 }, { D - 1, 500, 510 }, { D, 600, 610 } }))
+  T.eq(market("history")[60001], days({ { D - 89, 400, 410 }, { D - 1, 500, 510 }, { D, 600, 610 } }))
   T.eq(market("historyWeekly")[60001], ("%d:100:110:1|%d:200:210:1|%d:300:310:1"):format(
-    math.floor((D - 28) / 7), math.floor((D - 21) / 7), math.floor((D - 14) / 7)))
+    math.floor((D - 104) / 7), math.floor((D - 97) / 7), math.floor((D - 90) / 7)))
 end)
 
 T.test("Prices: listed counts and sell speed keep 30 days", function()
@@ -289,7 +290,7 @@ end)
 
 T.test("Prices: a day joining a week already there is averaged in", function()
   start()
-  local w = math.floor((D - 20) / 7)
+  local w = math.floor((D - 100) / 7)
   market("historyWeekly")[60004] = days({ { w, 150, 200, 2 } })
   market("history")[60004] = days({ { w * 7, 120, 500 }, { D, 1, 1 } })
   tidy()
@@ -298,7 +299,7 @@ end)
 
 T.test("Prices: an item no longer listed still counts its last day for all time", function()
   start()
-  market("history")[60005] = days({ { D - 20, 100, 150 } })
+  market("history")[60005] = days({ { D - 100, 100, 150 } })
   market("historyAll")[60005] = "90:1000:10"
   tidy()
   T.eq(market("history")[60005], nil)
@@ -308,7 +309,7 @@ end)
 T.test("Prices: trimming twice is the same as once", function()
   start()
   somePrices(60006)
-  market("history")[60007] = days({ { D - 20, 100, 150 } })
+  market("history")[60007] = days({ { D - 100, 100, 150 } })
   tidy()
   local once = copy({ trimmed(60006), trimmed(60007) })
   tidy()

@@ -1,13 +1,13 @@
--- Price history for graphs (History.lua, owner, November 7): items you've dealt with keep
--- 90 days day by day, gear versions get a history of their own, and ns:PriceSeries
--- gives a graph every saved point, oldest first.
+-- Price history for graphs (History.lua, owner, November 7): every item keeps 90 days day
+-- by day, gear versions get a history of their own, and ns:PriceSeries gives a graph
+-- every saved point, oldest first.
 local T = ...
 local ns, S = T.ns, T.S
 
 local function market(name) local k = ns.MarketKey(); ns.db[name][k] = ns.db[name][k] or {}; return ns.db[name][k] end
 local function start()
   T.resetDB()
-  ns:ForgetDealtWith()
+  ns.neutralAH = nil
 end
 local function today() return ns.LocalDay(time()) end
 local function count(s) local n = 0; for _ in (s or ""):gmatch("[^|]+") do n = n + 1 end; return n end
@@ -22,30 +22,38 @@ local function daily(id, n)
   S.now = now
 end
 
-T.test("Price history: items you've dealt with keep 90 days day by day, others 14", function()
+-- Frank, November 7: every item, not only ones you've dealt with.
+T.test("Price history: every item keeps 90 days day by day", function()
   start()
-  ns.db.purchases = { { t = time(), c = "x", id = 70001, q = 1, a = 100 } }
-  ns:ForgetDealtWith()
   daily(70001, 100)
-  daily(70002, 100)
-  T.eq(count(market("history")[70001]), 90, "bought: 90 days")
-  T.eq(count(market("history")[70002]), 14, "never touched: 14 days")
+  T.eq(count(market("history")[70001]), 90, "90 days")
   T.ok(market("historyWeekly")[70001], "older days fold into weeks")
 end)
 
-T.test("Price history: what counts as dealt with", function()
+-- Codex review, November 7: the trim runs over several frames, and closing the neutral
+-- auction house in between used to send the rest into your faction's history.
+T.test("Price history: a trim stays in the market it started in", function()
   start()
-  ns.db.itemNames[70011] = "Sold Thing"
-  ns.db.sales = { { t = time(), c = "x", n = "Sold Thing", a = 5 } }
-  ns.db.vendorLog = { { t = time(), c = "x", id = 70012, q = 1, a = 5, s = "buy" }, { t = time(), c = "x", id = 70013, q = 1, a = 5, s = "sell" } }
-  ns.db.shopping.lists = { { name = "L", items = { { id = 70014 } } } }
-  ns.db.settings.watch[70015] = true
-  ns.db.chars.x = { profs = { Tailoring = { recipes = { [1] = { out = 70016, r = { { 70017, 2 } } } } } } }
-  ns.db.inventory.x = { bags = { [70018] = 3 }, bank = { [70019] = 1 } }
-  for id = 70011, 70019 do
-    T.eq(ns.DailyDays(id), id == 70013 and 14 or 90, "item " .. id)
+  local d = today()
+  ns.neutralAH = true
+  local nHist, nVer = market("history"), market("historyVersions")
+  for id = 1, 450 do
+    nHist[id] = (d - 100) .. ":100:100|" .. d .. ":100:100"
+    nVer[id] = { [1019] = (d - 100) .. ":100:1|" .. d .. ":100:1" }
   end
-  ns.db.settings.watch[70015] = nil
+  local neutral = ns.MarketKey()
+  wipe(S.timers)
+  ns:TrimMarketHistory()
+  ns.neutralAH = nil   -- the auction house closes
+  T.runTimers()
+  local home = ns.MarketKey()
+  T.ok(neutral ~= home)
+  local function n(t) local c = 0; for _ in pairs(t or {}) do c = c + 1 end; return c end
+  T.eq(n(ns.db.historyWeekly[neutral]), 450, "every item's old day in the neutral weeks")
+  T.eq(n(ns.db.historyVersionsWeekly[neutral]), 450, "and every version's")
+  T.eq(n(ns.db.historyWeekly[home]), 0, "nothing in your faction's")
+  T.eq(n(ns.db.historyVersionsWeekly[home]), 0)
+  T.eq(nHist[450], d .. ":100:100", "today kept")
 end)
 
 T.test("Price history: a version of random-stat gear keeps its own days", function()
@@ -88,8 +96,6 @@ end)
 
 T.test("Price series: weeks, then days, oldest first, with listed counts", function()
   start()
-  ns.db.purchases = { { t = time(), c = "x", id = 70051, q = 1, a = 100 } }
-  ns:ForgetDealtWith()
   daily(70051, 100)
   local all = ns:PriceSeries(70051)
   T.ok(all[1].week, "starts with weeks")
@@ -155,8 +161,6 @@ end)
 -- last 14 days one by one and older days as weeks, as before.
 T.test("Price history: usual prices see days and weeks as before graphs", function()
   start()
-  ns.db.purchases = { { t = time(), c = "x", id = 70081, q = 1, a = 100 } }
-  ns:ForgetDealtWith()
   local now = S.now
   for i = 29, 0, -1 do
     S.now = now - i * 86400
