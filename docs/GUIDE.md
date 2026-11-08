@@ -139,7 +139,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 ## Customers and work
 
-- **Customers window** (`/fl customers`): opens when someone in chat asks for what your character can do, with **Whisper** and **Invite** buttons.
+- **Customers window** (`/fl customers`): opens when someone in chat asks for what your character can do, with **Whisper** and **Invite** buttons. **x** hides one request; **Clear all** (bottom right) hides them all.
 - **Silence**: the button at the bottom right of the Customers window quiets the alerts: **until you're next in a capital city**, **until you reload**, **until you log out**, or **always** (that turns the customer finder off; **Turn alerts back on** in the same menu, Settings, or `/fl customers on` brings it back). While quiet, requests are still listed in the window, just with no pop-up, sound or chat line; the window's bottom line says until when.
 - **Class services**: the finder also spots requests for Mage food, water and portals (portals from level 40), Warlock summons (from level 20) and Rogue lockpicking (from level 16), when you're on that class. **Settings, Customers** turns each service (and crafting requests) on or off, along with its ad button; the Customer finder switch turns the whole thing off.
 - **Ad buttons** post your crafting (with profession links) to Trade, plus a button per class service: food and water (with links), portals (with the cities you know), summons, or lockpicking. Right-click a button to change its text.

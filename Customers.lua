@@ -506,9 +506,26 @@ local function refreshWork()
   if win.sf.UpdateScrollBar then win.sf.UpdateScrollBar() end
 end
 
+-- Requests still listed: not done and under an hour old, newest first.
+function ns:OpenCustomerRequests()
+  local list, log = {}, ns.db.customers or {}
+  for i = #log, 1, -1 do
+    local e = log[i]
+    if not e.done and time() - e.t < 3600 then list[#list + 1] = e end
+  end
+  return list
+end
+
+-- Clear all (owner, November 7): what x does, for every request listed. They'd drop off
+-- within the hour anyway, so no confirmation.
+function ns:ClearCustomerRequests()
+  for _, e in ipairs(ns:OpenCustomerRequests()) do e.done = true end
+  if refresh then refresh() end
+end
+
 refresh = function()
   if not (win and win:IsShown()) then return end
-  if win.mode == "work" then return refreshWork() end
+  if win.mode == "work" then win.clear:Hide(); return refreshWork() end
   for _, r in ipairs(workRows) do r:Hide() end
   win.empty:SetText("No requests in the last hour. They appear here as soon as someone asks for what you do.")
   -- The footer says when alerts are quiet or off, and until when.
@@ -518,15 +535,11 @@ refresh = function()
   elseif k then
     win.foot:SetText(("|cffffd100Quiet %s.|r New requests still show here."):format(SILENCE_TEXT[k] or ""))
   else
-    win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
+    win.foot:SetText("Hover for the full message. x hides a request.")
   end
   local T = ns.Theme
-  local list = {}
-  local log = ns.db.customers or {}
-  for i = #log, 1, -1 do
-    local e = log[i]
-    if not e.done and time() - e.t < 3600 then list[#list + 1] = e end
-  end
+  local list = ns:OpenCustomerRequests()
+  win.clear:SetShown(#list > 0)
   local width = win.content:GetWidth()
   for i, e in ipairs(list) do
     local r = rows[i]
@@ -642,12 +655,23 @@ function ns:ShowCustomers(quiet)
     win.foot:SetPoint("BOTTOMLEFT", 10, 10)
     win.foot:SetJustifyH("LEFT")
     win.foot:SetWordWrap(false)
-    win.foot:SetText("Hover for the full message. x hides a request. Settings: Customer finder.")
+    win.foot:SetText("Hover for the full message. x hides a request.")
 
     -- Silence: a button with a short menu of how long (owner, October 3).
     local sil = T:Button(win, "Silence", 84, nil, 22)
     sil:SetPoint("BOTTOMRIGHT", -8, 5)
-    win.foot:SetPoint("RIGHT", sil, "LEFT", -8, 0)
+    -- Clear all: hides every request listed (only on Requests, when there are some).
+    win.clear = T:Button(win, "Clear all", 80, function() ns:ClearCustomerRequests() end, 22)
+    win.clear:SetPoint("RIGHT", sil, "LEFT", -6, 0)
+    win.clear:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine("Clear all", 1, 1, 1)
+      GameTooltip:AddLine("Hides every request in the list, like x on each. New ones still show up.", nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    win.clear:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    win.clear:Hide()
+    win.foot:SetPoint("RIGHT", win.clear, "LEFT", -8, 0)
     local menu = CreateFrame("Frame", nil, sil)
     menu:SetPoint("BOTTOMRIGHT", sil, "TOPRIGHT", 0, 2)
     menu:SetWidth(230)

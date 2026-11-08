@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Customers window: a Clear all button hides every request in the list at once.
+
 ### Changed
 - Quiet mode: winning an auction plays a chime, since the game's own sound for it is off while quiet.
 
