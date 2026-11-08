@@ -92,7 +92,7 @@ T.test("Price window: a craft sells for what Worth to you says, after one unsold
   market()[CLOTH] = { m = 10, q = 100, t = time() }
   market()[THREAD] = { m = 50, q = 5, t = time() }
   market()[BAG] = { m = 200, q = 5, t = time() }
-  ns.db.vendorSell[BAG] = 100
+  S.items[BAG].sell = 100; ns.db.vendorSell[BAG] = 100
   ns:InvalidateValues(true)
   local c = ns:ItemPriceSummary(BAG).craft
   T.eq(c.deposit, 20, "an 8-hour deposit at a 100c vendor price")
