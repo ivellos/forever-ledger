@@ -105,6 +105,73 @@ T.test("Price series: weeks, then days, oldest first, with listed counts", funct
   T.same(ns:PriceSeries(70052), {}, "nothing saved")
 end)
 
+-- Codex review, November 7: listed 1,1,2,2,2,2,2 averaged 1 with rounding at each step.
+T.test("Price history: a version's weekly listed count is a true average", function()
+  start()
+  local now, d0 = S.now, today()
+  local week = math.floor(d0 / 7) - 20
+  for i, q in ipairs({ 1, 1, 2, 2, 2, 2, 2 }) do
+    S.now = now + ((week * 7 + i - 1) - d0) * 86400
+    ns:RecordVersionHistory(70071, { [1019] = { m = 100, q = q } })
+  end
+  S.now = now
+  ns:RecordVersionHistory(70071, { [1019] = { m = 100, q = 1 } })   -- folds the old days
+  T.eq(market("historyVersionsWeekly")[70071][1019], week .. ":100:12:7", "the sum and the days")
+  local s = ns:PriceSeries(70071, 1019)
+  T.ok(s[1].week)
+  T.eq(s[1].listed, 2, "12 / 7 rounds to 2")
+end)
+
+T.test("Price history: versions are trimmed a little at a time", function()
+  start()
+  local d = today()
+  local hist = market("historyVersions")
+  for id = 1, 450 do hist[id] = { [1019] = (d - 100) .. ":100:1|" .. d .. ":100:1" } end
+  local function done()
+    local n = 0
+    for id = 1, 450 do if hist[id][1019] == d .. ":100:1" then n = n + 1 end end
+    return n
+  end
+  wipe(S.timers)
+  ns:TrimMarketHistory()
+  T.eq(done(), 200, "200 in the first frame")
+  T.runTimers()
+  T.eq(done(), 450, "the rest in the next frames")
+end)
+
+T.test("Price history: two copies of a version's history merge field by field", function()
+  local into = { [1019] = "10:50:1|11:70:2", [1200] = "10:5:5" }
+  ns.CombineVersions(into, { [1019] = "10:60:10|12:80:3", [1300] = "11:9:9" }, "day")
+  T.eq(into[1019], "10:50:10|11:70:2|12:80:3", "cheaper price, most listed, every day")
+  T.eq(into[1200], "10:5:5")
+  T.eq(into[1300], "11:9:9")
+  local weeks = { [1019] = "3:50:1:1" }
+  ns.CombineVersions(weeks, { [1019] = "3:60:10:6" }, "week")
+  T.eq(weeks[1019], "3:50:10:6", "the fuller week, with the cheaper price")
+end)
+
+-- Codex review, November 7: with 90 days kept, a month's usual price counted every day,
+-- so a price that fell 16 days ago still looked like 10,000c. Pricing keeps seeing the
+-- last 14 days one by one and older days as weeks, as before.
+T.test("Price history: usual prices see days and weeks as before graphs", function()
+  start()
+  ns.db.purchases = { { t = time(), c = "x", id = 70081, q = 1, a = 100 } }
+  ns:ForgetDealtWith()
+  local now = S.now
+  for i = 29, 0, -1 do
+    S.now = now - i * 86400
+    local p = i >= 14 and 10000 or 100
+    ns:RecordPriceHistory(70081, p, p, 5)
+  end
+  S.now = now
+  T.eq(count(market("history")[70081]), 30, "all 30 days kept for the graph")
+  T.eq(ns:UsualPrice(70081, "month"), 100, "13 days at 100c outweigh 3 weeks at 10,000c")
+  local daily, weekly = ns.PricingPoints(70081)
+  T.eq(#daily, 14)
+  T.ok(#weekly >= 3 and #weekly <= 4, "16 older days as 3 or 4 weeks")
+  T.eq(#ns:PriceHistory(70081), 14, "the tooltip still shows 14 days")
+end)
+
 T.test("Price series: a version's points", function()
   start()
   local now = S.now

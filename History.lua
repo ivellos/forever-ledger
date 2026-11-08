@@ -701,9 +701,10 @@ end
 ---------------------------------------------------------------------------
 -- Versions of gear with random stats ("of the Eagle"), from full scans only:
 --   historyVersions[market][id][suffix]       = "day:cheapest:listed|..."            LONG_DAYS days
---   historyVersionsWeekly[market][id][suffix] = "week:cheapest:listed:days|..."      WEEKLY_WEEKS kept
+--   historyVersionsWeekly[market][id][suffix] = "week:cheapest:listedSum:days|..."   WEEKLY_WEEKS kept
 -- A day keeps the lowest cheapest and the most listed seen that day; a week the lowest
--- cheapest and the average listed.
+-- cheapest and the sum of each day's listed, so the average (sum / days) is only rounded
+-- when shown (Codex review, November 7: rounding each day's running average drifted).
 ---------------------------------------------------------------------------
 local function versionTable(name, id)
   local t = marketTable(name)
@@ -717,10 +718,8 @@ local function addVersionWeek(id, suffix, day, cheapest, listed)
   local s = weekly[suffix] or ""
   local lw, lmin, lq, ln = s:match("(%d+):(%d+):(%d+):(%d+)$")
   if tonumber(lw) == w then
-    ln = tonumber(ln)
     cheapest = math.min(cheapest, tonumber(lmin))
-    listed = math.floor((tonumber(lq) * ln + listed) / (ln + 1) + 0.5)
-    s = s:gsub("[^|]*$", "") .. ("%.0f:%.0f:%.0f:%.0f"):format(w, cheapest, listed, ln + 1)
+    s = s:gsub("[^|]*$", "") .. ("%.0f:%.0f:%.0f:%.0f"):format(w, cheapest, tonumber(lq) + listed, tonumber(ln) + 1)
   else
     s = (s ~= "" and (s .. "|") or "") .. ("%.0f:%.0f:%.0f:1"):format(w, cheapest, listed)
   end
@@ -758,33 +757,53 @@ local function trimCounts(s, cutoff)
   return #out > 0 and table.concat(out, "|") or nil
 end
 
--- Versions no longer listed: fold their old days and drop old weeks (TrimMarketHistory).
+-- Versions no longer listed: fold their old days and drop old weeks (TrimMarketHistory),
+-- 200 items a frame like the rest, as there can be thousands (Codex review, November 7).
 local function trimVersions(d)
   local hist, weekly = marketTable("historyVersions"), marketTable("historyVersionsWeekly")
-  for id, byS in pairs(hist) do
-    for suffix, s in pairs(byS) do
-      local kept = {}
-      for e in s:gmatch("[^|]+") do
-        local day, m, q = e:match("^(%d+):(%d+):(%d+)")
-        if tonumber(day) and tonumber(day) <= d - LONG_DAYS then
-          addVersionWeek(id, suffix, tonumber(day), tonumber(m), tonumber(q))
-        else
-          kept[#kept + 1] = e
+  local ids = {}
+  for id in pairs(hist) do ids[#ids + 1] = id end
+  for id in pairs(weekly) do if not hist[id] then ids[#ids + 1] = id end end
+  local function trimOne(id)
+    local byS = hist[id]
+    if byS then
+      for suffix, s in pairs(byS) do
+        local kept = {}
+        for e in s:gmatch("[^|]+") do
+          local day, m, q = e:match("^(%d+):(%d+):(%d+)")
+          if tonumber(day) and tonumber(day) <= d - LONG_DAYS then
+            addVersionWeek(id, suffix, tonumber(day), tonumber(m), tonumber(q))
+          else
+            kept[#kept + 1] = e
+          end
         end
+        byS[suffix] = #kept > 0 and table.concat(kept, "|") or nil
       end
-      byS[suffix] = #kept > 0 and table.concat(kept, "|") or nil
+      if not next(byS) then hist[id] = nil end
     end
-    if not next(byS) then hist[id] = nil end
+    byS = weekly[id]
+    if byS then
+      for suffix, s in pairs(byS) do byS[suffix] = trimCounts(s, math.floor(d / 7) - WEEKLY_WEEKS) end
+      if not next(byS) then weekly[id] = nil end
+    end
   end
-  for id, byS in pairs(weekly) do
-    for suffix, s in pairs(byS) do byS[suffix] = trimCounts(s, math.floor(d / 7) - WEEKLY_WEEKS) end
-    if not next(byS) then weekly[id] = nil end
+  local i = 0
+  local function step()
+    for _ = 1, 200 do
+      i = i + 1
+      local id = ids[i]
+      if not id then return end
+      local ok, err = pcall(trimOne, id)
+      if not ok then ns:Debug("Version history trim skipped for", id, err) end
+    end
+    C_Timer.After(0, step)
   end
+  step()
 end
 
 function ns:TrimMarketHistory()
   local d = today()
-  pcall(trimVersions, d)
+  trimVersions(d)
   local hist, weekly = marketTable("history"), marketTable("historyWeekly")
   local qty, sold = marketTable("historyQty"), marketTable("historySold2")
   local ids = {}
@@ -862,7 +881,7 @@ function ns:PriceSeries(id, suffix, days)
     -- A week that's also partly day by day (folded up to the daily limit) would count twice.
     if start + 6 >= from and start < firstDaily then
       local p = { day = start, cheapest = tonumber(a), week = true, days = tonumber(n) }
-      if suffix then p.listed = tonumber(b) else p.typical = tonumber(b) end
+      if suffix then p.listed = math.floor(tonumber(b) / math.max(tonumber(n), 1) + 0.5) else p.typical = tonumber(b) end
       out[#out + 1] = p
     end
   end
@@ -883,13 +902,40 @@ function ns:PriceVersions(id)
   return out
 end
 
--- Returns a list of { day, cheapest, typical } for the days kept day by day, oldest first.
-function ns:PriceHistory(id)
-  local out = {}
-  for d, m, a in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
-    out[#out + 1] = { tonumber(d), tonumber(m), tonumber(a) }
+-- Deal judging, usual prices and the tooltip see an item's history as they did before
+-- graphs kept 90 days (Codex review, November 7: counting every day of 90 shifted a
+-- falling item's usual price a hundredfold): the last DAILY_DAYS days one by one, older
+-- days as one point per week, merged with the saved weeks.
+-- Returns daily { { day, cheapest, typical } } and weekly { { week, cheapest, typical } }.
+local function pricingPoints(id)
+  local d = today()
+  local daily, weeks, order = {}, {}, {}
+  local function addToWeek(w, m, a, n)
+    local p = weeks[w]
+    if not p then p = { m = m, sum = 0, n = 0 }; weeks[w] = p; order[#order + 1] = w end
+    p.m, p.sum, p.n = math.min(p.m, m), p.sum + a * n, p.n + n
   end
-  return out
+  for w, m, a, n in (marketTable("historyWeekly")[id] or ""):gmatch("(%d+):(%d+):(%d+):(%d+)") do
+    addToWeek(tonumber(w), tonumber(m), tonumber(a), math.max(tonumber(n), 1))
+  end
+  for day, m, a in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
+    day, m, a = tonumber(day), tonumber(m), tonumber(a)
+    if day > d - DAILY_DAYS then daily[#daily + 1] = { day, m, a }
+    else addToWeek(math.floor(day / 7), m, a, 1) end
+  end
+  table.sort(order)
+  local weekly = {}
+  for i, w in ipairs(order) do
+    local p = weeks[w]
+    weekly[i] = { w, p.m, math.floor(p.sum / p.n + 0.5) }
+  end
+  return daily, weekly
+end
+ns.PricingPoints = pricingPoints   -- (tests)
+
+-- Returns a list of { day, cheapest, typical } for the last DAILY_DAYS days, oldest first.
+function ns:PriceHistory(id)
+  return (pricingPoints(id))
 end
 
 -- Periods for "usual price", in days.
@@ -911,12 +957,12 @@ function ns:UsualPrice(id, window)
   local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
   from = historyStart(id, from)
   local points = {}
-  for day, _, typ in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
-    day = tonumber(day)
-    if day < d and day >= from then points[#points + 1] = tonumber(typ) end
+  local daily, weekly = pricingPoints(id)
+  for _, p in ipairs(daily) do
+    if p[1] < d and p[1] >= from then points[#points + 1] = p[3] end
   end
-  for w, _, typ in (marketTable("historyWeekly")[id] or ""):gmatch("(%d+):(%d+):(%d+):%d+") do
-    if (tonumber(w) + 1) * 7 > from then points[#points + 1] = tonumber(typ) end
+  for _, p in ipairs(weekly) do
+    if (p[1] + 1) * 7 > from then points[#points + 1] = p[3] end
   end
   if #points == 0 then return nil, 0 end
   table.sort(points)
@@ -1079,17 +1125,18 @@ function ns:PriceStats(id, window)
   local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
   from = historyStart(id, from)
   local typ, low, first, days = {}, {}, nil, 0
-  for day, m, a in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
-    day = tonumber(day)
+  local daily, weekly = pricingPoints(id)
+  for _, p in ipairs(daily) do
+    local day, m, a = p[1], p[2], p[3]
     if day < d and day >= from then
-      typ[#typ + 1], low[#low + 1] = tonumber(a), tonumber(m)
+      typ[#typ + 1], low[#low + 1] = a, m
       first, days = first or day, days + 1
     end
   end
-  for w, m, a in (marketTable("historyWeekly")[id] or ""):gmatch("(%d+):(%d+):(%d+):%d+") do
-    w = tonumber(w)
+  for _, p in ipairs(weekly) do
+    local w, m, a = p[1], p[2], p[3]
     if (w + 1) * 7 > from then
-      typ[#typ + 1], low[#low + 1] = tonumber(a), tonumber(m)
+      typ[#typ + 1], low[#low + 1] = a, m
       first = math.min(first or w * 7, w * 7)
     end
   end

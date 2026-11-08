@@ -306,11 +306,62 @@ function combine(into, from)
   end
 end
 
+-- Gear version history (History.lua) has its own fields per day or week, so two records
+-- of the same day can't just keep the cheaper row (Codex review, November 7):
+--   day  "day:cheapest:listed"            the cheaper price and the most listed
+--   week "week:cheapest:listedSum:days"   the row covering more days, with the cheaper price
+-- (Two weekly summaries of one week can't be added up without knowing which days each
+-- covers, so the fuller one stands.)
+local VERSION_TABLES = { historyVersions = "day", historyVersionsWeekly = "week" }
+
+local function combinePeriods(a, b, kind)
+  local byKey, keys = {}, {}
+  for _, s in ipairs({ a, b }) do
+    for part in s:gmatch("[^|]+") do
+      local f = {}
+      for n in part:gmatch("%d+") do f[#f + 1] = tonumber(n) end
+      local key = f[1]
+      if key then
+        local have = byKey[key]
+        if not have then
+          byKey[key] = f
+          keys[#keys + 1] = key
+        elseif kind == "day" then
+          have[2], have[3] = math.min(have[2] or f[2], f[2] or have[2]), math.max(have[3] or 0, f[3] or 0)
+        else
+          local cheapest = math.min(have[2] or f[2], f[2] or have[2])
+          if (f[4] or 0) > (have[4] or 0) then byKey[key] = f; have = f end
+          have[2] = cheapest
+        end
+      end
+    end
+  end
+  table.sort(keys)
+  for i, key in ipairs(keys) do
+    local f = byKey[key]
+    for j, n in ipairs(f) do f[j] = ("%.0f"):format(n) end
+    keys[i] = table.concat(f, ":")
+  end
+  return table.concat(keys, "|")
+end
+
+local function combineVersions(into, from, kind)
+  for k, v in pairs(from) do
+    local mine = into[k]
+    if mine == nil then into[k] = v
+    elseif type(mine) == "table" and type(v) == "table" then combineVersions(mine, v, kind)
+    elseif type(mine) == "string" and type(v) == "string" then into[k] = combinePeriods(mine, v, kind) end
+  end
+  return into
+end
+ns.CombineVersions = combineVersions   -- (tests)
+
 -- Puts every key and value in saved or received data under the plain realm.
-function ns.PlainRealmData(t)
+-- kind: inside a gear version history table (VERSION_TABLES).
+function ns.PlainRealmData(t, kind)
   local renames
   for k, v in pairs(t) do
-    if type(v) == "table" then ns.PlainRealmData(v)
+    if type(v) == "table" then ns.PlainRealmData(v, kind or VERSION_TABLES[k])
     elseif type(v) == "string" and v:find("CAMWOW", 1, true) then t[k] = ns.PlainRealm(v) end
     if type(k) == "string" and k:find("CAMWOW", 1, true) then
       renames = renames or {}
@@ -321,7 +372,9 @@ function ns.PlainRealmData(t)
     local v, new = t[k], ns.PlainRealm(k)
     t[k] = nil
     if t[new] == nil then t[new] = v
-    elseif type(t[new]) == "table" and type(v) == "table" then t[new] = combineRecord(t[new], v) end
+    elseif type(t[new]) == "table" and type(v) == "table" then
+      t[new] = kind and combineVersions(t[new], v, kind) or combineRecord(t[new], v)
+    end
   end
 end
 
