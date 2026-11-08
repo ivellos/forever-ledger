@@ -251,7 +251,7 @@ T.test("Full scan: no reply isn't asked for again at every flip watch pass", fun
   ns.Scan.heldUntil = nil
 end)
 
-T.test("Full scan: one that arrives minutes late is still yours", function()
+T.test("Full scan: one that arrives minutes late is still read and counted", function()
   wipe(S.timers)
   ns.db.lastFullScan, ns.Scan.heldUntil, ns.db.fullScanLog = nil, nil, nil
   ns.db.settings.debug = true
@@ -263,6 +263,24 @@ T.test("Full scan: one that arrives minutes late is still yours", function()
   local log = ns.db.fullScanLog
   T.eq(log[#log].what, "done: 0 listings, 211 seconds after asking")
   T.ok(ns.db.lastFullScan, "counts as a finished scan")
+  ns.db.settings.debug, ns.Scan.heldUntil = false, nil
+end)
+
+-- Codex review, November 7: the time is taken when it arrives, not after reading it.
+T.test("Full scan: a big one arriving just inside the late window counts as late, however long it takes to read", function()
+  wipe(S.timers)
+  ns.db.lastFullScan, ns.Scan.heldUntil, ns.db.fullScanLog = nil, nil, nil
+  ns.db.settings.debug = true
+  ns.Scan:StartFull(false)
+  T.runTimers()
+  S.now = S.now + 595
+  rawset(C_AuctionHouse, "GetNumReplicateItems", function() return 2500 end)
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  S.now = S.now + 10   -- the second part is read after the 10 minutes are up
+  T.runTimers()
+  rawset(C_AuctionHouse, "GetNumReplicateItems", nil)
+  local log = ns.db.fullScanLog
+  T.eq(log[#log].what, "done: 2500 listings, 595 seconds after asking")
   ns.db.settings.debug, ns.Scan.heldUntil = false, nil
 end)
 

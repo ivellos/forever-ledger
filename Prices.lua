@@ -1068,6 +1068,11 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   if not mine and GetTime() - lastFullRead < 60 then return end
   readingFull, lastFullRead = true, GetTime()
   if mine then Scan.full = false end
+  -- How long after our last unanswered request it arrived, taken now: reading a big scan
+  -- takes a moment, and that mustn't push it past FULL_LATE (Codex review, November 7).
+  local waited = not mine and Scan.askedAt and GetTime() - Scan.askedAt
+  if waited and waited >= FULL_LATE then waited = nil end
+  Scan.askedAt = nil
   local started = mine and Scan.started or GetTime()
   local n = C_AuctionHouse.GetNumReplicateItems() or 0
   if not mine then ns:Debug("Reading another addon's full scan:", n, "listings") end
@@ -1159,9 +1164,6 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
           probe.tl and (#bands > 0 and table.concat(bands, ", ") or "none read") or "function missing"))
       end
       ns.db.lastFullScan = time()
-      local waited = not mine and Scan.askedAt and GetTime() - Scan.askedAt
-      if waited and waited >= FULL_LATE then waited = nil end
-      Scan.askedAt = nil
       fullNote(("done: %d listings%s"):format(n, mine and "" or waited and (", %d seconds after asking"):format(waited) or ", not asked for by this request"))
       readingFull = false
       if not ahOpen and ns.neutralAH then
@@ -1174,7 +1176,9 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       if mine then
         ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
       elseif waited then
-        ns:Print(("Full scan done: %d listings across %d items. The auction house took about %d min to send it."):format(n, items, math.max(1, math.floor(waited / 60 + 0.5))))
+        -- Says when, not whose: another addon may have asked meanwhile, and the results
+        -- don't say who asked (Codex review, November 7).
+        ns:Print(("Full scan done: %d listings across %d items, about %d min after Forever Ledger asked for one."):format(n, items, math.max(1, math.floor(waited / 60 + 0.5))))
       else
         ns:Print(("Another addon ran a full scan; Forever Ledger read it too: %d listings across %d items in %ds."):format(n, items, secs))
       end
