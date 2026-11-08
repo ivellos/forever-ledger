@@ -625,8 +625,8 @@ local function addWeek(id, day, cheapest, typical, key)
 end
 
 -- How many were listed each day (the most seen that day), for "usually N listed" on deals.
-local function recordListed(id, d, listed)
-  local qty = marketTable("historyQty")
+local function recordListed(id, d, listed, key)
+  local qty = marketTable("historyQty", key)
   local s = qty[id] or ""
   local lastDay, lastQ = s:match("(%d+):(%d+)$")
   if tonumber(lastDay) == d then
@@ -640,12 +640,13 @@ local function recordListed(id, d, listed)
   qty[id] = s
 end
 
-function ns:RecordPriceHistory(id, cheapest, typical, listed)
+-- key: the market (nil = the one you're at): prices from a sync partner name theirs.
+function ns:RecordPriceHistory(id, cheapest, typical, listed, key)
   if not ns.db or not cheapest then return end
   typical = typical or cheapest
-  local hist = marketTable("history")
+  local hist = marketTable("history", key)
   local d = today()
-  if listed then recordListed(id, d, listed) end
+  if listed then recordListed(id, d, listed, key) end
   local s = hist[id] or ""
   local lastDay, lastMin, lastTyp = s:match("(%d+):(%d+):(%d+)$")
   lastDay = tonumber(lastDay)
@@ -654,11 +655,11 @@ function ns:RecordPriceHistory(id, cheapest, typical, listed)
     s = s:gsub("[^|]*$", "")
   else
     -- The previous day is finished.
-    if lastDay then addAllTime(id, tonumber(lastMin), tonumber(lastTyp)) end
+    if lastDay then addAllTime(id, tonumber(lastMin), tonumber(lastTyp), key) end
     if s ~= "" then s = s .. "|" end
   end
   s = s .. ("%.0f:%.0f:%.0f"):format(d, cheapest, typical)
-  hist[id] = dropOld(s, d - KEEP_DAYS, function(day, m, a) addWeek(id, day, m, a) end)
+  hist[id] = dropOld(s, d - KEEP_DAYS, function(day, m, a) addWeek(id, day, m, a, key) end)
 end
 
 ---------------------------------------------------------------------------

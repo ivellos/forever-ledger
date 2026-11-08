@@ -846,11 +846,22 @@ function ns:MergeData(data, via)
       if changed then nBags = nBags + 1 end
     end
   end
+  -- A partner's prices from today also go into today's price history (owner's
+  -- screenshot, November 8: the main account's graph only had the days it scanned
+  -- itself, while the auction house character scanned every day). Earlier days aren't
+  -- sent, so they can't be filled in.
+  local nowDay = ns.LocalDay and ns.LocalDay(time())
   for market, items in pairs(data.prices or {}) do
     db.prices[market] = db.prices[market] or {}
     for id, rec in pairs(items) do
       local mine = db.prices[market][id]
-      if not mine or (rec.t or 0) > (mine.t or 0) then db.prices[market][id] = rec; nPrices = nPrices + 1 end
+      if not mine or (rec.t or 0) > (mine.t or 0) then
+        db.prices[market][id] = rec
+        nPrices = nPrices + 1
+        if via and nowDay and rec.t and rec.m and not rec.none and ns.LocalDay(rec.t) == nowDay and ns.RecordPriceHistory then
+          pcall(ns.RecordPriceHistory, ns, id, rec.m, rec.a, rec.q, market)
+        end
+      end
     end
   end
   for id, rec in pairs(data.vendorBuy or {}) do
@@ -1116,9 +1127,10 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:ShowImport()
   elseif msg == "price" or msg:match("^price ") then
     -- /fl price [Linen Cloth] (a shift-clicked link), an item number or an exact name.
+    -- Without one, or a name that isn't exact: the window, with the look-up box.
     local arg = msg:match("^price%s+(.+)$")
     local id = arg and ns.ResolveItem and ns:ResolveItem(arg)
-    if not id then ns:Print("Use /fl price followed by a shift-clicked item, its name or its number. Alt-click an item to open it too.")
+    if not id then ns:ShowPriceWindow(nil, nil, arg)
     -- (The text is lower case by now, which breaks a full link's codes: pass just the
     -- "item:..." part, which still has the version.)
     else ns:ShowPriceWindow(id, arg:match("item:[%-%d:]+")) end

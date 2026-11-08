@@ -156,6 +156,16 @@ local function buildMain()
   -- Shopping lists away from the auction house, to plan ahead (owner, October 3).
   local lists = T:Button(main.bar, "Shopping lists", 110, function() ns:ShowSidePanel("lists") end, 22)
   lists:SetPoint("RIGHT", main.bar, "RIGHT", -36, 0)
+  -- Any item's price window, looked up by name (owner, November 8).
+  local prices = T:Button(main.bar, "Price lookup", 100, function() ns:ShowPriceWindow() end, 22)
+  prices:SetPoint("RIGHT", lists, "LEFT", -6, 0)
+  prices:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine("Price lookup", 1, 1, 1)
+    GameTooltip:AddLine("Any item's price graph and numbers: type its name. Alt-clicking an item in your bags, a chat link or an auction house listing opens it too.", 0.8, 0.8, 0.8, true)
+    GameTooltip:Show()
+  end)
+  prices:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
   -- Tabs
   main.tabs = {}

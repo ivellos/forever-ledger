@@ -121,6 +121,23 @@ local function tint(row, on, badge)
   if on and badge then row.flBadge:SetText(badge) end
 end
 
+-- Alt-click on the auction house opens the price window (PriceWindow.lua; owner,
+-- November 8: "a way to look the trends up in the AH"), like Alt-click in your bags.
+local function altOpens()
+  return IsAltKeyDown and IsAltKeyDown() and not (IsShiftKeyDown and IsShiftKeyDown())
+    and not (IsControlKeyDown and IsControlKeyDown()) and ns.db.settings.priceWindow ~= false and ns.ShowPriceWindow
+end
+-- A search result row: hooked once (rows are reused, so the item is read at the click).
+local function altClickRow(row)
+  if row.flAlt or not row.HookScript then return end
+  row.flAlt = true
+  row:HookScript("OnClick", function(self)
+    if not altOpens() then return end
+    local _, id = rowInfo(self)
+    if id then ns:ShowPriceWindow(id) end
+  end)
+end
+
 -- Watch one page: "commodity" or "item" buy pages (one item, with a line above the
 -- list), or "browse" (search results, each row a different item).
 local function watch(page, kind)
@@ -129,6 +146,25 @@ local function watch(page, kind)
   local list = page.ItemList
   local w = CreateFrame("Frame", nil, page)
   page.flWatcher = w
+  -- A buy page's item picture: Alt-click it for the price window.
+  local display = page.ItemDisplay
+  local pic = display and (display.ItemButton or display.Icon)
+  if not browse and pic and pic.HookScript then
+    pic:HookScript("OnMouseUp", function()
+      if not altOpens() then return end
+      -- The item the page shows: as the tint last read it, else asked of the page.
+      local id = page.flID
+      if not id and page.GetItemID then
+        local ok, v = pcall(page.GetItemID, page)
+        if ok then id = v end
+      end
+      if not id and page.GetItemKey then
+        local ok, key = pcall(page.GetItemKey, page)
+        if ok and type(key) == "table" then id = key.itemID end
+      end
+      if id then ns:ShowPriceWindow(id) end
+    end)
+  end
   w.note = T:Text(page, 12, T.accent, "OVERLAY")
   if list then
     -- Commodity pages have "N Available" just above the list, so go above that line.
@@ -143,7 +179,11 @@ local function watch(page, kind)
     elapsed = 0
     if not ns.db.settings.ahHighlight then
       w.note:SetText("")
-      eachRow(list, function(row) tint(row, false) end)
+      page.flID = nil
+      eachRow(list, function(row)
+        if browse then altClickRow(row) end
+        tint(row, false)
+      end)
       return
     end
 
@@ -162,6 +202,7 @@ local function watch(page, kind)
     end
     local id, key, anyPrice
     local found = eachRow(list, function(row)
+      if browse then altClickRow(row) end
       local price, rowID, rowKey = rowInfo(row, shownID)
       id, key = id or rowID, key or rowKey
       local limit, reason = limitFor(rowID)
@@ -180,6 +221,7 @@ local function watch(page, kind)
 
     if browse then return end
     id = id or shownID
+    page.flID = id
     local limit, reason = limitFor(id)
     if id and limit then
       -- Green while some are left at that price, red once they've all gone.

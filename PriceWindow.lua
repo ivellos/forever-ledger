@@ -365,9 +365,120 @@ local function itemTooltip(owner, id, link)
   GameTooltip:Show()
 end
 
+-- Look up any item by name (owner, November 8: "search items up without needing to have
+-- the item"): a box in the title bar, names suggested as you type (every item a scan has
+-- seen, and original Classic items), Enter for the top one. A link shift-clicked or an
+-- item dragged onto it works too.
+local function buildFind(f)
+  local eb = T:EditBox(f.bar, 230, "LEFT")
+  eb:SetPoint("RIGHT", f.bar, "RIGHT", -36, 0)
+  local hint = T:Text(eb, 11, T.section)
+  hint:SetPoint("LEFT", 6, 0)
+  hint:SetText("Look up an item")
+  local function showHint() hint:SetShown(eb:GetText() == "" and not eb:HasFocus()) end
+  f.find = eb
+
+  local sug = CreateFrame("Frame", nil, f)
+  sug:SetPoint("TOPLEFT", eb, "BOTTOMLEFT", 0, -2)
+  sug:SetWidth(300)
+  T:Fill(sug, { 0.05, 0.05, 0.05, 0.98 })
+  T:Border(sug)
+  sug.buttons = {}
+  sug:Hide()
+  local found = {}
+  local function open(id)
+    sug:Hide()
+    eb:SetText("")
+    eb:ClearFocus()
+    showHint()
+    ns:ShowPriceWindow(id)
+  end
+  local function suggest(text)
+    found = (not ns.ItemIDFromLink(text)) and ns:FindItemsByName(text, 10) or {}
+    if #found == 0 then sug:Hide(); return end
+    for i, e in ipairs(found) do
+      local b = sug.buttons[i]
+      if not b then
+        b = CreateFrame("Button", nil, sug)
+        b:SetHeight(20)
+        b:SetPoint("TOPLEFT", 2, -2 - (i - 1) * 20)
+        b:SetPoint("RIGHT", -2, 0)
+        local hl = b:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(T.accent[1], T.accent[2], T.accent[3], 0.18)
+        b.icon = b:CreateTexture(nil, "ARTWORK")
+        b.icon:SetSize(16, 16)
+        b.icon:SetPoint("LEFT", 2, 0)
+        b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        b.text = T:Text(b, 11)
+        b.text:SetPoint("LEFT", b.icon, "RIGHT", 4, 0)
+        b.text:SetPoint("RIGHT", -4, 0)
+        b.text:SetJustifyH("LEFT")
+        b.text:SetWordWrap(false)
+        b:SetScript("OnClick", function(self) open(self.e.id) end)
+        sug.buttons[i] = b
+      end
+      b.e = e
+      b.icon:SetTexture(ns:ItemIcon(e.id))
+      b.text:SetText(e.bound and (e.name .. " |cff888888(can't be bought)|r") or e.name)
+      b:Show()
+    end
+    for i = #found + 1, #sug.buttons do sug.buttons[i]:Hide() end
+    sug:SetHeight(#found * 20 + 4)
+    sug:SetFrameStrata("FULLSCREEN_DIALOG")
+    sug:Show()
+  end
+  f.suggest = function(text) eb:SetText(text or ""); eb:SetFocus(); suggest(text or "") end
+  eb:SetScript("OnTextChanged", function(self, userInput)
+    showHint()
+    if userInput then suggest(self:GetText()) end
+  end)
+  eb:SetScript("OnEditFocusGained", function() hint:Hide() end)
+  -- A click on a suggestion takes the focus first, so hide a moment later.
+  eb:SetScript("OnEditFocusLost", function()
+    showHint()
+    C_Timer.After(0.2, function() if not eb:HasFocus() then sug:Hide() end end)
+  end)
+  eb:SetScript("OnEnterPressed", function(self)
+    local text = self:GetText()
+    local id = ns:ResolveItem(text) or (found[1] and found[1].id)
+    if id then open(id)
+    elseif text:gsub("%s", "") ~= "" then ns:Print(("No item called \"%s\" found. Try part of its name."):format(text)) end
+  end)
+  eb:SetScript("OnEscapePressed", function(self) sug:Hide(); self:SetText(""); self:ClearFocus(); showHint() end)
+  local function drop()
+    local kind, id = GetCursorInfo()
+    if kind == "item" and id then ClearCursor(); open(id) end
+  end
+  eb:SetScript("OnReceiveDrag", drop)
+  eb:SetScript("OnMouseDown", function() if GetCursorInfo() then drop() end end)
+  eb:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine("Look up an item", 1, 1, 1)
+    GameTooltip:AddLine("Type two letters or more of any item's name and pick it, or press Enter for the top one. You don't need to have it. A shift-clicked link or an item dragged here works too.", 0.8, 0.8, 0.8, true)
+    GameTooltip:Show()
+  end)
+  eb:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
+  -- Nothing to show yet: what to do.
+  local cover = CreateFrame("Frame", nil, f)
+  cover:SetPoint("TOPLEFT", 1, -31)
+  cover:SetPoint("BOTTOMRIGHT", -1, 1)
+  cover:SetFrameLevel(f:GetFrameLevel() + 50)
+  T:Fill(cover, { T.bg[1], T.bg[2], T.bg[3], 1 })
+  cover:EnableMouse(true)
+  local msg = T:Text(cover, 13, T.dim)
+  msg:SetPoint("CENTER", 0, 10)
+  msg:SetWidth(W - 120)
+  msg:SetText("Type an item's name in the box at the top right (two letters or more), or Alt-click an item in your bags, a link in chat or a listing on the auction house.")
+  cover:Hide()
+  f.cover = cover
+end
+
 local function build()
   win = ns.ThemedWindow("ForeverLedgerPriceWindow", W, 600, T:TitleCode() .. "Price history|r")
   local f = win
+  buildFind(f)
 
   -- Top: icon, name, kind, search
   f.icon = CreateFrame("Button", nil, f)
@@ -502,7 +613,9 @@ end
 -- Lays the window out and fills it in.
 function ns:RefreshPriceWindow()
   local f = win
-  if not (f and f:IsShown() and f.id) then return end
+  if not (f and f:IsShown()) then return end
+  f.cover:SetShown(not f.id)
+  if not f.id then f:SetHeight(200); return end
   local id = f.id
   local s = ns:ItemPriceSummary(id, state.suffix)
   local card = 0
@@ -532,9 +645,11 @@ function ns:RefreshPriceWindow()
   local trend = s.trend and (s.trend >= 0 and ("|cff7fd39cup %.1f%%|r"):format(s.trend * 100)
     or ("|cffee8597down %.1f%%|r"):format(-s.trend * 100))
   local haveSub = s.have.alts > 0 and ("%s here, %s on alts"):format(count(s.have.here), count(s.have.alts)) or "bags and bank"
+  -- (Short words: a tile is about 125 pixels wide. Owner's screenshot, November 8: "not
+  -- enough scans" and "this week vs the 2 before" were cut off.)
   local tiles = {
-    { state.suffix and "Usual cheapest" or "Usual price", s.usual and ns.Money(s.usual) or dim("not enough scans"), "this month" },
-    { "Trend", trend or dim("not enough scans"), "this week vs the 2 before" },
+    { state.suffix and "Usual cheapest" or "Usual price", s.usual and ns.Money(s.usual) or dim("too new"), s.usual and "this month" or "needs 3 days of scans" },
+    { "Trend", trend or dim("too new"), trend and "7 days vs 14 before" or "needs about 10 days" },
     { "Listed now", s.listed and count(s.listed) or dim("not scanned"), s.scanned and ns.Age(s.scanned) or "" },
     { "You have", count(s.have.total), haveSub },
     { "Posted", count(s.posted), "your auctions" },
@@ -761,17 +876,22 @@ end
 ns.RefreshPriceWindow = ns.Timed("Price window", ns.RefreshPriceWindow)
 
 -- Opens the window on an item. link: the item's link, for its version and tooltip.
-function ns:ShowPriceWindow(id, link)
-  id = tonumber(id)
-  if not (id and ns.db) then return end
+-- Without an item: the window as it was (or empty), ready to type a name. find: text to
+-- put in the look-up box (/fl price with a name that isn't exact).
+function ns:ShowPriceWindow(id, link, find)
+  if not ns.db then return end
   if not win then build() end
-  if win.id ~= id then state.suffix = nil end
-  win.id, win.link = id, link
-  local suffix = link and ns.VersionOfLink and ns:VersionOfLink(id, link)
-  if suffix then state.suffix = suffix end
-  ns:RememberItem(id)
+  id = tonumber(id)
+  if id then
+    if win.id ~= id then state.suffix = nil end
+    win.id, win.link = id, link
+    local suffix = link and ns.VersionOfLink and ns:VersionOfLink(id, link)
+    if suffix then state.suffix = suffix end
+    ns:RememberItem(id)
+  end
   win:Show()
   ns:RefreshPriceWindow()
+  if not id then win.suggest(find) end
 end
 
 -- The Search button says whether it can search now (the auction house must be open).
@@ -793,8 +913,15 @@ ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
 end)
 
 -- Alt-click an item in your bags or a chat link (Settings, Tooltips: priceWindow).
+-- Shift-click while typing in the look-up box: that item.
 local function onModifiedClick(link)
-  if not (ns.db and ns.db.settings.priceWindow ~= false) then return end
+  if not ns.db then return end
+  if win and win.find:HasFocus() and IsShiftKeyDown and IsShiftKeyDown() then
+    local id = ns.ItemIDFromLink(link)
+    if id then win.find:SetText(""); win.find:ClearFocus(); ns:ShowPriceWindow(id, link) end
+    return
+  end
+  if ns.db.settings.priceWindow == false then return end
   if not (IsAltKeyDown and IsAltKeyDown()) or (IsShiftKeyDown and IsShiftKeyDown()) or (IsControlKeyDown and IsControlKeyDown()) then return end
   local id = ns.ItemIDFromLink(link)
   if id then ns:ShowPriceWindow(id, link) end

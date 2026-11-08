@@ -147,6 +147,24 @@ T.test("Add materials: refuses what it can't do, before changing anything", func
   T.eq(#crafting.items, 1)
 end)
 
+-- Owner's screenshot, November 8: the main account's graph only had the days it scanned.
+T.test("Price history: a sync partner's prices from today go into today's history", function()
+  fresh()
+  local home, neutral = ns.MarketKey(), ns.RealmName() .. "|Neutral"
+  local d = ns.LocalDay(time())
+  ns:MergeData({ prices = {
+    [home] = { [71041] = { m = 90, a = 100, q = 7, t = time() }, [71042] = { m = 50, a = 60, q = 3, t = time() - 2 * DAY } },
+    [neutral] = { [71043] = { m = 70, a = 80, q = 2, t = time() } },
+  } }, "Partner Name")
+  T.eq(ns.db.history[home][71041], d .. ":90:100")
+  T.eq(ns.db.historyQty[home][71041], d .. ":7")
+  T.eq(ns.db.history[home][71042], nil, "an older day isn't put on today")
+  T.eq(ns.db.history[neutral][71043], d .. ":70:80", "in its own market")
+  -- An import (not from a partner) doesn't touch history.
+  ns:MergeData({ prices = { [home] = { [71044] = { m = 90, a = 100, q = 7, t = time() } } } })
+  T.eq((ns.db.history[home] or {})[71044], nil)
+end)
+
 T.test("Price window: Add to shopping list puts the item on the list you're on", function()
   fresh()
   local list = ns:QuickAddToShoppingList(71031)
