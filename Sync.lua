@@ -18,6 +18,8 @@ local BOOKS_FULL_DAYS = 20   -- away longer: send everything (older entries beco
 local BOOKS_REPLY_WAIT = 60  -- seconds after the last message before sending them again
 local BOOKS_TRIES = 3        -- sends with no reply before waiting for the next hello or change
 local REASSEMBLE_TIMEOUT = 120   -- seconds with nothing new for a half-received message
+local CATCHUP_DAYS = 14      -- finished days of price history a partner can fill in
+local CATCHUP_POLL = 2       -- seconds between checks for a quiet moment to send the next day
 
 local queue, sending = {}, false
 local incoming = {}          -- [sender .. id] = { parts, n, got, t }
@@ -31,6 +33,8 @@ local booksWaiting = false
 local partnerBooks = false   -- the partner's version takes them (said in its hello)
 local booksSent              -- books on their way: { to = cursor, waitUntil = GetTime(), tries }
 local askedFor               -- who the question about gold and sales was about
+local catchUp                -- price history days on their way: { days = { { day, markets } }, i }
+local historyGot             -- days of price history received in this catch-up: { days, items }
 
 -- In Forever, UnitName's second value is the last name ("Iveilos", "Veren"), not a server.
 local function me()
@@ -123,6 +127,7 @@ local function failed()
     st.sentUpTo = st.previous
   end
   if booksSent then booksSent, booksChanged = nil, true end
+  catchUp = nil   -- (the next hello says which days are still missing)
   if ping then
     ping.failed = true
   elseif test then
@@ -252,8 +257,72 @@ function ns:BooksChanged()
   end)
 end
 
+---------------------------------------------------------------------------
+-- Price history catch-up (owner, November 8): each day's prices are saved by the
+-- account that scanned, and live sync only carries the latest prices, so an account
+-- that was offline missed those days in its graphs and usual prices. Each hello says
+-- how many items have a price on each of the last CATCHUP_DAYS finished days, and each
+-- side sends the days where it has more. One day at a time, only while nothing else is
+-- waiting to go, so live prices aren't held up; a full scan's day takes about a minute.
+-- Nothing to remember between sessions: if a day doesn't arrive, the next hello's
+-- counts still show it missing.
+---------------------------------------------------------------------------
+local function lastDays()
+  local d = ns.LocalDay(time())
+  return d - CATCHUP_DAYS, d - 1
+end
+
+local function catchUpNext(c)
+  if catchUp ~= c then return end
+  if not partnerOnline then catchUp = nil; return end
+  if sending or #queue > 0 then C_Timer.After(CATCHUP_POLL, function() catchUpNext(c) end); return end
+  c.i = c.i + 1
+  local job = c.days[c.i]
+  if not job then
+    catchUp = nil
+    ns:Debug("Sync: price history catch-up sent.")
+    return
+  end
+  local payload, items = { k = "hd", d = job.day, left = #c.days - c.i, m = {} }, 0
+  for _, market in ipairs(job.markets) do
+    local packed, n = ns:PackHistoryDay(market, job.day)
+    if n > 0 then payload.m[market], items = packed, items + n end
+  end
+  if items > 0 then
+    local msgs = send(payload, partner())
+    ns:Debug(("Sync: sending one day of price history, %d items in %d messages (%d days to go)."):format(items, msgs, payload.left))
+  end
+  C_Timer.After(CATCHUP_POLL, function() catchUpNext(c) end)
+end
+
+-- theirs: the partner's counts from its hello, { [market] = { [day] = items } }.
+local function startCatchUp(theirs)
+  if type(theirs) ~= "table" then return end
+  local from, to = lastDays()
+  local mine = ns:HistoryDayCounts(from, to)
+  local days = {}
+  for day = from, to do
+    local markets = {}
+    for market, counts in pairs(mine) do
+      local t = type(theirs[market]) == "table" and theirs[market] or {}
+      if (counts[day] or 0) > (tonumber(t[day]) or 0) then markets[#markets + 1] = market end
+    end
+    if #markets > 0 then
+      table.sort(markets)
+      days[#days + 1] = { day = day, markets = markets }
+    end
+  end
+  catchUp = #days > 0 and { days = days, i = 0 } or nil
+  if catchUp then
+    ns:Debug(("Sync: %s is missing price history for %d days; sending them in the background."):format(partner(), #days))
+    local c = catchUp
+    C_Timer.After(CATCHUP_POLL, function() catchUpNext(c) end)
+  end
+end
+
 local function hello(reply)
-  send({ k = "h", v = 1, books = 2, reply = reply or nil, from = ns.CharKey() }, partner())
+  local from, to = lastDays()
+  send({ k = "h", v = 1, books = 2, reply = reply or nil, from = ns.CharKey(), hc = ns:HistoryDayCounts(from, to) }, partner())
 end
 
 ---------------------------------------------------------------------------
@@ -281,6 +350,25 @@ local function handle(payload, sender)
       if ns.RefreshSettings then ns:RefreshSettings() end
     end
     ns:SyncSend(false)
+    -- (a version from before November 8 sends no counts, and wouldn't read the days)
+    if payload.hc then startCatchUp(payload.hc) end
+  elseif payload.k == "hd" then
+    partnerOnline = true
+    local n = 0
+    for market, packed in pairs(type(payload.m) == "table" and payload.m or {}) do
+      n = n + ns:MergeHistoryDay(market, payload.d, packed)
+    end
+    ns:Debug(("Sync: received one day of price history from %s, %d items changed."):format(sender, n))
+    historyGot = historyGot or { days = 0, items = 0 }
+    if n > 0 then historyGot.days, historyGot.items = historyGot.days + 1, historyGot.items + n end
+    if n > 0 and ns.InvalidateValues then ns:InvalidateValues() end
+    if payload.left == 0 then
+      if historyGot.days > 0 then
+        ns:Print(("Sync: filled in %d %s of price history from %s."):format(historyGot.days, historyGot.days == 1 and "day" or "days", partner()))
+        ns:RefreshUI()
+      end
+      historyGot = nil
+    end
   elseif payload.k == "d" then
     partnerOnline = true
     -- Tagged with the partner's name, so /fl unpair can take it out again.
@@ -383,7 +471,7 @@ local function endLink()
   local shared = s.syncMoney or s.syncBags
   s.syncMoney, s.syncBags = false, false
   queue, sending, booksSent, booksChanged, partnerBooks, partnerOnline = {}, false, nil, true, false, false
-  askedFor = nil
+  askedFor, catchUp, historyGot = nil, nil, nil
   return shared
 end
 

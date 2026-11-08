@@ -663,6 +663,180 @@ function ns:RecordPriceHistory(id, cheapest, typical, listed, key)
 end
 
 ---------------------------------------------------------------------------
+-- History catch-up between sync partners (Sync.lua; owner, November 8: on the main
+-- account an alt's graphs had only the days that account was online, while the other
+-- account scanned every day). Finished days go whole, one at a time, packed small:
+-- a day of a full scan is about 4,400 items.
+---------------------------------------------------------------------------
+local CATCHUP_TAIL = 600   -- characters from the end of a history string: 20 or more days
+
+-- The end of a history string, from an entry's start: every day in the last two weeks
+-- is in it (one entry a day, at most about 30 characters each). Returns head, tail;
+-- head is everything before the tail, with its "|", or "".
+local function splitTail(s)
+  if #s <= CATCHUP_TAIL then return "", s end
+  local cut = #s - CATCHUP_TAIL
+  local bar = s:find("|", cut + 1, true)
+  if not bar then return "", s end
+  return s:sub(1, bar), s:sub(bar + 1)
+end
+
+-- One day's numbers in a history string ("day:a:b|..." or "day:a|..."), as captured by pat.
+local function findDay(s, day, pat)
+  if not s then return end
+  local d = tostring(day) .. ":"
+  if s:sub(1, #d) == d then return s:match("^" .. d .. pat) end
+  return s:match("|" .. d .. pat)
+end
+
+local B36 = "0123456789abcdefghijklmnopqrstuvwxyz"
+local function b36(n)
+  n = math.floor(n)
+  if n <= 0 then return "0" end
+  local out = ""
+  while n > 0 do
+    local r = n % 36
+    out = B36:sub(r + 1, r + 1) .. out
+    n = math.floor(n / 36)
+  end
+  return out
+end
+ns.Base36 = b36   -- (tests)
+
+-- How many items have a price on each of these days, per market: { [market] = { [day] = n } }.
+function ns:HistoryDayCounts(from, to)
+  local out = {}
+  for market, items in pairs(ns.db.history or {}) do
+    local c
+    for _, s in pairs(items) do
+      if type(s) == "string" then
+        local _, tail = splitTail(s)
+        for day in tail:gmatch("(%d+):%d+:%d+") do
+          day = tonumber(day)
+          if day >= from and day <= to then
+            c = c or {}
+            c[day] = (c[day] or 0) + 1
+          end
+        end
+      end
+    end
+    if c then out[market] = c end
+  end
+  return out
+end
+
+-- One market's prices for one day, packed for sending: "id.cheapest.typical.listed" per
+-- item, comma-separated, in base 36, each id as the step from the one before (sorted),
+-- typical left out when it equals cheapest, listed when not known. Returns it and how
+-- many items it holds.
+function ns:PackHistoryDay(market, day)
+  local hist = (ns.db.history or {})[market] or {}
+  local qty = (ns.db.historyQty or {})[market] or {}
+  local found, ids = {}, {}
+  for id, s in pairs(hist) do
+    if type(id) == "number" and type(s) == "string" then
+      local _, tail = splitTail(s)
+      local m, a = findDay(tail, day, "(%d+):(%d+)")
+      if m then found[id] = { tonumber(m), tonumber(a) }; ids[#ids + 1] = id end
+    end
+  end
+  table.sort(ids)
+  local out, prev = {}, 0
+  for _, id in ipairs(ids) do
+    local m, a = found[id][1], found[id][2]
+    local q = type(qty[id]) == "string" and tonumber(findDay(qty[id], day, "(%d+)"))
+    out[#out + 1] = b36(id - prev) .. "." .. b36(m) .. "." .. (a ~= m and b36(a) or "") .. "." .. (q and b36(q) or "")
+    prev = id
+  end
+  return table.concat(out, ","), #out
+end
+
+-- The lowest price ever, when a finished day turns out lower.
+local function allTimeLowest(id, cheapest, key)
+  local all = marketTable("historyAll", key)
+  local lo, sum, n = (all[id] or ""):match("^(%d+):(%d+):(%d+)$")
+  if lo and cheapest < tonumber(lo) then all[id] = ("%.0f:%s:%s"):format(cheapest, sum, n) end
+end
+
+-- One item's day into its history string. A day you have keeps its typical price and
+-- the lower cheapest. All time counts finished days only: a day put in before a later
+-- one counts now, the last one when a newer day finishes it (RecordPriceHistory). True
+-- if anything changed.
+local function mergeDay(hist, id, day, m, a, key)
+  local head, tail = splitTail(hist[id] or "")
+  local out, placed, changed = {}, false, false
+  local lastBefore   -- the entry that was last, if the day goes after it
+  for e in tail:gmatch("[^|]+") do
+    local ed, em, ea = e:match("^(%d+):(%d+):(%d+)")
+    ed = tonumber(ed)
+    if ed == day then
+      placed = true
+      if m < tonumber(em) then
+        e = ("%.0f:%.0f:%s"):format(day, m, ea)
+        changed = true
+      end
+    elseif ed and ed > day and not placed then
+      out[#out + 1] = ("%.0f:%.0f:%.0f"):format(day, m, a)
+      placed, changed = true, true
+      addAllTime(id, m, a, key)
+    end
+    out[#out + 1] = e
+    lastBefore = ed and { tonumber(em), tonumber(ea) } or nil
+  end
+  if not placed then
+    out[#out + 1] = ("%.0f:%.0f:%.0f"):format(day, m, a)
+    changed = true
+    -- The day that was last is finished now.
+    if lastBefore then addAllTime(id, lastBefore[1], lastBefore[2], key) end
+  elseif changed and tail:match("(%d+):%d+:%d+$") ~= tostring(day) then
+    allTimeLowest(id, m, key)
+  end
+  if changed then hist[id] = head .. table.concat(out, "|") end
+  return changed
+end
+
+-- One day's listed count into an item's counts ("day:listed|..."): the higher of the two.
+local function mergeListed(qty, id, day, q)
+  local out, placed = {}, false
+  for e in (qty[id] or ""):gmatch("[^|]+") do
+    local ed, eq = e:match("^(%d+):(%d+)")
+    ed = tonumber(ed)
+    if ed == day then
+      placed = true
+      e = ("%.0f:%.0f"):format(day, math.max(q, tonumber(eq)))
+    elseif ed and ed > day and not placed then
+      out[#out + 1] = ("%.0f:%.0f"):format(day, q)
+      placed = true
+    end
+    out[#out + 1] = e
+  end
+  if not placed then out[#out + 1] = ("%.0f:%.0f"):format(day, q) end
+  qty[id] = table.concat(out, "|")
+end
+
+-- A day from the sync partner (PackHistoryDay's text) into this account's history. Only
+-- finished days still kept day by day. Returns how many items changed.
+function ns:MergeHistoryDay(market, day, packed)
+  day = tonumber(day)
+  if type(market) ~= "string" or type(packed) ~= "string" or not day then return 0 end
+  local d = today()
+  if day >= d or day <= d - KEEP_DAYS then return 0 end
+  local hist, qty = marketTable("history", market), marketTable("historyQty", market)
+  local id, n = 0, 0
+  for e in packed:gmatch("[^,]+") do
+    local step, m, a, q = e:match("^(%w+)%.(%w+)%.(%w*)%.(%w*)$")
+    step, m = tonumber(step or "", 36), tonumber(m or "", 36)
+    -- (each id is a step from the last, so nothing after a damaged entry can be trusted)
+    if not (step and m) then break end
+    id = id + step
+    a, q = tonumber(a, 36) or m, tonumber(q, 36)
+    if mergeDay(hist, id, day, m, a, market) then n = n + 1 end
+    if q and day > d - COUNT_DAYS then mergeListed(qty, id, day, q) end
+  end
+  return n
+end
+
+---------------------------------------------------------------------------
 -- Versions of gear with random stats ("of the Eagle"), from full scans only:
 --   historyVersions[market][id][suffix]       = "day:cheapest:listed|..."            KEEP_DAYS days
 --   historyVersionsWeekly[market][id][suffix] = "week:cheapest:listedSum:days|..."   WEEKLY_WEEKS kept
