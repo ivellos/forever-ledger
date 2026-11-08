@@ -88,17 +88,21 @@ end)
 -- while Worth to you, beside it, said 7s 35c after one unsold listing.
 T.test("Price window: a craft sells for what Worth to you says, after one unsold listing", function()
   fresh()
-  recipe()
+  -- Its own item: the stubs remember an item's details (BAG has no vendor price).
+  local SACK = 71014
+  S.items[SACK] = { name = "Test Sack", sell = 100 }
+  ns.db.chars.x = { name = "Crafter", profs = { Tailoring = { recipes = {
+    [2] = { n = "Test Sack", out = SACK, oq = 1, r = { { CLOTH, 4 }, { THREAD, 1 } } } } } } }
   market()[CLOTH] = { m = 10, q = 100, t = time() }
   market()[THREAD] = { m = 50, q = 5, t = time() }
-  market()[BAG] = { m = 200, q = 5, t = time() }
-  S.items[BAG].sell = 100; ns.db.vendorSell[BAG] = 100
+  market()[SACK] = { m = 200, q = 5, t = time() }
+  ns.db.vendorSell[SACK] = 100
   ns:InvalidateValues(true)
-  local c = ns:ItemPriceSummary(BAG).craft
+  local c = ns:ItemPriceSummary(SACK).craft
   T.eq(c.deposit, 20, "an 8-hour deposit at a 100c vendor price")
   T.eq(c.sells, 170, "200c after the 5% cut, less the deposit")
   T.eq(c.profit, 170 - 90)
-  local _, opts = ns:GetValue(BAG)
+  local _, opts = ns:GetValue(SACK)
   local ah
   for _, o in ipairs(opts) do if o.kind == "ah" then ah = o end end
   T.eq(c.sells, ah and ah.value, "the same as Worth to you")
