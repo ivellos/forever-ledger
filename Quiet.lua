@@ -84,7 +84,8 @@ local function wonChime()
   local now = GetTime()
   if lastChime and now - lastChime < 2 and now >= lastChime then return end
   lastChime = now
-  pcall(PlaySound, (SOUNDKIT and SOUNDKIT.IG_QUEST_LIST_COMPLETE) or 878, "Master")
+  -- The coin purse (owner, November 7: the quest chime sounded like a level up).
+  pcall(PlaySound, (SOUNDKIT and SOUNDKIT.MONEY_FRAME_OPEN) or 891, "Master")
 end
 ns:On("COMMODITY_PURCHASE_SUCCEEDED", wonChime)
 ns:On("AUCTION_HOUSE_PURCHASE_COMPLETED", wonChime)
