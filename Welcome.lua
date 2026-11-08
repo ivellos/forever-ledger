@@ -172,8 +172,10 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.18.2",
+  version = "0.18.3",
   lines = {
+    "Customers: Clear all hides every request in the list at once.",
+    { "Quiet mode: winning an auction plays a coin purse sound, since the game's own sound for it is off while quiet.", change = true },
     { "Buy queue: Buy no longer gets stuck on \"The auction house is catching up\" while a scan runs on a slow server.", fix = true },
     { "Flip watch: when a full scan gets no answer, it waits 5 minutes before asking again, so it doesn't hold up the Buy queue.", fix = true },
     { "Full scans: one that arrives late on a busy auction house now says so, instead of saying another addon ran it.", fix = true },

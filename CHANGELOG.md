@@ -5,11 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.18.3] - 2026-11-07
+
+### Highlights
+- + **Customers**: Clear all hides every request in the list at once.
+- ~ **Quiet mode**: winning an auction plays a coin purse sound, since the game's own sound for it is off while quiet.
+
 ### Added
 - Customers window: a Clear all button hides every request in the list at once.
 
 ### Changed
-- Quiet mode: winning an auction plays a chime, since the game's own sound for it is off while quiet.
+- Quiet mode: winning an auction plays a coin purse sound, since the game's own sound for it is off while quiet.
 
 ## [0.18.2] - 2026-11-06
 
