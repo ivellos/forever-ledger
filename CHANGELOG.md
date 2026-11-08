@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Price window: Alt-click an item (bags or a chat link) or `/fl price` for its usual price, trend, how many are listed, what you have and have posted, a price graph (2 weeks, 3 months or a year, with listed counts and hover for each day; one version of random-stat gear at a time), your last 7 days with it and what it's worth to you. For items your recipes make: the materials at today's prices, cost to craft against what it sells for, the profit, and Add materials to shopping list for any number of crafts. Search on the auction house while it's open. Settings, Tooltips turns Alt-click off.
+
 ### Changed
 - Price history, the start of price graphs: every item now keeps 90 days of daily prices (it was 14; usual prices, deals and buy limits work them out as before), and full scans save a daily history for each version of random-stat gear ("of the Eagle"), kept 90 days and then weekly for a year.
 

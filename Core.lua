@@ -54,7 +54,7 @@ local DEFAULTS = {
     -- find off; it was off from October 2 so nobody bought by accident). Buying still
     -- needs the mouse over the top strip, and Up to and Spend at most still apply.
     buyQueue = { flips = true, disenchant = true, deals = false, lists = true, wheel = true, tab = "queue" },
-    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false, worthAH = true, worthVendor = true, worthDisenchant = true, worthCraft = true, ridingFund = true, trainerAdvice = true, moduleLevelling = true, levellingMine = false,
+    tipMode = "full", tipOptions = 3, tipPrice = true, tipSpeed = true, tipQuest = true, tipQuestMine = true, tipDrops = true, tipHistory = true, priceWindow = true, tipWorth = true, tipBuy = true, tipDisenchant = true, tipUsedBy = true, tipCrate = true, tipBagSlot = true, tipNeutral = false, worthAH = true, worthVendor = true, worthDisenchant = true, worthCraft = true, ridingFund = true, trainerAdvice = true, moduleLevelling = true, levellingMine = false,
     -- theme: FL Gilded for new installs (owner, October 22); "default" is FL Bronze now.
     theme = "gilded", accent = "", uiScale = 100, syncMoney = false, quietWatch = false },
 }
@@ -1114,6 +1114,14 @@ SlashCmdList.FOREVERLEDGER = function(msg)
     ns:ShowPricesCSV()
   elseif msg == "import" then
     ns:ShowImport()
+  elseif msg == "price" or msg:match("^price ") then
+    -- /fl price [Linen Cloth] (a shift-clicked link), an item number or an exact name.
+    local arg = msg:match("^price%s+(.+)$")
+    local id = arg and ns.ResolveItem and ns:ResolveItem(arg)
+    if not id then ns:Print("Use /fl price followed by a shift-clicked item, its name or its number. Alt-click an item to open it too.")
+    -- (The text is lower case by now, which breaks a full link's codes: pass just the
+    -- "item:..." part, which still has the version.)
+    else ns:ShowPriceWindow(id, arg:match("item:[%-%d:]+")) end
   elseif msg:match("^deposit") then
     local id, qty, hours = msg:match("^deposit%s+(%d+)%s*(%d*)%s*(%d*)$")
     -- Or a shift-clicked item link: /fl deposit [Linen Cloth] 1 24.

@@ -36,7 +36,7 @@ read_globals = {
   "GetNormalizedRealmName", "GetRealmID", "GetRealmName", "GetRealZoneText",
   "GetMinimapZoneText", "GetScreenWidth", "GetSubZoneText", "GetTime", "GetUnitName",
   "GetZoneText", "HandleModifiedItemClick", "hooksecurefunc", "InCombatLockdown",
-  "InviteUnit", "IsControlKeyDown", "IsInGroup", "IsInGuild", "IsInInstance", "IsInRaid",
+  "InviteUnit", "IsAltKeyDown", "IsControlKeyDown", "ITEM_QUALITY_COLORS", "BreakUpLargeNumbers", "IsInGroup", "IsInGuild", "IsInInstance", "IsInRaid",
   "IsModifiedClick", "IsMouseButtonDown", "IsPVPTimerRunning", "issecretvalue",
   "IsShiftKeyDown", "PlaySound", "RaidNotice_AddMessage", "ReloadUI", "SendChatMessage",
   "SetCVar", "StaticPopup_Show", "time", "tinsert", "wipe",

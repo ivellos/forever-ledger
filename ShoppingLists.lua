@@ -247,6 +247,64 @@ function ns:DisenchantToShoppingList(rows, list, name)
   return list
 end
 
+-- A recipe's materials for this many crafts (price window, owner, November 8: "a way to
+-- see what the mats are and add those to the shopping list", with a box for how many).
+-- Adds to what the list already wants; automatic limits are the usual price plus the
+-- list's allowance, typed ones stay. list nil: a new list named after the item.
+function ns:CraftToShoppingList(id, crafts, list)
+  crafts = tonumber(crafts) or 1
+  if crafts ~= crafts or crafts < 1 or crafts > 10000 or crafts ~= math.floor(crafts) then
+    return nil, "Choose a whole number of crafts from 1 to 10000."
+  end
+  local recipe = id and ns:RecipeFor(id)
+  if not (recipe and recipe.r and #recipe.r > 0) then return nil, "No recipe known for this item." end
+  if list then
+    local exists = false
+    for _, l in ipairs(ns:ShoppingLists()) do if l == list then exists = true end end
+    if not exists then return nil, "That list was removed. Choose another one." end
+    if list.countHave or list.temp or list.crateID then return nil, "Choose a regular shopping list, or make a new one." end
+    for _, e in ipairs(list.items) do
+      for _, r in ipairs(recipe.r) do
+        if e.id == r[1] and not e.suffix and e.mode == "craft" then
+          return nil, "This list crafts one of these materials. Choose another list, or make a new one."
+        end
+      end
+    end
+  end
+  list = list or ns:NewShoppingList(ns.ItemName(id) or ("item " .. id))
+  for _, r in ipairs(recipe.r) do
+    local old
+    for _, e in ipairs(list.items) do if e.id == r[1] and not e.suffix then old = e; break end end
+    local completed = old and old.done and math.max(old.bought or 0, old.qty or 1)
+    local e = ns:AddToShoppingList(list, r[1], nil, (old and (old.qty or 1) or 0) + (r[2] or 1) * crafts)
+    if sourceOf(e) ~= "you" then
+      e.max, e.src = ns:AutomaticListItemPrice(list, e)
+      if e.src == "usual" then e.usualAllowance = ns:ListAllowance(list) end
+    end
+    if completed then e.bought = completed end
+    e.done = nil
+  end
+  for i, l in ipairs(ns:ShoppingLists()) do if l == list then ns:SelectShoppingList(i); break end end
+  ns:Print(("Added the materials for %d %s of %s to shopping list \"%s\". Check Want and Up to there (/fl lists)."):format(
+    crafts, crafts == 1 and "craft" or "crafts", ns.ItemName(id) or "?", list.name))
+  if ns.RefreshListsView then ns:RefreshListsView() end
+  return list
+end
+
+-- The item itself, on the list you're on (or a new one): the price window's Add to
+-- shopping list. The same as shift-clicking it into the Shopping lists tab.
+function ns:QuickAddToShoppingList(id, suffix)
+  local list = ns:CurrentShoppingList()
+  if list and (list.countHave or list.temp or list.crateID) then list = nil end
+  list = list or ns:NewShoppingList("Shopping list")
+  local e = ns:AddToShoppingList(list, id, nil, nil, suffix)
+  if not ns:IsSearchList(list) and sourceOf(e) == "usual" and (e.max or 0) == 0 then
+    e.max, e.usualAllowance = ns:UsualListPrice(list, id) or 0, ns:ListAllowance(list)
+  end
+  if ns.RefreshListsView then ns:RefreshListsView() end
+  return list, e
+end
+
 -- An entry's name, with its version if it has one.
 function ns:ListEntryName(e)
   local name = ns.ItemName(e.id) or ("item " .. e.id)

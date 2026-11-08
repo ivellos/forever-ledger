@@ -213,8 +213,8 @@ local function addLines(tt, id, forceFull)
       return
     end
     if withHistory then historyLines(tt, id) end
-    tt:AddLine(on("tipHistory") and "Hold Shift for Forever Ledger details, Ctrl for price history"
-      or "Hold Shift for Forever Ledger details", 0.5, 0.5, 0.5, true)
+    tt:AddLine((on("tipHistory") and "Hold Shift for Forever Ledger details, Ctrl for price history"
+      or "Hold Shift for Forever Ledger details") .. (on("priceWindow") and ", Alt-click for a graph" or ""), 0.5, 0.5, 0.5, true)
     return
   end
 
@@ -359,7 +359,9 @@ local function addLines(tt, id, forceFull)
   if withHistory then
     historyLines(tt, id)
   elseif not had and on("tipHistory") and price and #(ns:PriceHistory(id)) > 1 then
-    tt:AddLine("Hold Ctrl for price history", 0.5, 0.5, 0.5)
+    tt:AddLine("Hold Ctrl for price history" .. (on("priceWindow") and ", Alt-click for a graph" or ""), 0.5, 0.5, 0.5)
+  elseif not had and on("priceWindow") and price then
+    tt:AddLine("Alt-click for a price graph", 0.5, 0.5, 0.5)
   end
 end
 

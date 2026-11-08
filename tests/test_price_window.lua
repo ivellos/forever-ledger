@@ -1,0 +1,158 @@
+-- The price window's numbers (PriceWindow.lua ns:ItemPriceSummary, owner, November 8) and
+-- adding a recipe's materials to a shopping list (ShoppingLists.lua ns:CraftToShoppingList).
+local T = ...
+local ns, S = T.ns, T.S
+
+local DAY = 86400
+local function market() local k = ns.MarketKey(); ns.db.prices[k] = ns.db.prices[k] or {}; return ns.db.prices[k] end
+-- ShoppingLists.lua keeps its recipe index for 30 seconds: move the clock on so each
+-- test sees its own characters.
+local step = 0
+local function fresh() T.resetDB(); step = step + 1; S.now = S.now + step * 1000 end
+
+-- A typical price on each of the last n days (not today): price(daysAgo).
+local function history(id, n, price)
+  local now = S.now
+  for i = n, 1, -1 do
+    S.now = now - i * DAY
+    ns:RecordPriceHistory(id, price(i), price(i), 10)
+  end
+  S.now = now
+end
+
+T.test("Price window: usual price, trend, listed, have, posted and your week", function()
+  fresh()
+  local id = 71001
+  S.items[id] = { name = "Test Bolt" }
+  history(id, 20, function(i) return i > 6 and 100 or 120 end)
+  market()[id] = { m = 95, a = 110, q = 40, t = time() }
+  S.bags[id] = 5
+  ns.db.myAuctions = {
+    [ns.CharKey()] = { list = { { id = id, q = 3 }, { id = id, q = 2, sold = true }, { id = 5, q = 9 } } },
+    [ns.CharKey() .. " (neutral)"] = { list = { { id = id, q = 1 } } },
+  }
+  ns.db.sales = { { t = time() - DAY, c = "x", n = "Test Bolt", a = 500, q = 2 }, { t = time() - 10 * DAY, c = "x", n = "Test Bolt", a = 900, q = 9 } }
+  ns.db.purchases = { { t = time(), c = "x", id = id, q = 4, a = 400 } }
+  ns.db.vendorLog = { { t = time(), c = "x", id = id, q = 1, a = 7, s = "sell" }, { t = time(), c = "x", id = id, q = 2, a = 50, s = "buy" } }
+  local s = ns:ItemPriceSummary(id)
+  T.eq(s.usual, 100, "the month's usual price")
+  T.eq(s.cheapest, 95)
+  T.eq(s.listed, 40)
+  T.ok(s.trend and math.abs(s.trend - 0.2) < 1e-9, "this week 120 against 100 before: up 20%")
+  T.eq(s.have.total, 5)
+  T.eq(s.posted, 4, "unsold auctions at both auction houses")
+  T.same(s.week.sold, { n = 2, a = 500 }, "only the last 7 days")
+  T.same(s.week.bought, { n = 6, a = 450 }, "auction house and vendor")
+  T.same(s.week.vendorSold, { n = 1, a = 7 })
+  T.eq(s.craft, nil, "nothing makes it")
+end)
+
+T.test("Price window: too few scans says so instead of guessing", function()
+  fresh()
+  local id = 71002
+  history(id, 2, function() return 100 end)
+  local s = ns:ItemPriceSummary(id)
+  T.eq(s.usual, nil)
+  T.eq(s.trend, nil)
+  T.eq(s.listed, nil, "never scanned")
+end)
+
+local BAG, CLOTH, THREAD = 71011, 71012, 71013
+local function recipe()
+  S.items[BAG] = { name = "Test Bag" }
+  ns.db.chars.x = { name = "Crafter", profs = { Tailoring = { recipes = {
+    [1] = { n = "Test Bag", out = BAG, oq = 1, r = { { CLOTH, 4 }, { THREAD, 1 } } } } } } }
+end
+
+T.test("Price window: what crafting it costs, and the profit", function()
+  fresh()
+  recipe()
+  market()[CLOTH] = { m = 10, a = 12, q = 100, l = "10:3,12:10", t = time() }
+  market()[THREAD] = { m = 50, q = 5, t = time() }
+  market()[BAG] = { m = 200, q = 5, t = time() }
+  S.bags[CLOTH] = 7
+  local c = ns:ItemPriceSummary(BAG).craft
+  T.ok(c, "a recipe makes it")
+  T.eq(c.prof, "Tailoring")
+  T.eq(c.who, "Crafter")
+  T.eq(c.mats[1].cost, 42, "3 at 10c and 1 at 12c, up the price ladder")
+  T.eq(c.mats[1].have, 7)
+  T.eq(c.mats[2].cost, 50)
+  T.eq(c.cost, 92)
+  T.eq(c.sells, 190, "200c after the 5% cut")
+  T.eq(c.profit, 98)
+end)
+
+T.test("Price window: a material without a price leaves the cost open", function()
+  fresh()
+  recipe()
+  market()[CLOTH] = { m = 10, q = 100, t = time() }
+  market()[BAG] = { m = 200, q = 5, t = time() }
+  local c = ns:ItemPriceSummary(BAG).craft
+  T.eq(c.missing, THREAD)
+  T.eq(c.cost, nil)
+  T.eq(c.profit, nil)
+end)
+
+T.test("Price window: one version of random-stat gear", function()
+  fresh()
+  local id = 71021
+  market()[id] = { m = 250, q = 3, sx = "1019:300:2;1200:800:1", t = time() }
+  local now = S.now
+  for i = 3, 1, -1 do
+    S.now = now - i * DAY
+    ns:RecordVersionHistory(id, { [1019] = { m = 300 + i, q = 2 } })
+  end
+  S.now = now
+  local s = ns:ItemPriceSummary(id, 1019)
+  T.eq(s.cheapest, 300)
+  T.eq(s.listed, 2)
+  T.eq(s.usual, 302, "the middle of 301, 302 and 303")
+end)
+
+T.test("Add materials: the recipe's materials for that many crafts", function()
+  fresh()
+  recipe()
+  local list = ns:CraftToShoppingList(BAG, 3)
+  T.ok(list, "a new list")
+  T.eq(list.name, "Test Bag")
+  T.eq(#list.items, 2)
+  T.eq(list.items[1].id, CLOTH)
+  T.eq(list.items[1].qty, 12)
+  T.eq(list.items[2].qty, 3)
+  T.eq(list.items[1].src, "usual")
+  -- Again into the same list: added to what it wants; a typed price stays.
+  ns:SetListItemPrice(list.items[1], 5)
+  T.eq(ns:CraftToShoppingList(BAG, 2, list), list)
+  T.eq(list.items[1].qty, 20)
+  T.eq(list.items[1].max, 5, "your price stays")
+  T.eq(list.items[2].qty, 5)
+end)
+
+T.test("Add materials: refuses what it can't do, before changing anything", function()
+  fresh()
+  recipe()
+  local before = #ns:ShoppingLists()
+  local list, err = ns:CraftToShoppingList(BAG, 0)
+  T.eq(list, nil); T.ok(err)
+  list, err = ns:CraftToShoppingList(BAG, 1.5)
+  T.eq(list, nil); T.ok(err)
+  list, err = ns:CraftToShoppingList(71099, 1)
+  T.eq(list, nil); T.ok(err, "no recipe")
+  T.eq(#ns:ShoppingLists(), before, "no list made")
+  local crafting = ns:NewShoppingList("Crafting")
+  crafting.items[1] = { id = CLOTH, mode = "craft", qty = 1 }
+  list, err = ns:CraftToShoppingList(BAG, 1, crafting)
+  T.eq(list, nil); T.ok(err, "that list crafts a material")
+  T.eq(#crafting.items, 1)
+end)
+
+T.test("Price window: Add to shopping list puts the item on the list you're on", function()
+  fresh()
+  local list = ns:QuickAddToShoppingList(71031)
+  T.eq(list.name, "Shopping list", "a new list when there's none")
+  T.eq(list.items[1].id, 71031)
+  local again = ns:QuickAddToShoppingList(71032)
+  T.eq(again, list, "the same list next time")
+  T.eq(#list.items, 2)
+end)
