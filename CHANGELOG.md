@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Price history, the start of price graphs: items you've bought, sold, crafted, listed or carry now keep 90 days of daily prices (others keep 14, as before), and full scans save a daily history for each version of random-stat gear ("of the Eagle"), kept 90 days and then weekly for a year.
+
 ### Fixed
 - A full scan arriving late no longer says the auction house took that long to send Forever Ledger's scan (another addon may have asked meanwhile); it says how long after Forever Ledger asked. A big scan arriving just inside the 10-minute window no longer gets called another addon's because it took a moment to read.
 

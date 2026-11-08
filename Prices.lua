@@ -579,6 +579,10 @@ local function record(id, units, src)
     local ok, err = pcall(ns.RecordPriceHistory, ns, id, rec.m, rec.a, rec.q)
     if not ok then ns:Debug("Price history skipped for", id, err) end
   end
+  if next(bySuffix) and ns.RecordVersionHistory then
+    local ok, err = pcall(ns.RecordVersionHistory, ns, id, bySuffix)
+    if not ok then ns:Debug("Version history skipped for", id, err) end
+  end
 end
 ns.RecordPrice = record
 

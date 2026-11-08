@@ -32,8 +32,10 @@ local DEFAULTS = {
   disenchants = {}, -- { t, id, ilvl, q, cls, mats = { [itemID] = count } } (Disenchant.lua, last 1000)
   sync = {},        -- [partner name lowercased] = { sentUpTo = time } (Sync.lua; partner in settings.syncPartner)
   sessions = {},    -- finished sessions: { name, t, stop, spent, earned, runs, goal } (the running one is `session`)
-  history = {},       -- [marketKey][itemID] = "day:cheapest:typical|..." (last 30 days)
-  historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (2 years)
+  history = {},       -- [marketKey][itemID] = "day:cheapest:typical|..." (14 days; 90 for items you've dealt with, History.lua)
+  historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (52 weeks)
+  historyVersions = {},       -- [marketKey][itemID][suffix] = "day:cheapest:listed|..." gear versions from full scans (90 days)
+  historyVersionsWeekly = {}, -- [marketKey][itemID][suffix] = "week:cheapest:listed:days|..." (52 weeks)
   historyAll = {},    -- [marketKey][itemID] = "lowest:typicalSum:days"
   suffixNames = {},   -- [version name, "of the Whale"] = the bonus ID full scans saw for it (Prices.lua)
   -- soldSnap = { t, market, items = { [itemID] = "price:count" } }: the last full scan's counts (Prices.lua), no default
