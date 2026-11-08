@@ -71,6 +71,7 @@ T.test("Price window: what crafting it costs, and the profit", function()
   market()[THREAD] = { m = 50, q = 5, t = time() }
   market()[BAG] = { m = 200, q = 5, t = time() }
   S.bags[CLOTH] = 7
+  ns:InvalidateValues(true)
   local c = ns:ItemPriceSummary(BAG).craft
   T.ok(c, "a recipe makes it")
   T.eq(c.prof, "Tailoring")
@@ -79,8 +80,68 @@ T.test("Price window: what crafting it costs, and the profit", function()
   T.eq(c.mats[1].have, 7)
   T.eq(c.mats[2].cost, 50)
   T.eq(c.cost, 92)
-  T.eq(c.sells, 190, "200c after the 5% cut")
+  T.eq(c.sells, 190, "200c after the 5% cut (no vendor price: no deposit to allow for)")
   T.eq(c.profit, 98)
+end)
+
+-- Owner's screenshot, November 8: Bolt of Silk Cloth showed 59c profit selling at 8s 55c,
+-- while Worth to you, beside it, said 7s 35c after one unsold listing.
+T.test("Price window: a craft sells for what Worth to you says, after one unsold listing", function()
+  fresh()
+  recipe()
+  market()[CLOTH] = { m = 10, q = 100, t = time() }
+  market()[THREAD] = { m = 50, q = 5, t = time() }
+  market()[BAG] = { m = 200, q = 5, t = time() }
+  ns.db.vendorSell[BAG] = 100
+  ns:InvalidateValues(true)
+  local c = ns:ItemPriceSummary(BAG).craft
+  T.eq(c.deposit, 20, "an 8-hour deposit at a 100c vendor price")
+  T.eq(c.sells, 170, "200c after the 5% cut, less the deposit")
+  T.eq(c.profit, 170 - 90)
+  local _, opts = ns:GetValue(BAG)
+  local ah
+  for _, o in ipairs(opts) do if o.kind == "ah" then ah = o end end
+  T.eq(c.sells, ah and ah.value, "the same as Worth to you")
+end)
+
+T.test("Price window: the graph's scale falls on round prices", function()
+  T.eq(ns.PriceScaleStep(26.7), 50, "a narrow range: steps of 50c")
+  T.eq(ns.PriceScaleStep(823), 1000, "10s")
+  T.eq(ns.PriceScaleStep(180), 200)
+  T.eq(ns.PriceScaleStep(21), 25)
+  T.eq(ns.PriceScaleStep(0.3), 0.5, "ammo")
+  T.eq(ns.PriceScaleLabel(1950, 50), "19s 50c")
+  T.eq(ns.PriceScaleLabel(2000, 50), "20s")
+  T.eq(ns.PriceScaleLabel(12000, 2000), "1g 20s")
+  T.eq(ns.PriceScaleLabel(0, 1000), "0c")
+  T.eq(ns.PriceScaleLabel(0.5, 0.5), "0.5c")
+end)
+
+T.test("Price window: the click that opens it", function()
+  local real = { IsAltKeyDown, IsControlKeyDown, IsShiftKeyDown }
+  local alt, ctrl, shift = false, false, false
+  IsAltKeyDown = function() return alt end
+  IsControlKeyDown = function() return ctrl end
+  IsShiftKeyDown = function() return shift end
+  local ok, err = pcall(function()
+    fresh()
+    local function down(a, c, s) alt, ctrl, shift = a, c, s; return ns:PriceClickDown() end
+    T.eq(ns:PriceClickName(), "Alt-click", "Alt by default")
+    T.eq(down(true, false, false), true)
+    T.eq(down(true, true, false), false, "Ctrl+Alt isn't Alt")
+    T.eq(down(true, false, true), false, "Shift is never taken (links)")
+    ns.db.settings.priceClick = "ctrl"
+    T.eq(ns:PriceClickName(), "Ctrl-click")
+    T.eq(down(true, false, false), false, "Alt-click left to the other addon")
+    T.eq(down(false, true, false), true)
+    ns.db.settings.priceClick = "ctrlalt"
+    T.eq(down(false, true, false), false)
+    T.eq(down(true, true, false), true)
+    ns.db.settings.priceWindow = false
+    T.eq(down(true, true, false), false, "turned off")
+  end)
+  IsAltKeyDown, IsControlKeyDown, IsShiftKeyDown = real[1], real[2], real[3]
+  assert(ok, err)
 end)
 
 T.test("Price window: a material without a price leaves the cost open", function()

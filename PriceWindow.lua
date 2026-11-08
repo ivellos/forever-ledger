@@ -3,8 +3,8 @@ local T = ns.Theme
 
 ---------------------------------------------------------------------------
 -- The price window (owner, November 8, from the mockup he approved): one item's price
--- graph and everything about it at a glance. Alt-click an item (bags, chat links) or
--- /fl price <item>.
+-- graph and everything about it at a glance. Alt-click an item (bags, chat links, the
+-- auction house; Ctrl or Ctrl+Alt in Settings), Price lookup, or /fl price <item>.
 --   top:    icon, name, Search on the auction house
 --   strip:  usual price, trend, listed now, you have, posted
 --   graph:  cheapest and typical price per day (weeks past 90 days), listed counts as
@@ -12,7 +12,8 @@ local T = ns.Theme
 --           2 weeks, 3 months or 1 year; a version picker for random-stat gear
 --   side:   your last 7 days with it, worth to you, Add to shopping list
 --   craft:  when a recipe makes it: the materials at auction house prices, cost to
---           craft against what it sells for after the cut, and Add materials to a
+--           craft against what it sells for after the cut and one unsold listing (the
+--           same auction house value as Worth to you), and Add materials to a
 --           shopping list for any number of crafts
 -- Data comes from ns:ItemPriceSummary (tested); the drawing is here.
 ---------------------------------------------------------------------------
@@ -101,7 +102,7 @@ function ns:ItemPriceSummary(id, suffix)
   end
 
   -- Crafting it: materials at what buying them costs today (auction house, or a vendor
-  -- where that's cheaper), against selling it at the usual price after the cut.
+  -- where that's cheaper), against what selling one brings.
   local recipe = ns.RecipeFor and ns:RecipeFor(id)
   if recipe and recipe.r and #recipe.r > 0 then
     local c = { prof = recipe.prof, who = recipe.who, classic = recipe.classic, oq = math.max(recipe.oq or 1, 1), mats = {} }
@@ -114,8 +115,22 @@ function ns:ItemPriceSummary(id, suffix)
       if cost then total = total + cost else c.missing = c.missing or r[1] end
     end
     if not c.missing then c.cost = total / c.oq end
-    local price = s.usual or s.cheapest
-    if price then c.sells = ns:AfterCut(price) end
+    -- What one sells for: the auction house value Worth to you shows (the lower of today's
+    -- price and the usual one, after the cut and one unsold listing's deposit), so the two
+    -- never disagree (owner's screenshot, November 8: Bolt of Silk Cloth showed 59c profit
+    -- at 8s 55c while Worth to you said 7s 35c).
+    local ah
+    if not suffix and ns.Options then
+      for _, o in ipairs(ns:Options(id)) do
+        if o.kind == "ah" then ah = o; break end
+      end
+    end
+    if ah then
+      c.sells, c.deposit = ah.value, ah.deposit or 0
+    else
+      local price = s.usual or s.cheapest
+      if price then c.sells, c.deposit = ns:AuctionSaleValue(id, price) end
+    end
     if c.cost and c.sells then c.profit = c.sells - c.cost end
     s.craft = c
   end
@@ -145,16 +160,29 @@ local function signedMoney(v)
   if v >= 0 then return "|cff7fd39c" .. ns.Money(v) .. "|r" end
   return "|cffee8597-" .. ns.Money(-v) .. "|r"
 end
--- "1g 20s" or "85s" for the graph's scale.
-local function short(c)
-  if c >= 10000 then
-    local g, s = math.floor(c / 10000), math.floor(c % 10000 / 100)
-    if g < 100 and s > 0 then return ("%dg %ds"):format(g, s) end
-    return ("%dg"):format(g)
-  end
-  if c >= 100 then return ("%ds"):format(math.floor(c / 100)) end
-  return ("%dc"):format(math.floor(c))
+-- The scale's step: 1, 2, 2.5 or 5 times a power of ten copper, so the lines fall on
+-- round prices (owner's screenshot, November 8: Runecloth's scale read 20s, 20s, 19s, 19s).
+local function niceStep(raw)
+  if raw <= 0 then return 1 end
+  local mag = 10 ^ math.floor(math.log10(raw))
+  local f = raw / mag
+  if f <= 1 then f = 1 elseif f <= 2 then f = 2 elseif f <= 2.5 and mag >= 10 then f = 2.5
+  elseif f <= 5 then f = 5 else f = 10 end
+  return f * mag
 end
+ns.PriceScaleStep = niceStep
+-- A price on the scale: "1g 20s", "19s 50c"; fractions of a copper only for ammo.
+local function scaleLabel(v, step)
+  if step < 1 then return ("%.1fc"):format(v) end
+  v = math.floor(v + 0.5)
+  local g, s, c = math.floor(v / 10000), math.floor(v / 100) % 100, v % 100
+  local out = {}
+  if g > 0 then out[#out + 1] = (g >= 1000 and BreakUpLargeNumbers and BreakUpLargeNumbers(g) or tostring(g)) .. "g" end
+  if s > 0 then out[#out + 1] = s .. "s" end
+  if c > 0 or #out == 0 then out[#out + 1] = c .. "c" end
+  return table.concat(out, " ")
+end
+ns.PriceScaleLabel = scaleLabel
 local function dayTime(day) return time() - (today() - day) * DAY end
 
 local function pool(g, name, make)
@@ -224,8 +252,11 @@ local function drawGraph(g, pts, flats)
     end
     local span = hi - lo
     if span <= 0 then span = math.max(hi * 0.2, 1) end
-    local bottom = math.max(0, lo - span * 0.15)
-    local top = hi + span * 0.1
+    local padLo, padHi = math.max(0, lo - span * 0.1), hi + span * 0.1
+    local step = niceStep((padHi - padLo) / 3)
+    local bottom = math.max(0, math.floor(padLo / step) * step)
+    local top = math.ceil(padHi / step) * step
+    if top <= bottom then top = bottom + step end
     local from = math.max(d - state.range + 1, first)
     if d - from < 6 then from = d - 6 end
     local function x(day) return PAD_L + (day - from) / (d - from) * plotW end
@@ -237,9 +268,9 @@ local function drawGraph(g, pts, flats)
     end
     pts = inRange
 
-    -- Scale and grid
-    for i = 0, 3 do
-      local v = bottom + (top - bottom) * i / 3
+    -- Scale and grid, a line every step
+    for i = 0, math.floor((top - bottom) / step + 0.5) do
+      local v = bottom + i * step
       local t = nextTex()
       t:SetColorTexture(1, 1, 1, 0.06)
       t:ClearAllPoints()
@@ -248,21 +279,26 @@ local function drawGraph(g, pts, flats)
       local l = nextLabel()
       l:ClearAllPoints()
       l:SetPoint("RIGHT", g, "BOTTOMLEFT", PAD_L - 6, y(v))
-      l:SetText(short(v))
+      l:SetText(scaleLabel(v, step))
     end
 
-    -- How many were listed, as faint bars along the bottom fifth
+    -- How many were listed, as faint bars along the bottom fifth. Kept inside the plot:
+    -- today's bar sat half over the edge (owner's screenshot, November 8).
     if qmax and qmax > 0 then
       local bw = math.max(1, plotW / math.max(d - from + 1, 1) * 0.7)
       for _, p in ipairs(pts) do
         if p.listed and p.listed > 0 then
-          local t = nextTex()
-          t:SetColorTexture(BAR[1], BAR[2], BAR[3], BAR[4])
-          t:ClearAllPoints()
           local cx = p.week and x(p.day + 3) or x(p.day)
           local width = p.week and math.max(bw, plotW / math.max(d - from + 1, 1) * 6) or bw
-          t:SetPoint("BOTTOM", g, "BOTTOMLEFT", cx, PAD_B)
-          t:SetSize(width, math.max(1, p.listed / qmax * plotH * 0.2))
+          local left = math.max(PAD_L, cx - width / 2)
+          local right = math.min(PAD_L + plotW, cx + width / 2)
+          if right - left >= 1 then
+            local t = nextTex()
+            t:SetColorTexture(BAR[1], BAR[2], BAR[3], BAR[4])
+            t:ClearAllPoints()
+            t:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", left, PAD_B)
+            t:SetSize(right - left, math.max(1, p.listed / qmax * plotH * 0.2))
+          end
         end
       end
     end
@@ -470,7 +506,10 @@ local function buildFind(f)
   local msg = T:Text(cover, 13, T.dim)
   msg:SetPoint("CENTER", 0, 10)
   msg:SetWidth(W - 120)
-  msg:SetText("Type an item's name in the box at the top right (two letters or more), or Alt-click an item in your bags, a link in chat or a listing on the auction house.")
+  cover:SetScript("OnShow", function()
+    msg:SetText("Type an item's name in the box at the top right (two letters or more), or "
+      .. ns:PriceClickName() .. " an item in your bags, a link in chat or a listing on the auction house.")
+  end)
   cover:Hide()
   f.cover = cover
 end
@@ -573,7 +612,7 @@ local function build()
     r.icon:SetPoint("LEFT", 2, 0)
     r.cells = {}
     for k = 1, 5 do r.cells[k] = text(r, 12, nil, k == 1 and "LEFT" or "RIGHT") end
-    -- Click a material: its own price window (Back isn't needed: Alt-click the item again).
+    -- Click a material: its own price window (Back isn't needed: click the item again).
     r:SetScript("OnClick", function(self) if self.id then ns:ShowPriceWindow(self.id) end end)
     r:SetScript("OnEnter", function(self)
       if not self.id then return end
@@ -586,7 +625,7 @@ local function build()
   end
   f.matTotal = { l = text(f, 11, T.dim), v = text(f, 12, nil, "RIGHT") }
   f.sum = {}
-  for i = 1, 4 do f.sum[i] = { l = text(f, 11, T.dim), v = text(f, 12, nil, "RIGHT") } end
+  for i = 1, 5 do f.sum[i] = { l = text(f, 11, T.dim), v = text(f, 12, nil, "RIGHT") } end
   f.crafts = T:Number(f, { min = 1, max = 10000, step = 1 }, function(v) state.crafts = math.floor(v) end)
   f.craftsLabel = text(f, 11, T.dim)
   f.craftsLabel:SetText("Crafts")
@@ -702,7 +741,11 @@ function ns:RefreshPriceWindow()
     legend[#legend + 1] = (fl[2] == PURPLE and "|cffcc8fe6- -|r " or "|cff7fd39c- -|r ") .. fl[3]
   end
   place(f.legend, x0 + 12, gTop + GRAPH_H - 18, gw - 24)
+  -- The hover hint only where it fits (owner's screenshot, November 8: "hover for each..."
+  -- with a vendor price and a cost to craft in the legend).
   f.legend:SetText(table.concat(legend, "    ") .. dim("    hover for each day"))
+  if f.legend:GetStringWidth() > gw - 24 then f.legend:SetText(table.concat(legend, "    ")) end
+  if f.legend:GetStringWidth() > gw - 24 then f.legend:SetText(table.concat(legend, "  ")) end
 
   -- Side
   local sx = x0 + gw + GAP
@@ -729,27 +772,33 @@ function ns:RefreshPriceWindow()
   T:StyleHeading(f.worthHead, "Worth to you")
   place(f.worthHead, sx + 12, wTop)
   local _, options = ns:GetValue(id, true)
+  -- Each way gets the width its value leaves and up to 3 lines; the next starts below it
+  -- (owner's screenshot, November 8: "after 5% cut an..." was cut off at 2 short lines).
+  local y, worthEnd = wTop + 20, gTop + GRAPH_H - 38
   for i, r in ipairs(f.worthRows) do
     local o = options and options[i]
-    r.l:SetShown(o ~= nil); r.v:SetShown(o ~= nil)
-    if o then
-      local y = wTop + 20 + (i - 1) * 30
-      place(r.l, sx + 12, y, SIDE - 24)
-      r.l:SetWordWrap(true)
-      if r.l.SetMaxLines then r.l:SetMaxLines(2) end
-      r.l:SetHeight(28)
-      r.l:SetJustifyV("TOP")
-      r.l:SetText(o.label or ns:OptionLabel(o))
-      r.l:SetTextColor(i == 1 and 0.5 or 0.75, i == 1 and 0.83 or 0.75, i == 1 and 0.61 or 0.75, 1)
+    r.l:SetShown(false); r.v:SetShown(false)
+    if o and y + 12 <= worthEnd then
       r.v:ClearAllPoints()
       r.v:SetPoint("TOPRIGHT", f, "TOPLEFT", sx + SIDE - 12, -y)
       r.v:SetText(ns.Money(o.value))
-      r.l:SetWidth(SIDE - 24 - 74)
+      place(r.l, sx + 12, y, SIDE - 24 - r.v:GetStringWidth() - 10)
+      r.l:SetWordWrap(true)
+      if r.l.SetMaxLines then r.l:SetMaxLines(3) end
+      r.l:SetJustifyV("TOP")
+      r.l:SetText(o.label or ns:OptionLabel(o))
+      r.l:SetTextColor(i == 1 and 0.5 or 0.75, i == 1 and 0.83 or 0.75, i == 1 and 0.61 or 0.75, 1)
+      local h = math.max(13, math.min(r.l:GetStringHeight() or 13, 40))
+      r.l:SetHeight(h)
+      if y + h <= worthEnd then
+        r.l:Show(); r.v:Show()
+        y = y + h + 6
+      end
     end
   end
   if not (options and options[1]) then
     local r = f.worthRows[1]
-    r.l:Show(); place(r.l, sx + 12, wTop + 20, SIDE - 24); r.l:SetHeight(28)
+    r.l:Show(); place(r.l, sx + 12, wTop + 20, SIDE - 24); r.l:SetHeight(28); r.l:SetWordWrap(true)
     r.l:SetText(dim("Needs a price first: scan at the auction house."))
   end
   f.addItem:ClearAllPoints()
@@ -769,7 +818,19 @@ function ns:RefreshPriceWindow()
     local rows = math.min(#c.mats, MAX_MATS)
     -- Heading, column names, materials, the total, then the Add materials row; at least
     -- tall enough for the sums box beside them.
-    local cH = math.max(30 + 14 + rows * 18 + 26 + 40, 28 + 92 + 8 + 40)
+    -- The sums: cost, what it sells for after the cut, the deposit of one listing that
+    -- doesn't sell (as Worth to you counts it), the profit and what that means.
+    local dep = c.deposit or 0
+    local sums = {
+      { c.oq > 1 and "Cost to craft, each" or "Cost to craft", c.cost and ns.Money(c.cost) or dim("a material has no price") },
+      { "Sells for, after cut", c.sells and ns.Money(c.sells + dep) or dim("no price yet") },
+    }
+    if c.sells and dep > 0 then sums[#sums + 1] = { "One unsold listing", "|cffee8597-" .. ns.Money(dep) .. "|r" } end
+    sums[#sums + 1] = { "Profit each", c.profit and signedMoney(c.profit) or dim("?") }
+    sums[#sums + 1] = { "", c.profit and (c.profit > 0 and c.cost > 0 and dim(("%d%% on what you spend"):format(math.floor(c.profit / c.cost * 100 + 0.5)))
+      or c.profit < 0 and "|cffee8597Cheaper to buy it|r" or "") or "" }
+    local boxH = 12 + #sums * 20
+    local cH = math.max(30 + 14 + rows * 18 + 26 + 40, 28 + boxH + 8 + 40)
     nextCard(cTop, cTop + cH, x0, inner)
     T:StyleHeading(f.craftHead, "Craft it")
     place(f.craftHead, x0 + 12, cTop + 10)
@@ -826,20 +887,16 @@ function ns:RefreshPriceWindow()
 
     -- Sums, in a box on the right
     local bx = x0 + inner - SIDE
-    nextCard(cTop + 28, cTop + 28 + 92, bx, SIDE - 8)
-    local sums = {
-      { c.oq > 1 and "Cost to craft, each" or "Cost to craft", c.cost and ns.Money(c.cost) or dim("a material has no price") },
-      { "Sells for, after cut", c.sells and ns.Money(c.sells) or dim("no price yet") },
-      { "Profit each", c.profit and signedMoney(c.profit) or dim("?") },
-      { "", c.profit and (c.profit > 0 and c.cost > 0 and dim(("%d%% on what you spend"):format(math.floor(c.profit / c.cost * 100 + 0.5)))
-        or c.profit < 0 and "|cffee8597Cheaper to buy it|r" or "") or "" },
-    }
+    nextCard(cTop + 28, cTop + 28 + boxH, bx, SIDE - 8)
     for i, r in ipairs(f.sum) do
       local y = cTop + 36 + (i - 1) * 20
-      place(r.l, bx + 10, y, SIDE - 30)
-      r.v:ClearAllPoints()
-      r.v:SetPoint("TOPRIGHT", f, "TOPLEFT", bx + SIDE - 20, -y)
-      r.l:SetText(sums[i][1]); r.v:SetText(sums[i][2])
+      r.l:SetShown(sums[i] ~= nil); r.v:SetShown(sums[i] ~= nil)
+      if sums[i] then
+        place(r.l, bx + 10, y, SIDE - 30)
+        r.v:ClearAllPoints()
+        r.v:SetPoint("TOPRIGHT", f, "TOPLEFT", bx + SIDE - 20, -y)
+        r.l:SetText(sums[i][1]); r.v:SetText(sums[i][2])
+      end
     end
 
     -- Add materials: how many crafts, which list
@@ -912,8 +969,30 @@ ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
   C_Timer.After(5, function() refreshPending = nil; ns:RefreshPriceWindow() end)
 end)
 
--- Alt-click an item in your bags or a chat link (Settings, Tooltips: priceWindow).
--- Shift-click while typing in the look-up box: that item.
+-- Which click opens the window (Settings, Tooltips: priceWindow, priceClick): Alt-click,
+-- or Ctrl or Ctrl+Alt for players whose disenchanting addon uses Alt-click (owner,
+-- November 8). Exactly those keys, so Shift-click (links) is never taken.
+local CLICKS = {
+  alt = { alt = true, ctrl = false, name = "Alt-click" },
+  ctrl = { alt = false, ctrl = true, name = "Ctrl-click" },
+  ctrlalt = { alt = true, ctrl = true, name = "Ctrl+Alt-click" },
+}
+function ns:PriceClickName()
+  local c = ns.db and CLICKS[ns.db.settings.priceClick]
+  return (c or CLICKS.alt).name
+end
+function ns:PriceClickDown()
+  local s = ns.db and ns.db.settings
+  if not s or s.priceWindow == false then return false end
+  local c = CLICKS[s.priceClick] or CLICKS.alt
+  local alt = IsAltKeyDown and IsAltKeyDown() and true or false
+  local ctrl = IsControlKeyDown and IsControlKeyDown() and true or false
+  local shift = IsShiftKeyDown and IsShiftKeyDown() and true or false
+  return not shift and alt == c.alt and ctrl == c.ctrl
+end
+
+-- That click on an item in your bags or a chat link. Shift-click while typing in the
+-- look-up box: that item.
 local function onModifiedClick(link)
   if not ns.db then return end
   if win and win.find:HasFocus() and IsShiftKeyDown and IsShiftKeyDown() then
@@ -921,8 +1000,7 @@ local function onModifiedClick(link)
     if id then win.find:SetText(""); win.find:ClearFocus(); ns:ShowPriceWindow(id, link) end
     return
   end
-  if ns.db.settings.priceWindow == false then return end
-  if not (IsAltKeyDown and IsAltKeyDown()) or (IsShiftKeyDown and IsShiftKeyDown()) or (IsControlKeyDown and IsControlKeyDown()) then return end
+  if not ns:PriceClickDown() then return end
   local id = ns.ItemIDFromLink(link)
   if id then ns:ShowPriceWindow(id, link) end
 end

@@ -121,11 +121,11 @@ local function tint(row, on, badge)
   if on and badge then row.flBadge:SetText(badge) end
 end
 
--- Alt-click on the auction house opens the price window (PriceWindow.lua; owner,
--- November 8: "a way to look the trends up in the AH"), like Alt-click in your bags.
+-- Alt-click (or the click chosen in Settings) on the auction house opens the price window
+-- (PriceWindow.lua; owner, November 8: "a way to look the trends up in the AH"), as in
+-- your bags.
 local function altOpens()
-  return IsAltKeyDown and IsAltKeyDown() and not (IsShiftKeyDown and IsShiftKeyDown())
-    and not (IsControlKeyDown and IsControlKeyDown()) and ns.db.settings.priceWindow ~= false and ns.ShowPriceWindow
+  return ns.PriceClickDown and ns:PriceClickDown() and ns.ShowPriceWindow
 end
 -- A search result row: hooked once (rows are reused, so the item is read at the click).
 local function altClickRow(row)
