@@ -69,7 +69,7 @@ local function rowInfo(row, fallbackID)
   end
   if type(d) ~= "table" then return end
   local id = d.itemID or (d.itemKey and d.itemKey.itemID) or fallbackID
-  return d.unitPrice or d.buyoutAmount or d.minPrice, id, d.itemKey
+  return d.unitPrice or d.buyoutAmount or d.minPrice, id, d.itemKey, type(d.itemLink) == "string" and d.itemLink or nil
 end
 
 -- How many are listed at or below a price, from the auction house's own results.
@@ -127,25 +127,20 @@ end
 local function altOpens()
   return ns.PriceClickDown and ns:PriceClickDown() and ns.ShowPriceWindow
 end
--- The link of what's being clicked, from its tooltip (the mouse is over it): a row's item
--- key alone doesn't say which version of random-stat gear it is, the tooltip's link does
--- (owner's screenshot, November 8: Fortified Spaulders of the Whale opened on All versions).
-local function hoveredLink(id)
-  if not (GameTooltip and GameTooltip:IsShown() and GameTooltip.GetItem) then return end
-  local ok, _, link = pcall(GameTooltip.GetItem, GameTooltip)
-  if ok and link and ns.ItemIDFromLink(link) == id then return link end
+-- Which version of random-stat gear was clicked: a listing's own link says, else the
+-- tooltip of the row under the mouse (PriceWindow.lua ns:ClickedLink).
+local function openAt(id, link)
+  if id then ns:OpenPriceWindowFromClick(id, link) end
 end
-local function openAt(id)
-  if id then ns:ShowPriceWindow(id, hoveredLink(id)) end
-end
--- A search result row: hooked once (rows are reused, so the item is read at the click).
+-- A search result or listing row: hooked once (rows are reused, so the item is read at
+-- the click).
 local function altClickRow(row)
   if row.flAlt or not row.HookScript then return end
   row.flAlt = true
   row:HookScript("OnClick", function(self)
     if not altOpens() then return end
-    local _, id = rowInfo(self)
-    openAt(id)
+    local _, id, _, link = rowInfo(self)
+    openAt(id, link)
   end)
 end
 
@@ -192,7 +187,7 @@ local function watch(page, kind)
       w.note:SetText("")
       page.flID = nil
       eachRow(list, function(row)
-        if browse then altClickRow(row) end
+        if not commodity then altClickRow(row) end
         tint(row, false)
       end)
       return
@@ -213,7 +208,8 @@ local function watch(page, kind)
     end
     local id, key, anyPrice
     local found = eachRow(list, function(row)
-      if browse then altClickRow(row) end
+      -- Gear listings too: each has its own link, which says the version.
+      if not commodity then altClickRow(row) end
       local price, rowID, rowKey = rowInfo(row, shownID)
       id, key = id or rowID, key or rowKey
       local limit, reason = limitFor(rowID)

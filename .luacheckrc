@@ -35,7 +35,7 @@ read_globals = {
   "GetCVar", "GetFileIDFromPath", "GetMoney", "GetMouseFoci", "GetMouseFocus",
   "GetNormalizedRealmName", "GetRealmID", "GetRealmName", "GetRealZoneText",
   "GetMinimapZoneText", "GetScreenWidth", "GetSubZoneText", "GetTime", "GetUnitName",
-  "GetZoneText", "HandleModifiedItemClick", "hooksecurefunc", "InCombatLockdown",
+  "GetZoneText", "HandleModifiedItemClick", "HideUIPanel", "hooksecurefunc", "InCombatLockdown",
   "InviteUnit", "IsAltKeyDown", "IsControlKeyDown", "ITEM_QUALITY_COLORS", "BreakUpLargeNumbers", "IsInGroup", "IsInGuild", "IsInInstance", "IsInRaid",
   "IsModifiedClick", "IsMouseButtonDown", "IsPVPTimerRunning", "issecretvalue",
   "IsShiftKeyDown", "PlaySound", "RaidNotice_AddMessage", "ReloadUI", "SendChatMessage",

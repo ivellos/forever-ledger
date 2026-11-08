@@ -148,6 +148,24 @@ T.test("Price window: the click that opens it", function()
   assert(ok, err)
 end)
 
+-- Owner's screenshots, November 8: clicking Fortified Spaulders of the Whale on the auction
+-- house opened All versions. The row gives a group link; its tooltip had the version.
+T.test("Price window: an auction house click opens the version its tooltip showed", function()
+  fresh()
+  local id = 71051
+  market()[id] = { m = 250, q = 3, sx = "12719:300:2", t = time() }
+  local whale = "|cff1eff00|Hitem:71051::::::::20:1482::1:1:12719:1:28:7000|h[Test Spaulders of the Whale]|h|r"
+  local group = "|cff1eff00|Hitem:71051::::::::20:1482::1:1:3524|h[Test Spaulders]|h|r"
+  T.eq(ns:ClickedLink(id, whale), whale, "a link with its version is used as it is")
+  ns.RememberHoveredItem(whale)
+  ns.HoveredItemGone()
+  T.eq(ns:ClickedLink(id, group), whale, "the click closed the tooltip just now")
+  T.eq(ns:ClickedLink(id, nil), whale, "a row with no link")
+  T.eq(ns:ClickedLink(71052, nil), nil, "another item")
+  S.now = S.now + 5
+  T.eq(ns:ClickedLink(id, group), group, "an old tooltip doesn't count")
+end)
+
 T.test("Price window: a material without a price leaves the cost open", function()
   fresh()
   recipe()

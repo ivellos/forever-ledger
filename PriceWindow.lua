@@ -1000,6 +1000,91 @@ function ns:PriceClickDown()
   return not shift and alt == c.alt and ctrl == c.ctrl
 end
 
+-- The item under the mouse, as its tooltip last showed it. An auction house row only
+-- knows the item, not which version of random-stat gear it is; its tooltip's link does,
+-- but clicking the row closes the tooltip before the click reaches the addon (owner's
+-- screenshots, November 8: Fortified Spaulders of the Whale opened on All versions, twice).
+local hover = {}
+function ns.RememberHoveredItem(link)
+  hover.link, hover.id, hover.gone = link, ns.ItemIDFromLink(link), nil
+end
+function ns.HoveredItemGone() hover.gone = GetTime() end
+local function onTooltipItem(tt)
+  if tt ~= GameTooltip or not tt.GetItem then return end
+  local ok, _, link = pcall(tt.GetItem, tt)
+  if ok and type(link) == "string" then ns.RememberHoveredItem(link) end
+end
+if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
+  TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, onTooltipItem)
+elseif GameTooltip and GameTooltip.HookScript then
+  GameTooltip:HookScript("OnTooltipSetItem", onTooltipItem)
+end
+if GameTooltip and GameTooltip.HookScript then
+  GameTooltip:HookScript("OnHide", function() ns.HoveredItemGone() end)
+end
+
+-- The hovered item's link if it's this item: from the tooltip showing it, or from one
+-- that closed just now (the click closes it in the same moment).
+local function hoveredLink(id)
+  local tip = GameTooltip
+  if tip and tip.IsShown and tip:IsShown() and tip.GetItem then
+    local ok, _, link = pcall(tip.GetItem, tip)
+    if ok and type(link) == "string" then
+      if ns.ItemIDFromLink(link) == id then return link end
+      return
+    end
+  end
+  local age = hover.gone and GetTime() - hover.gone
+  if hover.link and hover.id == id and age and age >= 0 and age <= 0.5 then return hover.link end
+end
+
+-- The link to open the window with for a click on an item: the clicked link if it says
+-- which version it is, else the hovered one's if that does.
+function ns:ClickedLink(id, link)
+  if link and ns:VersionOfLink(id, link) then return link end
+  local h = hoveredLink(id)
+  if h and ns:VersionOfLink(id, h) then return h end
+  return link or h
+end
+
+-- Blizzard opens the dressing room on Ctrl-click, so a Ctrl-click or Ctrl+Alt-click price
+-- click opened both (owner, November 8). A dressing room that opens in the same moment as
+-- the price window, from that click, is closed again; one already open stays open.
+local DRESSING = { "DressUpFrame", "SideDressUpFrame" }
+local clickedAt
+local function sameClick(t) return clickedAt and t and math.abs(t - clickedAt) < 0.1 end
+local function closeDressing(f)
+  if f == _G.DressUpFrame and HideUIPanel then pcall(HideUIPanel, f) else pcall(f.Hide, f) end
+end
+local function watchDressing()
+  for _, name in ipairs(DRESSING) do
+    local f = _G[name]
+    if type(f) == "table" and f.HookScript and not f.flWatched then
+      f.flWatched = true
+      f:HookScript("OnShow", function(self)
+        self.flShownAt = GetTime()
+        if sameClick(self.flShownAt) then closeDressing(self) end
+      end)
+    end
+  end
+end
+watchDressing()
+ns:OnReady(watchDressing)
+
+-- Opens the window for a click on an item (bags, chat links, the auction house).
+function ns:OpenPriceWindowFromClick(id, link)
+  if not id then return end
+  ns:ShowPriceWindow(id, ns:ClickedLink(id, link))
+  local c = CLICKS[ns.db.settings.priceClick] or CLICKS.alt
+  if not c.ctrl then return end
+  watchDressing()
+  clickedAt = GetTime()
+  for _, name in ipairs(DRESSING) do
+    local f = _G[name]
+    if type(f) == "table" and f.IsShown and f:IsShown() and sameClick(f.flShownAt) then closeDressing(f) end
+  end
+end
+
 -- That click on an item in your bags or a chat link. Shift-click while typing in the
 -- look-up box: that item.
 local function onModifiedClick(link)
@@ -1010,7 +1095,6 @@ local function onModifiedClick(link)
     return
   end
   if not ns:PriceClickDown() then return end
-  local id = ns.ItemIDFromLink(link)
-  if id then ns:ShowPriceWindow(id, link) end
+  ns:OpenPriceWindowFromClick(ns.ItemIDFromLink(link), link)
 end
 if HandleModifiedItemClick then hooksecurefunc("HandleModifiedItemClick", onModifiedClick) end

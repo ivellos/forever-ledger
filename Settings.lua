@@ -161,7 +161,7 @@ local PAGES = {
           help = "Alt-click (or the click below) an item in your bags, a link in chat or a listing on the auction house: a window with its price graph (up to a year), how many are listed, what you have and have posted, your last 7 days with it, and, if one of your characters can craft it, what that costs and the profit. Price lookup and /fl price <item> open it too." },
         { key = "priceClick", label = "Opens with", kind = "choice", options = {
             { "alt", "Alt-click" }, { "ctrl", "Ctrl-click" }, { "ctrlalt", "Ctrl+Alt-click" } },
-          help = "Pick another click if a different addon uses Alt-click (some disenchanting addons do). Ctrl-click also shows armor and weapons in the dressing room." },
+          help = "Pick another click if a different addon uses Alt-click (some disenchanting addons do). Ctrl-click no longer opens the dressing room; with Ctrl+Alt-click, Ctrl-click still does." },
       } },
       { name = "What they show", rows = {
         { sub = "Prices and worth" },
