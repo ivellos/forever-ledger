@@ -154,6 +154,14 @@ local PAGES = {
           help = "Short shows today's cheapest auction price and what an item is worth to you; press Shift for the rest." },
         { key = "tipOptions", label = "Ways under Worth to you", kind = "number", suffix = "ways", min = 1, max = 10,
           help = "How many ways to use an item to list, best first." },
+        -- On the first tab, where it's found (owner, November 8: "not sure where this
+        -- option is" on What they show).
+        { sub = "Price window" },
+        { key = "priceWindow", label = "Click an item for its price window", kind = "check",
+          help = "Alt-click (or the click below) an item in your bags, a link in chat or a listing on the auction house: a window with its price graph (up to a year), how many are listed, what you have and have posted, your last 7 days with it, and, if one of your characters can craft it, what that costs and the profit. Price lookup and /fl price <item> open it too." },
+        { key = "priceClick", label = "Opens with", kind = "choice", options = {
+            { "alt", "Alt-click" }, { "ctrl", "Ctrl-click" }, { "ctrlalt", "Ctrl+Alt-click" } },
+          help = "Pick another click if a different addon uses Alt-click (some disenchanting addons do). Ctrl-click also shows armor and weapons in the dressing room." },
       } },
       { name = "What they show", rows = {
         { sub = "Prices and worth" },
@@ -161,11 +169,6 @@ local PAGES = {
           help = "The cheapest on the auction house (how many listed, how long ago), the average of the cheapest 20, and what a vendor sells it for." },
         { key = "tipHistory", label = "Price history while Ctrl is held", kind = "check",
           help = "Hold Ctrl over an item for the cheapest price over the last 14 days, which way it's heading, the usual price this month, how many are usually listed and the lowest price ever seen." },
-        { key = "priceWindow", label = "Click an item for its price window", kind = "check",
-          help = "Alt-click (or the click below) an item in your bags, a link in chat or a listing on the auction house: a window with its price graph (up to a year), how many are listed, what you have and have posted, your last 7 days with it, and, if one of your characters can craft it, what that costs and the profit. Price lookup and /fl price <item> open it too." },
-        { key = "priceClick", label = "  Opens with", kind = "choice", options = {
-            { "alt", "Alt-click" }, { "ctrl", "Ctrl-click" }, { "ctrlalt", "Ctrl+Alt-click" } },
-          help = "Pick another click if a different addon uses Alt-click (some disenchanting addons do). Ctrl-click also shows armor and weapons in the dressing room." },
         { key = "tipSpeed", label = "How fast it sells", kind = "check",
           help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by (and, in the first day, at least 3 sales)." },
         { key = "tipWorth", label = "Worth to you", kind = "check",

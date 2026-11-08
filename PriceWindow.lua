@@ -508,7 +508,7 @@ local function buildFind(f)
   msg:SetWidth(W - 120)
   cover:SetScript("OnShow", function()
     msg:SetText("Type an item's name in the box at the top right (two letters or more), or "
-      .. ns:PriceClickName() .. " an item in your bags, a link in chat or a listing on the auction house.")
+      .. ns:PriceClickName() .. " an item in your bags, a link in chat or a listing on the auction house. (Settings, Tooltips, General picks another click.)")
   end)
   cover:Hide()
   f.cover = cover
@@ -686,10 +686,19 @@ function ns:RefreshPriceWindow()
   local haveSub = s.have.alts > 0 and ("%s here, %s on alts"):format(count(s.have.here), count(s.have.alts)) or "bags and bank"
   -- (Short words: a tile is about 125 pixels wide. Owner's screenshot, November 8: "not
   -- enough scans" and "this week vs the 2 before" were cut off.)
+  -- Cheapest now: the graph's point for today is the lowest seen today, which can be gone
+  -- (owner's screenshot, November 8: Runecloth's graph at 20s, Worth to you at 41s 95c:
+  -- the 20s ones had sold and 46 were left at 45s).
+  local now, nowSub
+  if s.cheapest then now = ns.Money(s.cheapest)
+  elseif s.listed == 0 then now = dim("none listed")
+  else now = dim("not scanned") end
+  if s.listed and s.listed > 0 then nowSub = count(s.listed) .. " listed" .. (s.scanned and (", " .. ns.Age(s.scanned)) or "")
+  else nowSub = s.scanned and ns.Age(s.scanned) or "" end
   local tiles = {
     { state.suffix and "Usual cheapest" or "Usual price", s.usual and ns.Money(s.usual) or dim("too new"), s.usual and "this month" or "needs 3 days of scans" },
     { "Trend", trend or dim("too new"), trend and "7 days vs 14 before" or "needs about 10 days" },
-    { "Listed now", s.listed and count(s.listed) or dim("not scanned"), s.scanned and ns.Age(s.scanned) or "" },
+    { "Cheapest now", now, nowSub },
     { "You have", count(s.have.total), haveSub },
     { "Posted", count(s.posted), "your auctions" },
   }

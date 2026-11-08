@@ -127,6 +127,17 @@ end
 local function altOpens()
   return ns.PriceClickDown and ns:PriceClickDown() and ns.ShowPriceWindow
 end
+-- The link of what's being clicked, from its tooltip (the mouse is over it): a row's item
+-- key alone doesn't say which version of random-stat gear it is, the tooltip's link does
+-- (owner's screenshot, November 8: Fortified Spaulders of the Whale opened on All versions).
+local function hoveredLink(id)
+  if not (GameTooltip and GameTooltip:IsShown() and GameTooltip.GetItem) then return end
+  local ok, _, link = pcall(GameTooltip.GetItem, GameTooltip)
+  if ok and link and ns.ItemIDFromLink(link) == id then return link end
+end
+local function openAt(id)
+  if id then ns:ShowPriceWindow(id, hoveredLink(id)) end
+end
 -- A search result row: hooked once (rows are reused, so the item is read at the click).
 local function altClickRow(row)
   if row.flAlt or not row.HookScript then return end
@@ -134,7 +145,7 @@ local function altClickRow(row)
   row:HookScript("OnClick", function(self)
     if not altOpens() then return end
     local _, id = rowInfo(self)
-    if id then ns:ShowPriceWindow(id) end
+    openAt(id)
   end)
 end
 
@@ -162,7 +173,7 @@ local function watch(page, kind)
         local ok, key = pcall(page.GetItemKey, page)
         if ok and type(key) == "table" then id = key.itemID end
       end
-      if id then ns:ShowPriceWindow(id) end
+      openAt(id)
     end)
   end
   w.note = T:Text(page, 12, T.accent, "OVERLAY")
