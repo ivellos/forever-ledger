@@ -564,6 +564,10 @@ local function buildFinder(side)
   finder.sf:SetPoint("TOPLEFT", 6, -y)
   finder.sf:SetPoint("BOTTOMRIGHT", -6, 36)
   finder.rows = {}
+  finder.empty = T:Text(finder.content, 12, T.dim)
+  finder.empty:SetPoint("TOPLEFT", 8, -8)
+  finder.empty:SetPoint("RIGHT", finder.content, "RIGHT", -8, 0)
+  finder.empty:SetJustifyH("LEFT")
 
   local refresh = T:Button(finder, "Refresh", 90, changed, 22)
   refresh:SetPoint("BOTTOMLEFT", 10, 8)
@@ -649,8 +653,13 @@ function ns:RefreshDisenchantFinder()
     r:Show()
   end
   for i = n + 1, #finder.rows do finder.rows[i]:Hide() end
-  finder.content:SetHeight(math.max(n * 20, 20))
+  finder.content:SetHeight(math.max(n * 20, 48))
   finder.sf.UpdateScrollBar()
+  -- Say why it's blank, and what to do (UI pass, November 9).
+  finder.empty:SetShown(n == 0 and next(finderSettings().bands) ~= nil)
+  finder.empty:SetText(finderSettings().profitable
+    and "Nothing at these item levels is worth disenchanting right now. Untick Only worth disenchanting, or run a full scan."
+    or "Nothing listed at these item levels. Run a full scan, or pick other levels.")
   local newest = 0
   for _, rec in pairs(ns.db.prices[ns.MarketKey()] or {}) do newest = math.max(newest, rec.t or 0) end
   finder.info:SetText(("From your last scan (%s). Click an item to search for it."):format(newest > 0 and ns.Age(newest) or "none yet"))

@@ -19,6 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Scroll to buy is on for new installs, as 0.17.0 meant it to be.
 - Full scan no longer says "Ready" away from the auction house, and the scan buttons say why they can't be clicked there; the Buy queue's buttons and message do too.
 - Dropdowns close when you click somewhere else.
+- The Disenchant finder says why it's empty and what to try.
 - A shopping list's bottom line wraps instead of losing its end, and the Auctions tab's Cancel message is short enough to read.
 - The Shuffles tab's empty message says what's actually missing: ticked characters, saved recipes or prices.
 - Help and the guide: corrected what had gone out of date, and every common command is listed.
