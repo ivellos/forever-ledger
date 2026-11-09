@@ -269,24 +269,17 @@ end
 -- A purchase that got an unclear error, or no answer at all, may still go through. Silence
 -- proves nothing (Codex review, November 6), so it stays in Q.lateBuys until it's settled:
 -- by its success or failure, or by all its gold leaving (left, what's still to come). Meanwhile:
--- - When a shopping list is involved (the late one or the next), nothing else is bought for
---   up to LATE_SECONDS, so two replies can't be mixed up and a list never gets more than it
---   wants. Vendor flips buy on: they have no Want, and a mixed-up reply only moves a count
---   between two flips (owner, November 9: a Red Woolen Bag purchase got no answer at all,
---   every tick after it was held, and the rest of the row sold meanwhile).
+-- - Buying goes on, as it did in the beta (owner, November 9). From November 6 nothing else
+--   was bought for up to a minute, so two replies couldn't be mixed up; but a Red Woolen Bag
+--   purchase got no answer at all, every tick after it was held, and the rest of the row
+--   sold meanwhile. Known gap, accepted by the owner (Codex review, November 9): while
+--   purchases overlap, a reply or gold leaving can be put down to the wrong one, so Spend at
+--   most can be passed by about one purchase and a shopping list can get one more than it
+--   wants.
 -- - Its cost stays held against Spend at most for the rest of the visit, however late.
 -- - A success with no purchase under way still counts for it, however late.
--- After LATE_SECONDS it's probably lost, so a purchase under way takes its own success:
--- only a reply that late while another of the same kind is under way can be mixed up.
+-- After LATE_SECONDS it's probably lost, so a purchase under way takes its own success.
 local LATE_SECONDS = 60
-local function awaitingLate(e)
-  local list = e and e.reason == "list"
-  for _, late in ipairs(Q.lateBuys) do
-    if late.left > 0 and GetTime() - late.at <= LATE_SECONDS
-      and (list or (late.cur and late.cur.reason == "list")) then return true end
-  end
-  return false
-end
 
 local function owedLate()
   local total = 0
@@ -683,7 +676,6 @@ end
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
 local CATCHING_UP = "The auction house is catching up: try again in a moment."
-local HEARING_BACK = "Waiting to hear whether the last purchase went through."
 local PLAN_SECONDS = 15   -- how long what a lookup found is trusted
 -- clicked: a click on the button (not the wheel). With nothing to buy, the button runs
 -- the flip watch instead (owner, October 3: "Look again" seemed odd); the wheel never
@@ -706,13 +698,6 @@ function ns:BuyQueueAct(clicked)
   end
   -- (The trace notes every refused click: owner, November 6, "I have to reload to buy
   -- things half the time", with nothing to show which of these it was.)
-  if (Q.state == "ready" or Q.state == "confirm") and awaitingLate(Q.cur) then
-    trace(("click held: waiting on %d earlier purchases, state %s"):format(#Q.lateBuys, Q.state))
-    Q.note = HEARING_BACK
-    if refreshQueue then refreshQueue() end
-    return
-  end
-  if Q.note == HEARING_BACK then Q.note = nil end
   if not active() then
     trace(("click ignored: shown=%s armed=%s state %s"):format(tostring(shown()), tostring(Q.armed), Q.state))
     return
