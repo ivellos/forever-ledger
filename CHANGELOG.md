@@ -16,6 +16,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: a new vendor flip that chimes switches the panel to Vendor flips when it's on Shopping lists and you're not using a list (nothing being looked up or bought, no click or scroll there in the last 30 seconds). A Shadowgem flip chimed while the panel showed Shopping lists and could only be found by searching. The chat line now says "under Vendor flips".
 
 ### Fixed
+- Auctions: "undercut", its alert and Cancel now need a price from the last 30 minutes. With an older one the row says "check prices", so a listing that's since sold can't get a fine auction canceled.
+- Shopping lists: a purchase no longer counts against a list that's switched off, which could get the Want bought twice.
+- A purchase whose gold leaves slowly is still logged against the right item and list.
 - Scroll to buy is on for new installs, as 0.17.0 meant it to be.
 - Full scan no longer says "Ready" away from the auction house, and the scan buttons say why they can't be clicked there; the Buy queue's buttons and message do too.
 - Dropdowns close when you click somewhere else.

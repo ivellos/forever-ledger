@@ -270,11 +270,18 @@ ns:On("MAIL_INBOX_UPDATE", function()
   ns.db.mailbox[ns.CharKey()] = { t = time(), money = money }
 end)
 
--- Undercut: someone (or a cheaper one of yours) is listed below your price.
+-- Whether what cheapestNow found is recent enough to act on.
+local function priceFresh(rec)
+  return rec ~= nil and rec.t ~= nil and time() - rec.t < GEAR_FRESH
+end
+
+-- Undercut: someone (or a cheaper one of yours) is listed below your price. Only from a
+-- recent price: an old one may have sold, and Cancel would take down an auction that was
+-- fine and lose its deposit (gold audit, November 9).
 local function undercutBy(e)
   if e.sold or not e.each then return end
-  local now = cheapestNow(e)
-  if now and now < e.each then return now end
+  local now, rec = cheapestNow(e)
+  if now and now < e.each and priceFresh(rec) then return now end
 end
 
 -- A sound and a chat line, once per auction and price (again if it drops further).
@@ -593,14 +600,17 @@ refresh = function()
     r.name:SetText(e.sold and ("|cff888888" .. name .. "|r") or name)
     r.q:SetText(tostring(e.q or 1))
     r.each:SetText(e.each and ns.MoneyPlain(e.each) or "|cff888888?|r")
-    local now, by = cheapestNow(e), undercutBy(e)
+    local now, rec = cheapestNow(e)
+    local by = undercutBy(e)
     if e.sold then
       r.now:SetText("|cff7fd39c+" .. ns.MoneyPlain(proceeds(e)) .. "|r")
       r.status:SetText("|cff888888sold, " .. mailText(e) .. "|r")
     else
-      r.now:SetText(now and ((by and "|cffee8597" or "|cff7fd39c") .. ns.MoneyPlain(now) .. "|r") or "|cff888888?|r")
+      local stale = now and not priceFresh(rec)
+      r.now:SetText(now and ((stale and "|cff888888" or by and "|cffee8597" or "|cff7fd39c") .. ns.MoneyPlain(now) .. "|r") or "|cff888888?|r")
       if e.a and pending[e.a] then r.status:SetText("|cff888888canceling...|r")
       elseif by then r.status:SetText("|cffee8597undercut|r")
+      elseif stale then r.status:SetText("|cff888888check prices|r")
       elseif now then r.status:SetText("|cff7fd39ccheapest|r")
       else r.status:SetText("|cff888888not priced|r") end
     end

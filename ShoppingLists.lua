@@ -1000,7 +1000,9 @@ end
 -- have), items first, then materials, only up to what each still needs.
 function ns:NoteListPurchase(id, qty)
   for _, list in ipairs(data().lists) do
-    if ns:BuyMode(list) and qty > 0 then
+    -- (Only lists ticked to buy from: an old list ahead of this week's took the credit, and
+    -- the Want was bought twice. Gold audit, November 9.)
+    if list.on and ns:BuyMode(list) and qty > 0 then
       for _, e in ipairs(list.items) do
         if e.id == id and e.mode ~= "craft" and not e.done and qty > 0 then
           local add = math.min(qty, ns:ListWant(e) - (e.bought or 0))

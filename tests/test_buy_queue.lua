@@ -669,8 +669,8 @@ end)
 T.test("Buy queue: a list's version can be a number from the price window", function()
   rawset(C_AuctionHouse, "GetNumItemSearchResults", function() return 2 end)
   rawset(C_AuctionHouse, "GetItemSearchResultInfo", function(_, i)
-    return ({ { auctionID = 5, buyoutAmount = 400, quantity = 1, itemLink = "|Hitem:91092:::::::12718:|h[Armor of the Eagle]|h" },
-      { auctionID = 6, buyoutAmount = 500, quantity = 1, itemLink = "|Hitem:91092:::::::12719:|h[Armor of the Whale]|h" } })[i]
+    return ({ { auctionID = 5, buyoutAmount = 400, quantity = 1, itemLink = "|Hitem:91092::::::12718:|h[Armor of the Eagle]|h" },
+      { auctionID = 6, buyoutAmount = 500, quantity = 1, itemLink = "|Hitem:91092::::::12719:|h[Armor of the Whale]|h" } })[i]
   end)
   local e = buyingItem(91092, 1)
   e.limit, e.suffix, Q.state, Q.plan = 600, 12719, "search", nil

@@ -266,6 +266,17 @@ T.test("Undercut: an alert older than two days is forgotten", function()
   T.eq(count(chat(function() read(UP) end), "Undercut:"), 1, "over two days later")
 end)
 
+-- Gold audit, November 9: the listing behind an old price may have sold.
+T.test("Undercut: not from an old price", function()
+  fresh()
+  cheapest(70020, 90)
+  ns.db.prices[ns.MarketKey()][70020].t = S.now - 1801
+  T.eq(count(chat(function() read(UP) end), "Undercut:"), 0, "over half an hour old")
+  T.eq(#S.sounds, 0)
+  cheapest(70020, 90)
+  T.eq(count(chat(function() read(UP) end), "Undercut:"), 1, "seen again just now")
+end)
+
 T.test("Undercut: nothing when alerts are off", function()
   fresh()
   ns.db.settings.undercutAlerts = false

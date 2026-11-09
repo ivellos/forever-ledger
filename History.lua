@@ -12,6 +12,7 @@ local LOG_SIZE = 10000      -- auction house sales and purchases, and vendor buy
 local LOG_DAYS = 30         -- one by one this long, then as monthly totals per item
 local LEDGER_MONTHS_KEPT = 365 * 86400   -- monthly totals kept this long
 local PENDING_SECONDS = 5   -- how long a hint (repair, posting fee, mail) waits for the gold change
+local PURCHASE_SECONDS = 15 -- an auction house purchase can answer slowly (BuyQueue.lua waits as long; gold audit, November 9)
 
 -- Days follow the player's own clock (a UTC day would start in the US evening).
 local function localDay(t)
@@ -171,7 +172,8 @@ local function takeHints(delta)
   -- Drop old hints, and never let a sale explain money going out (or the reverse).
   local pending = {}
   for i = #pendingAll, 1, -1 do
-    if now - pendingAll[i].t > PENDING_SECONDS then table.remove(pendingAll, i) end
+    local wait = pendingAll[i].source == "ahBuy" and PURCHASE_SECONDS or PENDING_SECONDS
+    if now - pendingAll[i].t > wait then table.remove(pendingAll, i) end
   end
   for _, h in ipairs(pendingAll) do
     if (GAINS[h.source] or false) == (delta > 0) then pending[#pending + 1] = h end

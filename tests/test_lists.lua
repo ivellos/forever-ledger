@@ -239,6 +239,20 @@ T.test("ListStillWanted: off and unticked lists want nothing", function()
   T.eq(ns:ListStillWanted(50056), 0, "not ticked to buy from")
 end)
 
+-- Gold audit, November 9: the old list took the credit, so the Want was bought twice.
+T.test("A purchase doesn't count against a list that's switched off", function()
+  local ID = 50062
+  local off = buyList({ id = ID, max = 100, qty = 5 })
+  off.on = false
+  local on = ns:NewShoppingList("This week")
+  on.on = true
+  on.items[1] = { id = ID, max = 100, qty = 5 }
+  ns:NoteListPurchase(ID, 5)
+  T.eq(off.items[1].bought, nil, "the old list")
+  T.eq(on.items[1].bought, 5)
+  T.eq(ns:ListStillWanted(ID), 0, "the list that's buying has all it wants")
+end)
+
 T.test("ListStillWanted: what you already own doesn't count on a normal list", function()
   S.bags[50057] = 50
   buyList({ id = 50057, max = 100, qty = 3 })
