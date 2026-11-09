@@ -717,6 +717,8 @@ end
 -- link. Any other version, or a row with no name to read, isn't bought (gold audit,
 -- November 9: the queue bought "of the Eagle" for a list that wanted "of the Monkey").
 local function rowIsVersion(r, suffix)
+  -- (A version the game hadn't named when it was added from the price window: its number.)
+  if type(suffix) == "number" then return ns.SuffixFromLink(r.itemLink) == suffix end
   local name = r.itemLink and r.itemLink:match("%[(.-)%]")
   return name ~= nil and name:lower():find(suffix:lower(), 1, true) ~= nil
 end
@@ -1022,7 +1024,25 @@ end)
 -- still counts, whatever the queue has moved on to. Anything that doesn't match leaves
 -- the record alone. paidOnly: only one whose gold has already left, which can't fail now.
 -- True if this success was one of those.
+-- Every commodity purchase that might still fail, as { list, i }: the unanswered ones not
+-- yet paid, and successes only guessed to be theirs. Commodity answers don't say which
+-- purchase they're for, so a success put down to one could be another's (Codex review,
+-- November 9). One whose gold has left can't fail now, so it isn't one of them.
+local function commodityOpen()
+  local found = {}
+  for _, list in ipairs({ Q.lateBuys, Q.wonDue }) do
+    for i, o in ipairs(list) do
+      if o.plan.kind == "commodity" and o.left > 0 and (list == Q.lateBuys or o.guess) then
+        found[#found + 1] = { list = list, i = i }
+      end
+    end
+  end
+  return found
+end
+
 local function lateSuccess(kind, auctionID, paidOnly)
+  -- (Before one is taken out: with others it could be, this one is a guess.)
+  local guess = kind == "commodity" and #commodityOpen() > 1 or nil
   local found
   for i, late in ipairs(Q.lateBuys) do
     if late.plan.kind == kind and (not auctionID or late.plan.auctionID == auctionID)
@@ -1032,7 +1052,10 @@ local function lateSuccess(kind, auctionID, paidOnly)
     end
   end
   if not found then return false end
-  if found.left > 0 then Q.wonDue[#Q.wonDue + 1] = found end   -- (its gold can leave just after this)
+  if found.left > 0 then   -- (its gold can leave just after this)
+    found.guess = guess
+    Q.wonDue[#Q.wonDue + 1] = found
+  end
   local plan, e = found.plan, found.cur
   if kind == "commodity" then
     bought(plan.qty, plan.total or plan.cost, e)
@@ -1047,25 +1070,16 @@ local function lateSuccess(kind, auctionID, paidOnly)
   return true
 end
 
--- The oldest unanswered commodity purchase's place in Q.lateBuys, if any, and how many
--- there are. Commodity answers don't say which purchase they're for. (One whose gold has
--- left can't fail now, so it isn't one of them.)
-local function commodityOpen()
-  local first, n = nil, 0
-  for i, late in ipairs(Q.lateBuys) do
-    if late.plan.kind == "commodity" and late.left > 0 then
-      first, n = first or i, n + 1
-    end
-  end
-  return first, n
-end
-
 -- The purchase under way went through: what it hasn't paid yet stays held until its gold
 -- leaves (Codex review, November 9: the news alone freed it, so the next purchase could
 -- pass Spend at most). Gold that has already left isn't held again.
 local function keepDue()
   local due = math.max(costOf(Q.plan) - paidSoFar(), 0)
-  if due > 0 then Q.wonDue[#Q.wonDue + 1] = { plan = Q.plan, cur = Q.cur, at = GetTime(), left = due } end
+  if due > 0 then
+    -- With another commodity open, this answer may have been that one's.
+    local guess = Q.plan.kind == "commodity" and #commodityOpen() > 0 or nil
+    Q.wonDue[#Q.wonDue + 1] = { plan = Q.plan, cur = Q.cur, at = GetTime(), left = due, guess = guess }
+  end
   Q.lastPlan = nil
 end
 
@@ -1086,15 +1100,15 @@ end)
 
 ns:On("COMMODITY_PURCHASE_FAILED", function()
   trace("purchase failed event, state " .. Q.state)
-  local open, n = commodityOpen()
+  local open = commodityOpen()
   -- Nothing of this kind on its way now: it's an earlier one's, whatever is being bought.
-  -- With several earlier ones there's no telling whose, so none is let go.
+  -- With several it could be there's no telling whose, so none is let go.
   if not (Q.state == "buying" and Q.plan and Q.plan.kind == "commodity") then
-    if n == 1 then table.remove(Q.lateBuys, open) end
+    if #open == 1 then table.remove(open[1].list, open[1].i) end
     return
   end
   -- This one or an earlier one failed, and there's no telling which: neither is let go.
-  if open then settleLater() end
+  if #open > 0 then settleLater() end
   if refusedTwice("the auction house wouldn't sell it.") then return end
   Q.note = "That purchase failed: the listings changed. Checking again."
   again()
@@ -1248,7 +1262,7 @@ end
 -- The armed section's strip: what's happening now. Returns line 1, line 2, button text.
 local function statusText()
   local e, p = Q.cur, Q.plan
-  local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. (e.suffix and (" " .. e.suffix) or "") .. "|r") or ""
+  local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. (e.suffix and (" " .. ns:VersionLabel(e.suffix)) or "") .. "|r") or ""
   local st = Q.state
   -- How to buy, said where you'd look (Magic, October 3: "which area do I scroll in?").
   local how = S().wheel and "Scroll down over this strip, or click Buy." or "Click Buy (or tick Scroll to buy and scroll here)."
@@ -2461,7 +2475,7 @@ local function listRow(i)
     GameTooltip:SetItemByID(id)
     -- Gear on a search list: every version the last Search all found.
     local found = r.kind == "item" and r.entry.found
-    local want = r.kind == "item" and r.entry.suffix
+    local want = r.kind == "item" and r.entry.suffix and ns:VersionLabel(r.entry.suffix)
     if found and found.versions and #found.versions > 0 then
       GameTooltip:AddLine(" ")
       GameTooltip:AddLine(("On the auction house at the last Search all (%s):"):format(ns.Age(found.t)), T.accent[1], T.accent[2], T.accent[3])

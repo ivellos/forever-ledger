@@ -297,6 +297,8 @@ function ns:QuickAddToShoppingList(id, suffix)
   local list = ns:CurrentShoppingList()
   if list and (list.countHave or list.temp or list.crateID) then list = nil end
   list = list or ns:NewShoppingList("Shopping list")
+  -- (The window knows a version by its number; lists by its name, where the game has one.)
+  if type(suffix) == "number" then suffix = ns:VersionName(suffix) or suffix end
   local e = ns:AddToShoppingList(list, id, nil, nil, suffix)
   if not ns:IsSearchList(list) and sourceOf(e) == "usual" and (e.max or 0) == 0 then
     e.max, e.usualAllowance = ns:UsualListPrice(list, id) or 0, ns:ListAllowance(list)
@@ -305,10 +307,16 @@ function ns:QuickAddToShoppingList(id, suffix)
   return list, e
 end
 
+-- A saved version as words: a number only until the game has named that version.
+function ns:VersionLabel(suffix)
+  if type(suffix) == "number" then return ns:VersionName(suffix) or "(other stats)" end
+  return suffix
+end
+
 -- An entry's name, with its version if it has one.
 function ns:ListEntryName(e)
   local name = ns.ItemName(e.id) or ("item " .. e.id)
-  return e.suffix and (name .. " " .. e.suffix) or name
+  return e.suffix and (name .. " " .. ns:VersionLabel(e.suffix)) or name
 end
 
 -- An item from what was typed or dropped: an item link, an item number, or an exact
@@ -365,7 +373,10 @@ end
 ns:OnReady(function()
   for _, l in ipairs((ns.db.shopping or {}).lists or {}) do
     for _, e in ipairs(l.items or {}) do
-      if e.suffix then e.suffix = (ns:NormalizeVersion(e.suffix)) end
+      -- (Numbers came from the price window: a text-only tidy broke on them, Codex review,
+      -- November 9.)
+      if type(e.suffix) == "number" then e.suffix = ns:VersionName(e.suffix) or e.suffix
+      elseif e.suffix then e.suffix = (ns:NormalizeVersion(e.suffix)) end
     end
   end
 end)
@@ -746,12 +757,16 @@ end
 -- know it, so a joke listing at 999g can't be bought by a wheel tick.
 local ANY_CAP = 3
 
--- Today's price, if enough are listed for it to mean something: with no history, a lone
--- 999g listing was its own "usual" price and set a cap of 2,997g (gold audit, November 9).
+-- Today's price, if enough are listed for it to mean something and it's recent: with no
+-- history, a lone 999g listing was its own "usual" price and set a cap of 2,997g, and a
+-- days-old price could become a list's limit (gold audit and Codex review, November 9).
 local TRUST_LISTED = 5
 local function todaysPrice(id)
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
-  if rec and not rec.none and (rec.q or 0) >= TRUST_LISTED then return rec.a or rec.m end
+  if rec and not rec.none and (rec.q or 0) >= TRUST_LISTED
+    and time() - (rec.t or 0) <= (ns.db.settings.maxAgeHours or 12) * 3600 then
+    return rec.a or rec.m
+  end
 end
 
 function ns:AnyPriceLimit(id)
@@ -1142,7 +1157,7 @@ end
 local function finishGear(e, versions, total, min)
   local found = { t = time(), versions = versions, total = total or 0, min = min }
   if e.suffix then
-    local want = e.suffix:lower()
+    local want = ns:VersionLabel(e.suffix):lower()
     found.total, found.min = 0, nil
     for _, v in ipairs(versions or {}) do
       if v.name and v.name:lower():find(want, 1, true) then

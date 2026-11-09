@@ -125,6 +125,10 @@ T.test("With no history, a few listings set no cap and no usual price", function
   price(50027, { m = 100, a = 100, q = 5 })
   T.eq(ns:AnyPriceLimit(50027), 300, "five is enough to go on")
   T.eq(ns:UsualPriceFor(50027), 100)
+  -- Codex's review of the fix, November 9: enough listed, but four days old.
+  price(50028, { m = 100000, a = 100000, q = 12, t = S.now - 4 * 86400, src = "scan" })
+  T.eq(ns:UsualPriceFor(50028), nil, "too old to go by")
+  T.eq(ns:AnyPriceLimit(50028), nil)
 end)
 
 ---------------------------------------------------------------------------

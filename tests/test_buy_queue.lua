@@ -613,8 +613,8 @@ T.test("Full scan: what it didn't see is marked none listed, if the scan looks w
   T.eq(market[91101].m, 500, "seen")
   T.eq(market[91102].m, 100, "another addon's price is left alone")
   T.eq(market[91103].m, 100, "a price newer than the scan is left alone")
-  T.eq(ns.db.lastFullListings[key], 1)
-  ns.db.lastFullListings[key] = 100
+  T.eq(ns.db.lastFullListings[key].n, 1)
+  ns.db.lastFullListings[key] = { n = 100, t = S.now }
   old(91104, "full")
   S.now = S.now + 200
   T.fire("REPLICATE_ITEM_LIST_UPDATE")
@@ -641,6 +641,98 @@ T.test("Buy queue: what can't be taken back takes two clicks on the same thing",
   T.eq(Q.clickTwice(b, "b", "x", "?"), false)
   S.now = S.now + 5
   T.eq(Q.clickTwice(b, "b", "x", "?"), false, "too late: it asks again")
+  wipe(S.timers)
+end)
+
+-- The next four: Codex's verification of b8844dd, November 9.
+T.test("Buy queue: a success only guessed to be one purchase's frees nothing on a failure", function()
+  withAHOpen(function()
+    unansweredFirst(91090, 40)
+    sending(91091, { kind = "commodity", qty = 5, cost = 50 })
+    Q.noReply()
+    T.fire("COMMODITY_PURCHASE_SUCCEEDED")   -- put down to the 40, but could be the 50's
+    T.eq(#Q.wonDue, 1)
+    T.eq(Q.wonDue[1].guess, true)
+    T.fire("COMMODITY_PURCHASE_FAILED")
+    T.eq(#Q.lateBuys, 1, "no telling which failed")
+    T.eq(#Q.wonDue, 1)
+    T.eq(Q.visitLeft(), 10, "both still held")
+    S.money = 950
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.lateBuys[1].left, 0, "the 50 paid, so it's the one that went through")
+    T.fire("COMMODITY_PURCHASE_FAILED")
+    T.eq(#Q.wonDue, 0, "so the failure was the 40's")
+    T.eq(Q.visitLeft(), 50)
+  end)
+end)
+
+T.test("Buy queue: a list's version can be a number from the price window", function()
+  rawset(C_AuctionHouse, "GetNumItemSearchResults", function() return 2 end)
+  rawset(C_AuctionHouse, "GetItemSearchResultInfo", function(_, i)
+    return ({ { auctionID = 5, buyoutAmount = 400, quantity = 1, itemLink = "|Hitem:91092:::::::12718:|h[Armor of the Eagle]|h" },
+      { auctionID = 6, buyoutAmount = 500, quantity = 1, itemLink = "|Hitem:91092:::::::12719:|h[Armor of the Whale]|h" } })[i]
+  end)
+  local e = buyingItem(91092, 1)
+  e.limit, e.suffix, Q.state, Q.plan = 600, 12719, "search", nil
+  ns.db.settings.buyQueue.limit = nil
+  S.money = 100000
+  Q.planItem({ itemID = 91092 })
+  T.eq(Q.plan.auctionID, 6, "by its number")
+  rawset(C_AuctionHouse, "GetNumItemSearchResults", nil)
+  rawset(C_AuctionHouse, "GetItemSearchResultInfo", nil)
+  T.eq(ns:VersionLabel(99999), "(other stats)")
+  T.eq(ns:VersionLabel("of the Whale"), "of the Whale")
+end)
+
+T.test("Full scan: small scans in a row can't vouch for each other", function()
+  wipe(S.timers)
+  local key = ns.MarketKey()
+  local market = ns.db.prices[key]
+  market[91110] = { m = 100, a = 100, q = 12, t = S.now - 5000, src = "full" }
+  ns.db.lastFullListings = { [key] = { n = 100, t = S.now } }
+  rawset(C_AuctionHouse, "GetNumReplicateItems", function() return 1 end)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", function()
+    return nil, nil, 1, nil, nil, nil, nil, nil, nil, 500, nil, nil, nil, nil, nil, nil, 91111
+  end)
+  for _ = 1, 2 do
+    S.now = S.now + 200
+    T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  end
+  T.eq(market[91110].m, 100, "still listed, as far as anyone can tell")
+  T.eq(ns.db.lastFullListings[key].n, 100, "the size to compare with stays")
+  S.now = S.now + 86401
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(ns.db.lastFullListings[key].n, 1, "a day on, the market really has shrunk")
+  T.eq(market[91110].m, 100, "and that scan marks nothing")
+  rawset(C_AuctionHouse, "GetNumReplicateItems", nil)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", nil)
+  ns.db.lastFullListings = nil
+  wipe(S.timers)
+end)
+
+T.test("Full scan: a listing with no buyout counts as listed, and unread rows prove nothing", function()
+  wipe(S.timers)
+  local key = ns.MarketKey()
+  local market = ns.db.prices[key]
+  market[91112] = { m = 100, a = 100, q = 12, t = S.now - 5000, src = "full" }
+  market[91113] = { m = 100, a = 100, q = 12, t = S.now - 5000, src = "full" }
+  ns.db.lastFullListings = { [key] = { n = 1, t = S.now } }
+  rawset(C_AuctionHouse, "GetNumReplicateItems", function() return 1 end)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", function()
+    return nil, nil, 1, nil, nil, nil, nil, nil, nil, 0, nil, nil, nil, nil, nil, nil, 91112
+  end)
+  S.now = S.now + 200
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.ok(not market[91112].none, "bids only is still listed")
+  T.eq(market[91113].none, true, "the one it didn't see")
+  market[91114] = { m = 100, a = 100, q = 12, t = S.now - 5000, src = "full" }
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", function() end)
+  S.now = S.now + 200
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(market[91114].m, 100, "a row it couldn't read could have been this")
+  rawset(C_AuctionHouse, "GetNumReplicateItems", nil)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", nil)
+  ns.db.lastFullListings = nil
   wipe(S.timers)
 end)
 

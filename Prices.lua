@@ -1095,18 +1095,32 @@ end)
 -- A full scan sees everything listed, so what it didn't see has sold or expired: without
 -- this a sold-out item kept its last price for good, and old prices became shuffle and
 -- list limits (gold audit, November 9). Only when the scan looks whole (at least half the
--- listings of the last one at this auction house), and only our own prices older than
--- the scan. byItem: what it saw. since: when the listings were taken, at the earliest.
-local function markGone(byItem, n, since)
-  if n <= 0 then return 0 end
-  local key = ns.MarketKey()
+-- listings of the last whole one at this auction house, and nearly every row readable), and
+-- only our own prices older than the scan. A scan that doesn't look whole changes nothing,
+-- so two small ones in a row can't vouch for each other (Codex review, November 9); if a
+-- day passes with none at the old size, the market really has shrunk and the next scan
+-- becomes the size to compare with, marking nothing that time.
+-- seen: every item it listed, priced or not. since: when the listings were taken, at the
+-- earliest.
+local NEW_SIZE_AFTER = 86400
+local function markGone(seen, unread, n, since)
+  if n <= 0 or unread > n * 0.01 then return 0 end
+  local key, now = ns.MarketKey(), time()
   ns.db.lastFullListings = ns.db.lastFullListings or {}
   local last = ns.db.lastFullListings[key]
-  ns.db.lastFullListings[key] = n
-  if not last or n < last / 2 then return 0 end
-  local market, now, gone = ns.db.prices[key] or {}, time(), 0
+  if type(last) == "number" then last = { n = last, t = 0 } end   -- (saved before it had a time)
+  if not last then
+    ns.db.lastFullListings[key] = { n = n, t = now }
+    return 0
+  end
+  if n < last.n / 2 then
+    if now - last.t > NEW_SIZE_AFTER then ns.db.lastFullListings[key] = { n = n, t = now } end
+    return 0
+  end
+  ns.db.lastFullListings[key] = { n = n, t = now }
+  local market, gone = ns.db.prices[key] or {}, 0
   for id, rec in pairs(market) do
-    if not byItem[id] and not rec.none and (rec.t or 0) < since and (rec.src == "full" or rec.src == "scan") then
+    if not seen[id] and not rec.none and (rec.t or 0) < since and (rec.src == "full" or rec.src == "scan") then
       market[id] = { t = now, src = "full", none = true }
       gone = gone + 1
     end
@@ -1136,6 +1150,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   local n = C_AuctionHouse.GetNumReplicateItems() or 0
   if not mine then ns:Debug("Reading another addon's full scan:", n, "listings") end
   local byItem, i = {}, 0
+  local seen, unread = {}, 0   -- every item listed, priced or not; rows it couldn't read
   -- Gear with random stats ("of the Eagle"): note each listing's version (the suffix
   -- number in its link) so tooltips can price the exact version (Gillee's AH video).
   local isGear, getLink = {}, C_AuctionHouse.GetReplicateItemLink
@@ -1190,6 +1205,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
         if owner and owner ~= "" or ownerFull and ownerFull ~= "" then probe.owner = probe.owner + 1 end
         if probe.tl then probe.bands[band] = (probe.bands[band] or 0) + 1 end
       end
+      if itemID then seen[itemID] = true else unread = unread + 1 end
       if itemID and buyout and buyout > 0 then
         count = math.max(count or 1, 1)
         local t = byItem[itemID]
@@ -1212,7 +1228,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
         if has then gearWith = gearWith + 1 end
       end
       sold.finish()
-      ns:Debug(("Full scan: %d items no longer listed."):format(markGone(byItem, n, since)))
+      ns:Debug(("Full scan: %d items no longer listed."):format(markGone(seen, unread, n, since)))
       -- For checking gear versions (/fl debug): did the scan see any "of the Eagle" listings?
       ns:Debug(("Gear versions: %d listings with random stats across %d items (link function: %s)."):format(
         versions, gearWith, getLink and "yes" or "missing"))
