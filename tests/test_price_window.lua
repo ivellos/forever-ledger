@@ -166,6 +166,34 @@ T.test("Price window: an auction house click opens the version its tooltip showe
   T.eq(ns:ClickedLink(id, group), group, "an old tooltip doesn't count")
 end)
 
+-- Owner's screenshot, November 8: Fortified Spaulders bonus 12734 showed "other stats",
+-- because no full scan had read a listing of it with its name.
+T.test("Price window: a version full scans never named learns it from the link", function()
+  fresh()
+  ns:ForgetVersionNames()
+  local id = 71053
+  ns.db.itemNames[id] = "Test Spaulders"
+  ns.db.suffixNames["of the Whale"] = 12719
+  market()[id] = { m = 250, q = 3, sx = "12719:300:2;12734:1800:2;12735:1700:1", t = time() }
+  local function link(bonus, shown)
+    return "|cff1eff00|Hitem:" .. id .. "::::::::20:1482::1:1:" .. bonus .. ":1:28:7000|h[" .. shown .. "]|h|r"
+  end
+  T.eq(ns:VersionName(12734), nil, "not named yet")
+  ns:LearnVersionName(id, 12734, link(12734, "Test Spaulders"))
+  T.eq(ns:VersionName(12734), nil, "a link without a version in its name teaches nothing")
+  ns:LearnVersionName(id, 12734, link(12734, "Test Spaulders of Marksmanship"))
+  T.eq(ns:VersionName(12734), "of Marksmanship")
+  T.eq(ns.db.suffixNames["of Marksmanship"], 12734, "saved")
+  ns:LearnVersionName(id, 12719, link(12719, "Test Spaulders of Blocking"))
+  T.eq(ns:VersionName(12719), "of the Whale", "a scan's name is kept")
+  ns:LearnVersionName(id, 12735, link(12735, "Test Spaulders of the Whale"))
+  T.eq(ns.db.suffixNames["of the Whale"], 12719, "a name another number has isn't taken over")
+  T.eq(ns:VersionName(12735), "of the Whale", "but shows for this session")
+  ns:LearnVersionName(id, 12736, link(12736, "Other Spaulders of Stamina"))
+  T.eq(ns:VersionName(12736), nil, "a link for another item's name")
+  ns:ForgetVersionNames()
+end)
+
 T.test("Price window: a material without a price leaves the cost open", function()
   fresh()
   recipe()

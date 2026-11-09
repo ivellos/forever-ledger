@@ -322,16 +322,39 @@ function ns.LinkBonusIDs(link)
   return out
 end
 
--- The version name for a version number ("of the Whale"), from what full scans saw.
+-- The version name for a version number ("of the Whale"), from what full scans saw, or
+-- from a hovered or clicked link (ns:LearnVersionName).
 local versionNames
+local linkNames = {}
 function ns:VersionName(suffix)
   if not versionNames then
     versionNames = {}
     for name, s in pairs(ns.db.suffixNames or {}) do versionNames[s] = name end
   end
-  return versionNames[suffix]
+  return versionNames[suffix] or linkNames[suffix]
 end
 function ns:ForgetVersionNames() versionNames = nil end
+
+-- A version full scans never named: a scan can read a listing before the game has the
+-- item's name, so a rare version can stay nameless (owner's screenshot, November 8:
+-- Fortified Spaulders bonus 12734 showed "other stats"). A link the game shows has the
+-- full name ("[Fortified Spaulders of the Whale]"): what follows the item's own name is
+-- the version's. Saved, unless that name already belongs to another number (then for
+-- this session only, so a scan's choice is never overwritten).
+function ns:LearnVersionName(id, suffix, link)
+  if not suffix or type(link) ~= "string" or ns:VersionName(suffix) then return end
+  local shown = link:match("%[(.-)%]")
+  local base = (ns.db.itemNames or {})[id] or getItemInfo(id)
+  if not (shown and base and shown:sub(1, #base + 1) == base .. " ") then return end
+  local vname = shown:sub(#base + 2)
+  if not vname:match("^of .") then return end
+  if ns.db.suffixNames[vname] == nil then
+    ns.db.suffixNames[vname] = suffix
+    ns:ForgetVersionNames()
+  else
+    linkNames[suffix] = vname
+  end
+end
 
 -- The version of a hovered item: a bonus ID in its link that is a known version (one
 -- full scans have seen, on this item or any other), or Classic's suffix field. nil for

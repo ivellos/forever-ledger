@@ -255,6 +255,7 @@ local function addLines(tt, id, forceFull)
     local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
     local suffix = ns:VersionOfLink(id, link)
     if suffix then
+      ns:LearnVersionName(id, suffix, link)
       local m, q = ns:SuffixPrice(id, suffix)
       local vname = ns:VersionName(suffix) or "these stats"
       if m and m > 0 then

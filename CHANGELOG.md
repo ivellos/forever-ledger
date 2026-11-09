@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - A full scan arriving late no longer says the auction house took that long to send Forever Ledger's scan (another addon may have asked meanwhile); it says how long after Forever Ledger asked. A big scan arriving just inside the 10-minute window no longer gets called another addon's because it took a moment to read.
+- A gear version ("of Marksmanship") that full scans never caught by name showed as "other stats"; it now learns its name from the item you hover or click.
 
 ## [0.18.3] - 2026-11-07
 

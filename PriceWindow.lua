@@ -668,7 +668,7 @@ function ns:RefreshPriceWindow()
   f.link = f.link or link
   f.icon.tex:SetTexture(icon or ns:ItemIcon(id))
   local colour = quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
-  local shown = (name or ns.ItemName(id) or ("item " .. id)) .. (state.suffix and (" " .. (ns:VersionName(state.suffix) or "")) or "")
+  local shown = (name or ns.ItemName(id) or ("item " .. id)) .. (state.suffix and (" " .. (ns:VersionName(state.suffix) or "(other stats)")) or "")
   f.name:SetText(colour and colour.hex and (colour.hex .. shown .. "|r") or shown)
   local kind = {}
   if itemType and itemType ~= "" then kind[#kind + 1] = itemType end
@@ -952,7 +952,10 @@ function ns:ShowPriceWindow(id, link, find)
     if win.id ~= id then state.suffix = nil end
     win.id, win.link = id, link
     local suffix = link and ns.VersionOfLink and ns:VersionOfLink(id, link)
-    if suffix then state.suffix = suffix end
+    if suffix then
+      state.suffix = suffix
+      ns:LearnVersionName(id, suffix, link)
+    end
     ns:RememberItem(id)
   end
   win:Show()
