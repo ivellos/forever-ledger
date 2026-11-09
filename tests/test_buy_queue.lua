@@ -730,6 +730,16 @@ T.test("Full scan: a listing with no buyout counts as listed, and unread rows pr
   S.now = S.now + 200
   T.fire("REPLICATE_ITEM_LIST_UPDATE")
   T.eq(market[91114].m, 100, "a row it couldn't read could have been this")
+  -- Codex's verification of e0aece8: even one unreadable row among many.
+  ns.db.lastFullListings = { [key] = { n = 200, t = S.now } }
+  rawset(C_AuctionHouse, "GetNumReplicateItems", function() return 200 end)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", function(idx)
+    if idx == 5 then return end
+    return nil, nil, 1, nil, nil, nil, nil, nil, nil, 500, nil, nil, nil, nil, nil, nil, 91112
+  end)
+  S.now = S.now + 200
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(market[91114].m, 100, "one in two hundred is still one that could be it")
   rawset(C_AuctionHouse, "GetNumReplicateItems", nil)
   rawset(C_AuctionHouse, "GetReplicateItemInfo", nil)
   ns.db.lastFullListings = nil

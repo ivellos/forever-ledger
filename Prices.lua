@@ -1095,7 +1095,7 @@ end)
 -- A full scan sees everything listed, so what it didn't see has sold or expired: without
 -- this a sold-out item kept its last price for good, and old prices became shuffle and
 -- list limits (gold audit, November 9). Only when the scan looks whole (at least half the
--- listings of the last whole one at this auction house, and nearly every row readable), and
+-- listings of the last whole one at this auction house, and every row readable), and
 -- only our own prices older than the scan. A scan that doesn't look whole changes nothing,
 -- so two small ones in a row can't vouch for each other (Codex review, November 9); if a
 -- day passes with none at the old size, the market really has shrunk and the next scan
@@ -1104,7 +1104,7 @@ end)
 -- earliest.
 local NEW_SIZE_AFTER = 86400
 local function markGone(seen, unread, n, since)
-  if n <= 0 or unread > n * 0.01 then return 0 end
+  if n <= 0 or unread > 0 then return 0 end   -- (a row it couldn't read could be any item)
   local key, now = ns.MarketKey(), time()
   ns.db.lastFullListings = ns.db.lastFullListings or {}
   local last = ns.db.lastFullListings[key]
