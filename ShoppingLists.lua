@@ -745,15 +745,22 @@ end
 -- buy the cheapest ones there are, but never more than 3 times the usual price when we
 -- know it, so a joke listing at 999g can't be bought by a wheel tick.
 local ANY_CAP = 3
+
+-- Today's price, if enough are listed for it to mean something: with no history, a lone
+-- 999g listing was its own "usual" price and set a cap of 2,997g (gold audit, November 9).
+local TRUST_LISTED = 5
+local function todaysPrice(id)
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if rec and not rec.none and (rec.q or 0) >= TRUST_LISTED then return rec.a or rec.m end
+end
+
 function ns:AnyPriceLimit(id)
   local stats = ns.PriceStats and ns:PriceStats(id, "month")
   local usual = stats and stats.points >= 3 and stats.usual
-  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
-  local now = rec and not rec.none and (rec.a or rec.m)
   -- Never raised to the cheapest listing (that let a lone joke listing set the cap), and
-  -- nothing to base it on means don't buy yet: nil, until a search has priced it (code
+  -- nothing to base it on means don't buy yet: nil, until scans have priced it (code
   -- review, October 4).
-  local base = usual or now
+  local base = usual or todaysPrice(id)
   if not base then return nil end
   return math.floor(base * ANY_CAP)
 end
@@ -812,11 +819,7 @@ end
 -- broken; filled in openly rather than "off" quietly meaning "usual price").
 function ns:UsualPriceFor(id)
   local stats = ns.PriceStats and ns:PriceStats(id, "month")
-  local p = stats and stats.points >= 3 and stats.usual
-  if not p then
-    local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
-    p = rec and not rec.none and (rec.a or rec.m)
-  end
+  local p = stats and stats.points >= 3 and stats.usual or todaysPrice(id)
   if not p then return end
   return math.floor(p)
 end
@@ -1061,7 +1064,7 @@ function ns:ShoppingTargets()
           local want = math.max(0, ns:ListWant(e, how == "any") - got)
           if want > 0 then
             seen[e.id] = true
-            out[#out + 1] = { id = e.id, limit = limit, any = how == "any", want = want, list = list.name }
+            out[#out + 1] = { id = e.id, limit = limit, any = how == "any", want = want, list = list.name, suffix = e.suffix }
           end
         end
       end

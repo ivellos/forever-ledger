@@ -115,6 +115,18 @@ T.test("AnyPriceLimit is never raised to a lone dear listing", function()
   T.eq(ns:AnyPriceLimit(50024), 300)
 end)
 
+-- Gold audit, November 9: with no history, a lone 999g listing was its own usual price.
+T.test("With no history, a few listings set no cap and no usual price", function()
+  price(50025, { m = 9990000, a = 9990000, q = 1 })
+  T.eq(ns:AnyPriceLimit(50025), nil, "a lone listing")
+  T.eq(ns:UsualPriceFor(50025), nil)
+  price(50026, { m = 100, a = 100, q = 4 })
+  T.eq(ns:AnyPriceLimit(50026), nil, "four")
+  price(50027, { m = 100, a = 100, q = 5 })
+  T.eq(ns:AnyPriceLimit(50027), 300, "five is enough to go on")
+  T.eq(ns:UsualPriceFor(50027), 100)
+end)
+
 ---------------------------------------------------------------------------
 -- Usual prices filled into Up to
 ---------------------------------------------------------------------------

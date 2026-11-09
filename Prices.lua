@@ -1092,6 +1092,29 @@ ns:On("AUCTION_HOUSE_SHOW_ERROR", function(code)
   if Scan.active and Scan.full then Scan.heldUntil = time() + FULL_HOLD end
 end)
 
+-- A full scan sees everything listed, so what it didn't see has sold or expired: without
+-- this a sold-out item kept its last price for good, and old prices became shuffle and
+-- list limits (gold audit, November 9). Only when the scan looks whole (at least half the
+-- listings of the last one at this auction house), and only our own prices older than
+-- the scan. byItem: what it saw. since: when the listings were taken, at the earliest.
+local function markGone(byItem, n, since)
+  if n <= 0 then return 0 end
+  local key = ns.MarketKey()
+  ns.db.lastFullListings = ns.db.lastFullListings or {}
+  local last = ns.db.lastFullListings[key]
+  ns.db.lastFullListings[key] = n
+  if not last or n < last / 2 then return 0 end
+  local market, now, gone = ns.db.prices[key] or {}, time(), 0
+  for id, rec in pairs(market) do
+    if not byItem[id] and not rec.none and (rec.t or 0) < since and (rec.src == "full" or rec.src == "scan") then
+      market[id] = { t = now, src = "full", none = true }
+      gone = gone + 1
+    end
+  end
+  if gone > 0 and ns.InvalidateValues then ns:InvalidateValues(true) end
+  return gone
+end
+
 -- The results arrive for every addon, so a full scan started by another addon
 -- (Auctionator, TSM...) is read too. They share Blizzard's 15-minute limit.
 local readingFull, lastFullRead = false, 0
@@ -1108,6 +1131,8 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   if waited and waited >= FULL_LATE then waited = nil end
   Scan.askedAt = nil
   local started = mine and Scan.started or GetTime()
+  -- (Not knowing when another addon asked: a minute back is plenty for what's newer.)
+  local since = time() - (mine and (GetTime() - started) or waited or 60)
   local n = C_AuctionHouse.GetNumReplicateItems() or 0
   if not mine then ns:Debug("Reading another addon's full scan:", n, "listings") end
   local byItem, i = {}, 0
@@ -1187,6 +1212,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
         if has then gearWith = gearWith + 1 end
       end
       sold.finish()
+      ns:Debug(("Full scan: %d items no longer listed."):format(markGone(byItem, n, since)))
       -- For checking gear versions (/fl debug): did the scan see any "of the Eagle" listings?
       ns:Debug(("Gear versions: %d listings with random stats across %d items (link function: %s)."):format(
         versions, gearWith, getLink and "yes" or "missing"))

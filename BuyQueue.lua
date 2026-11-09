@@ -109,7 +109,7 @@ local function buildQueue()
     local waiting = {}
     for _, t in ipairs(ns:ShoppingTargets()) do
       local n, avg = ns:CheapListings(t.id, t.limit)
-      local e = { id = t.id, limit = t.limit, any = t.any, reason = "list", list = t.list, want = t.want, n = n, cost = avg }
+      local e = { id = t.id, limit = t.limit, any = t.any, reason = "list", list = t.list, want = t.want, n = n, cost = avg, suffix = t.suffix }
       if n == 0 then e.waiting = true; waiting[#waiting + 1] = e else add("lists", e) end
     end
     for _, e in ipairs(waiting) do add("lists", e) end
@@ -686,6 +686,14 @@ local function planCommodity()
   setState("ready")
 end
 
+-- A row of the one version a list asked for ("of the Monkey"), going by the name in its
+-- link. Any other version, or a row with no name to read, isn't bought (gold audit,
+-- November 9: the queue bought "of the Eagle" for a list that wanted "of the Monkey").
+local function rowIsVersion(r, suffix)
+  local name = r.itemLink and r.itemLink:match("%[(.-)%]")
+  return name ~= nil and name:lower():find(suffix:lower(), 1, true) ~= nil
+end
+
 local function planItem(key)
   local e = Q.cur
   if not capToList(e) then return end
@@ -695,7 +703,7 @@ local function planItem(key)
   for i = 1, n do
     local r = AH.GetItemSearchResultInfo(key, i)
     if r and r.auctionID and r.buyoutAmount and r.buyoutAmount > 0 and r.buyoutAmount <= e.limit and not r.containsOwnerItem
-      and not (e.boughtIDs and e.boughtIDs[r.auctionID]) then
+      and not (e.boughtIDs and e.boughtIDs[r.auctionID]) and (not e.suffix or rowIsVersion(r, e.suffix)) then
       -- A row of several (quantity over 1) is bought too, one at a time: the price is for
       -- one. These were left for the page, so a flip left the queue while still listed
       -- (owner, November 9: Red Woolen Bags, 2 in a row at 5s; the game's Buy button took
@@ -1203,7 +1211,7 @@ end
 -- The armed section's strip: what's happening now. Returns line 1, line 2, button text.
 local function statusText()
   local e, p = Q.cur, Q.plan
-  local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. "|r") or ""
+  local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. (e.suffix and (" " .. e.suffix) or "") .. "|r") or ""
   local st = Q.state
   -- How to buy, said where you'd look (Magic, October 3: "which area do I scroll in?").
   local how = S().wheel and "Scroll down over this strip, or click Buy." or "Click Buy (or tick Scroll to buy and scroll here)."

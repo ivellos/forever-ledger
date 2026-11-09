@@ -564,6 +564,72 @@ T.test("Buy queue: the chat line for another item's win isn't this purchase's", 
   rawset(_G, "ERR_AUCTION_WON_S", real)
 end)
 
+-- Gold audit, November 9: "of the Eagle" was bought for a list that wanted "of the Monkey".
+T.test("Buy queue: a list's one version buys only that version", function()
+  local function rows(list)
+    rawset(C_AuctionHouse, "GetNumItemSearchResults", function() return #list end)
+    rawset(C_AuctionHouse, "GetItemSearchResultInfo", function(_, i) return list[i] end)
+  end
+  local eagle = { auctionID = 5, buyoutAmount = 400, quantity = 1, itemLink = "|cff1eff00|Hitem:91070:::|h[Armor of the Eagle]|h|r" }
+  local monkey = { auctionID = 6, buyoutAmount = 500, quantity = 1, itemLink = "|cff1eff00|Hitem:91070:::|h[Armor of the Monkey]|h|r" }
+  local e = buyingItem(91070, 1)
+  e.limit, e.suffix, Q.state, Q.plan = 600, "of the Monkey", "search", nil
+  ns.db.settings.buyQueue.limit = nil
+  S.money = 100000
+  rows({ eagle, monkey })
+  Q.planItem({ itemID = 91070 })
+  T.eq(Q.plan.auctionID, 6, "the Monkey, though the Eagle is cheaper")
+  Q.state, Q.plan = "search", nil
+  rows({ eagle, { auctionID = 7, buyoutAmount = 400, quantity = 1 } })
+  Q.planItem({ itemID = 91070 })
+  T.eq(Q.plan, nil, "not the Eagle, nor a row with no name to read")
+  T.eq(Q.cur, nil)
+  e = buyingItem(91071, 1)
+  e.limit, Q.state, Q.plan = 600, "search", nil
+  rows({ eagle })
+  Q.planItem({ itemID = 91071 })
+  T.eq(Q.plan.auctionID, 5, "no version asked for: any will do")
+  rawset(C_AuctionHouse, "GetNumItemSearchResults", nil)
+  rawset(C_AuctionHouse, "GetItemSearchResultInfo", nil)
+end)
+
+-- Gold audit, November 9: a sold-out item kept its last price for good.
+T.test("Full scan: what it didn't see is marked none listed, if the scan looks whole", function()
+  wipe(S.timers)
+  local key = ns.MarketKey()
+  ns.db.prices[key] = ns.db.prices[key] or {}
+  local market = ns.db.prices[key]
+  local function old(id, src) market[id] = { m = 100, a = 100, q = 12, t = S.now - 5000, src = src } end
+  old(91100, "full"); old(91101, "full"); old(91102, "Auctionator")
+  market[91103] = { m = 100, a = 100, q = 12, t = S.now + 190, src = "scan" }   -- newer than the scan
+  S.now = S.now + 200
+  rawset(C_AuctionHouse, "GetNumReplicateItems", function() return 1 end)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", function()
+    return nil, nil, 1, nil, nil, nil, nil, nil, nil, 500, nil, nil, nil, nil, nil, nil, 91101
+  end)
+  ns.db.lastFullListings = { [key] = 2 }
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(market[91100].none, true, "not seen, so gone")
+  T.eq(market[91101].m, 500, "seen")
+  T.eq(market[91102].m, 100, "another addon's price is left alone")
+  T.eq(market[91103].m, 100, "a price newer than the scan is left alone")
+  T.eq(ns.db.lastFullListings[key], 1)
+  ns.db.lastFullListings[key] = 100
+  old(91104, "full")
+  S.now = S.now + 200
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(market[91104].m, 100, "a scan far smaller than the last one proves nothing")
+  ns.db.lastFullListings = nil
+  old(91105, "full")
+  S.now = S.now + 200
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(market[91105].m, 100, "nor the first one, with nothing to compare it to")
+  rawset(C_AuctionHouse, "GetNumReplicateItems", nil)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", nil)
+  ns.db.lastFullListings = nil
+  wipe(S.timers)
+end)
+
 T.test("Buy queue: closing the auction house keeps a recent unsettled purchase", function()
   buying(91025)
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)

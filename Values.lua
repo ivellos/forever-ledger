@@ -52,9 +52,12 @@ end
 -- (owner's test, October 1: Simple Linen Pants showed 10,564% return, valued at the
 -- average of a few hopeful listings).
 local function ahSale(id, needListings)
-  local p, _, _, rec = ns:GetPrice(id)
+  local p, _, when, rec = ns:GetPrice(id)
   if not p then return end
   if needListings and rec and rec.q and rec.q < MIN_LISTED then return end
+  -- A chain is what shuffles and list limits are worked out from: an old price there can
+  -- mean overpaying on every unit (gold audit, November 9). maxAgeHours, as in GetPrice.
+  if needListings and when and time() - when > (ns.db.settings.maxAgeHours or 12) * 3600 then return end
   if rec and rec.m and not rec.none and rec.m < p then p = rec.m end
   -- This month's usual cheapest guards against a few hopeful listings. With 20 or more
   -- listed, today's market is the real one (owner's screenshot, October 22: Medium

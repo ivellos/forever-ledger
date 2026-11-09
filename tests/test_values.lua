@@ -71,6 +71,19 @@ T.test("A vendor when it pays more", function()
   T.eq(opts[1].label, "Sell to vendor")
 end)
 
+-- Gold audit, November 9: an old price became a shuffle or list limit.
+T.test("A chain isn't worked out from a price past the age limit", function()
+  local MAT, OUT = 60101, 60102
+  me(recipes({ { "Test craft", OUT, { { MAT, 1 } } } }))
+  price(OUT, 1000)
+  T.ok((ns:GetValue(MAT)), "valued from today's price")
+  ns.db.prices[ns.MarketKey()][OUT].t = S.now - 13 * 3600
+  ns:InvalidateValues(true)
+  T.eq((ns:GetValue(MAT)), nil, "not from one 13 hours old")
+  T.ok((ns:GetValue(OUT)), "the item's own price still shows")
+  ns.db.prices[ns.MarketKey()][OUT].t = S.now
+end)
+
 T.test("Nothing known: no value", function()
   me()
   local v, opts = ns:GetValue(60004)
