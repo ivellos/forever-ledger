@@ -269,15 +269,21 @@ end
 -- A purchase that got an unclear error, or no answer at all, may still go through. Silence
 -- proves nothing (Codex review, November 6), so it stays in Q.lateBuys until it's settled:
 -- by its success or failure, or by all its gold leaving (left, what's still to come). Meanwhile:
--- - Nothing else is bought for up to LATE_SECONDS, so two replies can't be mixed up.
+-- - When a shopping list is involved (the late one or the next), nothing else is bought for
+--   up to LATE_SECONDS, so two replies can't be mixed up and a list never gets more than it
+--   wants. Vendor flips buy on: they have no Want, and a mixed-up reply only moves a count
+--   between two flips (owner, November 9: a Red Woolen Bag purchase got no answer at all,
+--   every tick after it was held, and the rest of the row sold meanwhile).
 -- - Its cost stays held against Spend at most for the rest of the visit, however late.
 -- - A success with no purchase under way still counts for it, however late.
 -- After LATE_SECONDS it's probably lost, so a purchase under way takes its own success:
 -- only a reply that late while another of the same kind is under way can be mixed up.
 local LATE_SECONDS = 60
-local function awaitingLate()
+local function awaitingLate(e)
+  local list = e and e.reason == "list"
   for _, late in ipairs(Q.lateBuys) do
-    if late.left > 0 and GetTime() - late.at <= LATE_SECONDS then return true end
+    if late.left > 0 and GetTime() - late.at <= LATE_SECONDS
+      and (list or (late.cur and late.cur.reason == "list")) then return true end
   end
   return false
 end
@@ -700,7 +706,7 @@ function ns:BuyQueueAct(clicked)
   end
   -- (The trace notes every refused click: owner, November 6, "I have to reload to buy
   -- things half the time", with nothing to show which of these it was.)
-  if (Q.state == "ready" or Q.state == "confirm") and awaitingLate() then
+  if (Q.state == "ready" or Q.state == "confirm") and awaitingLate(Q.cur) then
     trace(("click held: waiting on %d earlier purchases, state %s"):format(#Q.lateBuys, Q.state))
     Q.note = HEARING_BACK
     if refreshQueue then refreshQueue() end
@@ -1012,6 +1018,18 @@ ns:On("UI_ERROR_MESSAGE", function(errType, msg)
   if auctionErrors[msg] then failed(errType, msg) end
 end)
 ns:On("AUCTION_HOUSE_SHOW_ERROR", function(code) failed(code, "The auction house refused that purchase.") end)
+
+-- What else the auction house sends while a purchase waits for its answer, into the trace
+-- (/fl debug): a Red Woolen Bag purchase had no answer, no error and no gold taken (owner,
+-- November 9), and these may say why (a dropped message, a notice instead of an error).
+for _, event in ipairs({ "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", "AUCTION_HOUSE_THROTTLED_MESSAGE_RESPONSE_RECEIVED",
+  "AUCTION_HOUSE_SHOW_NOTIFICATION", "AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "BID_ADDED", "AUCTION_CANCELED" }) do
+  ns:On(event, function(a, b)
+    if Q.state == "buying" or (Q.buyAt and GetTime() - Q.buyAt < 15) then
+      trace(("%s %s %s, state %s"):format(event, tostring(a), tostring(b), Q.state))
+    end
+  end)
+end
 
 -- If the game won't let an addon buy (it could restrict these calls), say so plainly.
 local function blocked(addon, fn)

@@ -144,7 +144,7 @@ end)
 
 T.test("Buy queue: a small gold loss frees only that much of what's held", function()
   withAHOpen(function()
-    buying(91027)
+    buying(91027).reason = "list"   -- (vendor flips don't wait: see below)
     budget(100)
     T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
     S.money = 999            -- a deposit, say
@@ -286,6 +286,7 @@ end)
 
 T.test("Buy queue: no answer at all is treated like an unclear error", function()
   local a = buying(91016)
+  a.reason = "list"
   Q.noReply()
   T.eq(#Q.lateBuys, 1, "kept")
   local b = { id = 91017, lane = "flips", want = 10, limit = 9 }
@@ -298,8 +299,9 @@ T.test("Buy queue: no answer at all is treated like an unclear error", function(
   T.eq(b.want, 10)
 end)
 
-T.test("Buy queue: nothing else is bought until a late purchase is settled", function()
+T.test("Buy queue: nothing else is bought until a late shopping list purchase is settled", function()
   local a = buying(91007)
+  a.reason = "list"
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
   local b = { id = 91008, lane = "flips", want = 10, limit = 9 }
   S.items[b.id] = { name = "Item B", sell = 1 }
@@ -391,6 +393,29 @@ T.test("Buy queue: a row of several is bought one at a time, and looked at again
   T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 5)
   T.eq(Q.bought, 1)
   T.eq(e.boughtIDs and e.boughtIDs[5], nil, "the rest of the row isn't set aside")
+end)
+
+-- Owner, November 9: a Red Woolen Bag purchase got no answer, every tick after it was held
+-- for the minute, and the rest of the row sold meanwhile.
+T.test("Buy queue: vendor flips buy on after an unanswered purchase; shopping lists wait", function()
+  local a = buying(91031)
+  a.reason = "flip"
+  Q.noReply()
+  T.eq(#Q.lateBuys, 1, "kept, its cost still held")
+  local b = { id = 91032, lane = "flips", reason = "flip", limit = 9 }
+  S.items[b.id] = { name = "Item B", sell = 1 }
+  Q.cur, Q.plan, Q.state, Q.note = b, { kind = "commodity", qty = 5, cost = 45, total = 45 }, "confirm", nil
+  ns:BuyQueueAct()
+  T.ok(Q.note ~= HEARING_BACK, "a flip after a flip isn't held")
+  b.reason = "list"
+  Q.state = "confirm"
+  ns:BuyQueueAct()
+  T.eq(Q.note, HEARING_BACK, "a shopping list item waits")
+  b.reason, a.reason = "flip", "list"
+  Q.state, Q.note = "confirm", nil
+  ns:BuyQueueAct()
+  T.eq(Q.note, HEARING_BACK, "and so does anything after a shopping list item")
+  Q.lateBuys = {}
 end)
 
 T.test("Buy queue: closing the auction house doesn't skip the wait", function()

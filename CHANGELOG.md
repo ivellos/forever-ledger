@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Buy queue: a vendor flip listed as several in one row (2 Red Woolen Bags at 5s) is bought one at a time, like the game's own Buy button. The queue used to leave those "for the page", so the flip dropped off the list while it was still there.
+- Buy queue: vendor flips no longer wait up to a minute after a purchase that got no answer: every scroll was held while the rest of a Red Woolen Bag row sold. Its cost still stays held against Spend at most, and shopping lists still wait, so a list never gets more than it wants.
 
 ## [0.19.0] - 2026-11-08
 
