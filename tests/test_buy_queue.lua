@@ -409,6 +409,28 @@ T.test("Buy queue: a shopping list counts purchases still waiting for an answer"
   Q.lateBuys = {}
 end)
 
+-- Codex review, November 9: a right-click on a list row didn't count as using the list.
+T.test("Buy queue: using Shopping lists keeps a new flip from switching the view for 30 seconds", function()
+  local buyQueue = ns.db.settings.buyQueue
+  local realView = buyQueue.view
+  buyQueue.view, Q.listTouched = "flips", nil
+  Q.noteListUse()
+  T.eq(Q.listInUse(), false, "only on Shopping lists")
+  buyQueue.view = "lists"
+  local e = { id = 91041, lane = "lists", limit = 9 }
+  S.items[e.id] = { name = "Item E", sell = 1 }
+  Q.cur, Q.state = nil, "idle"
+  Q.skip(e)
+  T.eq(Q.listInUse(), true, "a right-click on a row counts")
+  S.now = S.now + 29
+  T.eq(Q.listInUse(), true)
+  S.now = S.now + 1
+  T.eq(Q.listInUse(), false, "30 seconds later it doesn't")
+  Q.noteListUse()
+  T.eq(Q.listInUse(), true, "and any later use starts it again")
+  buyQueue.view, Q.listTouched = realView, nil
+end)
+
 T.test("Buy queue: closing the auction house keeps a recent unsettled purchase", function()
   buying(91025)
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)

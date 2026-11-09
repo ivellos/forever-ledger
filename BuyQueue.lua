@@ -517,6 +517,20 @@ local function dropCurrent()
 end
 Q.dropCurrent = dropCurrent   -- (for the tests)
 
+-- You're using Shopping lists: a new flip's chime leaves the view alone for 30 seconds
+-- (ns:FlipsAnnounced). Called for any click on the panel, a wheel tick over a strip or
+-- list, and each Buy (Codex review, November 9: a right-click, a strip click and scrolling
+-- didn't count).
+local LIST_BUSY = 30
+local function noteListUse()
+  if view() == "lists" then Q.listTouched = GetTime() end
+end
+Q.noteListUse = noteListUse   -- (for the tests)
+local function listInUse()
+  return Q.listTouched ~= nil and GetTime() - Q.listTouched < LIST_BUSY
+end
+Q.listInUse = listInUse   -- (for the tests)
+
 -- Show Vendor flips or Shopping lists: the view on screen is the one that buys.
 local function setView(value)
   if S().view == value then return end
@@ -529,6 +543,7 @@ end
 
 -- Right-click on a row: not this one. A purchase of it on its way still stays open.
 function Q.skip(e)
+  noteListUse()
   skipped[e.id] = true
   if Q.cur ~= e then return end
   if Q.state == "buying" then settleLater() end
@@ -552,7 +567,7 @@ end
 
 -- Work on this entry now (clicking a row): its section becomes the armed one.
 local function choose(e)
-  if e.lane == "lists" then Q.listTouched = GetTime() end
+  noteListUse()
   arm(e.lane, true)
   dropCurrent()
   Q.cur, Q.tries = e, 0
@@ -727,8 +742,7 @@ local PLAN_SECONDS = 15   -- how long what a lookup found is trusted
 -- the flip watch instead (owner, October 3: "Look again" seemed odd); the wheel never
 -- starts a scan.
 function ns:BuyQueueAct(clicked)
-  -- (A tick on Shopping lists keeps a new flip from switching the view: ns:FlipsAnnounced.)
-  if view() == "lists" then Q.listTouched = GetTime() end
+  noteListUse()
   -- (Before the checks below: a click they hold back must still make room for the next.)
   if Q.state == "ready" or Q.state == "confirm" then holdScans() end
   if clicked and Q.state == "idle" and not Q.cur then
@@ -1301,6 +1315,7 @@ local function buildLane(v, d)
   -- buy ticked) each tick down buys. Over the list below, the wheel scrolls the list.
   strip:EnableMouseWheel(true)
   strip:SetScript("OnMouseWheel", function(_, delta)
+    noteListUse()
     if delta >= 0 then return end
     if Q.armed ~= d.key then arm(d.key)
     elseif S().wheel then ns:BuyQueueAct() end
@@ -1384,6 +1399,7 @@ local function buildLane(v, d)
     fs:SetText(c[1])
   end
   L.sf, L.content = T:Scroll(L)
+  L.sf:HookScript("OnMouseWheel", noteListUse)
   L.sf:SetPoint("TOPLEFT", header, "BOTTOMLEFT", -2, -1)
   L.sf:SetPoint("BOTTOMRIGHT", -3, 3)
   L.rows = {}
@@ -1417,8 +1433,8 @@ local function buildQueueView(parent)
   -- Which view: Vendor flips or Shopping lists, one at a time; and Scroll to buy.
   v.viewChoice = T:Choice(bar, { { value = "flips", label = "Vendor flips" }, { value = "lists", label = "Shopping lists" } },
     function(value)
-      if value == "lists" then Q.listTouched = GetTime() end
       setView(value)
+      noteListUse()
     end)
   v.viewChoice:SetPoint("LEFT", 8, 0)
   for _, b in ipairs(v.viewChoice.buttons) do
@@ -3165,6 +3181,7 @@ ns:On("TRADE_SKILL_SHOW", function() C_Timer.After(0, matchProfessionLayer) end)
 -- (owner's test, October 3: clicking the auction house worked, the panel didn't).
 ns:On("GLOBAL_MOUSE_DOWN", function()
   if not (side and side:IsShown() and side:IsMouseOver()) then return end
+  noteListUse()
   if not side.floating and AuctionHouseFrame and AuctionHouseFrame:IsShown() then AuctionHouseFrame:Raise() end
   side:Raise()
 end)
@@ -3286,7 +3303,6 @@ updateBadges = function()
     if b.value == "flips" then set(b, view() ~= "flips") end
   end
 end
-local LIST_BUSY = 30   -- seconds after your last click or tick on Shopping lists
 function ns:FlipsAnnounced(list)
   for _, f in ipairs(list) do done[f.id] = nil end
   -- On Shopping lists with nothing of a list's under way: show Vendor flips, so what chimed
@@ -3295,8 +3311,7 @@ function ns:FlipsAnnounced(list)
   -- under way, or a click or tick there in the last 30 seconds): a list never buys a flip
   -- by accident, and the gold count on Vendor flips says they're there.
   local switched = false
-  if shown() and view() == "lists" and Q.state == "idle" and not Q.cur
-    and not (Q.listTouched and GetTime() - Q.listTouched < LIST_BUSY) then
+  if shown() and view() == "lists" and Q.state == "idle" and not Q.cur and not listInUse() then
     setView("flips")
     switched = true
   end
