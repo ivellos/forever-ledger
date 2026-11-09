@@ -954,6 +954,7 @@ function ns:ApiReport()
     "C_AuctionHouse.StartCommoditiesPurchase", "C_AuctionHouse.CancelCommoditiesPurchase", "C_AuctionHouse.PlaceBid",
     "C_AuctionHouse.SendBrowseQuery", "C_AuctionHouse.GetBrowseResults", "C_AuctionHouse.HasFullBrowseResults",
     "C_AuctionHouse.GetItemCommodityStatus", "C_AuctionHouse.GetQuoteDurationRemaining", "C_AuctionHouse.IsThrottledMessageSystemReady", "C_CVar.SetCVar", "SetOverrideBindingClick",
+    "Enum.TooltipDataLineType.SellPrice",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
     -- Pets (owner, September 30: planning a pet collection module; Forever's collection
     -- window has no pet tab yet). Modern journal, and Classic's older companion list.

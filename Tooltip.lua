@@ -7,7 +7,7 @@ local LR, LG, LB = 0.73, 0.64, 1.0   -- label colour
 -- "Worth to you" lists only the best few ways.
 -- The item on GameTooltip right now, and whether its full lines are already there
 -- (compact mode: pressing Shift adds them to the tooltip that's showing).
-local shownID, shownFull, shownHistory
+local shownID, shownFull, shownHistory, shownCopyPrice
 local debugLinks = {}   -- tooltip links already shown in debug
 
 -- Price history while Ctrl is held (ForeverForge has the same; owner, October 3):
@@ -152,10 +152,15 @@ local function bagLines(tt, id)
   end
 end
 
-local function addLines(tt, id, forceFull)
+-- copyPrice: what a vendor pays for this copy (ns.TooltipSellPrice), if the game said.
+local function addLines(tt, id, forceFull, copyPrice)
   local s = ns.db and ns.db.settings
   if not id or not s or not s.tooltip then return end
   ns:RememberItem(id)
+  if tt == GameTooltip then
+    copyPrice = copyPrice or (forceFull and shownCopyPrice) or nil   -- (Shift pressed later)
+    shownCopyPrice = copyPrice
+  end
   local full = forceFull or s.tipMode ~= "compact" or IsShiftKeyDown()
   local function on(key) return s[key] ~= false end
   -- (Shift pressed on a compact tooltip calls this again: don't repeat the history.)
@@ -199,6 +204,7 @@ local function addLines(tt, id, forceFull)
       shownCheapest = true
     end
     local best, options = ns:GetValue(id, true)
+    best, options = ns:WorthOfCopy(best, options, copyPrice)
     if best then
       local how = options and options[1] and options[1].label
       tt:AddDoubleLine("Worth to you" .. (how and (" |cff999999(" .. how .. ")|r") or ""), ns.Money(best), LR, LG, LB, 1, 1, 1)
@@ -309,6 +315,7 @@ local function addLines(tt, id, forceFull)
   end
 
   local best, options = ns:GetValue(id, true)
+  best, options = ns:WorthOfCopy(best, options, copyPrice)
   if best and on("tipWorth") then
     tt:AddDoubleLine("Worth to you", ns.Money(best), LR, LG, LB, 1, 1, 1)
     whyLower(best, options)
@@ -368,7 +375,7 @@ end
 
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
   TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tt, data)
-    if tt == GameTooltip or tt == ItemRefTooltip then addLines(tt, data and data.id) end
+    if tt == GameTooltip or tt == ItemRefTooltip then addLines(tt, data and data.id, nil, ns.TooltipSellPrice(data)) end
   end)
 else
   local function hook(tt)
@@ -385,9 +392,9 @@ addLines = ns.Timed("Tooltip lines", addLines)   -- for /fl perf
 -- (Tests 1 and 2: asking the game to redraw the tooltip, by RefreshData or by hovering
 -- the item again, did nothing with the owner's EllesmereUI bags, so add the lines
 -- directly.) They stay until the next hover; holding Shift before hovering shows them too.
-GameTooltip:HookScript("OnHide", function() shownID, shownFull, shownHistory = nil, nil, nil end)
+GameTooltip:HookScript("OnHide", function() shownID, shownFull, shownHistory, shownCopyPrice = nil, nil, nil, nil end)
 if GameTooltip.HookScript then
-  pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", function() shownID, shownFull, shownHistory = nil, nil, nil end)
+  pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", function() shownID, shownFull, shownHistory, shownCopyPrice = nil, nil, nil, nil end)
 end
 ns:On("MODIFIER_STATE_CHANGED", function(key, down)
   if not key then return end

@@ -16,6 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: a new vendor flip that chimes switches the panel to Vendor flips when it's on Shopping lists and you're not using a list (nothing being looked up or bought, no click or scroll there in the last 30 seconds). A Shadowgem flip chimed while the panel showed Shopping lists and could only be found by searching. The chat line now says "under Vendor flips".
 
 ### Fixed
+- Tooltips: Worth to you counts what a vendor pays for a damaged item as it is, using the game's own Sell Price, instead of its full price.
 - Auctions: "undercut", its alert and Cancel now need a price from the last 30 minutes. With an older one the row says "check prices", so a listing that's since sold can't get a fine auction canceled.
 - Shopping lists: a purchase no longer counts against a list that's switched off, which could get the Want bought twice.
 - A purchase whose gold leaves slowly is still logged against the right item and list.

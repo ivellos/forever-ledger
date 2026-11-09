@@ -546,3 +546,34 @@ function ns:GetValue(id, shown)
   end
   return list[1] and list[1].value, list
 end
+
+-- What a vendor pays for this copy, from the game's own tooltip: less for damaged gear
+-- (owner's screenshot, November 9: Mantle of Honor at 42/45 durability, Sell Price 20s 69c
+-- against Worth to you 21s 2c). A stack's is for the whole stack. nil if it doesn't say.
+function ns.TooltipSellPrice(data)
+  local want = Enum and Enum.TooltipDataLineType and Enum.TooltipDataLineType.SellPrice
+  if not (want and data and data.lines) then return end
+  for _, line in ipairs(data.lines) do
+    if line.type == want and type(line.price) == "number" then return line.price end
+  end
+end
+
+-- GetValue's answer for that copy: only ever lowers the vendor way, and leaves the shared
+-- list alone. Returns best, options.
+function ns:WorthOfCopy(best, options, copyPrice)
+  if not (copyPrice and copyPrice > 0 and options) then return best, options end
+  local changed, out = false, {}
+  for i, o in ipairs(options) do
+    if o.kind == "vendor" and copyPrice < o.value then
+      local c = {}
+      for k, v in pairs(o) do c[k] = v end
+      c.value, changed = copyPrice, true
+      out[i] = c
+    else
+      out[i] = o
+    end
+  end
+  if not changed then return best, options end
+  table.sort(out, function(a, b) return a.value > b.value end)
+  return out[1].value, out
+end

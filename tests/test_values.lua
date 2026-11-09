@@ -71,6 +71,33 @@ T.test("A vendor when it pays more", function()
   T.eq(opts[1].label, "Sell to vendor")
 end)
 
+-- Owner's screenshot, November 9: Sell Price 20s 69c at 42/45 durability, Worth to you 21s 2c.
+T.test("A damaged copy is worth what the game says a vendor pays for it", function()
+  local opts = { { kind = "vendor", value = 2102 }, { kind = "disenchant", value = 1330 } }
+  local best, out = ns:WorthOfCopy(2102, opts, 2069)
+  T.eq(best, 2069)
+  T.eq(out[1].value, 2069)
+  T.eq(opts[1].value, 2102, "the shared list isn't touched")
+  local best2, out2 = ns:WorthOfCopy(2102, opts, 1000)
+  T.eq(best2, 1330, "another way can come out on top")
+  T.eq(out2[1].kind, "disenchant")
+  local _, same = ns:WorthOfCopy(2102, opts, 2102)
+  T.eq(same, opts, "undamaged: nothing changes")
+  T.eq((ns:WorthOfCopy(2102, opts, 9000)), 2102, "a whole stack's price")
+  T.eq((ns:WorthOfCopy(2102, opts, nil)), 2102, "the game didn't say")
+end)
+
+T.test("The sell price line in the game's tooltip data", function()
+  local real = rawget(_G, "Enum")
+  rawset(_G, "Enum", { TooltipDataLineType = { SellPrice = 11 } })
+  T.eq(ns.TooltipSellPrice({ lines = { { type = 0 }, { type = 11, price = 2069 } } }), 2069)
+  T.eq(ns.TooltipSellPrice({ lines = { { type = 0 } } }), nil, "no such line")
+  T.eq(ns.TooltipSellPrice(nil), nil)
+  rawset(_G, "Enum", nil)
+  T.eq(ns.TooltipSellPrice({ lines = { { type = 11, price = 5 } } }), nil, "an older client")
+  rawset(_G, "Enum", real)
+end)
+
 -- Gold audit, November 9: an old price became a shuffle or list limit.
 T.test("A chain isn't worked out from a price past the age limit", function()
   local MAT, OUT = 60101, 60102
