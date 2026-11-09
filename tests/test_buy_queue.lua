@@ -390,6 +390,25 @@ T.test("Buy queue: a row of several is bought one at a time, and looked at again
   T.eq(e.boughtIDs and e.boughtIDs[5], nil, "the rest of the row isn't set aside")
 end)
 
+-- Codex, November 9: with no wait, five unanswered tries for a Want of 1 brought five.
+T.test("Buy queue: a shopping list counts purchases still waiting for an answer", function()
+  local real = ns.ListStillWanted
+  ns.ListStillWanted = function() return 1 end
+  local e = buyingItem(91040, 7)
+  e.reason = "list"
+  T.eq(Q.listLeft(91040), 1, "nothing on its way yet")
+  Q.noReply()
+  T.eq(Q.listLeft(91040), 0, "the unanswered one counts")
+  Q.cur, Q.plan, Q.state = e, nil, "search"
+  Q.planItem({ itemID = 91040 })
+  T.eq(Q.cur, nil, "no second one")
+  T.ok(Q.note and Q.note:find("counting 1 still waiting for an answer", 1, true), tostring(Q.note))
+  S.now = S.now + 61
+  T.eq(Q.listLeft(91040), 1, "taken as lost after a minute, so the list can buy again")
+  ns.ListStillWanted = real
+  Q.lateBuys = {}
+end)
+
 T.test("Buy queue: closing the auction house keeps a recent unsettled purchase", function()
   buying(91025)
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)

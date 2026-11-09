@@ -274,9 +274,11 @@ end
 --   purchase got no answer at all, every tick after it was held, and the rest of the row
 --   sold meanwhile. Known gap, accepted by the owner (Codex reviews, November 9): answers or
 --   payments that overlap can be put down to the wrong purchase, so the queue can pass Spend
---   at most, buy more than a shopping list wants, or miss a purchase in its totals. Several
---   unanswered purchases in a row make it bigger: five unanswered tries for a Want of 1
---   that all go through later bring five.
+--   at most or miss a purchase in its totals, and several unanswered purchases in a row
+--   make that bigger. A shopping list counts its unanswered purchases for a minute
+--   (listLeft), so five unanswered tries for a Want of 1 no longer bring five; it can still
+--   get more than it wants when an answer comes later than that, or is put down to the
+--   wrong purchase.
 -- - Its cost stays held against Spend at most for the rest of the visit, however late.
 -- - A success with no purchase under way still counts for it, however late.
 -- A purchase under way takes its own success at any age, unless the answer matches an
@@ -559,18 +561,47 @@ local function choose(e)
   search()
 end
 
+-- How many of an item were bought but haven't been answered or paid for yet (Q.lateBuys,
+-- from either view). A shopping list counts them as on their way, so purchases that go
+-- unanswered one after another can't buy past its Want (Codex, November 9: with no wait,
+-- five unanswered tries for a Want of 1 brought five). Once paid, the mail record counts
+-- them instead (ShoppingLists.lua); after LATE_SECONDS they're taken as lost, so the list
+-- can buy again.
+local function unanswered(id)
+  local n = 0
+  for _, late in ipairs(Q.lateBuys) do
+    if late.cur and late.cur.id == id and late.left > 0 and GetTime() - late.at <= LATE_SECONDS then
+      n = n + ((late.plan.kind == "commodity" and late.plan.qty) or 1)
+    end
+  end
+  return n
+end
+
 -- A shopping list item: how many the lists still want, read from the lists right now
--- (not the queue's own copy), so the queue can never buy more than Want (owner's test,
--- October 3: 601 Strange Dust bought for a Want of 2). Returns false when it's done.
+-- (not the queue's own copy), less any still unanswered, so the queue can never buy more
+-- than Want (owner's test, October 3: 601 Strange Dust bought for a Want of 2).
+local function listLeft(id)
+  return ns:ListStillWanted(id) - unanswered(id)
+end
+Q.listLeft = listLeft   -- (for the tests)
+
+-- The note when a list has all it wants.
+local function listFull(id)
+  local waiting = unanswered(id)
+  return waiting > 0 and ("the list has all it wants, counting %d still waiting for an answer."):format(waiting)
+    or "the list has all it wants."
+end
+
+-- Returns false when it's done.
 local function capToList(e)
   if e.reason ~= "list" or not ns.ListStillWanted then return true end
-  local left = ns:ListStillWanted(e.id)
+  local left = listLeft(e.id)
   if not e.want or e.want > left then
     ns:Debug(("Buy queue: %s, the queue wanted %s, the list still wants %s."):format(ns.ItemName(e.id),
       tostring(e.want), tostring(left)))
     e.want = left
   end
-  if left <= 0 then finishTarget("the list has all it wants."); return false end
+  if left <= 0 then finishTarget(listFull(e.id)); return false end
   return true
 end
 
@@ -750,15 +781,20 @@ function ns:BuyQueueAct(clicked)
     return
   end
   -- A shopping list item: never more than the list still wants, checked again against
-  -- the list itself right before buying.
+  -- the list itself right before buying, counting purchases still waiting for an answer.
   if p and e and e.reason == "list" and (Q.state == "ready" or Q.state == "confirm") and ns.ListStillWanted then
     local units = p.kind == "commodity" and p.qty or 1
-    local left = ns:ListStillWanted(e.id)
+    local left = listLeft(e.id)
     if units > left then
       if Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
       ns:Debug(("Buy queue: stopped buying %d %s, the list only wants %d more."):format(units, ns.ItemName(e.id), left))
       e.want = left
-      if left <= 0 then finishTarget("the list has all it wants.") else Q.note = "Checking how many the list still wants."; again() end
+      if left <= 0 then
+        finishTarget(listFull(e.id))
+      else
+        Q.note = "Checking how many the list still wants."
+        again()
+      end
       return
     end
   end
