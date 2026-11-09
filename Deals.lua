@@ -15,14 +15,14 @@ local MAX_AGE = 3600   -- prices from the last hour (alerts use the last 10 minu
 
 local COLUMNS = {
   { key = "item", label = "Item" },
-  { key = "price", label = "Now", width = 80, right = true },
-  { key = "worth", label = "Usual low", width = 80, right = true },   -- the usual cheapest price
-  { key = "pct", label = "Below", width = 46, right = true },
-  { key = "listed", label = "Cheap", width = 44, right = true },
-  { key = "sold", label = "Sells", width = 60, right = true },   -- the sell speed rating
-  { key = "each", label = "Profit each", width = 80, right = true },
-  { key = "total", label = "Profit all", width = 84, right = true },
-  { key = "level", label = "Sure", width = 70 },
+  { key = "price", label = "Now", width = 80, right = true, tip = "The cheapest one listed right now." },
+  { key = "worth", label = "Usual low", width = 80, right = true, tip = "What it's usually cheapest at, from your scans." },   -- the usual cheapest price
+  { key = "pct", label = "Below", width = 46, right = true, tip = "How far today's price is under the usual low." },
+  { key = "listed", label = "Cheap", width = 44, right = true, tip = "How many are listed at the deal price." },
+  { key = "sold", label = "Sells", width = 60, right = true, tip = "How quickly it sells, from your scans." },   -- the sell speed rating
+  { key = "each", label = "Profit each", width = 80, right = true, tip = "What one brings after the cut and deposit, less what it costs." },
+  { key = "total", label = "Profit all", width = 84, right = true, tip = "The same for every one at the deal price." },
+  { key = "level", label = "Sure", width = 70, tip = "How far to trust it: Good, Fair or Thin. Hover a deal for why." },
 }
 
 -- The Booty Bay view (owner, October 5): the neutral auction house against yours, each
@@ -97,7 +97,15 @@ function ns:BuildDeals(parent)
     ns:RefreshDeals()
   end)
   f.thin:SetPoint("TOPRIGHT", -150, -4)
-  f.thin.label:SetText("Show thin data too")
+  f.thin.label:SetText("Show doubtful deals too")
+  f.thin:SetHitRectInsets(0, -(f.thin.label:GetStringWidth() + 8), 0, 0)   -- the name ticks it too
+  f.thin:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Show doubtful deals too", 1, 1, 1)
+    GameTooltip:AddLine("Also lists deals with few days of prices, or prices that jump around, so the usual price is more of a guess.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  f.thin:HookScript("OnLeave", function() GameTooltip:Hide() end)
   -- Booty Bay: which way round.
   f.dir = T:Choice(f, { { value = "sell", label = "Sells for more there" }, { value = "buy", label = "Cheaper there" } },
     function(v) ns.db.settings.neutralDir = v; ns:RefreshDeals() end)
@@ -174,6 +182,14 @@ local function getHeader(i)
       if s.key == self.key then s.desc = not s.desc else s.key, s.desc = self.key, self.key ~= "item" end
       ns:RefreshDeals()
     end)
+    h:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine(self.label or "", 1, 1, 1)
+      if self.tip then GameTooltip:AddLine(self.tip, nil, nil, nil, true) end
+      GameTooltip:AddLine("Click to sort.", 0.7, 0.7, 0.7)
+      GameTooltip:Show()
+    end)
+    h:SetScript("OnLeave", function() GameTooltip:Hide() end)
     headers[i] = h
   end
   return headers[i]
@@ -391,7 +407,7 @@ function ns:RefreshDeals()
   local lay = columnLayout(cols, width)
   for i, c in ipairs(cols) do
     local h = getHeader(i)
-    h.key = c.key
+    h.key, h.label, h.tip = c.key, c.label, c.tip
     h:ClearAllPoints()
     h:SetPoint("LEFT", f.header, "LEFT", lay[c.key].x, 0)
     h:SetSize(lay[c.key].w, 22)
@@ -446,7 +462,7 @@ function ns:RefreshDeals()
     f.empty:SetText(("Nothing here matches the filter: %d %s hidden by it. Click All, or clear the search box."):format(
       filtered, filtered == 1 and "deal is" or "deals are"))
   elseif #list == 0 then
-    f.empty:SetText(newest and "No deals that pass the checks right now. Tick \"Show thin data too\" to see the doubtful ones."
+    f.empty:SetText(newest and "No deals that pass the checks right now. Tick \"Show doubtful deals too\" to see them."
       or "No deals yet. Deals need prices from the last hour (a full scan or the flip watch) and at least 4 days of scans "
       .. "to know an item's usual price (or TSM installed).")
   end

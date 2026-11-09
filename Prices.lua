@@ -756,7 +756,7 @@ local function soldTracker()
         log[#log + 1] = date("%m-%d %H:%M ") .. text
         while #log > 30 do table.remove(log, 1) end
       end
-      line(("Sell speed: compared with the full scan %d minutes ago. Bought (or cancelled) for sure: %d units; reposted cheaper: %d; might have expired, not counted: %d."):format(
+      line(("Sell speed: compared with the full scan %d minutes ago. Bought (or canceled) for sure: %d units; reposted cheaper: %d; might have expired, not counted: %d."):format(
         math.floor(gap / 60), totGone, totReposted, totMaybe))
       table.sort(top, function(a, b) return a[2] > b[2] end)
       for i = 1, math.min(5, #top) do

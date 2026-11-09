@@ -599,10 +599,10 @@ refresh = function()
       r.status:SetText("|cff888888sold, " .. mailText(e) .. "|r")
     else
       r.now:SetText(now and ((by and "|cffee8597" or "|cff7fd39c") .. ns.MoneyPlain(now) .. "|r") or "|cff888888?|r")
-      if e.a and pending[e.a] then r.status:SetText("|cff888888cancelling...|r")
+      if e.a and pending[e.a] then r.status:SetText("|cff888888canceling...|r")
       elseif by then r.status:SetText("|cffee8597undercut|r")
       elseif now then r.status:SetText("|cff7fd39ccheapest|r")
-      else r.status:SetText("|cff888888not priced: Check prices|r") end
+      else r.status:SetText("|cff888888not priced|r") end
     end
     local canCancel = by ~= nil and e.a ~= nil and not pending[e.a]
     r.cancel:SetShown(canCancel)
@@ -641,8 +641,8 @@ refresh = function()
   if box and box.money and box.money > 0 then gold[#gold + 1] = ("In your mailbox: |cff7fd39c%s|r (%s)"):format(ns.MoneyPlain(box.money), ns.Age(box.t)) end
   frame.gold:SetText(table.concat(gold, "   "))
   if cancelState == "asking" then
-    frame.info:SetText(("|cffffd100Cancel your %d undercut %s? Each loses its deposit.|r Click again to start; then each click cancels the next."):format(
-      #todo, #todo == 1 and "auction" or "auctions"))
+    frame.info:SetText(("|cffffd100Cancel %d undercut %s and lose %s?|r Click again."):format(
+      #todo, #todo == 1 and "auction" or "auctions", #todo == 1 and "its deposit" or "their deposits"))
   elseif #todo > 0 then
     local e = todo[1]
     frame.info:SetText(("Next: %s x%d, yours %s, cheapest %s.%s"):format(ns.ItemName(e.id), e.q or 1, ns.MoneyPlain(e.each), ns.MoneyPlain(undercutBy(e)),

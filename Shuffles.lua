@@ -935,7 +935,7 @@ function ns:DealExplain(d)
   L[#L + 1] = { head = "How sure: " .. (ns.DEAL_LEVEL_TEXT[d.level] or d.level) }
   L[#L + 1] = { note = ns.DEAL_LEVEL_WHY[d.level] or "", color = { 0.75, 0.75, 0.75 } }
   for _, w in ipairs(d.warnings) do L[#L + 1] = { note = w, color = { 1, 0.6, 0.3 } } end
-  L[#L + 1] = { note = "The auction house shows what's listed, not what sold. \"Sells\" counts listings that vanished before they could have expired (bought, or cancelled): a low estimate that gets better the more full scans you run, fastest with Watch flips.",
+  L[#L + 1] = { note = "The auction house shows what's listed, not what sold. \"Sells\" counts listings that vanished before they could have expired (bought, or canceled): a low estimate that gets better the more full scans you run, fastest with Watch flips.",
     color = { 0.5, 0.5, 0.5 } }
   return L
 end
@@ -987,9 +987,12 @@ local function announce(all, usual)
     local one = (market[f.id] and market[f.id].m) or f.cost
     if one and one > cash then poor[#poor + 1] = { f = f, one = one } else flips[#flips + 1] = f end
   end
+  local chat = ns.db.settings.dealChat ~= false   -- (Settings: UI pass, November 9)
   for _, p in ipairs(poor) do
-    ns:Print(("Found a vendor flip: %s (vendor pays %s), but you can't afford it yet: %s each, you have %s."):format(
-      itemName(p.f.id), ns.Money(p.f.opt.value), ns.Money(p.one), ns.Money(cash)))
+    if chat then
+      ns:Print(("Found a vendor flip: %s (vendor pays %s), but you can't afford it yet: %s each, you have %s."):format(
+        itemName(p.f.id), ns.Money(p.f.opt.value), ns.Money(p.one), ns.Money(cash)))
+    end
   end
   if #flips == 0 and usual == 0 then return end
   local text
@@ -1012,12 +1015,12 @@ local function announce(all, usual)
   if #flips > 0 then
     -- Only after a full scan, not the flip watch's quick checks (ns.fullScanDone).
     if ns.db.settings.openFlips and ns.OpenFlips and ns.fullScanDone then ns:OpenFlips() end
-    for _, f in ipairs(flips) do
+    for _, f in ipairs(chat and flips or {}) do
       ns:Print(("New vendor flip: %s, %d at %s or less (vendor pays %s). It's in the Buy queue, under Vendor flips."):format(
         itemName(f.id), f.buys[1].listed or 1, ns.Money(f.maxBuy), ns.Money(f.opt.value)))
     end
   end
-  if usual > 0 then
+  if usual > 0 and chat then
     ns:Print(("%d new %s below the usual price: see the Deals tab (/fl deals)."):format(
       usual, usual == 1 and "deal" or "deals"))
   end

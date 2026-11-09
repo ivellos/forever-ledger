@@ -47,7 +47,7 @@ local DEFAULTS = {
   charProfile = {},  -- [charKey] = profile name; none = Default
   quietChars = {},   -- [charKey] = true: quiet mode turned on with /fl quiet there, kept until turned off (Quiet.lua)
   shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, sellGuard = true, watchResume = true, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, dealChat = true, sellGuard = true, watchResume = true, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
     svcCrafting = true, svcFood = true, svcPortal = true, svcSummon = true, svcLockpick = true,
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
@@ -969,7 +969,7 @@ function ns:ApiReport()
     "GetTrainerServiceLevelReq", "GetTrainerServiceTypeFilter", "GetNumTalentTabs", "GetTalentTabInfo",
     "GetTalentInfo", "IsPlayerSpell", "IsSpellKnown", "GetSkillLineInfo", "C_SpellBook.IsSpellKnown",
   }
-  ns:Print("API check (send this to Claude if something isn't working):")
+  ns:Print("API check (include this in a bug report if something isn't working):")
   for _, path in ipairs(checks) do
     print(("  %s %s"):format(has(path) and "|cff7fd39cyes|r" or "|cffee8597no|r ", path))
   end
@@ -1278,6 +1278,6 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ns:Print(("Auction house cut is %g%%. Change it with /fl cut 5"):format(ns.db.settings.ahCut or 5))
     end
   else
-    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl queue, /fl lists, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto/own/auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl session start, /fl session stop, /fl runs, /fl de, /fl pair <name>, /fl sync, /fl tooltip, /fl welcome, /fl new, /fl api, /fl debug")
+    ns:Print("Commands: /fl (window), /fl scan, /fl scan full, /fl scan materials, /fl stop, /fl watch, /fl quiet, /fl price, /fl queue, /fl lists, /fl pull, /fl export, /fl csv, /fl import, /fl source <auto/own/auctionator>, /fl shuffles, /fl shuffles all, /fl cut <percent>, /fl margin <percent>, /fl seconds <n>, /fl deals, /fl deals settings, /fl minimap, /fl money, /fl session start, /fl session stop, /fl runs, /fl de, /fl pair <name>, /fl sync, /fl tooltip, /fl welcome, /fl new, /fl api, /fl debug")
   end
 end

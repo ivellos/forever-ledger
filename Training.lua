@@ -348,7 +348,7 @@ end
 ---------------------------------------------------------------------------
 function ns:TalentProbe()
   local function try(fn) local ok, a, b, c = pcall(fn); if ok then return a, b, c end end
-  ns:Print("Talents (send this to Claude):")
+  ns:Print("Talents:")
   local saved = ns:SaveTalentLayout()
   print("  Layout saved: " .. (saved and "yes" or "no (talents not readable yet)"))
   local configID = try(function() return C_ClassTalents.GetActiveConfigID() end)

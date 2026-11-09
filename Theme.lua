@@ -291,7 +291,7 @@ end
 local function buttonLook(b, hover)
   local c, a = T.button, T.accent
   local borderAlpha
-  if b.primary and not b.selected and not hover then
+  if b.primary and not b.selected and not hover and b:IsEnabled() then
     -- The main action (Full scan): accent edge and a faint accent tint, like the mockup.
     b.bg:SetColorTexture(a[1] * 0.25 + c[1] * 0.75, a[2] * 0.25 + c[2] * 0.75, a[3] * 0.25 + c[3] * 0.75, 0.95)
     for _, e in ipairs(b.borders) do e:SetColorTexture(a[1], a[2], a[3], 0.75) end
@@ -328,8 +328,8 @@ function T:Button(parent, label, width, onClick, height, name)
   function b:SetPrimary(on) self.primary = on; buttonLook(self, false) end
   b:SetScript("OnEnter", function(self) if self:IsEnabled() then buttonLook(self, true) end end)
   b:SetScript("OnLeave", function(self) buttonLook(self, false) end)
-  b:SetScript("OnDisable", function(self) self:GetFontString():SetAlpha(0.35) end)
-  b:SetScript("OnEnable", function(self) self:GetFontString():SetAlpha(1) end)
+  b:SetScript("OnDisable", function(self) self:GetFontString():SetAlpha(0.35); buttonLook(self, false) end)
+  b:SetScript("OnEnable", function(self) self:GetFontString():SetAlpha(1); buttonLook(self, false) end)
   b:SetScript("OnClick", onClick)
   return b
 end
@@ -810,6 +810,10 @@ function T:Dropdown(parent, width, onChange)
     menu:Raise()
   end)
   d:HookScript("OnHide", function() menu:Hide() end)
+  -- A click anywhere else closes it (UI pass, November 9).
+  ns:On("GLOBAL_MOUSE_DOWN", function()
+    if menu:IsShown() and not (menu:IsMouseOver() or d:IsMouseOver()) then menu:Hide() end
+  end)
   return d
 end
 

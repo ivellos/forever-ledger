@@ -550,6 +550,24 @@ local function dropCurrent()
 end
 Q.dropCurrent = dropCurrent   -- (for the tests)
 
+-- For what can't be taken back on a list (UI pass, November 9): the first click only
+-- asks, the second on the same thing within 4 seconds goes ahead. True on the second.
+local function clickTwice(b, what, label, asking)
+  if b.askedFor == what and GetTime() < (b.askedUntil or 0) then
+    b.askedFor = nil
+    b:SetText(label)
+    return true
+  end
+  local until_ = GetTime() + 4
+  b.askedFor, b.askedUntil = what, until_
+  b:SetText(asking)
+  C_Timer.After(4, function()
+    if b.askedUntil == until_ then b.askedFor = nil; b:SetText(label) end
+  end)
+  return false
+end
+Q.clickTwice = clickTwice   -- (for the tests)
+
 -- You're using Shopping lists: a new flip's chime leaves the view alone for 30 seconds
 -- (ns:FlipsAnnounced). Called for any click on the panel, a wheel tick over a strip or
 -- list, and each Buy (Codex review, November 9: a right-click, a strip click and scrolling
@@ -895,7 +913,7 @@ function ns:BuyQueueAct(clicked)
         local limited = spendable() < GetMoney()
         local text = ("That's everything you can buy: the %d left %s more than %s or wait for a lower price.")
           :format(left, left == 1 and "costs" or "cost", limited and "your limit allows" or "you have")
-        if UIErrorsFrame then UIErrorsFrame:AddMessage(text, 1, 0.3, 0.3) end
+        if UIErrorsFrame and ns.db.settings.dealScreen ~= false then UIErrorsFrame:AddMessage(text, 1, 0.3, 0.3) end
         if ns.db.settings.dealSound ~= false then pcall(PlaySound, (SOUNDKIT and SOUNDKIT.IG_QUEST_FAILED) or 847, "Master") end
         Q.note = text
         if refreshQueue then refreshQueue() end
@@ -1254,7 +1272,9 @@ local function statusText()
   end
   local poorText = spendable() < GetMoney() and "%d over your limit (grayed below)." or "%d you can't afford yet (grayed below)."
   local why
-  if view() == "lists" then
+  if not ns:IsAHOpen() then
+    why = "Open the auction house to scan and buy."
+  elseif view() == "lists" then
     local any = false
     for _, l in ipairs(ns:ShoppingLists()) do if l.on then any = true end end
     why = (poor > 0 and poorText:format(poor))
@@ -1345,7 +1365,7 @@ local function laneRow(L, i)
         or ("Over your limit: the cheapest is %s and buying it would take you below the %s you keep (Settings, Auction house)."):format(money(poor), money(ns.db.settings.keepGold or 0))
       GameTooltip:AddLine(text, 0.93, 0.52, 0.59, true)
     end
-    GameTooltip:AddLine("Click to buy this one next (its section becomes the one you buy from). Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
+    GameTooltip:AddLine("Click to buy this one next. Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1853,7 +1873,8 @@ function ns:UpdatePanelScanButtons()
   if not v or not v.watchBtn then return end
   local lists = view() == "lists"
   v.watchBtn:SetText(lists and "Search my lists" or (ns:IsFlipWatching() and "Stop watching" or "Watch flips"))
-  v.watchBtn:SetEnabled(not (lists and ns.Scan.active))
+  -- (Only works at the auction house; Stop always does. UI pass, November 9.)
+  v.watchBtn:SetEnabled((ns:IsAHOpen() or (not lists and ns:IsFlipWatching())) and not (lists and ns.Scan.active))
   v.matsBtn:SetShown(not lists)
   v.matsBtn:SetText((ns.Scan.active and not ns.Scan.full) and "Stop scan" or "Scan materials")
   if v.viewChoice then v.viewChoice:SetValue(view()) end
@@ -2070,6 +2091,9 @@ local function buildListsView(parent)
     menu:Raise()
   end)
   v:HookScript("OnHide", function() menu:Hide() end)
+  ns:On("GLOBAL_MOUSE_DOWN", function()
+    if menu:IsShown() and not (menu:IsMouseOver() or pick:IsMouseOver()) then menu:Hide() end
+  end)
 
   local new = T:Button(v, "New", 50, function()
     StaticPopup_Show("FOREVER_LEDGER_LIST_NAME", "Name for the new shopping list:", nil,
@@ -2286,7 +2310,7 @@ local function buildListsView(parent)
   haveTip:SetScript("OnLeave", function() GameTooltip:Hide() end)
   v.sf, v.content = T:Scroll(v)
   v.sf:SetPoint("TOPLEFT", 6, -148)
-  v.sf:SetPoint("BOTTOMRIGHT", -6, 58)
+  v.sf:SetPoint("BOTTOMRIGHT", -6, 72)   -- (room for two lines of v.info)
   v.rows = {}
 
   local searchB = T:Button(v, "Search all", 96, function()
@@ -2326,9 +2350,10 @@ local function buildListsView(parent)
 
   -- Buy again: everything on the list counts as not done, so the queue buys it all
   -- again (next raid). Bottom right, on its own.
-  local again = T:Button(v, "Buy again", 80, function()
+  local again
+  again = T:Button(v, "Buy again", 80, function()
     local list = currentList()
-    if not list then return end
+    if not list or not clickTwice(again, list, "Buy again", "Sure?") then return end
     ns:BuyListAgain(list)
     local ids = {}
     for _, e in ipairs(list.items) do ids[#ids + 1] = e.id end
@@ -2351,7 +2376,7 @@ local function buildListsView(parent)
   v.info:SetPoint("BOTTOMLEFT", 12, 36)
   v.info:SetPoint("RIGHT", v, "RIGHT", -10, 0)
   v.info:SetJustifyH("LEFT")
-  v.info:SetWordWrap(false)
+  v.info:SetWordWrap(true)   -- (its last part fell off on one line: UI pass, November 9)
 
   -- Keep Now and Have current (a list search, things bought or crafted).
   local elapsed = 0
@@ -2661,7 +2686,7 @@ local function listRow(i)
   r.now:SetPoint("RIGHT", r, "LEFT", C.now, 0)
   r.remove = T:Button(r, "x", 16, function()
     local list = currentList()
-    if not list then return end
+    if not list or not clickTwice(r.remove, r.entry, "x", "?") then return end
     for k, e in ipairs(list.items) do if e == r.entry then table.remove(list.items, k); break end end
     Q.built = 0
     refreshLists()
@@ -3388,7 +3413,5 @@ end
 
 -- After any scan, new finds join the queue.
 ns:OnReady(function()
-  -- Scroll to buy used to start on: switch it off once for everyone (owner, October 2).
-  if not S().wheelOffOnce then S().wheel, S().wheelOffOnce = false, true end
   hooksecurefunc(ns, "CheckDeals", rebuildNow)
 end)

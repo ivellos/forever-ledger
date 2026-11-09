@@ -6,11 +6,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Changed
+- New setting: Chat line for new flips and deals (Settings, Auction house, Alerts). The red "That's everything you can buy" message follows Big message on screen.
+- Quiet mode says so in chat at login while it's on for that character.
+- Shopping lists: removing an item (x) and Buy again ask with a second click, since neither can be undone.
+- Deals: its column headings explain themselves on hover, and "Show thin data too" is now "Show doubtful deals too". The Recipes search box says what it's for, and the names beside more tick boxes tick them too.
+- The price window's title is now Price window. Export / import and `/fl api` no longer mention sending things to Claude.
 - The on-screen deal alert names the Deals tab ("see the Deals tab (/fl deals)"), as the chat line does: deals below the usual price aren't in the auction house panel, which holds vendor flips and shopping lists.
 - Flip watch: while it waits for you to leave an item's buy or sell page, the status line says "Watch paused while an item's page is open" instead of a scan count that stands still.
 - Buy queue: a new vendor flip that chimes switches the panel to Vendor flips when it's on Shopping lists and you're not using a list (nothing being looked up or bought, no click or scroll there in the last 30 seconds). A Shadowgem flip chimed while the panel showed Shopping lists and could only be found by searching. The chat line now says "under Vendor flips".
 
 ### Fixed
+- Scroll to buy is on for new installs, as 0.17.0 meant it to be.
+- Full scan no longer says "Ready" away from the auction house, and the scan buttons say why they can't be clicked there; the Buy queue's buttons and message do too.
+- Dropdowns close when you click somewhere else.
+- A shopping list's bottom line wraps instead of losing its end, and the Auctions tab's Cancel message is short enough to read.
+- The Shuffles tab's empty message says what's actually missing: ticked characters, saved recipes or prices.
+- Help and the guide: corrected what had gone out of date, and every common command is listed.
 - Shopping lists: with no price history, a few listings no longer set a price. Any price and automatic Up to now need at least 5 listed or 3 days of scans, so a lone 999g listing can't be bought as "any price".
 - Shopping lists: a list entry for one version ("of the Monkey") now only buys that version in the Buy queue.
 - Prices: a full scan marks items it no longer sees as none listed, and shuffles, list limits and crafting chains no longer use an auction house price older than your age limit (12 hours unless changed), so an old price can't become a limit.

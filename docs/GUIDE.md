@@ -11,7 +11,7 @@ Everything the addon does, at a high level. The same text is in the game under *
 3. At the auction house, click **Full scan** (allowed about every 15 minutes) to price everything.
 4. Hover any item: the tooltip shows what it's worth to you.
 
-The first time you open the window, a short welcome walks through these and the Buy queue, Deals and Shopping lists. Show it again with the button under the Help tab's list of topics, or with `/fl welcome`. After an update, chat lists what's new in that version once; the **What's new** button (bottom right of Help and the Dashboard) or `/fl new` shows it as a card.
+The first time you open the window, a short welcome walks through these and the Buy queue, Deals and Shopping lists. Show it again with the button at the bottom left of the Help tab, or with `/fl welcome`. After an update, chat lists what's new in that version once; the **What's new** button (bottom right of Help and the Dashboard) or `/fl new` shows it as a card.
 
 Settings and Help each have a **search box** above their list: type two letters or more to see everything that mentions it, from every section at once.
 
@@ -59,7 +59,7 @@ Settings and Help each have a **search box** above their list: type two letters 
   - Settings, Tooltips, General turns the click off, or changes it to **Ctrl-click** or **Ctrl+Alt-click** if another addon (such as a disenchanting one) uses Alt-click. Ctrl-click then no longer opens the dressing room; with Ctrl+Alt-click, Ctrl-click still does.
 - **Bags**: a bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor) and the cheapest bag per slot right now, so you buy the cheapest space first.
 - **Settings → Tooltip size**: "Short, Shift for more" keeps tooltips to today's cheapest price and what the item is worth to you. Each part can be turned off.
-- **Why Worth to you can be below today's price**: selling on the auction house is valued at the lower of today's cheapest and the average of the cheapest 20, after the cut and a deposit. With fewer than 20 listed it also uses this month's usual cheapest if that's lower, so a few hopeful listings don't fool it; then a grey line under Worth to you says so. With 20 or more listed, today's market counts.
+- **Why Worth to you can be below today's price**: selling on the auction house is valued at the lower of today's cheapest and the average of the cheapest 20, after the cut and a deposit. With fewer than 20 listed it also uses this month's usual cheapest if that's lower, so a few hopeful listings don't fool it; then a gray line under Worth to you says so. With 20 or more listed, today's market counts.
 
 ![Tooltip for Strange Dust](images/tooltip.png)
 
@@ -76,7 +76,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 - **Farming flips**: tick only Vendor flips, tick **Scroll to buy**, and leave the mouse over the flips strip. When the flip watch chimes, scroll down to buy; an empty section just waits for the next one.
 - **Safe by design**: it never pays more than the limit shown (checked again against the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. **Scroll to buy** is on from the start (untick it to buy by clicking only); it only works over the top strip of the section you're buying from. Click a row to buy that one next; right-click to skip it. When one row holds several of the same item (bags, say), they're bought one at a time. Items you can't afford yet stay at the bottom of the list, grayed and marked **can't afford**, and are skipped until you have the gold. Scroll past the last one you can buy and you get the error sound and a red "That's everything you can buy", once.
 - **Spend at most**: the box near the bottom of the Buy queue caps what it spends this auction house visit (type 50 for 50g; it starts again each time you open the auction house). It says **no limit** until you type something. Beside it, what's left: teal, yellow when nearly gone, red **limit reached**. Items over what's left are marked **over limit** and skipped. To always keep some gold back (repairs, a mount), set **Buy queue: always keep** in Settings, Auction house. Purchases you make yourself on the auction house page don't count towards either.
-- **Scanning from the panel**: the bottom row has **Watch flips**, **Full scan** and **Scan materials** (they turn into Stop buttons while running), with the scan's progress just above. While the panel is open beside the auction house, the same buttons under the auction house window are hidden. With nothing to buy, the big button starts the flip watch.
+- **Scanning from the panel**: the bottom row has **Watch flips**, **Full scan** and **Scan materials** (they turn into Stop buttons while running), with the scan's progress just above. While the panel is open beside the auction house, the same buttons under the auction house window are hidden.
 - **Alerts**: new finds chime, are listed in chat, and show in large text at the top of the screen. If that text covers your windows, untick **Big message on screen** in Settings.
 
 ![Buy queue with Vendor flips and Scroll to buy ticked](images/buy-queue.png)
@@ -110,7 +110,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 - **Deals tab**: listings well below the price an item is usually *cheapest* at, to buy and resell. Each row shows the price now, the usual low (the middle of each day's cheapest price over the period set in Settings), how far below it is, how many are worth buying, the profit after the auction house cut and one unsold listing (each and for all of them), and how sure the deal is: **Good**, **Fair** or **Thin**. Comparing with the usual cheapest price, not the typical one, means a deal is a real bargain, not just today's normal low.
 - **Hover a deal** to see why it's a deal: the usual cheapest and typical prices, how many days they're based on, the typical range most days, how many are usually listed, and the next listing above the cheap ones. Profit assumes you resell at the usual cheapest price, or just under the next listing if that's lower, and only listings that still make the minimum profit count. **Click** a deal to search for it on the auction house.
-- **How sure**: Good means a week or more of steady prices. Fair means less data, or a warning: usually only one listed (it may sell slowly, or that "usual price" was one hopeful seller), nothing else listed to compare with, or gear whose stat versions sell at different prices. Thin (a few days, or prices that jump around) is hidden unless you tick **Show thin data too**.
+- **How sure**: Good means a week or more of steady prices. Fair means less data, or a warning: usually only one listed (it may sell slowly, or that "usual price" was one hopeful seller), nothing else listed to compare with, or gear whose stat versions sell at different prices. Thin (a few days, or prices that jump around) is hidden unless you tick **Show doubtful deals too**.
 - Deals need at least 4 days of scans to know an item's usual price, or TSM installed. Settings, Global settings, Flips and deals sets how far below, over what period, and the least profit each. After a scan, chat says how many new deals there are instead of listing them.
 - **Filter** the list by kind (All, Materials, Gear, Other) or search by name.
 - **A dropped price isn't a deal**: when half or more of what's listed is that cheap, the item has simply got cheaper (say, essences once everyone can disenchant them), so it's rated Thin and says so.
@@ -172,7 +172,7 @@ Settings and Help each have a **search box** above their list: type two letters 
   |---|---|
   | Sales and purchases | One by one for 30 days, then one line per item per month for a year |
   | Gold and money in and out | Per day for a year, then per month |
-  | Prices | Per day for 14 days, then weekly averages for a year |
+  | Prices | Per day for 90 days, then weekly for a year |
   | Recipes, vendors, items, your characters | For good |
 
   Nothing is lost at a reload: only data past these ages is summed up or dropped.
@@ -193,31 +193,23 @@ The in-game Help tab has these under each topic too.
 - *Why are some things empty on the first day?* Prices and flips work from your first full scan. Deals and how fast things sell need a few days of scans to know what's usual.
 
 **Scanning the auction house**
-- *Why can't I run a full scan?* The game allows one about every 15 minutes. The Full scan button counts down to the next.
-- *Does Watch flips work with the auction house closed?* No: the game only lets addons search with the auction house open. The watch pauses when you close it and picks up when you come back.
 - *What are the 120 items the watch re-checks?* Between full scans, the likeliest to turn into flips: items priced near what a vendor pays, weighed by how many get posted and bought each day (Linen Cloth before a rare item), with crafted items counting extra since crafters post them in bulk to level their professions. Gear is left out.
-
-**Tooltips**
-- *Why does it say none listed?* Your last scan found none of that item on the auction house.
 
 **Buy queue and shopping lists**
 - *Do I click the big button or a row?* Either. The big button (or the wheel over its strip, with Scroll to buy ticked) buys the next one. Clicking a row buys that one next.
-- *Why did items disappear from the queue?* Someone else bought them first, or their price is too old: finds over 15 minutes old are left out until a scan finds them again. Items you can't afford stay at the bottom, marked.
-
-**Deals**
-- *Why are there no deals?* A deal needs an item's usual price, so at least 4 days of your scans (or TSM). Keep scanning; they fill in.
+- *Why did items disappear from the queue?* Someone else bought them first, or their price is too old: finds over 15 minutes old are left out until a scan finds them again.
 
 ## Help and community
 
 - **Discord:** [discord.gg/WKsCtvupeC](https://discord.gg/WKsCtvupeC) for updates, questions and WoW Forever news.
 - **Found a bug?** Type **/bug** on the Discord and fill in the short form (version, what happened, how to make it happen). Add the `/fl api` output or the BugSack error if you can. It goes to our tracker and you'll get updates in your post.
-- **Have an idea?** Type **/feature** on the Discord.
+- **Have an idea?** Type **/idea** on the Discord.
 
 ## Your data
 
 - Everything Forever Ledger records stays in its saved file on your own PC. **Nothing is sent to the author or anyone else.**
 - **It keeps:** auction house and vendor prices and their history; recipe, vendor and trainer locations you've seen; your characters' professions and recipes, gold over time, sales, purchases and vendor trades; bag and bank contents (this account only); requests the customer finder spotted in chat; and your work-done log.
-- **It sends** only when you choose to: live sync whispers to **your own** paired character (off until you use `/fl pair`), and ad buttons post in Trade when you click them. Export copies text for you to paste; it goes nowhere by itself.
+- **It sends** only when you choose to: live sync whispers to **your own** paired character (off until you use `/fl pair`), ad buttons post in Trade when you click them, and your Forever Ledger version number goes to your guild and group, which you can turn off (Settings, Minimap and updates). Export copies text for you to paste; it goes nowhere by itself.
 - A future option to share where vendors and trainers are with other players (on the roadmap) would share world facts only, never names, gold or bags, would ask first, and could be turned off.
 
 ## Commands
@@ -232,7 +224,12 @@ The in-game Help tab has these under each topic too.
 | `/fl customers`, `/fl work` | The Customers window, or its Work done view; `/fl customers on` / `off` turns the customer finder on or off |
 | `/fl de` | Your disenchant results |
 | `/fl deals` | Open the Deals tab (`/fl deals list` lists them in chat) |
+| `/fl price` | The Price window: look up any item's price history |
+| `/fl session` | Sessions: `/fl session start` or `stop` |
+| `/fl runs` | Your dungeon runs |
 | `/fl book` | Recipe data gathered so far |
+| `/fl pair`, `/fl unpair` | Link or unlink your other account |
 | `/fl sync` | Sync status and help |
+| `/fl welcome`, `/fl new` | The welcome card; what's new in this version |
 | `/fl perf` | What takes the addon's time |
 | `/fl probe` | Checks what the game supports (for testing) |

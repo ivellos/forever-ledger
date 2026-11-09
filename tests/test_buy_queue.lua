@@ -630,6 +630,20 @@ T.test("Full scan: what it didn't see is marked none listed, if the scan looks w
   wipe(S.timers)
 end)
 
+T.test("Buy queue: what can't be taken back takes two clicks on the same thing", function()
+  local text
+  local b = { SetText = function(_, t) text = t end }
+  T.eq(Q.clickTwice(b, "a", "x", "?"), false, "the first only asks")
+  T.eq(text, "?")
+  T.eq(Q.clickTwice(b, "b", "x", "?"), false, "another row's entry starts over")
+  T.eq(Q.clickTwice(b, "b", "x", "?"), true, "the second goes ahead")
+  T.eq(text, "x")
+  T.eq(Q.clickTwice(b, "b", "x", "?"), false)
+  S.now = S.now + 5
+  T.eq(Q.clickTwice(b, "b", "x", "?"), false, "too late: it asks again")
+  wipe(S.timers)
+end)
+
 T.test("Buy queue: closing the auction house keeps a recent unsettled purchase", function()
   buying(91025)
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)

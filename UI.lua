@@ -206,6 +206,18 @@ local function buildMain()
   local dataBtn = T:Button(main, "Export / import", 120, function() ns:ShowExport() end)
   dataBtn:SetPoint("LEFT", scan, "RIGHT", 18, 0)
   main.scanBtn, main.fullBtn = scan, full
+  -- Away from the auction house they can't be clicked: say why (UI pass, November 9).
+  local function scanHover(b, title, text)
+    b:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine(title, 1, 1, 1)
+      GameTooltip:AddLine(ns:IsAHOpen() and text or "Works while the auction house is open.", nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  scanHover(full, "Full scan", "Reads every listing at once. The game allows one about every 15 minutes.")
+  scanHover(scan, "Scan materials", "Looks up the materials your recipes use, one item at a time.")
   -- Help: the first-run welcome again (Welcome.lua), bottom left like the other tabs'
   -- buttons (owner, October 5: not under the topic list).
   local welcomeBtn = T:Button(main, "Show the welcome again", 170, function()
@@ -963,6 +975,20 @@ layoutShuffles = function()
   for i = nRows + 1, #rows do rows[i]:Hide() end
   for i = nDetails + 1, #details do details[i]:Hide() end
   f.empty:SetShown(#items == 0)
+  if #items == 0 then
+    -- Say why (UI pass, November 9: it told you to scan with every character unticked).
+    local chars, ticked, recipes = 0, 0, 0
+    for key, c in pairs(ns.db.chars or {}) do
+      chars = chars + 1
+      if not ns.db.settings.skipChars[key] then
+        ticked = ticked + 1
+        for _, p in pairs(c.profs or {}) do if next(p.recipes or {}) then recipes = recipes + 1 end end
+      end
+    end
+    f.empty:SetText((chars > 0 and ticked == 0 and "No characters are ticked: pick some with the characters button above.")
+      or (recipes == 0 and "No recipes saved yet. Open each profession's window once, then click Refresh.")
+      or "None at current prices. Scan the auction house, then click Refresh.")
+  end
   content:SetHeight(math.max(y, 30))
   f.sf.UpdateScrollBar()
 end
@@ -1014,9 +1040,11 @@ end
 function ns:UpdateFullScanButtons()
   if not ns.db then return end
   local wait = ns.Scan:FullWait()
+  local open = ns:IsAHOpen()
   local label, ready = "Full scan", false
   if wait == 0 then
-    label, ready = "Full scan: Ready", true
+    -- "Ready" only where it can be clicked (UI pass, November 9).
+    label, ready = open and "Full scan: Ready" or "Full scan", true
   elseif wait < math.huge then
     -- "in": it's a countdown to the next one Blizzard allows, not how long a scan takes.
     label = ("Full scan in %d:%02d"):format(math.floor(wait / 60), wait % 60)
@@ -1024,7 +1052,7 @@ function ns:UpdateFullScanButtons()
   for _, b in ipairs({ main and main.fullBtn or false, ns.ahFullButton or false, ns.panelFullButton or false }) do
     if b then
       b:SetText(label)
-      b:SetEnabled(ready and ns:IsAHOpen() and not ns.Scan.active)
+      b:SetEnabled(ready and open and not ns.Scan.active)
     end
   end
 end
@@ -1228,7 +1256,7 @@ function ns:ShowExport()
   local f = ioWindow()
   setTabs(f, dataTabs(1))
   f.title:SetText("Export / import")
-  f.help:SetText("Press Ctrl+A, then Ctrl+C to copy. Paste it into Import on your other account, or send it to Claude.")
+  f.help:SetText("Press Ctrl+A, then Ctrl+C to copy. Paste it into Import on your other account.")
   f.eb:SetText(ns:Export())
   f.action:Hide()
   f:Show()
@@ -1288,7 +1316,7 @@ function ns:ShowPricesCSV()
   local f = ioWindow()
   setTabs(f, dataTabs(3))
   f.title:SetText("Export / import")
-  f.help:SetText("Press Ctrl+A, then Ctrl+C. Paste this into a chat with Claude to check flips at today's prices.")
+  f.help:SetText("Press Ctrl+A, then Ctrl+C. Paste this into a spreadsheet to work with today's prices.")
   f.eb:SetText(ns:PricesCSV())
   -- Names the server is still sending: fill them in once, a few seconds later.
   if (ns.csvMissing or 0) > 0 and C_Timer then

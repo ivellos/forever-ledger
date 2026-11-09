@@ -13,7 +13,7 @@ ns.HELP = {
     { "Open this window", "Type /fl, or click the minimap button." },
     { "Learn your recipes", "Open each profession window once on every character." },
     { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
-    { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it short (today's cheapest price and what it's worth to you), with Shift for more. With 20 or more listed, selling on the auction house is valued from today's prices; with fewer, from this month's usual price if that's lower, so a few hopeful listings don't fool it, and a grey line says so." },
+    { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it short (today's cheapest price and what it's worth to you), with Shift for more. With 20 or more listed, selling on the auction house is valued from today's prices; with fewer, from this month's usual price if that's lower, so a few hopeful listings don't fool it, and a gray line says so." },
     { "Bags", "A bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor), and which bag is the cheapest per slot right now, so you buy the cheapest space first." },
     { sub = "Settings and look" },
     { "Search", "Settings and Help each have a search box above their list: type two letters or more to see everything that mentions it, from every section at once." },
@@ -21,7 +21,7 @@ ns.HELP = {
     { "Themes", "Settings, Appearance: FL Clean (flat and quiet), FL Bronze (a bronze edge, gold titles, sections as cards, switches) or FL Gilded (a bronze frame, gold serif titles), and an accent color: Auto uses EllesmereUI's when it's installed, or pick one, or Custom. A new look shows after a reload; it offers one. Size makes the windows smaller or bigger, 75% to 150%: drag, then let go." },
     { "Profiles", "Settings, Profiles: a profile is a set of settings characters can share, say no tooltips on one character, no customer finder on another. Each character uses one (Default to start). New profile copies your settings now; Rename, Reset to defaults and Delete profile (click twice) work on the one this character uses. Export / import opens one window: Export copies a profile as text with the parts you tick; Import makes a new profile from someone's text. Global settings are never in a profile." },
     { sub = "Updates" },
-    { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button under the list of topics, or /fl welcome." },
+    { "Welcome", "The first time you open the window, a short welcome lists the five things to start with. Show it again with the button at the bottom left of this tab, or /fl welcome." },
     { "What's new", "After an update, chat lists what's new in that version, once. The What's new button (bottom right of Help and the Dashboard) or /fl new shows it as a card." },
   } },
   { "Auction house scans", {
@@ -60,8 +60,8 @@ ns.HELP = {
   } },
   { "Buy queue and lists", {
     { sub = "Buy queue" },
-    { "Buy queue", "Click Buy queue on the auction house: a panel beside it lines up vendor flips and your shopping lists. Click a section to buy from it; it finds the next one by itself, and a click on Buy (or, with Scroll to buy ticked, a tick of the mouse wheel down over its top strip) buys it. Stacks of materials take a second tick to confirm the final price. Bottom right: what you bought this visit, what it cost and the profit if you vendored it (hover for the numbers). /fl queue." },
-    { "Scanning from the panel", "The panel's bottom row has Watch flips, Full scan and Scan materials (Stop watching and Stop scan while they run), with the scan's progress just above. While the panel is open beside the auction house, the same buttons under the auction house window are hidden. With nothing to buy, the big button starts the flip watch." },
+    { "Buy queue", "Click Buy queue on the auction house: a panel beside it lines up vendor flips and your shopping lists. It finds the next one by itself, and a click on Buy (or, with Scroll to buy ticked, a tick of the mouse wheel down over its top strip) buys it. Stacks of materials take a second tick to confirm the final price. Bottom right: what you bought this visit, what it cost and the profit if you vendored it (hover for the numbers). /fl queue." },
+    { "Scanning from the panel", "The panel's bottom row has Watch flips, Full scan and Scan materials (Stop watching and Stop scan while they run), with the scan's progress just above. While the panel is open beside the auction house, the same buttons under the auction house window are hidden." },
     { "Two views", "Vendor flips or Shopping lists, switched at the top of the panel, one at a time; the one you're on is the one that buys, so a list never buys a flip by accident. Each has its own buttons at the bottom. When there is something to buy, the strip at the top glows (gold for Vendor flips, purple for Shopping lists); with Scroll to buy ticked it also shows a mouse wheel: that's where to scroll. A new flip that chimes switches the panel to Vendor flips, unless you're using a shopping list (something on it being looked up or bought, or a click or scroll there in the last 30 seconds); then a gold count on the Vendor flips button (and on the Buy queue tab) says it's there." },
     { "Safe by design", "It never pays more than the limit shown (checked again on the final price) or more than you have, and every purchase is your own tick or click, as Blizzard requires. Scroll to buy only works with the mouse over the top strip; untick it to buy by clicking only. Right-click an item to skip it. Items you can't afford yet stay at the bottom of the list, grayed and marked can't afford, and are skipped until you have the gold; scroll past the last one you can buy and you get the error sound and a red message, once." },
     { "Spend at most", "The box near the bottom of the Buy queue caps what it spends this auction house visit (type 50 for 50g; it starts again each time you open the auction house). No limit until you type one; what's left shows beside it. Items over it are marked over limit and skipped. To always keep some gold back for repairs or a mount: Settings, Auction house, Buy queue: always keep." },
@@ -72,7 +72,7 @@ ns.HELP = {
     { "Buying from a list", "Tick Buy from this list in the Buy queue: the list adds Want (how many to buy) and Up to (the most you'll pay for one: filled in from its source; hover to see where it came from; off means don't buy it), and the Buy queue's Shopping lists view buys them. Want is how many to buy, whatever you already have; Have shows how many are bought so far. It never buys more than Want. Type any in Want to keep buying it whenever it's at or under Up to, with no limit (not with Up to any, which would buy every listing: then it buys one). An item is done once its Want is bought, and stays done; Buy again (bottom right) starts the list over. The bottom line says about what buying the rest would cost." },
     { "Where Up to comes from", "Hover Up to for its source. From a shuffle: its buying cap, not today's price; if two shuffles use an item, the lower cap wins. Add the shuffle again or use Buy again to refresh it. Added by hand: usual price plus this list's allowance (Pay up to X% over the usual price, starting at 10%); change the percentage on each list, then switch buying on or use Buy again to fill it. Type any price yourself, including off: it always wins and is never changed automatically. Existing limits are treated as yours. A shuffle route that can no longer be valued turns off until refreshed with known prices." },
     { "Prices", "Type a price any way: 2g 50s 25c, 2 50 25 or 2.50.25 (gold silver copper), 2 50 (gold silver), 25s, 75c, or a plain number for gold; it's tidied up when you press Enter, and a tip shows what it will be. Type any for any price, or tick Any price (bottom of the list) for the whole list (raid prep): the queue then buys the cheapest until it has bought what you want, never more than 3 times the usual price." },
-    { "Vendor supplies", "Unlimited-stock vendor items show Vendor: price on lists and stay out of the auction house queue, including hand-added items. Settings > Auction house > Buying: Buy vendor items on the auction house too (off by default) permits buying at the vendor price; a lower price or off that you typed is still respected. Your stored price is kept. Right-click an item's Up to box to use its automatic price again; the hover shows the underlying shuffle cap or usual price plus the list allowance while a typed price is in force. Limited-stock vendor items remain ordinary auction house items." },
+    { "Vendor supplies", "Unlimited-stock vendor items show vendor under Up to on lists and stay out of the auction house queue, including hand-added items. Settings > Auction house > Buying: Buy vendor items on the auction house too (off by default) permits buying at the vendor price; a lower price or off that you typed is still respected. Your stored price is kept. Right-click an item's Up to box to use its automatic price again; the hover shows the underlying shuffle cap or usual price plus the list allowance while a typed price is in force. Limited-stock vendor items remain ordinary auction house items." },
     { "Buy or craft", "Items one of your recipes makes have a Buy/Craft button: set Craft and the list shows the materials for the number you want, with Up to for each (usual price plus this list's allowance unless you type one) and how many are bought. Materials a vendor sells are marked vendor. Hover an item one of your recipes makes: what buying it would cost against buying the materials to craft it, and which is cheaper." },
     { "One version", "Type \"Soldier's Armor of the Monkey\", or shift-click a link of that version, to keep just that version on a list. Search all looks up every version of gear; hover an item for each version's price, yours first." },
     { "Share and import", "Share / import (top right of the list) opens a window with two tabs. Share copies a list as plain text to paste in Discord or send a friend; Import reads it back (or a plain list of item names, item numbers or Wowhead links, one per line). Imports never change your own lists, and never buy by themselves: tick Buy from this list to buy from one." },
@@ -82,7 +82,7 @@ ns.HELP = {
     { "Booty Bay", "Deals tab, Booty Bay (top right): the neutral auction house against yours, each after its own cut (15% there, 5% here) and one unsold listing. Sells for more there: items worth at least 10% more sold at Booty Bay. Cheaper there: buy at Booty Bay, sell here. Its prices come from scanning there and are kept apart from yours; a tooltip line for big differences is in Settings, Tooltips." },
     { "Why it's a deal", "Hover a deal: the usual cheapest and typical prices and how many days of your scans they come from, how many are usually listed, and the next listing up. Profit assumes you resell at the usual cheapest price or just under the next listing, whichever is lower. Click to search the auction house." },
     { "Filter", "All, Materials, Gear or Other, and a search box for names." },
-    { "How sure", "When most of what's listed is that cheap, the price has dropped and it's no bargain: rated Thin. Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show thin data too." },
+    { "How sure", "When most of what's listed is that cheap, the price has dropped and it's no bargain: rated Thin. Deals need at least 4 days of scans (or TSM). Thin data (few days, jumpy prices, usually only one listed) is hidden unless you tick Show doubtful deals too." },
     { "Keep in mind", "The auction house can't tell what actually sold. Buy what you'd be happy to hold for a while." },
   } },
   { "Disenchanting", {
@@ -120,7 +120,7 @@ ns.HELP = {
     { "Sessions", "Start one (Start a session at the top of the Dashboard, Ctrl-click on the minimap button, or /fl session start) and a small tracker you can drag counts what your time is worth: gold an hour, gold in and out, and what you loot (at the better of auction and vendor price; Settings can make it vendor only). Right-click the tracker to fold it to one line. Stop it to get a summary in chat; it joins the Dashboard's sessions. A session carries on through a logout on the same character." },
     { "Dungeon runs", "Counted as you go, session or not: each dungeon's runs, time, coin and what dropped for you (going back in within 5 minutes is the same run). /fl runs lists them; item tooltips say \"Dropped for you: Deadmines, 2 in 14 runs\"." },
     { sub = "Keeping data" },
-    { "How long it's kept", "Sales and purchases one by one for 30 days, then as one line per item per month for a year. Gold and money in and out per day for a year, then per month. Prices per day for 14 days, then weekly averages for a year. Recipes, vendors, items and your characters are kept for good. Nothing is lost at a reload: only data past these ages is summed up or dropped." },
+    { "How long it's kept", "Sales and purchases one by one for 30 days, then as one line per item per month for a year. Gold and money in and out per day for a year, then per month. Prices per day for 90 days, then weekly for a year. Recipes, vendors, items and your characters are kept for good. Nothing is lost at a reload: only data past these ages is summed up or dropped." },
   } },
   { "Two accounts", {
     { "Live sync", "Link your other account in Settings, Characters (or /fl pair First Last, on both characters): prices and recipes go between your two accounts while both are online: your characters first, then the prices (those can take several minutes), then the days of price history the other missed while offline (up to 14, about a minute a day). Pairing asks whether it's your own account: say yes and your gold and sales go too, so both Dashboards and Ledgers match. They include your buyers' names, so say no for a friend. Every new link starts with sharing off and asks again. Change that with \"Share gold and sales\", and share bags and bank with \"Share bags and bank\" (both in Global settings, Advanced). /fl unpair stops it and removes the other side's characters, gold and sales; the prices stay." },
@@ -131,23 +131,29 @@ ns.HELP = {
     { "New versions", "When a guildmate or group member has a newer Forever Ledger, chat says so once a session, with where to update. Only the version number is shared (Settings, Minimap and updates)." },
     { "Discord", "discord.gg/WKsCtvupeC: updates, questions, and WoW Forever news." },
     { "Found a bug?", "Type /bug on the Discord and fill in the short form. Include /fl api output or the BugSack error if you can." },
-    { "Have an idea?", "Type /feature on the Discord. You'll get updates in your post." },
+    { "Have an idea?", "Type /idea on the Discord. You'll get updates in your post." },
   } },
   { "Your data", {
     { "Stays on your PC", "Everything Forever Ledger records is kept in its saved file on your computer. Nothing is sent to the author or anyone else." },
     { "What it keeps", "Prices and their history, vendor and trainer locations you've seen, your characters' recipes, gold, sales and purchases, bags and bank, chat requests it spotted, and your work log." },
-    { "What it sends", "Only live sync to your own paired character (off until /fl pair), and ads in Trade when you click an ad button." },
+    { "What it sends", "Only live sync to your own paired character (off until /fl pair), ads in Trade when you click an ad button, and your Forever Ledger version number to your guild and group, which can be turned off (Settings, Minimap and updates)." },
   } },
   { "Commands", {
     { "/fl", "Open or close the window." },
     { "/fl scan", "Full scan or materials." },
     { "/fl watch", "Flip watch." },
     { "/fl quiet", "Quiet mode on this character, until you type it again: game sound off, chimes at full volume." },
+    { "/fl price", "The Price window: look up any item's price history." },
+    { "/fl queue, /fl lists", "The Buy queue or shopping lists." },
     { "/fl deals", "The Deals tab (/fl deals list in chat)." },
+    { "/fl session", "Sessions: /fl session start or stop." },
+    { "/fl runs", "Your dungeon runs." },
     { "/fl customers, /fl work", "The Customers window. /fl customers on or off turns the customer finder on or off." },
     { "/fl de", "Your disenchant results." },
     { "/fl book", "Recipe data gathered." },
+    { "/fl pair, /fl unpair", "Link or unlink your other account." },
     { "/fl sync", "Sync status." },
+    { "/fl welcome, /fl new", "The welcome card; what's new in this version." },
     { "/fl perf, /fl probe", "What takes time; game checks." },
   } },
 }
@@ -163,19 +169,11 @@ ns.HELP_FAQ = {
     { "Why are some things empty on the first day?", "Prices and flips work from your first full scan. Deals and how fast things sell need a few days of scans to know what's usual." },
   },
   ["Auction house scans"] = {
-    { "Why can't I run a full scan?", "The game allows one about every 15 minutes. The Full scan button counts down to the next." },
-    { "Does Watch flips work with the auction house closed?", "No: the game only lets addons search with the auction house open. The watch pauses when you close it and picks up when you come back." },
     { "What are the 120 items the watch re-checks?", "Between full scans, the likeliest to turn into flips: items priced near what a vendor pays, weighed by how many get posted and bought each day (Linen Cloth before a rare item), with crafted items counting extra since crafters post them in bulk. Gear is left out." },
-  },
-  ["Tooltips"] = {
-    { "Why does it say none listed?", "Your last scan found none of that item on the auction house." },
   },
   ["Buy queue and lists"] = {
     { "Do I click the big button or a row?", "Either. The big button (or the wheel over its strip, with Scroll to buy ticked) buys the next one. Clicking a row buys that one next." },
-    { "Why did items disappear from the queue?", "Someone else bought them first, or their price is too old: finds over 15 minutes old are left out until a scan finds them again. Items you can't afford stay at the bottom, marked." },
-  },
-  ["Deals"] = {
-    { "Why are there no deals?", "A deal needs an item's usual price, so at least 4 days of your scans (or TSM). Keep scanning; they fill in." },
+    { "Why did items disappear from the queue?", "Someone else bought them first, or their price is too old: finds over 15 minutes old are left out until a scan finds them again." },
   },
 }
 

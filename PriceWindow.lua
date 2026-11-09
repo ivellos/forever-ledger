@@ -515,7 +515,7 @@ local function buildFind(f)
 end
 
 local function build()
-  win = ns.ThemedWindow("ForeverLedgerPriceWindow", W, 600, T:TitleCode() .. "Price history|r")
+  win = ns.ThemedWindow("ForeverLedgerPriceWindow", W, 600, T:TitleCode() .. "Price window|r")
   local f = win
   buildFind(f)
 

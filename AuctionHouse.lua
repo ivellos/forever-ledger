@@ -518,6 +518,7 @@ local function buildFinder(side)
     local cb = T:Check(finder, function(self) s[o[1]] = self:GetChecked(); changed() end)
     cb:SetPoint("TOPLEFT", x, -y)
     cb.label:SetText(o[2])
+    cb:SetHitRectInsets(0, -(cb.label:GetStringWidth() + 8), 0, 0)   -- the name ticks it too
     cb:SetChecked(s[o[1]])
     x = x + 20 + cb.label:GetStringWidth() + 18
   end

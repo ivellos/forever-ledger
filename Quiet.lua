@@ -105,4 +105,8 @@ ns:On("PLAYER_LOGOUT", function()
 end)
 -- At login and after a reload: back on for a quiet character, else the sound settings
 -- left by a game that closed while quiet go back.
-ns:OnReady(function() ns:UpdateQuiet() end)
+ns:OnReady(function()
+  ns:UpdateQuiet()
+  -- Nothing else shows it's on, and it lasts for days (UI pass, November 9).
+  if onHere() then ns:Print("Quiet mode is on for this character. /fl quiet turns it off.") end
+end)

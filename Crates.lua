@@ -386,7 +386,7 @@ local COLS = {
   { key = "level", label = "Level", w = 44 },
   { key = "fill", label = "Cheapest fill", w = 150 },
   { key = "fillCost", label = "Fill cost", w = 74 },
-  { key = "cratePrice", label = "Crate", w = 70 },
+  { key = "cratePrice", label = "Price", w = 70 },
  { key = "total", label = "Net cost", w = 80 },
   { key = "perFavor", label = "Per Favor", w = 80 },
 }
