@@ -272,13 +272,16 @@ end
 -- - Buying goes on, as it did in the beta (owner, November 9). From November 6 nothing else
 --   was bought for up to a minute, so two replies couldn't be mixed up; but a Red Woolen Bag
 --   purchase got no answer at all, every tick after it was held, and the rest of the row
---   sold meanwhile. Known gap, accepted by the owner (Codex review, November 9): while
---   purchases overlap, a reply or gold leaving can be put down to the wrong one, so Spend at
---   most can be passed by about one purchase and a shopping list can get one more than it
---   wants.
+--   sold meanwhile. Known gap, accepted by the owner (Codex reviews, November 9): answers or
+--   payments that overlap can be put down to the wrong purchase, so the queue can pass Spend
+--   at most, buy more than a shopping list wants, or miss a purchase in its totals. Several
+--   unanswered purchases in a row make it bigger: five unanswered tries for a Want of 1
+--   that all go through later bring five.
 -- - Its cost stays held against Spend at most for the rest of the visit, however late.
 -- - A success with no purchase under way still counts for it, however late.
--- After LATE_SECONDS it's probably lost, so a purchase under way takes its own success.
+-- A purchase under way takes its own success at any age, unless the answer matches an
+-- unsettled one (its auction, or a commodity one whose gold has already left). LATE_SECONDS
+-- only clears old records when the auction house is opened again.
 local LATE_SECONDS = 60
 
 local function owedLate()
@@ -512,6 +515,16 @@ local function dropCurrent()
 end
 Q.dropCurrent = dropCurrent   -- (for the tests)
 
+-- Show Vendor flips or Shopping lists: the view on screen is the one that buys.
+local function setView(value)
+  if S().view == value then return end
+  S().view = value
+  dropCurrent()
+  Q.armed, Q.note, Q.built = value, nil, 0
+  rebuildNow()
+  if refreshQueue then refreshQueue() end
+end
+
 -- Right-click on a row: not this one. A purchase of it on its way still stays open.
 function Q.skip(e)
   skipped[e.id] = true
@@ -521,7 +534,8 @@ function Q.skip(e)
 end
 
 -- Make a section the one that looks things up and buys. Only you do this (a click, or
--- the wheel over its strip); scans and the flip watch never switch it.
+-- the wheel over its strip); scans and the flip watch never switch it, except that a new
+-- flip's chime shows Vendor flips when you're not using a list (ns:FlipsAnnounced).
 local function arm(key, quiet)
   if Q.armed == key then return end
   dropCurrent()
@@ -536,6 +550,7 @@ end
 
 -- Work on this entry now (clicking a row): its section becomes the armed one.
 local function choose(e)
+  if e.lane == "lists" then Q.listTouched = GetTime() end
   arm(e.lane, true)
   dropCurrent()
   Q.cur, Q.tries = e, 0
@@ -681,6 +696,8 @@ local PLAN_SECONDS = 15   -- how long what a lookup found is trusted
 -- the flip watch instead (owner, October 3: "Look again" seemed odd); the wheel never
 -- starts a scan.
 function ns:BuyQueueAct(clicked)
+  -- (A tick on Shopping lists keeps a new flip from switching the view: ns:FlipsAnnounced.)
+  if view() == "lists" then Q.listTouched = GetTime() end
   -- (Before the checks below: a click they hold back must still make room for the next.)
   if Q.state == "ready" or Q.state == "confirm" then holdScans() end
   if clicked and Q.state == "idle" and not Q.cur then
@@ -1364,12 +1381,8 @@ local function buildQueueView(parent)
   -- Which view: Vendor flips or Shopping lists, one at a time; and Scroll to buy.
   v.viewChoice = T:Choice(bar, { { value = "flips", label = "Vendor flips" }, { value = "lists", label = "Shopping lists" } },
     function(value)
-      if S().view == value then return end
-      S().view = value
-      dropCurrent()
-      Q.armed, Q.note, Q.built = value, nil, 0
-      rebuildNow()
-      refreshQueue()
+      if value == "lists" then Q.listTouched = GetTime() end
+      setView(value)
     end)
   v.viewChoice:SetPoint("LEFT", 8, 0)
   for _, b in ipairs(v.viewChoice.buttons) do
@@ -3237,11 +3250,23 @@ updateBadges = function()
     if b.value == "flips" then set(b, view() ~= "flips") end
   end
 end
+local LIST_BUSY = 30   -- seconds after your last click or tick on Shopping lists
 function ns:FlipsAnnounced(list)
   for _, f in ipairs(list) do done[f.id] = nil end
+  -- On Shopping lists with nothing of a list's under way: show Vendor flips, so what chimed
+  -- is on screen (owner, November 9: Shadowgem chimed while the panel showed Shopping lists,
+  -- and he found it only by searching). Not while you're using a list (a lookup or purchase
+  -- under way, or a click or tick there in the last 30 seconds): a list never buys a flip
+  -- by accident, and the gold count on Vendor flips says they're there.
+  local switched = false
+  if shown() and view() == "lists" and Q.state == "idle" and not Q.cur
+    and not (Q.listTouched and GetTime() - Q.listTouched < LIST_BUSY) then
+    setView("flips")
+    switched = true
+  end
   if not (shown() and view() == "flips") then Q.unseenFlips = (Q.unseenFlips or 0) + #list end
   Q.built = 0
-  if shown() and view() == "flips" then rebuildNow() end
+  if shown() and view() == "flips" and not switched then rebuildNow() end
   updateBadges()
 end
 

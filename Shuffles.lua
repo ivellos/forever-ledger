@@ -1013,7 +1013,7 @@ local function announce(all, usual)
     -- Only after a full scan, not the flip watch's quick checks (ns.fullScanDone).
     if ns.db.settings.openFlips and ns.OpenFlips and ns.fullScanDone then ns:OpenFlips() end
     for _, f in ipairs(flips) do
-      ns:Print(("New vendor flip: %s, %d at %s or less (vendor pays %s). It's in the Buy queue."):format(
+      ns:Print(("New vendor flip: %s, %d at %s or less (vendor pays %s). It's in the Buy queue, under Vendor flips."):format(
         itemName(f.id), f.buys[1].listed or 1, ns.Money(f.maxBuy), ns.Money(f.opt.value)))
     end
   end

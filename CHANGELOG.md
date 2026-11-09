@@ -8,10 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - The on-screen deal alert names the Deals tab ("see the Deals tab (/fl deals)"), as the chat line does: deals below the usual price aren't in the auction house panel, which holds vendor flips and shopping lists.
 - Flip watch: while it waits for you to leave an item's buy or sell page, the status line says "Watch paused while an item's page is open" instead of a scan count that stands still.
+- Buy queue: a new vendor flip that chimes switches the panel to Vendor flips when it's on Shopping lists and you're not using a list (nothing being looked up or bought, no click or scroll there in the last 30 seconds). A Shadowgem flip chimed while the panel showed Shopping lists and could only be found by searching. The chat line now says "under Vendor flips".
 
 ### Fixed
 - Buy queue: a vendor flip listed as several in one row (2 Red Woolen Bags at 5s) is bought one at a time, like the game's own Buy button. The queue used to leave those "for the page", so the flip dropped off the list while it was still there.
-- Buy queue: no more waiting up to a minute after a purchase that got no answer, as in the beta: every scroll was held while the rest of a Red Woolen Bag row sold. Its cost still stays held against Spend at most. When purchases overlap, Spend at most can still be passed by about one purchase, and a shopping list can get one more than it wants.
+- Buy queue: buying carries on after a purchase that got no answer, as in the beta: the minute's wait held every scroll while the rest of a Red Woolen Bag row sold. Its cost still stays held against Spend at most. Answers or payments that overlap can be counted against the wrong purchase, so the queue can pass Spend at most, buy more than a shopping list wants, or miss a purchase in its totals; several unanswered purchases in a row make the difference bigger.
 
 ## [0.19.0] - 2026-11-08
 
