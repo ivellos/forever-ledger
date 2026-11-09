@@ -944,18 +944,23 @@ ns.RefreshPriceWindow = ns.Timed("Price window", ns.RefreshPriceWindow)
 -- Opens the window on an item. link: the item's link, for its version and tooltip.
 -- Without an item: the window as it was (or empty), ready to type a name. find: text to
 -- put in the look-up box (/fl price with a name that isn't exact).
+-- The version an item opened with: the one its link names, else All versions, even on
+-- the item already shown (Codex review, November 8: a search-results row or /fl price for
+-- the item shown kept the last version, and Add to shopping list added that version).
+function ns:PriceWindowChoose(id, link)
+  local suffix = link and ns:VersionOfLink(id, link) or nil
+  state.suffix = suffix
+  if suffix then ns:LearnVersionName(id, suffix, link) end
+  return suffix
+end
+
 function ns:ShowPriceWindow(id, link, find)
   if not ns.db then return end
   if not win then build() end
   id = tonumber(id)
   if id then
-    if win.id ~= id then state.suffix = nil end
     win.id, win.link = id, link
-    local suffix = link and ns.VersionOfLink and ns:VersionOfLink(id, link)
-    if suffix then
-      state.suffix = suffix
-      ns:LearnVersionName(id, suffix, link)
-    end
+    ns:PriceWindowChoose(id, link)
     ns:RememberItem(id)
   end
   win:Show()

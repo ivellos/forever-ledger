@@ -166,6 +166,20 @@ T.test("Price window: an auction house click opens the version its tooltip showe
   T.eq(ns:ClickedLink(id, group), group, "an old tooltip doesn't count")
 end)
 
+-- Codex review, November 8: opening the item shown again, from a search-results row or
+-- /fl price, kept the last version (and Add to shopping list added that version).
+T.test("Price window: opening the same item without a version shows All versions", function()
+  fresh()
+  local id = 71054
+  market()[id] = { m = 250, q = 3, sx = "12719:300:2", t = time() }
+  local whale = "|cff1eff00|Hitem:71054::::::::20:1482::1:1:12719:1:28:7000|h[Test Spaulders of the Whale]|h|r"
+  local group = "|cff1eff00|Hitem:71054::::::::20:1482::1:1:3524|h[Test Spaulders]|h|r"
+  T.eq(ns:PriceWindowChoose(id, whale), 12719)
+  T.eq(ns:PriceWindowChoose(id, group), nil, "a search-results row")
+  T.eq(ns:PriceWindowChoose(id, whale), 12719)
+  T.eq(ns:PriceWindowChoose(id, nil), nil, "/fl price or the look-up box")
+end)
+
 -- Owner's screenshot, November 8: Fortified Spaulders bonus 12734 showed "other stats",
 -- because no full scan had read a listing of it with its name.
 T.test("Price window: a version full scans never named learns it from the link", function()

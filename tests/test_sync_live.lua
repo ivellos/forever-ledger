@@ -261,6 +261,33 @@ T.test("Price history: a packed day goes into the other account's history", func
   T.eq(ns:MergeHistoryDay(B, d1, "x,1.1.1."), 0, "a damaged day is dropped from there on")
 end)
 
+-- Codex review, November 8.
+T.test("Price history: an empty damaged entry stops the day there", function()
+  local B = "Elsewhere|Alliance"
+  local d1 = ns.LocalDay(time()) - 1
+  ns.db.history[B] = {}
+  T.eq(ns:MergeHistoryDay(B, d1, ns.Base36(79100) .. ".2s..,,1.5k.."), 1, "only the entry before it")
+  T.eq(ns.db.history[B][79100], ("%d:100:100"):format(d1))
+  T.eq(ns.db.history[B][79101], nil, "the step after it is for another item")
+  T.eq(ns.db.history[B][79102], nil)
+  T.eq(ns:MergeHistoryDay(B, d1, ""), 0)
+end)
+
+T.test("Price history: a day from early in a long history is merged in its place", function()
+  local B = "Elsewhere|Alliance"
+  local today = ns.LocalDay(time())
+  local days, want = {}, {}
+  for d = today - 89, today - 1 do
+    days[#days + 1] = ("%d:10000:10000"):format(d)
+    want[#want + 1] = ("%d:%d:10000"):format(d, d == today - 85 and 9000 or 10000)
+  end
+  ns.db.history[B] = { [79200] = table.concat(days, "|") }
+  ns.db.historyAll[B] = { [79200] = "10000:880000:88" }
+  T.eq(ns:MergeHistoryDay(B, today - 85, ns.Base36(79200) .. ".6y0.."), 1)
+  T.eq(ns.db.history[B][79200], table.concat(want, "|"), "the lower cheapest, in its place, once")
+  T.eq(ns.db.historyAll[B][79200], "9000:880000:88", "the lowest, with no extra day counted")
+end)
+
 T.test("Price history: only the days the partner is missing go, one at a time", function()
   ns:SyncCommand("unpair")
   setup(false)

@@ -764,6 +764,10 @@ end
 -- if anything changed.
 local function mergeDay(hist, id, day, m, a, key)
   local head, tail = splitTail(hist[id] or "")
+  -- A day older than the tail may be in the head: the whole string then (Codex review,
+  -- November 8: it was put in again after the head, out of order and counted twice).
+  local first = tonumber(tail:match("^(%d+):"))
+  if head ~= "" and not (first and day >= first) then head, tail = "", hist[id] end
   local out, placed, changed = {}, false, false
   local lastBefore   -- the entry that was last, if the day goes after it
   for e in tail:gmatch("[^|]+") do
@@ -823,7 +827,9 @@ function ns:MergeHistoryDay(market, day, packed)
   if day >= d or day <= d - KEEP_DAYS then return 0 end
   local hist, qty = marketTable("history", market), marketTable("historyQty", market)
   local id, n = 0, 0
-  for e in packed:gmatch("[^,]+") do
+  -- Empty entries count too (Codex review, November 8: skipping a damaged empty one gave
+  -- the rest of the day to the wrong items).
+  for e in (packed .. ","):gmatch("([^,]*),") do
     local step, m, a, q = e:match("^(%w+)%.(%w+)%.(%w*)%.(%w*)$")
     step, m = tonumber(step or "", 36), tonumber(m or "", 36)
     -- (each id is a step from the last, so nothing after a damaged entry can be trusted)
