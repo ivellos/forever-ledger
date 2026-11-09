@@ -230,10 +230,12 @@ local function leaveStalePage()
   end
 end
 
-local function finishTarget(note)
+-- wakeIn: seconds it stays out, and looked at again then, if less than the usual DONE_FOR.
+local function finishTarget(note, wakeIn)
   local e = Q.cur
   if e then
-    done[e.id] = GetTime()
+    done[e.id] = GetTime() - (wakeIn and DONE_FOR - wakeIn or 0)
+    if wakeIn then C_Timer.After(wakeIn, function() Q.built = 0; rebuildNow() end) end
     local list = Q.lanes[e.lane] or {}
     for i, x in ipairs(list) do if x == e then table.remove(list, i); break end end
     Q.note = ns.ItemName(e.id) .. ": " .. note
@@ -280,8 +282,8 @@ end
 --   was passed). Gold that leaves while several are open goes to one it matches exactly,
 --   oldest first, or to none; a failure that could be either of two commodity purchases
 --   frees neither.
--- - A success with no purchase under way still counts for it, however late; if its gold
---   hasn't left, the cost stays held (Q.wonDue) until it does.
+-- - A success with no purchase under way still counts for it, however late. Any success
+--   whose gold hasn't left keeps its cost held (Q.wonDue) until it does.
 -- - A shopping list counts its unanswered purchases for a minute (listLeft), so five
 --   unanswered tries for a Want of 1 don't bring five.
 -- A purchase under way takes its own success at any age, unless the answer matches an
@@ -634,15 +636,16 @@ end
 -- guess, so they count until they're answered, even if the mail record has them too: at
 -- worst the list waits. After LATE_SECONDS they're taken as lost, so it can buy again.
 local function unanswered(id)
-  local n = 0
+  local n, newest = 0, nil
   for _, list in ipairs({ Q.lateBuys, Q.wonDue }) do
     for _, o in ipairs(list) do
       if o.cur and o.cur.id == id and GetTime() - o.at <= LATE_SECONDS then
         n = n + ((o.plan.kind == "commodity" and o.plan.qty) or 1)
+        newest = math.max(newest or 0, o.at)
       end
     end
   end
-  return n
+  return n, newest
 end
 
 -- A shopping list item: how many the lists still want, read from the lists right now
@@ -653,12 +656,18 @@ local function listLeft(id)
 end
 Q.listLeft = listLeft   -- (for the tests)
 
--- The note when a list has all it wants.
-local function listFull(id)
-  local waiting = unanswered(id)
-  return waiting > 0 and ("the list has all it wants, counting %d still waiting for an answer."):format(waiting)
-    or "the list has all it wants."
+-- The list has all it wants. If that's only counting unanswered purchases, it comes back
+-- when they're taken as lost, not after the usual two minutes (Codex review, November 9).
+local function listHasAll(e)
+  local waiting, newest = unanswered(e.id)
+  if waiting > 0 then
+    finishTarget(("the list has all it wants, counting %d still waiting for an answer."):format(waiting),
+      LATE_SECONDS - (GetTime() - newest) + 1)
+  else
+    finishTarget("the list has all it wants.")
+  end
 end
+Q.isSetAside = function(id) return done[id] ~= nil and GetTime() - done[id] < DONE_FOR end   -- (for the tests)
 
 -- Returns false when it's done.
 local function capToList(e)
@@ -669,7 +678,7 @@ local function capToList(e)
       tostring(e.want), tostring(left)))
     e.want = left
   end
-  if left <= 0 then finishTarget(listFull(e.id)); return false end
+  if left <= 0 then listHasAll(e); return false end
   return true
 end
 
@@ -865,7 +874,7 @@ function ns:BuyQueueAct(clicked)
       ns:Debug(("Buy queue: stopped buying %d %s, the list only wants %d more."):format(units, ns.ItemName(e.id), left))
       e.want = left
       if left <= 0 then
-        finishTarget(listFull(e.id))
+        listHasAll(e)
       else
         Q.note = "Checking how many the list still wants."
         again()
@@ -1038,12 +1047,26 @@ local function lateSuccess(kind, auctionID, paidOnly)
   return true
 end
 
--- The oldest unanswered commodity purchase's place in Q.lateBuys, if any. Commodity answers
--- don't say which purchase they're for.
+-- The oldest unanswered commodity purchase's place in Q.lateBuys, if any, and how many
+-- there are. Commodity answers don't say which purchase they're for. (One whose gold has
+-- left can't fail now, so it isn't one of them.)
 local function commodityOpen()
+  local first, n = nil, 0
   for i, late in ipairs(Q.lateBuys) do
-    if late.plan.kind == "commodity" then return i end
+    if late.plan.kind == "commodity" and late.left > 0 then
+      first, n = first or i, n + 1
+    end
   end
+  return first, n
+end
+
+-- The purchase under way went through: what it hasn't paid yet stays held until its gold
+-- leaves (Codex review, November 9: the news alone freed it, so the next purchase could
+-- pass Spend at most). Gold that has already left isn't held again.
+local function keepDue()
+  local due = math.max(costOf(Q.plan) - paidSoFar(), 0)
+  if due > 0 then Q.wonDue[#Q.wonDue + 1] = { plan = Q.plan, cur = Q.cur, at = GetTime(), left = due } end
+  Q.lastPlan = nil
 end
 
 ns:On("COMMODITY_PURCHASE_SUCCEEDED", function()
@@ -1052,13 +1075,7 @@ ns:On("COMMODITY_PURCHASE_SUCCEEDED", function()
     return
   end
   if lateSuccess("commodity", nil, true) then return end
-  -- With another one unanswered this may be its answer: counted here, but this one's cost
-  -- stays held until gold of that amount leaves.
-  if commodityOpen() then
-    local due = math.max(costOf(Q.plan) - paidSoFar(), 0)
-    if due > 0 then Q.wonDue[#Q.wonDue + 1] = { plan = Q.plan, cur = Q.cur, at = GetTime(), left = due } end
-    Q.lastPlan = nil
-  end
+  keepDue()
   bought(Q.plan.qty, Q.plan.total or Q.plan.cost)
   -- Take what was bought off the saved listings (all at or under the limit), or they
   -- look like a flip again on the next visit (owner, October 3: Linen Bandage, Flask of
@@ -1069,10 +1086,11 @@ end)
 
 ns:On("COMMODITY_PURCHASE_FAILED", function()
   trace("purchase failed event, state " .. Q.state)
-  local open = commodityOpen()
+  local open, n = commodityOpen()
   -- Nothing of this kind on its way now: it's an earlier one's, whatever is being bought.
+  -- With several earlier ones there's no telling whose, so none is let go.
   if not (Q.state == "buying" and Q.plan and Q.plan.kind == "commodity") then
-    if open then table.remove(Q.lateBuys, open) end
+    if n == 1 then table.remove(Q.lateBuys, open) end
     return
   end
   -- This one or an earlier one failed, and there's no telling which: neither is let go.
@@ -1090,6 +1108,7 @@ local function itemBought(auctionID)
     lateSuccess("item", auctionID)
     return
   end
+  keepDue()
   bought(1, Q.plan.price)
   again(true)
 end

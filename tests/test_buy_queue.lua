@@ -644,6 +644,73 @@ T.test("Buy queue: what can't be taken back takes two clicks on the same thing",
   wipe(S.timers)
 end)
 
+-- The next three: Codex's verification of b942892, November 9.
+T.test("Buy queue: an ordinary success keeps its cost held until the gold leaves", function()
+  withAHOpen(function()
+    buyingItem(91080, 1)
+    budget(100)
+    Q.plan.cost = 40
+    T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 1)
+    T.eq(Q.visitLeft(), 60, "an item: not freed by the news alone")
+    S.money = 960
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.spent, 40)
+    T.eq(#Q.wonDue, 0)
+    T.eq(Q.visitLeft(), 60, "counted once")
+    buying(91081)
+    budget(100)
+    Q.plan.cost = 40
+    T.fire("COMMODITY_PURCHASE_SUCCEEDED")
+    T.eq(Q.visitLeft(), 60, "a commodity, with no other open")
+    buying(91082)
+    budget(100)
+    Q.plan.cost = 40
+    S.money = 960
+    T.fire("PLAYER_MONEY")
+    T.fire("COMMODITY_PURCHASE_SUCCEEDED")
+    T.eq(#Q.wonDue, 0, "gold that already left isn't held again")
+    T.eq(Q.visitLeft(), 60)
+  end)
+end)
+
+T.test("Buy queue: a failure with two unanswered commodity purchases lets neither go", function()
+  withAHOpen(function()
+    unansweredFirst(91083, 50)
+    sending(91084, { kind = "commodity", qty = 5, cost = 40 })
+    Q.noReply()
+    T.eq(#Q.lateBuys, 2)
+    T.fire("COMMODITY_PURCHASE_FAILED")
+    T.eq(#Q.lateBuys, 2, "no telling whose")
+    T.eq(Q.visitLeft(), 10)
+    S.money = 950
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.lateBuys[1].left, 0, "the 50 has paid, so it can't fail now")
+    T.fire("COMMODITY_PURCHASE_FAILED")
+    T.eq(#Q.lateBuys, 1, "so this failure is the other one's")
+    T.eq(Q.lateBuys[1].plan.cost, 50)
+    T.eq(Q.visitLeft(), 50)
+  end)
+end)
+
+T.test("Buy queue: a list full only of unanswered purchases comes back when they expire", function()
+  local real = ns.ListStillWanted
+  ns.ListStillWanted = function() return 1 end
+  local e = buyingItem(91085, 7)
+  e.reason = "list"
+  Q.noReply()
+  Q.cur, Q.plan, Q.state = e, nil, "search"
+  Q.planItem({ itemID = 91085 })
+  T.eq(Q.isSetAside(91085), true)
+  S.now = S.now + 60
+  T.eq(Q.isSetAside(91085), true, "still counted")
+  S.now = S.now + 2
+  T.eq(Q.isSetAside(91085), false, "back after a minute, not two")
+  T.eq(Q.listLeft(91085), 1)
+  ns.ListStillWanted = real
+  Q.lateBuys = {}
+  wipe(S.timers)
+end)
+
 T.test("Buy queue: closing the auction house keeps a recent unsettled purchase", function()
   buying(91025)
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
