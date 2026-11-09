@@ -11,7 +11,7 @@ local function buying(id, qty)
   local e = { id = id, lane = "flips", want = 10, limit = 9 }
   Q.lanes.flips = { e }
   Q.cur, Q.plan, Q.state, Q.bought, Q.lateBuys = e, { kind = "commodity", qty = qty or 3, cost = 27 }, "buying", 0, {}
-  Q.buyFrom = nil
+  Q.buyFrom, Q.wonDue = nil, {}
   return e
 end
 
@@ -26,6 +26,23 @@ local function budget(cost)
   ns.db.settings.buyQueue.limit = cost
   Q.spent, Q.lastMoney, Q.buyAt, Q.buyFrom, S.money = 0, 1000, GetTime(), 1000, 1000
   Q.plan.cost, Q.lastPlan = cost, Q.plan
+end
+
+-- A second purchase sent now, as the Buy button does, while earlier ones are unanswered.
+local function sending(id, plan)
+  local e = { id = id, lane = "flips", reason = "flip", want = 10, limit = 99 }
+  S.items[id] = { name = "Item " .. id, sell = 1 }
+  Q.cur, Q.plan, Q.state = e, plan, "buying"
+  Q.buyAt, Q.lastMoney, Q.buyFrom, Q.lastPlan = GetTime(), GetMoney(), GetMoney(), plan
+  return e
+end
+
+-- A first purchase of `cost` that got no answer, with Spend at most at 100c.
+local function unansweredFirst(id, cost, item)
+  if item then buyingItem(id, 1) else buying(id) end
+  budget(100)
+  Q.plan.cost = cost
+  Q.noReply()
 end
 
 local function withAHOpen(fn)
@@ -429,6 +446,122 @@ T.test("Buy queue: using Shopping lists keeps a new flip from switching the view
   Q.noteListUse()
   T.eq(Q.listInUse(), true, "and any later use starts it again")
   buyQueue.view, Q.listTouched = realView, nil
+end)
+
+-- The next five: Codex's review of November 9, with no wait between purchases.
+T.test("Buy queue: an older purchase's gold doesn't make the one under way look paid", function()
+  withAHOpen(function()
+    unansweredFirst(91050, 40, true)
+    T.eq(Q.lateBuys[1].left, 40)
+    sending(91051, { kind = "item", auctionID = 2, price = 50, cost = 50 })
+    S.money = 960
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.spent, 40)
+    T.eq(Q.lateBuys[1].left, 0, "the older one's")
+    Q.noReply()
+    T.eq(Q.lateBuys[2].left, 50, "the newer one still owes all of it")
+    T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 1)
+    T.eq(#Q.lateBuys, 1, "the older one is settled")
+    T.eq(Q.visitLeft(), 10, "100 less 40 spent and 50 still held")
+  end)
+end)
+
+T.test("Buy queue: gold that matches nothing frees nothing while several are open", function()
+  withAHOpen(function()
+    unansweredFirst(91052, 40, true)
+    sending(91053, { kind = "item", auctionID = 2, price = 50, cost = 50 })
+    S.money = 993   -- a deposit, say
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.spent, 7)
+    T.eq(Q.lateBuys[1].left, 40)
+    Q.noReply()
+    T.eq(Q.lateBuys[2].left, 50, "not taken as a part payment")
+    T.eq(Q.visitLeft(), 3)
+  end)
+end)
+
+T.test("Buy queue: a list counts a purchase still open even when gold of its price left", function()
+  withAHOpen(function()
+    local real = ns.ListStillWanted
+    ns.ListStillWanted = function() return 1 end
+    unansweredFirst(91054, 40, true)
+    sending(91055, { kind = "item", auctionID = 2, price = 40, cost = 40 })
+    S.money = 960
+    T.fire("PLAYER_MONEY")      -- goes to the older one, which may be wrong
+    Q.noReply()
+    T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 1)
+    T.eq(Q.listLeft(91055), 0, "the second is still on its way")
+    ns.ListStillWanted = real
+  end)
+end)
+
+T.test("Buy queue: a late commodity failure leaves an item purchase on its way alone", function()
+  withAHOpen(function()
+    unansweredFirst(91056, 40)
+    local b = sending(91057, { kind = "item", auctionID = 2, price = 50, cost = 50 })
+    T.fire("COMMODITY_PURCHASE_FAILED")
+    T.eq(Q.state, "buying")
+    T.eq(Q.cur, b)
+    T.eq(Q.plan.auctionID, 2)
+    T.eq(#Q.lateBuys, 0, "the commodity one has its answer")
+  end)
+end)
+
+T.test("Buy queue: an answer that could be either commodity purchase's frees neither", function()
+  withAHOpen(function()
+    unansweredFirst(91058, 40)
+    sending(91059, { kind = "commodity", qty = 5, cost = 50 })
+    T.fire("COMMODITY_PURCHASE_FAILED")
+    T.eq(#Q.lateBuys, 2, "a failure lets neither go")
+    T.eq(Q.visitLeft(), 10)
+    unansweredFirst(91060, 40)
+    local b = sending(91061, { kind = "commodity", qty = 5, cost = 50 })
+    T.fire("COMMODITY_PURCHASE_SUCCEEDED")
+    T.eq(b.want, 5, "a success is counted for the one under way")
+    T.eq(Q.visitLeft(), 10, "with its cost held until the gold leaves")
+    S.money = 950
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.spent, 50)
+    T.eq(#Q.wonDue, 0)
+    T.eq(Q.lateBuys[1].left, 40, "the other is still held")
+    T.eq(Q.visitLeft(), 10)
+  end)
+end)
+
+T.test("Buy queue: a success with gold still to come stays held until it leaves", function()
+  withAHOpen(function()
+    unansweredFirst(91062, 40, true)
+    T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 1)
+    T.eq(#Q.lateBuys, 0)
+    T.eq(Q.visitLeft(), 60, "not freed by the news alone")
+    S.money = 960
+    T.fire("PLAYER_MONEY")
+    T.eq(Q.spent, 40)
+    T.eq(Q.visitLeft(), 60, "once")
+  end)
+end)
+
+T.test("Buy queue: a not-found error with an earlier purchase open lets nothing go", function()
+  local real = ERR_ITEM_NOT_FOUND
+  ERR_ITEM_NOT_FOUND = "The item was not found."
+  unansweredFirst(91063, 40, true)
+  sending(91064, { kind = "item", auctionID = 2, price = 50, cost = 50 })
+  T.fire("UI_ERROR_MESSAGE", 1, ERR_ITEM_NOT_FOUND)
+  T.eq(#Q.lateBuys, 2)
+  ERR_ITEM_NOT_FOUND = real
+  ns.db.settings.buyQueue.limit = nil
+end)
+
+T.test("Buy queue: the chat line for another item's win isn't this purchase's", function()
+  local real = rawget(_G, "ERR_AUCTION_WON_S")
+  rawset(_G, "ERR_AUCTION_WON_S", "You won an auction for %s")
+  buyingItem(91065, 3)
+  T.fire("CHAT_MSG_SYSTEM", "You won an auction for Something Else")
+  T.eq(Q.state, "buying")
+  T.eq(Q.bought, 0)
+  T.fire("CHAT_MSG_SYSTEM", "You won an auction for Item 91065")
+  T.eq(Q.bought, 1)
+  rawset(_G, "ERR_AUCTION_WON_S", real)
 end)
 
 T.test("Buy queue: closing the auction house keeps a recent unsettled purchase", function()

@@ -149,6 +149,7 @@ buildQueue = ns.Timed("Buy queue", buildQueue)
 local Q = { lanes = { flips = {}, lists = {} }, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
 ns.buyQueueState = Q   -- (for the tests)
 Q.lateBuys = {}        -- purchases with no clear answer yet, oldest first (see settleLater)
+Q.wonDue = {}          -- purchases known to have gone through whose gold hasn't left yet
 
 -- The armed section's list.
 local function laneList() return (Q.armed and Q.lanes[Q.armed]) or {} end
@@ -272,34 +273,46 @@ end
 -- - Buying goes on, as it did in the beta (owner, November 9). From November 6 nothing else
 --   was bought for up to a minute, so two replies couldn't be mixed up; but a Red Woolen Bag
 --   purchase got no answer at all, every tick after it was held, and the rest of the row
---   sold meanwhile. Known gap, accepted by the owner (Codex reviews, November 9): answers or
---   payments that overlap can be put down to the wrong purchase, so the queue can pass Spend
---   at most or miss a purchase in its totals, and several unanswered purchases in a row
---   make that bigger. A shopping list counts its unanswered purchases for a minute
---   (listLeft), so five unanswered tries for a Want of 1 no longer bring five; it can still
---   get more than it wants when an answer comes later than that, or is put down to the
---   wrong purchase.
--- - Its cost stays held against Spend at most for the rest of the visit, however late.
--- - A success with no purchase under way still counts for it, however late.
+--   sold meanwhile.
+-- - Its cost stays held against Spend at most for the rest of the visit, however late, and
+--   nothing frees it on a guess (Codex reviews, November 9: an older purchase's gold made a
+--   newer one look paid, and a late failure dropped a purchase on its way, so Spend at most
+--   was passed). Gold that leaves while several are open goes to one it matches exactly,
+--   oldest first, or to none; a failure that could be either of two commodity purchases
+--   frees neither.
+-- - A success with no purchase under way still counts for it, however late; if its gold
+--   hasn't left, the cost stays held (Q.wonDue) until it does.
+-- - A shopping list counts its unanswered purchases for a minute (listLeft), so five
+--   unanswered tries for a Want of 1 don't bring five.
 -- A purchase under way takes its own success at any age, unless the answer matches an
 -- unsettled one (its auction, or a commodity one whose gold has already left). LATE_SECONDS
--- only clears old records when the auction house is opened again.
+-- only limits what a list counts and clears old records when the auction house is opened
+-- again. Known limits, accepted by the owner: with two commodity purchases unanswered, a
+-- success can be counted for the wrong one (the totals, not the gold), and a list can get
+-- more than it wants from an answer later than a minute.
 local LATE_SECONDS = 60
 
 local function owedLate()
   local total = 0
-  for _, late in ipairs(Q.lateBuys) do
-    total = total + late.left
+  for _, list in ipairs({ Q.lateBuys, Q.wonDue }) do
+    for _, o in ipairs(list) do total = total + o.left end
   end
   return total
+end
+
+local function costOf(plan) return plan.total or plan.cost or plan.price or 0 end
+
+-- The gold the purchase under way has paid so far. (Gold already counted in Q.spent; gold
+-- not reported yet comes off in PLAYER_MONEY. Gold that was someone else's comes off
+-- Q.buyFrom there, so it never looks like this purchase's.)
+local function paidSoFar()
+  return Q.buyFrom and Q.lastMoney and math.max(Q.buyFrom - Q.lastMoney, 0) or 0
 end
 
 local function settleLater()
   local p, e = Q.plan, Q.cur
   if not (p and e) then return end
-  -- (Gold already counted in Q.spent; gold not reported yet comes off in PLAYER_MONEY.)
-  local counted = Q.buyFrom and Q.lastMoney and math.max(Q.buyFrom - Q.lastMoney, 0) or 0
-  Q.lateBuys[#Q.lateBuys + 1] = { plan = p, cur = e, at = GetTime(), left = math.max((p.total or p.cost or p.price or 0) - counted, 0) }
+  Q.lateBuys[#Q.lateBuys + 1] = { plan = p, cur = e, at = GetTime(), left = math.max(costOf(p) - paidSoFar(), 0) }
 end
 
 local function isLate(plan)
@@ -316,24 +329,44 @@ ns:On("PLAYER_MONEY", function()
   if not (before and now < before and ns:IsAHOpen()) then return end
   local paid = before - now
   local recent = Q.buyAt and GetTime() - Q.buyAt < 15
-  -- Gold counted as spent comes off what's held, copper for copper, so a small loss frees
-  -- only that much. The latest purchase's own gold frees nothing held for an older one.
-  local late
-  if not recent or isLate(Q.lastPlan) then
-    for _, l in ipairs(Q.lateBuys) do
-      if l.left > 0 then late = l; break end
+  -- The purchase just sent, if it's still waiting for its answer here and not set aside.
+  local current = recent and not isLate(Q.lastPlan) and Q.lastPlan or nil
+  -- Who else is owed: known successes first, then unanswered ones, oldest first.
+  local owed = {}
+  for _, list in ipairs({ Q.wonDue, Q.lateBuys }) do
+    for _, o in ipairs(list) do
+      if o.left > 0 then owed[#owed + 1] = o end
     end
   end
-  if late or recent then
-    -- (What a purchase really cost, against the price it was planned at: owner, November 9,
-    -- a row of several Red Woolen Bags, to confirm one click buys one.)
-    trace(("gold left: %d"):format(paid))
-    Q.spent = Q.spent + paid
-    if late then late.left = math.max(late.left - paid, 0) end
+  if not recent and #owed == 0 then return end
+  -- (What a purchase really cost, against the price it was planned at: owner, November 9,
+  -- a row of several Red Woolen Bags, to confirm one click buys one.)
+  trace(("gold left: %d"):format(paid))
+  Q.spent = Q.spent + paid
+  if #owed == 0 then return end
+  -- Gold counted as spent comes off what's held, copper for copper, so a small loss frees
+  -- only that much. With only one it can belong to, it's that one's; with several, only
+  -- an exact match frees anything.
+  local target
+  if #owed == 1 and not current then
+    target = owed[1]
+  else
+    for _, o in ipairs(owed) do
+      if o.left == paid then target = o; break end
+    end
+  end
+  if target then target.left = math.max(target.left - paid, 0) end
+  -- Unless it's plainly the purchase under way's own gold, it mustn't look like its payment.
+  if current and Q.buyFrom and (target or paid ~= costOf(current) - (Q.buyFrom - before)) then
+    Q.buyFrom = Q.buyFrom - paid
+  end
+  for i = #Q.wonDue, 1, -1 do
+    if Q.wonDue[i].left <= 0 then table.remove(Q.wonDue, i) end
   end
 end)
 ns:On("AUCTION_HOUSE_SHOW", function()
   Q.lastMoney = GetMoney()
+  Q.wonDue = {}
   -- A new visit counts from nothing, but closing the window doesn't skip the wait.
   for i = #Q.lateBuys, 1, -1 do
     if GetTime() - Q.lateBuys[i].at > LATE_SECONDS then table.remove(Q.lateBuys, i) end
@@ -579,14 +612,16 @@ end
 -- How many of an item were bought but haven't been answered or paid for yet (Q.lateBuys,
 -- from either view). A shopping list counts them as on their way, so purchases that go
 -- unanswered one after another can't buy past its Want (Codex, November 9: with no wait,
--- five unanswered tries for a Want of 1 brought five). Once paid, the mail record counts
--- them instead (ShoppingLists.lua); after LATE_SECONDS they're taken as lost, so the list
--- can buy again.
+-- five unanswered tries for a Want of 1 brought five). Which one gold belongs to can be a
+-- guess, so they count until they're answered, even if the mail record has them too: at
+-- worst the list waits. After LATE_SECONDS they're taken as lost, so it can buy again.
 local function unanswered(id)
   local n = 0
-  for _, late in ipairs(Q.lateBuys) do
-    if late.cur and late.cur.id == id and late.left > 0 and GetTime() - late.at <= LATE_SECONDS then
-      n = n + ((late.plan.kind == "commodity" and late.plan.qty) or 1)
+  for _, list in ipairs({ Q.lateBuys, Q.wonDue }) do
+    for _, o in ipairs(list) do
+      if o.cur and o.cur.id == id and GetTime() - o.at <= LATE_SECONDS then
+        n = n + ((o.plan.kind == "commodity" and o.plan.qty) or 1)
+      end
     end
   end
   return n
@@ -962,7 +997,7 @@ local function lateSuccess(kind, auctionID, paidOnly)
     end
   end
   if not found then return false end
-  if found.left > 0 then Q.buyAt, Q.lastPlan = GetTime(), found.plan end   -- (its gold can leave just after this)
+  if found.left > 0 then Q.wonDue[#Q.wonDue + 1] = found end   -- (its gold can leave just after this)
   local plan, e = found.plan, found.cur
   if kind == "commodity" then
     bought(plan.qty, plan.total or plan.cost, e)
@@ -977,12 +1012,27 @@ local function lateSuccess(kind, auctionID, paidOnly)
   return true
 end
 
+-- The oldest unanswered commodity purchase's place in Q.lateBuys, if any. Commodity answers
+-- don't say which purchase they're for.
+local function commodityOpen()
+  for i, late in ipairs(Q.lateBuys) do
+    if late.plan.kind == "commodity" then return i end
+  end
+end
+
 ns:On("COMMODITY_PURCHASE_SUCCEEDED", function()
   if Q.state ~= "buying" or not (Q.plan and Q.plan.kind == "commodity") then
     lateSuccess("commodity")
     return
   end
   if lateSuccess("commodity", nil, true) then return end
+  -- With another one unanswered this may be its answer: counted here, but this one's cost
+  -- stays held until gold of that amount leaves.
+  if commodityOpen() then
+    local due = math.max(costOf(Q.plan) - paidSoFar(), 0)
+    if due > 0 then Q.wonDue[#Q.wonDue + 1] = { plan = Q.plan, cur = Q.cur, at = GetTime(), left = due } end
+    Q.lastPlan = nil
+  end
   bought(Q.plan.qty, Q.plan.total or Q.plan.cost)
   -- Take what was bought off the saved listings (all at or under the limit), or they
   -- look like a flip again on the next visit (owner, October 3: Linen Bandage, Flask of
@@ -993,12 +1043,14 @@ end)
 
 ns:On("COMMODITY_PURCHASE_FAILED", function()
   trace("purchase failed event, state " .. Q.state)
-  if Q.state ~= "buying" then
-    for i, late in ipairs(Q.lateBuys) do
-      if late.plan.kind == "commodity" then table.remove(Q.lateBuys, i); break end
-    end
+  local open = commodityOpen()
+  -- Nothing of this kind on its way now: it's an earlier one's, whatever is being bought.
+  if not (Q.state == "buying" and Q.plan and Q.plan.kind == "commodity") then
+    if open then table.remove(Q.lateBuys, open) end
     return
   end
+  -- This one or an earlier one failed, and there's no telling which: neither is let go.
+  if open then settleLater() end
   if refusedTwice("the auction house wouldn't sell it.") then return end
   Q.note = "That purchase failed: the listings changed. Checking again."
   again()
@@ -1023,7 +1075,11 @@ ns:On("CHAT_MSG_SYSTEM", function(msg)
   if not wonPattern and ERR_AUCTION_WON_S then
     wonPattern = "^" .. ERR_AUCTION_WON_S:gsub("([%(%)%.%-%+%*%?%[%]%^%$])", "%%%1"):gsub("%%s", "(.+)")
   end
-  if wonPattern and msg:find(wonPattern) and Q.plan and Q.plan.kind == "item" then itemBought() end
+  local won = wonPattern and msg:match(wonPattern)
+  if not (won and Q.plan and Q.plan.kind == "item") then return end
+  -- The line names the item, not the auction: another item's win isn't this purchase's.
+  if Q.cur and won:find(ns.ItemName(Q.cur.id), 1, true) ~= 1 then return end
+  itemBought()
 end)
 
 -- The last few auction house errors, to see what they have in common (owner, November 5):
@@ -1042,12 +1098,13 @@ local function noteError(msg, code)
 end
 
 -- "The item was not found": the listing's gone, so this purchase can't still go through,
--- and there's nothing to wait for (29 of the owner's last 30 errors, November 6).
+-- and there's nothing to wait for (29 of the owner's last 30 errors, November 6). Unless
+-- an earlier one is still unanswered: errors don't say whose they are, so nothing is let go.
 local function failed(code, msg)
   noteError(msg, code)
   if Q.state ~= "buying" and Q.state ~= "price" then return end
   if Q.state == "price" then pcall(AH.CancelCommoditiesPurchase) end
-  if Q.state == "buying" and msg ~= ERR_ITEM_NOT_FOUND then settleLater() end
+  if Q.state == "buying" and (msg ~= ERR_ITEM_NOT_FOUND or #Q.lateBuys > 0) then settleLater() end
   if refusedTwice("the auction house wouldn't sell it.") then return end
   if type(msg) == "string" and msg ~= "" then Q.note = msg end
   -- A moment before looking again: on a busy auction house, an instant retry fails too.
@@ -3307,7 +3364,7 @@ function ns:FlipsAnnounced(list)
   for _, f in ipairs(list) do done[f.id] = nil end
   -- On Shopping lists with nothing of a list's under way: show Vendor flips, so what chimed
   -- is on screen (owner, November 9: Shadowgem chimed while the panel showed Shopping lists,
-  -- and he found it only by searching). Not while you're using a list (a lookup or purchase
+  -- and could only be found by searching). Not while you're using a list (a lookup or purchase
   -- under way, or a click or tick there in the last 30 seconds): a list never buys a flip
   -- by accident, and the gold count on Vendor flips says they're there.
   local switched = false

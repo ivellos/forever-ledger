@@ -12,7 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - Buy queue: a vendor flip listed as several in one row (2 Red Woolen Bags at 5s) is bought one at a time, like the game's own Buy button. The queue used to leave those "for the page", so the flip dropped off the list while it was still there.
-- Buy queue: buying carries on after a purchase that got no answer, as in the beta: the minute's wait held every scroll while the rest of a Red Woolen Bag row sold. Its cost still stays held against Spend at most. Answers or payments that overlap can be counted against the wrong purchase, so the queue can pass Spend at most or miss a purchase in its totals, and several unanswered purchases in a row make the difference bigger. A shopping list counts its purchases still waiting for an answer for a minute, so it doesn't buy past what it wants while they're unanswered ("the list has all it wants, counting 1 still waiting for an answer"); a later or mixed-up answer can still bring one more.
+- Buy queue: buying carries on after a purchase that got no answer, as in the beta: the minute's wait held every scroll while the rest of a Red Woolen Bag row sold. Each unanswered purchase keeps its own cost held against Spend at most until its answer or its exact gold shows up, so overlapping purchases don't free that limit by mistake. A shopping list counts its purchases still waiting for an answer for a minute, so it doesn't buy past what it wants while they're unanswered ("the list has all it wants, counting 1 still waiting for an answer"); an answer later than that can still bring one more. With two commodity purchases unanswered, a success can be counted for the wrong item in the session totals.
 
 ## [0.19.0] - 2026-11-08
 
