@@ -369,6 +369,30 @@ T.test("Buy queue: an unrelated purchase leaves an open one alone", function()
   T.eq(b.want, 10)
 end)
 
+-- Owner, November 9: 2 Red Woolen Bags in one row at 5s were left "for the page", so the
+-- flip left the queue while still listed; the game's Buy button took 5s a click.
+T.test("Buy queue: a row of several is bought one at a time, and looked at again after", function()
+  local e = buyingItem(91026, 1)
+  e.limit, Q.state, Q.plan = 600, "search", nil
+  ns.db.settings.buyQueue.limit = nil
+  S.money = 100000
+  rawset(C_AuctionHouse, "GetNumItemSearchResults", function() return 1 end)
+  rawset(C_AuctionHouse, "GetItemSearchResultInfo", function()
+    return { auctionID = 5, buyoutAmount = 500, quantity = 2 }
+  end)
+  Q.planItem({ itemID = 91026 })
+  rawset(C_AuctionHouse, "GetNumItemSearchResults", nil)
+  rawset(C_AuctionHouse, "GetItemSearchResultInfo", nil)
+  T.eq(Q.state, "ready", "not left for the page")
+  T.eq(Q.plan.price, 500, "the price for one")
+  T.eq(Q.plan.stack, 2)
+  T.eq(Q.plan.count, 2, "both counted")
+  Q.state = "buying"
+  T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 5)
+  T.eq(Q.bought, 1)
+  T.eq(e.boughtIDs and e.boughtIDs[5], nil, "the rest of the row isn't set aside")
+end)
+
 T.test("Buy queue: closing the auction house doesn't skip the wait", function()
   buying(91025)
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)

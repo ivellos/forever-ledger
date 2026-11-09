@@ -9,6 +9,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The on-screen deal alert names the Deals tab ("see the Deals tab (/fl deals)"), as the chat line does: deals below the usual price aren't in the auction house panel, which holds vendor flips and shopping lists.
 - Flip watch: while it waits for you to leave an item's buy or sell page, the status line says "Watch paused while an item's page is open" instead of a scan count that stands still.
 
+### Fixed
+- Buy queue: a vendor flip listed as several in one row (2 Red Woolen Bags at 5s) is bought one at a time, like the game's own Buy button. The queue used to leave those "for the page", so the flip dropped off the list while it was still there.
+
 ## [0.19.0] - 2026-11-08
 
 ### Highlights

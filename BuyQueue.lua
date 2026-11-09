@@ -12,8 +12,8 @@ local T = ns.Theme
 --   Stackable materials: one tick starts the purchase, the game sends the final price,
 --   a second tick confirms (StartCommoditiesPurchase, ConfirmCommoditiesPurchase).
 -- Never pays more than the limit (checked again on the final price), never more than
--- you have. Listings sold as stacks of gear-like items are left for the page: whether
--- Forever's buyout for those is per item or per stack isn't confirmed.
+-- you have. A row of several of the same item (bags) is bought one at a time, like the
+-- game's own Buy button: each purchase costs the row's price for one.
 --
 -- The side panel beside the auction house holds three tabs: Buy queue, Shopping lists
 -- (ShoppingLists.lua has the data) and the Disenchant finder (AuctionHouse.lua).
@@ -321,6 +321,9 @@ ns:On("PLAYER_MONEY", function()
     end
   end
   if late or recent then
+    -- (What a purchase really cost, against the price it was planned at: owner, November 9,
+    -- a row of several Red Woolen Bags, to confirm one click buys one.)
+    trace(("gold left: %d"):format(paid))
     Q.spent = Q.spent + paid
     if late then late.left = math.max(late.left - paid, 0) end
   end
@@ -592,16 +595,18 @@ local function planItem(key)
   local e = Q.cur
   if not capToList(e) then return end
   local n = AH.GetNumItemSearchResults(key) or 0
-  local cash, best, count, stacks = spendable(), nil, 0, 0
+  local cash, best, count = spendable(), nil, 0
   local poorest   -- the cheapest one under the limit that costs more than you have
   for i = 1, n do
     local r = AH.GetItemSearchResultInfo(key, i)
     if r and r.auctionID and r.buyoutAmount and r.buyoutAmount > 0 and r.buyoutAmount <= e.limit and not r.containsOwnerItem
       and not (e.boughtIDs and e.boughtIDs[r.auctionID]) then
-      if (r.quantity or 1) > 1 then
-        stacks = stacks + 1
-      elseif r.buyoutAmount <= cash then
-        count = count + 1
+      -- A row of several (quantity over 1) is bought too, one at a time: the price is for
+      -- one. These were left for the page, so a flip left the queue while still listed
+      -- (owner, November 9: Red Woolen Bags, 2 in a row at 5s; the game's Buy button took
+      -- 5s a click, twice).
+      if r.buyoutAmount <= cash then
+        count = count + math.max(r.quantity or 1, 1)
         if not best or r.buyoutAmount < best.buyoutAmount then best = r end
       elseif not poorest or r.buyoutAmount < poorest then
         poorest = r.buyoutAmount
@@ -622,13 +627,17 @@ local function planItem(key)
       return
     end
     if poorest then tooPoor(poorest); return end
-    finishTarget(stacks > 0 and ("%d listed as stacks: buy those on the page."):format(stacks)
-      or ("none left at %s or less."):format(limitText(e)))
+    finishTarget(("none left at %s or less."):format(limitText(e)))
     return
   end
-  Q.plan = { kind = "item", auctionID = best.auctionID, price = best.buyoutAmount, key = key, count = count, at = GetTime() }
+  -- stack: how many the row holds. After buying one, the queue looks again rather than
+  -- setting the row aside, since the rest may still be in it.
+  local stack = (best.quantity or 1) > 1 and best.quantity or nil
+  Q.plan = { kind = "item", auctionID = best.auctionID, price = best.buyoutAmount, key = key, count = count, at = GetTime(), stack = stack }
+  if stack then trace(("a row of %d at %d each: buying one"):format(stack, best.buyoutAmount)) end
   setState("ready")
 end
+Q.planItem = planItem   -- (for the tests)
 
 -- After a purchase: look again, there may be more. reuse: a single item was bought, so
 -- take the next cheap listing from the page already loaded instead of searching again,
@@ -639,7 +648,8 @@ local function again(reuse)
   Q.plan, Q.tries = nil, 0
   local e = Q.cur
   if e and e.want and e.want <= 0 then finishTarget("you have all you wanted."); return end
-  if e and p and reuse and p.kind == "item" and p.key then
+  -- (Not after one from a row of several: the rest of the row may still be there.)
+  if e and p and reuse and p.kind == "item" and p.key and not p.stack then
     e.boughtIDs = e.boughtIDs or {}
     e.boughtIDs[p.auctionID] = true
     setState("search")
@@ -901,8 +911,10 @@ local function lateSuccess(kind, auctionID, paidOnly)
     if ns.RemoveBought then pcall(ns.RemoveBought, ns, e.id, plan.qty, e.limit) end
   else
     bought(1, plan.price, e)
-    e.boughtIDs = e.boughtIDs or {}
-    e.boughtIDs[plan.auctionID] = true
+    if not plan.stack then
+      e.boughtIDs = e.boughtIDs or {}
+      e.boughtIDs[plan.auctionID] = true
+    end
   end
   return true
 end
