@@ -45,6 +45,7 @@ local DEFAULTS = {
   historySold2 = {},  -- [marketKey][itemID] = "day:bought:minutes:minutes|..." units that vanished though they couldn't have expired (sell speed, since October 2)
   profiles = {},     -- settings profiles: [name] = { [setting] = value } (Settings.lua; "Default" is settings itself)
   charProfile = {},  -- [charKey] = profile name; none = Default
+  quietChars = {},   -- [charKey] = true: quiet mode turned on with /fl quiet there, kept until turned off (Quiet.lua)
   shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, sellGuard = true, watchResume = true, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,

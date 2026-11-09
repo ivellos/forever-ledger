@@ -7,6 +7,10 @@ local _, ns = ...
 -- the game loses focus, so it's by hand (/fl quiet) or while the flip watch runs
 -- (settings.quietWatch). The player's own sound settings are kept in quietSaved and put
 -- back afterward, and at the next login if the game closed before that.
+-- /fl quiet is a lasting choice for the character it's typed on (owner, November 8:
+-- "keep it toggled on after reloads on my alt"), in quietChars[charKey]. The sound
+-- settings still go back at every logout and reload and off again once loaded, so the
+-- game never saves them muted: they're shared by every account on this computer.
 ---------------------------------------------------------------------------
 local MUTED = {
   Sound_EnableAllSound = "1",
@@ -17,8 +21,12 @@ local MUTED = {
   Sound_EnableSoundWhenGameIsInBG = "1",
   Sound_MasterVolume = "1",
 }
-local byHand = false
 local offByHand = false   -- /fl quiet turned it off while the flip watch had it on
+
+-- Quiet mode turned on with /fl quiet on this character.
+local function onHere()
+  return ns.db.quietChars ~= nil and ns.db.quietChars[ns.CharKey()] == true
+end
 
 local function getVar(name)
   if C_CVar and C_CVar.GetCVar then return C_CVar.GetCVar(name) end
@@ -58,19 +66,21 @@ end
 
 function ns:IsQuiet() return ns.db.quietSaved ~= nil end
 
--- On while you asked for it, or while the flip watch runs with the setting on, unless
--- you turned it off during this watch.
+-- On while you asked for it on this character, or while the flip watch runs with the
+-- setting on, unless you turned it off during this watch.
 function ns:UpdateQuiet()
   local auto = ns.db.settings.quietWatch and ns:IsFlipWatching()
   if not auto then offByHand = false end
-  if byHand or (auto and not offByHand) then mute() else restore() end
+  if onHere() or (auto and not offByHand) then mute() else restore() end
 end
 
 function ns:ToggleQuiet()
-  byHand = not ns:IsQuiet()
-  offByHand = not byHand
+  local on = not ns:IsQuiet()
+  ns.db.quietChars = ns.db.quietChars or {}
+  ns.db.quietChars[ns.CharKey()] = on or nil
+  offByHand = not on
   ns:UpdateQuiet()
-  ns:Print(ns:IsQuiet() and "Quiet mode on: game sound off, Forever Ledger's chimes at full volume. /fl quiet turns it off."
+  ns:Print(ns:IsQuiet() and "Quiet mode on for this character: game sound off, Forever Ledger's chimes at full volume. It stays on after a reload or logout; /fl quiet turns it off."
     or "Quiet mode off: your sound settings are back.")
 end
 
@@ -93,4 +103,6 @@ ns:On("AUCTION_HOUSE_PURCHASE_COMPLETED", wonChime)
 ns:On("PLAYER_LOGOUT", function()
   if ns.db then restore() end
 end)
-ns:OnReady(restore)
+-- At login and after a reload: back on for a quiet character, else the sound settings
+-- left by a game that closed while quiet go back.
+ns:OnReady(function() ns:UpdateQuiet() end)

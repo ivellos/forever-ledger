@@ -27,7 +27,7 @@ Settings and Help each have a **search box** above their list: type two letters 
 
 - **Full scan** reads every listing in a few seconds. **Scan materials** checks just what your recipes use.
 - **Watch flips** keeps scanning while the auction house stays open and chimes when a new vendor flip turns up. The game only lets addons search with the auction house open, so the watch pauses when you close it and picks up again when you come back (Settings, Auction house: **Resume the flip watch**).
-- **Quiet mode**: doing something else while you wait for a chime? `/fl quiet` turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background, plus a chime when you win an auction. **Quiet mode while the flip watch runs** (Settings, Auction house, Alerts) does it by itself, and `/fl pair` offers to turn that on for your auction house character. Your sound settings come back afterward.
+- **Quiet mode**: doing something else while you wait for a chime? `/fl quiet` turns the game's sound off and plays Forever Ledger's chimes at full volume, even with the game in the background, plus a chime when you win an auction. It stays on for that character, through reloads and logins, until you type `/fl quiet` again. **Quiet mode while the flip watch runs** (Settings, Auction house, Alerts) does it by itself, and `/fl pair` offers to turn that on for your auction house character. Your sound settings come back afterward.
 - If Auctionator or another addon runs a full scan, Forever Ledger reads it too.
 - **With Auctionator, TSM or ForeverForge installed**, Forever Ledger switches off the features they already cover, so you don't see things twice: the auction and vendor price lines in tooltips (Worth to you, Buy at or below and the rest stay), and with ForeverForge the sound when an auction sells. A one-time message says what was turned off; **Keep them on** undoes it, and Settings can change it any time.
 - **New versions**: when a guildmate or group member has a newer Forever Ledger, chat says so once a session ("Version 0.12.0 is available..."). Addons can't check online, so copies tell each other; only the version number is shared, and Settings, Minimap and updates turns it off.
@@ -227,7 +227,7 @@ The in-game Help tab has these under each topic too.
 | `/fl` | Open or close the window |
 | `/fl scan` | Full scan if allowed, otherwise your materials |
 | `/fl watch` | Start or stop the flip watch |
-| `/fl quiet` | Quiet mode: game sound off, chimes at full volume |
+| `/fl quiet` | Quiet mode on this character, until you type it again: game sound off, chimes at full volume |
 | `/fl queue`, `/fl lists` | The buy queue or shopping lists (beside the auction house, or a window of their own elsewhere) |
 | `/fl customers`, `/fl work` | The Customers window, or its Work done view; `/fl customers on` / `off` turns the customer finder on or off |
 | `/fl de` | Your disenchant results |

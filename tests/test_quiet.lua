@@ -9,6 +9,7 @@ local function reset()
   GetCVar = function(name) return vars[name] end
   SetCVar = function(name, value) vars[name] = value end
   ns.db.quietSaved = nil
+  ns.db.quietChars = {}
 end
 
 T.test("Quiet mode: only chimes left, at full volume, and everything comes back", function()
@@ -86,6 +87,32 @@ T.test("Quiet mode: winning an auction chimes, once per 2 seconds, only while qu
   T.eq(#S.sounds, 2, "item bought")
   ns:ToggleQuiet()
   S.now = now
+end)
+
+-- Owner, November 8: "keep it toggled on after reloads on my alt".
+T.test("Quiet mode: stays on for the character after a reload, until turned off", function()
+  reset()
+  ns:ToggleQuiet()
+  T.eq(ns.db.quietChars[ns.CharKey()], true, "remembered for this character")
+  T.fire("PLAYER_LOGOUT")
+  T.ok(not ns:IsQuiet(), "the sound settings go back at logout, so the game never saves them muted")
+  T.eq(vars.Sound_EnableSFX, "1")
+  ns:UpdateQuiet()   -- (what loading does)
+  T.ok(ns:IsQuiet(), "on again once loaded")
+  T.eq(vars.Sound_EnableSFX, "0")
+  ns:ToggleQuiet()
+  T.eq(ns.db.quietChars[ns.CharKey()], nil, "turned off for good")
+  T.fire("PLAYER_LOGOUT")
+  ns:UpdateQuiet()
+  T.ok(not ns:IsQuiet(), "stays off after a reload")
+  T.eq(vars.Sound_MasterVolume, "0.4")
+end)
+
+T.test("Quiet mode: another character on the account isn't made quiet", function()
+  reset()
+  ns.db.quietChars["Someone Else-Testrealm"] = true
+  ns:UpdateQuiet()
+  T.ok(not ns:IsQuiet())
 end)
 
 T.test("Quiet mode: follows the flip watch only with the setting on", function()

@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Price history counts your sync partner's scans from the same day, so the graph on your main fills in while another account does the scanning. Days you missed while offline (up to 14) are filled in when the two connect: each sends the days the other is missing, one at a time in the background (about a minute a day after a full scan), and chat says when they're in. Gear versions ("of the Eagle") stay with the account that scanned them.
 
 ### Changed
+- Quiet mode stays on: `/fl quiet` is remembered for the character you type it on, through reloads and logins, until you type it again. Your sound settings still go back at each logout, so other characters and accounts aren't left muted.
 - Price history, the start of price graphs: every item now keeps 90 days of daily prices (it was 14; usual prices, deals and buy limits work them out as before), and full scans save a daily history for each version of random-stat gear ("of the Eagle"), kept 90 days and then weekly for a year.
 
 ### Fixed
