@@ -877,9 +877,16 @@ function Scan:Next()
   end
   -- The flip watch's quiet checks wait while you're searching yourself, so they don't
   -- talk over the page you're buying from.
-  if self.quiet and ((ns.lastUserSearch and GetTime() - ns.lastUserSearch < 20) or itemPageOpen()) then
-    C_Timer.After(2, function() self:Next() end)
-    return
+  if self.quiet then
+    local page = itemPageOpen()
+    if page or (ns.lastUserSearch and GetTime() - ns.lastUserSearch < 20) then
+      -- Said in the status line: the count stood still and looked stuck, and no full scan
+      -- comes either (owner, November 9: 40 minutes on an item's page, until a /reload).
+      local why = page and "Watch paused while an item's page is open" or "Watch waits while you search"
+      if ns.SetStatusText and ns.statusText ~= why then ns:SetStatusText(why) end
+      C_Timer.After(2, function() self:Next() end)
+      return
+    end
   end
   local id = table.remove(self.queue, 1)
   self.pending = id

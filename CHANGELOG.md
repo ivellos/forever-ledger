@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Changed
 - The on-screen deal alert names the Deals tab ("see the Deals tab (/fl deals)"), as the chat line does: deals below the usual price aren't in the auction house panel, which holds vendor flips and shopping lists.
+- Flip watch: while it waits for you to leave an item's buy or sell page, the status line says "Watch paused while an item's page is open" instead of a scan count that stands still.
 
 ## [0.19.0] - 2026-11-08
 
