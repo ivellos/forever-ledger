@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- The on-screen deal alert names the Deals tab ("see the Deals tab (/fl deals)"), as the chat line does: deals below the usual price aren't in the auction house panel, which holds vendor flips and shopping lists.
+
 ## [0.19.0] - 2026-11-08
 
 ### Highlights

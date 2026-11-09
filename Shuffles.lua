@@ -998,7 +998,9 @@ local function announce(all, usual)
     text = ("Vendor flip: %s at %s (vendor pays %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.opt.value))
     if #flips > 1 then text = text .. (" and %d more"):format(#flips - 1) end
   else
-    text = ("%d new %s below the usual price"):format(usual, usual == 1 and "deal" or "deals")
+    -- Names the tab: the auction house panel only holds flips and shopping lists (owner,
+    -- November 9: looked for 2 deals there and found nothing).
+    text = ("%d new %s below the usual price: see the Deals tab (/fl deals)"):format(usual, usual == 1 and "deal" or "deals")
   end
   -- Off in Settings if it covers your windows (Magic, October 3: it landed on the Buy queue).
   if ns.db.settings.dealScreen ~= false and RaidNotice_AddMessage and RaidWarningFrame then
