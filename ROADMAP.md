@@ -33,7 +33,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 - **Transmog**: bind-on-equip items that sell well, what they're worth and where they drop, including "worth farming" per rare.
 - **Quest turn-in items**: in the addon now, from original Classic quests (tooltips list the quest and say "keep it" for your own leveling). Next: learning Forever's own quests from players' quest logs, and when these items sell best.
 - **Launch-day checklist**: in the addon since 0.16.0 as the Leveling tab (ways to make gold below level 20, priced from your scans). Next: refresh it with launch prices, and your own to-do items.
-- **Hold or sell**: price history shows when something is the cheapest or dearest it has been.
+- **Hold or sell**: price graphs are in the addon since 0.19.0 (the price window: 2 weeks, 3 months or a year, each gear version on its own). Next: saying when something is the cheapest or dearest it has been.
 - **Auctionator**: send a shuffle's materials to an Auctionator shopping list, with the most worth paying as the maximum price.
 
 ## Leveling

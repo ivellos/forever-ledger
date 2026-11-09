@@ -172,21 +172,14 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.18.3",
+  version = "0.19.0",
   lines = {
-    "Customers: Clear all hides every request in the list at once.",
-    { "Quiet mode: winning an auction plays a coin purse sound, since the game's own sound for it is off while quiet.", change = true },
-    { "Buy queue: Buy no longer gets stuck on \"The auction house is catching up\" while a scan runs on a slow server.", fix = true },
-    { "Flip watch: when a full scan gets no answer, it waits 5 minutes before asking again, so it doesn't hold up the Buy queue.", fix = true },
-    { "Full scans: one that arrives late on a busy auction house now says so, instead of saying another addon ran it.", fix = true },
-    { "Disenchant tooltips: each result now shows its chance, and the total says it's an average, so it no longer looks like you get all of them.", fix = true },
-    { "One realm: characters on the same realm showed as different realms, with separate prices. They now count as one, and your data moves over by itself.", major = true },
-    { "Gold and sales on both accounts: Live sync can share them, so both Dashboards and Ledgers match. It's off until you say the other character is your own.", major = true },
-    "Link your accounts in Settings: Settings, Characters has a name box, Link and Unlink, and shows whether the other side is online.",
-    "Quiet mode: /fl quiet turns the game's sound off and plays Forever Ledger's chimes at full volume, for a character waiting at the auction house.",
-    { "Disenchanting: now worth what the materials sell for, not what they could be crafted into, and tooltips list each material with its price.", change = true },
-    { "Shuffles: Sells on the auction house comes first, since Blizzard nerfed most vendor shuffles.", change = true },
-    { "Buy queue: no more going round in circles on refused items, and Spend at most holds even when the auction house is slow to answer.", fix = true },
+    { "Price window: Alt-click any item, or type /fl price, for its usual price, trend, the cheapest now and a price graph over 2 weeks, 3 months or a year.", major = true },
+    { "Price history: every item keeps 90 days of daily prices, and full scans keep each version of random-stat gear (\"of the Eagle\") on its own.", major = true },
+    "Cost to craft: for items your recipes make, the materials at today's prices, the profit, and the materials to a shopping list for any number of crafts.",
+    "Price lookup: look any item up by name, even one you don't have, or Alt-click a listing at the auction house for that exact version.",
+    "Two accounts: your sync partner's scans fill in your price graphs, including up to 14 days you missed while offline.",
+    { "Quiet mode: /fl quiet stays on for that character through reloads, until you type it again.", change = true },
   },
 }
 

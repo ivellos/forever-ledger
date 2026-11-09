@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-08
+
+### Highlights
+- Δ **Price window**: Alt-click any item, or type `/fl price`, for its usual price, trend, the cheapest now and a price graph over 2 weeks, 3 months or a year.
+- Δ **Price history**: every item keeps 90 days of daily prices, and full scans keep each version of random-stat gear ("of the Eagle") on its own.
+- + **Cost to craft**: for items your recipes make, the materials at today's prices, the profit, and the materials to a shopping list for any number of crafts.
+- + **Price lookup**: look any item up by name, even one you don't have, or Alt-click a listing at the auction house for that exact version.
+- + **Two accounts**: your sync partner's scans fill in your price graphs, including up to 14 days you missed while offline.
+- ~ **Quiet mode**: `/fl quiet` stays on for that character through reloads, until you type it again.
+
 ### Added
 - Price window: Alt-click an item (bags or a chat link) or `/fl price` for its usual price, trend, the cheapest now and how many are listed, what you have and have posted, a price graph (2 weeks, 3 months or a year, with listed counts and hover for each day; one version of random-stat gear at a time), your last 7 days with it and what it's worth to you. For items your recipes make: the materials at today's prices, cost to craft against what it sells for (after the cut and one unsold listing, as Worth to you counts it), the profit, and Add materials to shopping list for any number of crafts. Search on the auction house while it's open. Settings, Tooltips, General turns it off, or opens it with Ctrl-click or Ctrl+Alt-click instead, for players whose disenchanting addon uses Alt-click (that click no longer opens the dressing room as well).
 - Price lookup: any item's price window by name, even one you don't have (Price lookup at the top of the main window, `/fl price`, or the box at the top of the price window). Alt-click works on the auction house too: search results, gear listings, and the item's picture on its buy page, opening the version of random-stat gear you clicked (a search-results row, which covers every version, opens All versions).

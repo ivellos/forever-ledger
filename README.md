@@ -30,7 +30,8 @@
 - **Shuffles:** buy materials, craft, disenchant or convert, and sell, ranked by gold an hour, with every step spelled out.
 - **On the auction house:** listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE).
 - **Disenchant finder:** green armor and weapons by item level, with what each is worth to disenchant, on average and on a bad or good roll; add them to a shopping list in one click.
-- **Gear versions:** "of the Eagle" and "of the Whale" are priced separately.
+- **Price window:** Alt-click any item, or look one up by name, for its usual price, trend, the cheapest now and a price graph over 2 weeks, 3 months or a year; for things you craft, the cost, the profit and the materials to a shopping list.
+- **Gear versions:** "of the Eagle" and "of the Whale" are priced separately, each with its own price graph.
 
 ### Buying
 - **Buy queue:** flips and shopping list items beside the auction house, best profit you can afford first; click Buy or scroll over it to buy the next one.
@@ -62,7 +63,7 @@
 - **Your look:** three themes (FL Clean, FL Bronze, FL Gilded), your accent color (or EllesmereUI's), and a Size from 75% to 150%.
 - **Settings profiles:** characters can share a set of settings or each have their own; export a profile for a friend.
 - **Works with Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
-- **Two accounts?** Live sync shares prices and recipes between them while both are online, and your gold, sales, bags and bank if you like. Remove characters you no longer have in Settings.
+- **Two accounts?** Live sync shares prices, price history and recipes between them while both are online, and your gold, sales, bags and bank if you like. Remove characters you no longer have in Settings.
 - **Update notice:** hear from your guild or group when a newer version is out.
 
 ![The Forever Ledger window, Dashboard tab](https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/dashboard.png)
@@ -78,7 +79,7 @@ Plans, not promises: the full list is in the [roadmap](https://github.com/ivello
 Forever Ledger keeps everything in its saved file on your own PC (`WTF\Account\...\SavedVariables\ForeverLedger.lua`). Nothing is sent to the author or anyone else.
 
 - **What it keeps:** auction house and vendor prices and their history; recipe, vendor and trainer locations you've seen; your characters' professions and recipes, gold over time, sales, purchases and vendor trades; bag and bank contents (this account only); requests the customer finder spotted in chat; and your work-done log.
-- **What it sends:** only two things, and only when you choose to. Live sync whispers prices and recipes to **your own** linked character (off until you link one), and your gold, sales, bags and bank only if you say yes for that link, and the ad buttons post your ad in Trade chat when you click them.
+- **What it sends:** only two things, and only when you choose to. Live sync whispers prices, price history and recipes to **your own** linked character (off until you link one), and your gold, sales, bags and bank only if you say yes for that link, and the ad buttons post your ad in Trade chat when you click them.
 - **Export / import** copies your data as text for you to paste on your other account; it goes nowhere by itself.
 
 If a feature ever shares anything with other players (an idea on the roadmap: sharing where vendors and trainers are, so everyone's data fills in faster), it will be world facts only, never names, gold or bags, it will ask first, and you can turn it off.
@@ -124,6 +125,7 @@ Most things have a button; these are for when you'd rather type. The main ones:
 | `/fl stop` | Stop a scan |
 | `/fl shuffles` | List the best shuffles and vendor flips in chat (`/fl shuffles all` for everything) |
 | `/fl deals` | Open the Deals tab (`/fl deals list` in chat) |
+| `/fl price` | The price window: add a shift-clicked item or its name, or leave it off to look one up |
 | `/fl customers`, `/fl work` | The Customers window, or its Work done view; `/fl customers on` / `off` turns the customer finder on or off |
 | `/fl cut 5` | Auction house cut used in values, in percent |
 | `/fl margin 10` | Safety margin for shuffles and "buy at or below", in percent |
