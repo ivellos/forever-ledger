@@ -962,7 +962,9 @@ local function itemUnits(itemKey)
     local r = C_AuctionHouse.GetItemSearchResultInfo(itemKey, i)
     -- buyoutAmount is already per item in Forever (beta test: dividing by quantity
     -- made Linen Reagent Bags 19c instead of 13s). The full scan's buyout is per listing.
-    if r and r.buyoutAmount and r.buyoutAmount > 0 then
+    -- A listing the auction house wouldn't sell the Buy queue isn't a price anyone can
+    -- pay (BuyQueue.lua), so it isn't one here either.
+    if r and r.buyoutAmount and r.buyoutAmount > 0 and not (ns.AuctionRefused and ns:AuctionRefused(r.auctionID)) then
       units[#units + 1] = { r.buyoutAmount, math.max(r.quantity or 1, 1) }
     end
   end

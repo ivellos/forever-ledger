@@ -71,6 +71,19 @@ local done, skipped = {}, {}   -- [itemID] = GetTime() nothing left; [itemID] = 
 local STALE_SECONDS = 300      -- a flip's price older than this is shown as "seen N min ago"
 local DROP_SECONDS = 900       -- and older than this (a full scan's wait) isn't listed at all
 
+-- Listings the auction house won't sell at their price, this session: [auctionID] = true.
+-- A Nomad Trousers listing at 2s and a Rough Bronze Leggings one at 5s were refused with
+-- "There is already a higher bid on that item" at every try (owner, November 9), so they
+-- are passed over from then on, here and in saved prices (Prices.lua), not tried again.
+local refusedAuctions = {}
+function ns:AuctionRefused(auctionID) return auctionID ~= nil and refusedAuctions[auctionID] == true end
+
+-- Flips the queue looked up and found nothing to buy: [itemID] = when. They stay out until
+-- a price newer than that comes in, not just for two minutes: gear's prices come only from
+-- scans, so a 13-minute-old one brought the same flip back every two minutes (owner,
+-- November 9).
+local checkedFlips = {}
+
 -- Each kind of thing to buy is its own section ("lane") in the queue: vendor flips and
 -- shopping lists (owner, October 2: so someone working on a shopping list can't buy a
 -- flip by accident, and someone farming flips can just keep scrolling).
@@ -120,6 +133,7 @@ local function buildQueue()
     local list = {}
     for id in pairs(market) do
       local f = ns:VendorFlip(id)
+      if f and checkedFlips[id] and (f.t or 0) <= checkedFlips[id] then f = nil end
       if f then
         -- Seen a while ago (you were away from the auction house): may well be gone. Shown
         -- as such until re-checked (owner, October 3: finds vanished right after coming back).
@@ -148,6 +162,7 @@ buildQueue = ns.Timed("Buy queue", buildQueue)
 -- chosen by you (a click, or the wheel over its strip); nil = none. Q.cur is from it.
 local Q = { lanes = { flips = {}, lists = {} }, state = "idle", tok = 0, bought = 0, spent = 0, worth = 0 }
 ns.buyQueueState = Q   -- (for the tests)
+Q.buildQueue = buildQueue   -- (for the tests)
 Q.lateBuys = {}        -- purchases with no clear answer yet, oldest first (see settleLater)
 Q.wonDue = {}          -- purchases known to have gone through whose gold hasn't left yet
 
@@ -158,7 +173,7 @@ local function laneList() return (Q.armed and Q.lanes[Q.armed]) or {} end
 -- item): a finished item is otherwise kept out for 2 minutes, so Buy again did nothing
 -- (owner, October 2: Crafted Light Shot).
 local function unpark(ids)
-  for _, id in ipairs(ids) do done[id], skipped[id] = nil, nil end
+  for _, id in ipairs(ids) do done[id], skipped[id], checkedFlips[id] = nil, nil, nil end
   Q.built = 0
 end
 local side, queueView, listsView   -- frames, built when the auction house first opens
@@ -231,10 +246,12 @@ local function leaveStalePage()
 end
 
 -- wakeIn: seconds it stays out, and looked at again then, if less than the usual DONE_FOR.
-local function finishTarget(note, wakeIn)
+-- gone: it was looked up and there's nothing to buy, so a flip stays out until a newer price.
+local function finishTarget(note, wakeIn, gone)
   local e = Q.cur
   if e then
     done[e.id] = GetTime() - (wakeIn and DONE_FOR - wakeIn or 0)
+    if gone and e.lane == "flips" then checkedFlips[e.id] = time() end
     if wakeIn then C_Timer.After(wakeIn, function() Q.built = 0; rebuildNow() end) end
     local list = Q.lanes[e.lane] or {}
     for i, x in ipairs(list) do if x == e then table.remove(list, i); break end end
@@ -261,7 +278,7 @@ local function refusedTwice(note)
   if not e then return false end
   e.refused = (e.refused or 0) + 1
   if e.refused < 2 then return false end
-  finishTarget(note)
+  finishTarget(note, nil, true)
   return true
 end
 
@@ -706,7 +723,7 @@ local function planCommodity()
     -- Cheap enough, but more than you have.
     local r1 = n > 0 and AH.GetCommoditySearchResultInfo(e.id, 1)
     if r1 and r1.unitPrice and r1.unitPrice <= e.limit and r1.unitPrice > cash then tooPoor(r1.unitPrice); return end
-    finishTarget(("none left at %s or less."):format(limitText(e)))
+    finishTarget(("none left at %s or less."):format(limitText(e)), nil, true)
     return
   end
   Q.plan = { kind = "commodity", qty = qty, cost = cost, all = all, at = GetTime() }
@@ -732,7 +749,8 @@ local function planItem(key)
   for i = 1, n do
     local r = AH.GetItemSearchResultInfo(key, i)
     if r and r.auctionID and r.buyoutAmount and r.buyoutAmount > 0 and r.buyoutAmount <= e.limit and not r.containsOwnerItem
-      and not (e.boughtIDs and e.boughtIDs[r.auctionID]) and (not e.suffix or rowIsVersion(r, e.suffix)) then
+      and not (e.boughtIDs and e.boughtIDs[r.auctionID]) and not refusedAuctions[r.auctionID]
+      and (not e.suffix or rowIsVersion(r, e.suffix)) then
       -- A row of several (quantity over 1) is bought too, one at a time: the price is for
       -- one. These were left for the page, so a flip left the queue while still listed
       -- (owner, November 9: Red Woolen Bags, 2 in a row at 5s; the game's Buy button took
@@ -759,13 +777,18 @@ local function planItem(key)
       return
     end
     if poorest then tooPoor(poorest); return end
-    finishTarget(("none left at %s or less."):format(limitText(e)))
+    finishTarget(("none left at %s or less."):format(limitText(e)), nil, true)
     return
   end
   -- stack: how many the row holds. After buying one, the queue looks again rather than
   -- setting the row aside, since the rest may still be in it.
   local stack = (best.quantity or 1) > 1 and best.quantity or nil
-  Q.plan = { kind = "item", auctionID = best.auctionID, price = best.buyoutAmount, key = key, count = count, at = GetTime(), stack = stack }
+  -- bid, nextBid: what the listing says about bids, for the error log (were the refused
+  -- ones bid on close to their price?).
+  Q.plan = { kind = "item", auctionID = best.auctionID, price = best.buyoutAmount, key = key, count = count, at = GetTime(), stack = stack,
+    bid = best.bidAmount, nextBid = best.minBid }
+  trace(("auction %s at %d: bid %s, next bid %s, %s"):format(tostring(best.auctionID), best.buyoutAmount,
+    tostring(best.bidAmount), tostring(best.minBid), best.bidder and "has a bidder" or "no bidder"))
   if stack then trace(("a row of %d at %d each: buying one"):format(stack, best.buyoutAmount)) end
   setState("ready")
 end
@@ -971,7 +994,7 @@ ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
       return
     end
     if AH.HasFullBrowseResults and not AH.HasFullBrowseResults() then return end
-    finishTarget(("none left at %s or less."):format(limitText(e)))
+    finishTarget(("none left at %s or less."):format(limitText(e)), nil, true)
     return
   end
   Q.browseWait = nil
@@ -1151,17 +1174,49 @@ local function noteError(msg, code)
   local quote = AH.GetQuoteDurationRemaining and select(2, pcall(AH.GetQuoteDurationRemaining))
   log[#log + 1] = { t = time(), msg = msg, code = code, state = Q.state, id = e and e.id, lane = e and e.lane,
     kind = p and p.kind, qty = p and p.qty, age = p and p.at and math.floor(GetTime() - p.at), fromPage = p and p.fromPage,
+    price = p and p.price, bid = p and p.bid, nextBid = p and p.nextBid,
     quote = type(quote) == "number" and quote or nil, throttled = throttled() and true or nil,
     scan = ns.Scan.active and (ns.Scan.full and "full" or "scan") or nil }
   while #log > 30 do table.remove(log, 1) end
 end
 
+-- The auction house's answers that mean the listing can't be bought at its price, however
+-- often it's tried: HigherBid, BidIncrement, BidOwn, MinBid (Enum.AuctionHouseError 1, 2,
+-- 3, 11; ItemNotFound and the busy errors are left out).
+local function cantBuyAtPrice(code)
+  local E = Enum and Enum.AuctionHouseError
+  if E and E.HigherBid then
+    return code == E.HigherBid or code == E.BidIncrement or code == E.BidOwn or code == E.MinBid
+  end
+  return code == 1 or code == 2 or code == 3 or code == 11
+end
+
+-- Whether an error now can only be about this auction: errors don't say whose they are, so
+-- no other purchase sent in the last minute may still be unanswered. (Its own earlier try
+-- doesn't count, nor one sent long ago, which would keep this off for the whole visit.)
+local function onlyThisAuction(auctionID)
+  for _, o in ipairs(Q.lateBuys) do
+    if GetTime() - o.at < LATE_SECONDS and not (o.plan.kind == "item" and o.plan.auctionID == auctionID) then
+      return false
+    end
+  end
+  return true
+end
+
 -- "The item was not found": the listing's gone, so this purchase can't still go through,
 -- and there's nothing to wait for (29 of the owner's last 30 errors, November 6). Unless
 -- an earlier one is still unanswered: errors don't say whose they are, so nothing is let go.
-local function failed(code, msg)
+-- fromAH: an auction house error code (AUCTION_HOUSE_SHOW_ERROR), not a chat error's type.
+local function failed(code, msg, fromAH)
   noteError(msg, code)
   if Q.state ~= "buying" and Q.state ~= "price" then return end
+  -- A listing that can't be bought at its price is passed over from now on.
+  local p = Q.plan
+  if fromAH and cantBuyAtPrice(code) and Q.state == "buying" and p and p.kind == "item" and p.auctionID
+    and onlyThisAuction(p.auctionID) then
+    refusedAuctions[p.auctionID] = true
+    trace(("auction %s can't be bought at its price (code %s): passed over"):format(tostring(p.auctionID), tostring(code)))
+  end
   if Q.state == "price" then pcall(AH.CancelCommoditiesPurchase) end
   if Q.state == "buying" and (msg ~= ERR_ITEM_NOT_FOUND or #Q.lateBuys > 0) then settleLater() end
   if refusedTwice("the auction house wouldn't sell it.") then return end
@@ -1185,7 +1240,13 @@ ns:On("UI_ERROR_MESSAGE", function(errType, msg)
   end
   if auctionErrors[msg] then failed(errType, msg) end
 end)
-ns:On("AUCTION_HOUSE_SHOW_ERROR", function(code) failed(code, "The auction house refused that purchase.") end)
+ns:On("AUCTION_HOUSE_SHOW_ERROR", function(code)
+  if cantBuyAtPrice(code) then
+    failed(code, "The auction house won't sell that listing at its price, so it's skipped from now on.", true)
+  else
+    failed(code, "The auction house refused that purchase.", true)
+  end
+end)
 
 -- What else the auction house sends while a purchase waits for its answer, into the trace
 -- (/fl debug): a Red Woolen Bag purchase had no answer, no error and no gold taken (owner,

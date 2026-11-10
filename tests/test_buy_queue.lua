@@ -848,4 +848,87 @@ T.test("Buy queue: its logs are only kept with debug on", function()
   ns.db.buyTrace, ns.db.buyErrors = nil, nil
 end)
 
+-- Owner, November 9: a Nomad Trousers listing at 2s and a Rough Bronze Leggings one at 5s
+-- were refused with "There is already a higher bid on that item" at every try, and came
+-- back every two minutes from a 13-minute-old price.
+local function searchRows(list)
+  rawset(C_AuctionHouse, "GetNumItemSearchResults", function() return #list end)
+  rawset(C_AuctionHouse, "GetItemSearchResultInfo", function(_, i) return list[i] end)
+end
+local function noSearchRows()
+  rawset(C_AuctionHouse, "GetNumItemSearchResults", nil)
+  rawset(C_AuctionHouse, "GetItemSearchResultInfo", nil)
+end
+
+T.test("Buy queue: a listing the auction house won't sell at its price is passed over", function()
+  local e = buyingItem(91120, 11)
+  e.limit = 600
+  ns.db.settings.buyQueue.limit = nil
+  S.money = 100000
+  T.fire("AUCTION_HOUSE_SHOW_ERROR", 1)   -- HigherBid
+  T.eq(ns:AuctionRefused(11), true)
+  T.eq(Q.state, "wait", "looked at again")
+  searchRows({ { auctionID = 11, buyoutAmount = 500, quantity = 1 }, { auctionID = 12, buyoutAmount = 550, quantity = 1 } })
+  Q.state, Q.plan = "search", nil
+  Q.planItem({ itemID = 91120 })
+  noSearchRows()
+  T.eq(Q.plan.auctionID, 12, "the next listing instead")
+  Q.state = "buying"
+  T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+  T.eq(ns:AuctionRefused(12), false, "another error doesn't mark it")
+  buyingItem(91121, 13)
+  Q.lateBuys = { { plan = { kind = "item", auctionID = 99, price = 5 }, cur = {}, at = GetTime(), left = 5 } }
+  T.fire("AUCTION_HOUSE_SHOW_ERROR", 1)
+  T.eq(ns:AuctionRefused(13), false, "nor one that could be an earlier purchase's")
+  buyingItem(91123, 15)
+  Q.lateBuys = { { plan = { kind = "item", auctionID = 99, price = 5 }, cur = {}, at = GetTime() - 61, left = 5 },
+    { plan = { kind = "item", auctionID = 15, price = 9 }, cur = {}, at = GetTime(), left = 9 } }
+  T.fire("AUCTION_HOUSE_SHOW_ERROR", 1)
+  T.eq(ns:AuctionRefused(15), true, "an old unanswered one and its own earlier try don't stop it")
+  Q.lateBuys = {}
+  wipe(S.timers)
+end)
+
+T.test("Buy queue: a listing the auction house won't sell isn't saved as a price", function()
+  local key = ns.MarketKey()
+  ns.db.prices[key] = ns.db.prices[key] or {}
+  Q.cur = nil
+  searchRows({ { auctionID = 11, buyoutAmount = 500, quantity = 1 }, { auctionID = 14, buyoutAmount = 700, quantity = 1 } })
+  T.fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 91120, itemSuffix = 0 })
+  noSearchRows()
+  T.eq(ns.db.prices[key][91120].m, 700, "auction 11 was refused above")
+  wipe(S.timers)
+end)
+
+T.test("Buy queue: a flip found gone stays out until a newer price", function()
+  local key = ns.MarketKey()
+  ns.db.prices[key] = ns.db.prices[key] or {}
+  local market = ns.db.prices[key]
+  market[91122] = { m = 200, a = 200, q = 1, t = time() - 400, src = "full" }
+  local buyQueue, realFlip = ns.db.settings.buyQueue, ns.VendorFlip
+  local realView = buyQueue.view
+  buyQueue.view = "flips"
+  ns.VendorFlip = function(_, id)
+    if id ~= 91122 then return end
+    return { maxBuy = 264, opt = { value = 294 }, buys = { { listed = 1 } }, cost = 200, t = market[id].t }
+  end
+  local function listed()
+    for _, x in ipairs(Q.buildQueue().flips) do if x.id == 91122 then return true end end
+    return false
+  end
+  T.eq(listed(), true)
+  local e = buyingItem(91122, 21)
+  e.limit, Q.state, Q.plan, Q.keys = 264, "search", nil, nil
+  searchRows({ { auctionID = 21, buyoutAmount = 300, quantity = 1 } })
+  Q.planItem({ itemID = 91122 })
+  noSearchRows()
+  T.eq(Q.cur, nil, "none left")
+  S.now = S.now + 200
+  T.eq(listed(), false, "the same old price doesn't bring it back")
+  market[91122].t = time()
+  T.eq(listed(), true, "a newer one does")
+  ns.VendorFlip, buyQueue.view, market[91122] = realFlip, realView, nil
+  wipe(S.timers)
+end)
+
 Q.cur, Q.plan, Q.state, Q.lateBuys = nil, nil, "idle", {}

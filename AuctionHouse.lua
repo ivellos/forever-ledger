@@ -54,9 +54,9 @@ local function eachRow(list, fn)
   return false
 end
 
--- A row's price per item, item ID and item key, whichever way the row stores them.
--- Buy pages have unitPrice (commodities) or buyoutAmount (items); the search results
--- list has minPrice.
+-- A row's price per item, item ID, item key, link and auction, whichever way the row
+-- stores them. Buy pages have unitPrice (commodities) or buyoutAmount (items); the search
+-- results list has minPrice.
 local function rowInfo(row, fallbackID)
   local d = row.rowData
   if not d and row.GetElementData then
@@ -69,8 +69,12 @@ local function rowInfo(row, fallbackID)
   end
   if type(d) ~= "table" then return end
   local id = d.itemID or (d.itemKey and d.itemKey.itemID) or fallbackID
-  return d.unitPrice or d.buyoutAmount or d.minPrice, id, d.itemKey, type(d.itemLink) == "string" and d.itemLink or nil
+  return d.unitPrice or d.buyoutAmount or d.minPrice, id, d.itemKey, type(d.itemLink) == "string" and d.itemLink or nil,
+    d.auctionID
 end
+
+-- A listing the auction house wouldn't sell the Buy queue at its price (BuyQueue.lua).
+local function refused(auctionID) return ns.AuctionRefused ~= nil and ns:AuctionRefused(auctionID) end
 
 -- How many are listed at or below a price, from the auction house's own results.
 -- Items with random suffixes ("of the Bear") each have their own item key, so use
@@ -86,7 +90,7 @@ local function availableAt(id, limit, commodity, itemKey)
     local key = itemKey or C_AuctionHouse.MakeItemKey(id)
     for i = 1, (C_AuctionHouse.GetNumItemSearchResults(key) or 0) do
       local r = C_AuctionHouse.GetItemSearchResultInfo(key, i)
-      if r and r.buyoutAmount and r.buyoutAmount <= limit then n = n + math.max(r.quantity or 1, 1) end
+      if r and r.buyoutAmount and r.buyoutAmount <= limit and not refused(r.auctionID) then n = n + math.max(r.quantity or 1, 1) end
     end
   end
   return n
@@ -210,12 +214,12 @@ local function watch(page, kind)
     local found = eachRow(list, function(row)
       -- Gear listings too: each has its own link, which says the version.
       if not commodity then altClickRow(row) end
-      local price, rowID, rowKey = rowInfo(row, shownID)
+      local price, rowID, rowKey, _, auctionID = rowInfo(row, shownID)
       id, key = id or rowID, key or rowKey
       local limit, reason = limitFor(rowID)
       if price then anyPrice = true end
       -- Badge only on gear pages: the browse list has names and the commodity list its prices there.
-      tint(row, price ~= nil and limit ~= nil and price <= limit,
+      tint(row, price ~= nil and limit ~= nil and price <= limit and not refused(auctionID),
         not browse and not commodity and reason and reason.badge or false)
     end)
     -- Report only if it keeps failing (about 3 seconds): during a purchase the list
