@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-10
+
+### Highlights
+- Δ **Watched items**: pick items to always check, each with the most you'd pay (or "vendor"). Watch flips checks them every pass, and they go first in the Buy queue's Vendor flips.
+- ~ **Buy queue**: a row of several (bags) is bought one at a time, and buying goes on after a purchase that got no answer, as in the beta.
+- ✓ **Vendor flips**: items vendors buy are no longer marked "vendors won't buy it" partway through a session, which hid their flips until a reload.
+- ✓ **Refused listings**: one the auction house won't sell at its price is skipped, and a flip found gone stays off the list until a newer price comes in.
+- ✓ **Sell protection**: on the stacks page the cut is worked out on the whole listing, so 20 at 19c no longer slips under a vendor's price.
+- ✓ **Undercuts**: they need a price from the last 30 minutes, so a listing that's since sold can't get a fine auction canceled.
+- ✓ **Damaged gear**: Worth to you uses what a vendor pays for it as it is.
+
 ### Added
 - Watched items: pick items to always keep an eye on, each with the most you'd pay (Silk Cloth up to 2s for bandages, say), or "vendor" to buy only when a vendor pays more. Watch flips checks them every pass, on top of the items it picks, and anything at or under your price joins Vendor flips in the Buy queue, first in the list, and chimes. Add one with Watch in its price window, or with the Watched button at the top of Vendor flips. Lowering or removing a price applies at once, even to a purchase waiting for its last click.
 

@@ -172,14 +172,15 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.19.0",
+  version = "0.20.0",
   lines = {
-    { "Price window: Alt-click any item, or type /fl price, for its usual price, trend, the cheapest now and a price graph over 2 weeks, 3 months or a year.", major = true },
-    { "Price history: every item keeps 90 days of daily prices, and full scans keep each version of random-stat gear (\"of the Eagle\") on its own.", major = true },
-    "Cost to craft: for items your recipes make, the materials at today's prices, the profit, and the materials to a shopping list for any number of crafts.",
-    "Price lookup: look any item up by name, even one you don't have, or Alt-click a listing at the auction house for that exact version.",
-    "Two accounts: your sync partner's scans fill in your price graphs, including up to 14 days you missed while offline.",
-    { "Quiet mode: /fl quiet stays on for that character through reloads, until you type it again.", change = true },
+    { "Watched items: pick items to always check, each with the most you'd pay (or \"vendor\"). Watch flips checks them every pass, and they go first in the Buy queue's Vendor flips. Add one with Watch in its price window.", major = true },
+    { "Buy queue: a row of several (bags) is bought one at a time, and buying goes on after a purchase that got no answer, as in the beta.", change = true },
+    { "Vendor flips: items vendors buy are no longer marked \"vendors won't buy it\" partway through a session, which hid their flips until a reload.", fix = true },
+    { "Refused listings: one the auction house won't sell at its price is skipped, and a flip found gone stays off the list until a newer price comes in.", fix = true },
+    { "Sell protection: on the stacks page the cut is worked out on the whole listing, so 20 at 19c no longer slips under a vendor's price.", fix = true },
+    { "Undercuts: they need a price from the last 30 minutes, so a listing that's since sold can't get a fine auction canceled.", fix = true },
+    { "Damaged gear: Worth to you uses what a vendor pays for it as it is.", fix = true },
   },
 }
 
