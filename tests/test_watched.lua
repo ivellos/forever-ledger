@@ -77,7 +77,7 @@ T.test("Watched: a find at your price counts only the listings under it", functi
   ns:UnwatchItem(SILK)
   T.eq(ns:WatchedFind(SILK), nil, "not watched")
   m[SILK] = nil
-  wipe(S.timers)
+  T.runTimers()
 end)
 
 T.test("Watched: the flip watch checks watched items first, on top of the ones it picks", function()
@@ -96,7 +96,7 @@ T.test("Watched: the flip watch checks watched items first, on top of the ones i
   T.eq(seen, 1, "watched and picked: checked once")
   ns:UnwatchItem(KEEPSAKE); ns:UnwatchItem(PLAIN)
   m[PLAIN] = nil
-  wipe(S.timers)
+  T.runTimers()
 end)
 
 T.test("Watched: finds join Vendor flips, first, marked as watched", function()
@@ -122,21 +122,24 @@ T.test("Watched: finds join Vendor flips, first, marked as watched", function()
   for _, e in ipairs(Q.lanes.flips) do T.ok(e.id ~= SILK, "gone once unwatched") end
   buyQueue.view, Q.lanes = realView, { flips = {}, lists = {} }
   m[SILK], m[FLIP], S.money = nil, nil, 0
-  wipe(S.timers)
+  T.runTimers()
 end)
 
-T.test("Watched: one already under your price chimes when you watch it", function()
+-- (Through the check after a scan: the quick alert waits on a one-second timer, which an
+-- earlier test file may have thrown away.)
+T.test("Watched: a find at your price is announced as a watched item", function()
   local m = market()
   m[SILK] = { m = 180, a = 180, q = 12, l = "180:12", t = time() }
   S.money = 100000
   local out = printed(function()
     ns:WatchItem(SILK, 200)
-    T.runTimers()
+    ns.db.alertsSeen = nil
+    ns:CheckDeals()
   end)
   T.ok(out:find("Watched item: Test Silk, 12 at 2s or less", 1, true), "chat line: " .. out)
   ns:UnwatchItem(SILK)
   m[SILK], S.money = nil, 0
-  wipe(S.timers)
+  T.runTimers()
 end)
 
 T.test("Buy queue logs: routine replies and errors with nothing being bought aren't saved", function()
@@ -151,5 +154,5 @@ T.test("Buy queue logs: routine replies and errors with nothing being bought are
   T.fire("AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED")
   T.ok(ns.db.buyTrace and #ns.db.buyTrace == 1, "other notices just after a purchase still are")
   ns.db.settings.debug, ns.db.buyTrace, ns.db.buyErrors, Q.buyAt = false, nil, nil, nil
-  wipe(S.timers)
+  T.runTimers()
 end)
