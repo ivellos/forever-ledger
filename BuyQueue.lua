@@ -1225,12 +1225,16 @@ end
 -- an earlier one is still unanswered: errors don't say whose they are, so nothing is let go.
 -- fromAH: an auction house error code (AUCTION_HOUSE_SHOW_ERROR), not a chat error's type.
 local function failed(code, msg, fromAH)
+  -- A listing that can't be bought at its price is passed over from now on. The note says
+  -- so only when it really is (Codex review of 017f337: an earlier purchase's refusal
+  -- arriving now said "skipped" while nothing was).
+  local p = Q.plan
+  local mark = fromAH and cantBuyAtPrice(code) and Q.state == "buying" and p and p.kind == "item" and p.auctionID
+    and onlyThisAuction(p.auctionID)
+  if mark then msg = "The auction house won't sell that listing at its price, so it's skipped from now on." end
   noteError(msg, code)
   if Q.state ~= "buying" and Q.state ~= "price" then return end
-  -- A listing that can't be bought at its price is passed over from now on.
-  local p = Q.plan
-  if fromAH and cantBuyAtPrice(code) and Q.state == "buying" and p and p.kind == "item" and p.auctionID
-    and onlyThisAuction(p.auctionID) then
+  if mark then
     refusedAuctions[p.auctionID] = true
     trace(("auction %s can't be bought at its price (code %s): passed over"):format(tostring(p.auctionID), tostring(code)))
   end
@@ -1258,11 +1262,7 @@ ns:On("UI_ERROR_MESSAGE", function(errType, msg)
   if auctionErrors[msg] then failed(errType, msg) end
 end)
 ns:On("AUCTION_HOUSE_SHOW_ERROR", function(code)
-  if cantBuyAtPrice(code) then
-    failed(code, "The auction house won't sell that listing at its price, so it's skipped from now on.", true)
-  else
-    failed(code, "The auction house refused that purchase.", true)
-  end
+  failed(code, "The auction house refused that purchase.", true)
 end)
 
 -- What else the auction house sends while a purchase waits for its answer, into the trace

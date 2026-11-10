@@ -868,6 +868,7 @@ T.test("Buy queue: a listing the auction house won't sell at its price is passed
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 1)   -- HigherBid
   T.eq(ns:AuctionRefused(11), true)
   T.eq(Q.state, "wait", "looked at again")
+  T.eq(Q.note, "The auction house won't sell that listing at its price, so it's skipped from now on.")
   searchRows({ { auctionID = 11, buyoutAmount = 500, quantity = 1 }, { auctionID = 12, buyoutAmount = 550, quantity = 1 } })
   Q.state, Q.plan = "search", nil
   Q.planItem({ itemID = 91120 })
@@ -880,6 +881,7 @@ T.test("Buy queue: a listing the auction house won't sell at its price is passed
   Q.lateBuys = { { plan = { kind = "item", auctionID = 99, price = 5 }, cur = {}, at = GetTime(), left = 5 } }
   T.fire("AUCTION_HOUSE_SHOW_ERROR", 1)
   T.eq(ns:AuctionRefused(13), false, "nor one that could be an earlier purchase's")
+  T.eq(Q.note, "The auction house refused that purchase.", "and the note doesn't say it's skipped (Codex, 017f337)")
   buyingItem(91123, 15)
   Q.lateBuys = { { plan = { kind = "item", auctionID = 99, price = 5 }, cur = {}, at = GetTime() - 61, left = 5 },
     { plan = { kind = "item", auctionID = 15, price = 9 }, cur = {}, at = GetTime(), left = 9 } }
