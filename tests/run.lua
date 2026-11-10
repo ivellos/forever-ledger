@@ -10,7 +10,7 @@ local ADDON, ns = "ForeverLedger", {}
 
 -- The files to load, in the .toc's order, up to the last one the tests need.
 local LOAD = { "Core.lua", "Prices.lua", "Quiet.lua", "History.lua", "Inventory.lua", "RecipeBook.lua", "Professions.lua", "Deposits.lua", "Values.lua", "Shuffles.lua", "Crates.lua", "Settings.lua",
-  "Disenchant.lua", "Sessions.lua", "Training.lua", "TrainerAdvice.lua", "TrainingPanel.lua", "Levelling.lua", "Sync.lua", "ShoppingLists.lua", "BuyQueue.lua", "AuctionHouse.lua", "Auctions.lua", "PriceWindow.lua" }
+  "Disenchant.lua", "Sessions.lua", "Training.lua", "TrainerAdvice.lua", "TrainingPanel.lua", "Levelling.lua", "Sync.lua", "ShoppingLists.lua", "BuyQueue.lua", "Watched.lua", "AuctionHouse.lua", "Auctions.lua", "PriceWindow.lua" }
 local wanted = {}
 for _, f in ipairs(LOAD) do wanted[f] = true end
 local order = {}
@@ -134,7 +134,7 @@ function T.resetDB()
 end
 
 -- The test files (listed here, so it runs the same on any system).
-local FILES = { "deposits", "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets", "sync", "neutral", "training", "shuffle_lists", "list_sources", "price_controls", "vendor_lists", "trainer_advice", "disenchant_lists", "realm", "quiet", "sync_live", "buy_queue", "price_series", "price_window" }
+local FILES = { "deposits", "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets", "sync", "neutral", "training", "shuffle_lists", "list_sources", "price_controls", "vendor_lists", "trainer_advice", "disenchant_lists", "realm", "quiet", "sync_live", "buy_queue", "price_series", "price_window", "watched" }
 for _, name in ipairs(FILES) do
   local f = "tests/test_" .. name .. ".lua"
   current = f:match("test_(.-)%.lua$")

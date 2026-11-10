@@ -990,15 +990,22 @@ local function announce(all, usual)
   local chat = ns.db.settings.dealChat ~= false   -- (Settings: UI pass, November 9)
   for _, p in ipairs(poor) do
     if chat then
-      ns:Print(("Found a vendor flip: %s (vendor pays %s), but you can't afford it yet: %s each, you have %s."):format(
-        itemName(p.f.id), ns.Money(p.f.opt.value), ns.Money(p.one), ns.Money(cash)))
+      ns:Print(("Found %s: %s (%s), but you can't afford it yet: %s each, you have %s."):format(
+        p.f.watched == "you" and "a watched item" or "a vendor flip", itemName(p.f.id),
+        p.f.watched == "you" and ("up to " .. ns.Money(p.f.maxBuy)) or ("vendor pays " .. ns.Money(p.f.opt.value)),
+        ns.Money(p.one), ns.Money(cash)))
     end
   end
   if #flips == 0 and usual == 0 then return end
   local text
   if #flips > 0 then
     local f = flips[1]
-    text = ("Vendor flip: %s at %s (vendor pays %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.opt.value))
+    -- Watched items at your price (Watched.lua) say so, not "vendor pays".
+    if f.watched == "you" then
+      text = ("Watched item: %s at %s (up to %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.maxBuy))
+    else
+      text = ("Vendor flip: %s at %s (vendor pays %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.opt.value))
+    end
     if #flips > 1 then text = text .. (" and %d more"):format(#flips - 1) end
   else
     -- Names the tab: the auction house panel only holds flips and shopping lists (owner,
@@ -1016,8 +1023,13 @@ local function announce(all, usual)
     -- Only after a full scan, not the flip watch's quick checks (ns.fullScanDone).
     if ns.db.settings.openFlips and ns.OpenFlips and ns.fullScanDone then ns:OpenFlips() end
     for _, f in ipairs(chat and flips or {}) do
-      ns:Print(("New vendor flip: %s, %d at %s or less (vendor pays %s). It's in the Buy queue, under Vendor flips."):format(
-        itemName(f.id), f.buys[1].listed or 1, ns.Money(f.maxBuy), ns.Money(f.opt.value)))
+      if f.watched == "you" then
+        ns:Print(("Watched item: %s, %d at %s or less. It's in the Buy queue, first under Vendor flips."):format(
+          itemName(f.id), f.buys[1].listed or 1, ns.Money(f.maxBuy)))
+      else
+        ns:Print(("New vendor flip: %s, %d at %s or less (vendor pays %s). It's in the Buy queue, under Vendor flips."):format(
+          itemName(f.id), f.buys[1].listed or 1, ns.Money(f.maxBuy), ns.Money(f.opt.value)))
+      end
     end
   end
   if usual > 0 and chat then
@@ -1028,9 +1040,15 @@ end
 
 -- One item's price was just saved (watch pass or your own search): alert at once if
 -- it's a new vendor flip. Flips found within a second are announced together.
+-- A watched item (Watched.lua) counts as a flip here, at your price.
+local function flipOrWatched(id)
+  return (ns.WatchedFind and ns:WatchedFind(id)) or ns:VendorFlip(id)
+end
+function ns:FlipOrWatched(id) return flipOrWatched(id) end
+
 function ns:CheckFlip(id)
   local flipAlerted = seen("flips")
-  local f = ns:VendorFlip(id)
+  local f = flipOrWatched(id)
   if not f then flipAlerted[id] = nil; return end
   if flipAlerted[id] and f.cost >= flipAlerted[id] then return end
   flipAlerted[id] = f.cost
@@ -1054,7 +1072,7 @@ function ns:CheckDeals()
   local flipAlerted, alerted = seen("flips"), seen("deals")
   local now, flips = time(), {}
   for id in pairs(ns.db.prices[ns.MarketKey()] or {}) do
-    local f = ns:VendorFlip(id)
+    local f = flipOrWatched(id)
     if not f then
       flipAlerted[id] = nil
     elseif now - (f.t or 0) <= DEAL_RECENT and (not flipAlerted[id] or f.cost < flipAlerted[id]) then

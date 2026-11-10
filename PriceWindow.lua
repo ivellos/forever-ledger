@@ -593,6 +593,30 @@ local function build()
   end)
   f.addItem:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
+  -- Watch it (Watched.lua; owner, November 10): the flip watch checks it every pass and
+  -- the Buy queue buys it at or under the price beside it. Typing a price watches it too.
+  local function watchTip(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine("Watch this item", 1, 1, 1)
+    GameTooltip:AddLine("Watch flips checks it every pass, and the Buy queue buys it, first under Vendor flips, at or under the price here. \"vendor\": only when a vendor pays more. All of them: the Watched button on the Buy queue.", 0.8, 0.8, 0.8, true)
+    if f.id and ns:IsGearItem(f.id) then
+      GameTooltip:AddLine("Gear is checked by the full scan (about every 15 minutes), any version.", 0.7, 0.7, 0.7, true)
+    end
+    GameTooltip:Show()
+  end
+  f.watch = T:Check(f, function(self)
+    if not f.id then return end
+    if self:GetChecked() then ns:WatchItem(f.id, f.watchMax.value or 0) else ns:UnwatchItem(f.id) end
+  end)
+  f.watch.label:SetText("Watch, up to")
+  f.watch:SetHitRectInsets(0, -(f.watch.label:GetStringWidth() + 8), 0, 0)
+  f.watch:SetScript("OnEnter", watchTip)
+  f.watch:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  f.watchMax = T:MoneyBox(f, function(value) if f.id then ns:WatchItem(f.id, value) end end, "g", false, "vendor")
+  f.watchMax:SetWidth(84)
+  f.watchMax:HookScript("OnEnter", watchTip)
+  f.watchMax:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
   -- Craft card
   f.craftHead, f.craftWho = text(f, 11), text(f, 11, T.dim)
   f.matCols = {}
@@ -783,7 +807,7 @@ function ns:RefreshPriceWindow()
   local _, options = ns:GetValue(id, true)
   -- Each way gets the width its value leaves and up to 3 lines; the next starts below it
   -- (owner's screenshot, November 8: "after 5% cut an..." was cut off at 2 short lines).
-  local y, worthEnd = wTop + 20, gTop + GRAPH_H - 38
+  local y, worthEnd = wTop + 20, gTop + GRAPH_H - 62   -- (above the Watch row and the Add button)
   for i, r in ipairs(f.worthRows) do
     local o = options and options[i]
     r.l:SetShown(false); r.v:SetShown(false)
@@ -812,6 +836,12 @@ function ns:RefreshPriceWindow()
   end
   f.addItem:ClearAllPoints()
   f.addItem:SetPoint("TOPLEFT", f, "TOPLEFT", sx + 12, -(gTop + GRAPH_H - 32))
+  f.watchMax:ClearAllPoints()
+  f.watchMax:SetPoint("TOPRIGHT", f, "TOPLEFT", sx + SIDE - 12, -(gTop + GRAPH_H - 58))
+  f.watch:ClearAllPoints()
+  f.watch:SetPoint("LEFT", f, "TOPLEFT", sx + 12, -(gTop + GRAPH_H - 47))
+  f.watch:SetChecked(ns:IsWatched(id))
+  if not f.watchMax:HasFocus() then f.watchMax:SetValue(ns:WatchPrice(id) or 0) end
 
   -- Craft card
   local c = s.craft

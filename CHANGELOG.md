@@ -5,7 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Watched items: pick items to always keep an eye on, each with the most you'd pay (Silk Cloth up to 2s for bandages, say), or "vendor" to buy only when a vendor pays more. Watch flips checks them every pass, on top of the items it picks, and anything at or under your price joins Vendor flips in the Buy queue, first in the list, and chimes. Add one with Watch in its price window, or with the Watched button at the top of Vendor flips.
+
 ### Changed
+- `/fl debug` logs: the buying log no longer fills up with the auction house's routine replies, and errors from searches made while nothing is being bought aren't saved with the Buy queue's errors.
 - New setting: Chat line for new flips and deals (Settings, Auction house, Alerts). The red "That's everything you can buy" message follows Big message on screen.
 - Quiet mode says so in chat at login while it's on for that character.
 - Shopping lists: removing an item (x) and Buy again ask with a second click, since neither can be undone.

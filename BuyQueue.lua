@@ -144,7 +144,8 @@ local function buildQueue()
   if view() == "flips" then
     local list = {}
     for id in pairs(market) do
-      local f = ns:VendorFlip(id)
+      -- Watched items (Watched.lua) join the flips at your price.
+      local f = ns:FlipOrWatched(id)
       if f and checkedFlips[id] and (f.t or 0) <= checkedFlips[id] then f = nil end
       if f then
         -- Seen a while ago (you were away from the auction house): may well be gone. Shown
@@ -153,8 +154,8 @@ local function buildQueue()
         -- Older than a full scan's wait: left out, since the next full scan finds it again
         -- if it's still there (owner, October 3).
         if age <= DROP_SECONDS then
-          list[#list + 1] = { id = id, limit = math.floor(f.maxBuy), reason = "flip", worth = f.opt.value,
-            n = f.buys[1].listed, cost = f.cost, age = age, stale = age > STALE_SECONDS }
+          list[#list + 1] = { id = id, limit = math.floor(f.maxBuy), reason = f.watched == "you" and "watch" or "flip",
+            worth = f.opt.value, n = f.buys[1].listed, cost = f.cost, age = age, stale = age > STALE_SECONDS }
         end
       end
     end
@@ -188,6 +189,7 @@ local function unpark(ids)
   for _, id in ipairs(ids) do done[id], skipped[id], checkedFlips[id] = nil, nil, nil end
   Q.built = 0
 end
+function ns:UnparkBuyQueue(ids) unpark(ids) end   -- (Watched.lua: a changed price)
 local side, queueView, listsView   -- frames, built when the auction house first opens
 local refreshQueue                  -- redraws the queue view
 local updateBadges                  -- the "new flips" counts on the tab and view button
@@ -410,7 +412,9 @@ local function bought(n, cost, e)
   -- Profit if you vendored what you bought (owner, October 6: "Profit" instead of
   -- "worth"): what a vendor pays for it less what it cost, over items a vendor buys.
   local vendor = e and ns:GetSellPrice(e.id)
-  if vendor and cost then
+  -- A watched item bought above what a vendor pays is for something else (bandages from
+  -- Silk Cloth), not a loss to show.
+  if vendor and cost and not (e.reason == "watch" and cost > n * vendor) then
     Q.vendorValue = (Q.vendorValue or 0) + n * vendor
     Q.vendorCost = (Q.vendorCost or 0) + cost
   end
@@ -520,11 +524,15 @@ sortFlips = function()
     local cost = math.max(e.cost or e.limit or 1, 1)
     e.sortValue = ((e.worth or 0) - cost) * math.min(e.n or 1, math.floor(cash / cost))
   end
+  -- Watched items at your price first: you asked for them (owner, November 10).
   table.sort(list, function(a, b)
+    local wa, wb = a.reason == "watch", b.reason == "watch"
+    if wa ~= wb then return wa end
     if a.sortValue ~= b.sortValue then return a.sortValue > b.sortValue end
     return (a.profit or 0) > (b.profit or 0)
   end)
 end
+Q.sortFlips = sortFlips   -- (for the tests)
 
 local function cantAfford(e)
   local cash = spendable()
@@ -1185,6 +1193,10 @@ end)
 -- what was being bought, how old the plan was, what else was running.
 local function noteError(msg, code)
   if not ns.db.settings.debug then return end
+  -- Nothing being bought: a scan's or your own search's error, not the queue's. 26 of the
+  -- last 30 were those ("The item was not found"), pushing out the ones that matter
+  -- (owner's log, November 10).
+  if Q.state == "idle" and not Q.cur then return end
   local log = ns.db.buyErrors or {}
   ns.db.buyErrors = log
   local e, p = Q.cur, Q.plan
@@ -1270,8 +1282,12 @@ end)
 -- November 9), and these may say why (a dropped message, a notice instead of an error).
 for _, event in ipairs({ "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", "AUCTION_HOUSE_THROTTLED_MESSAGE_RESPONSE_RECEIVED",
   "AUCTION_HOUSE_SHOW_NOTIFICATION", "AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "BID_ADDED", "AUCTION_CANCELED" }) do
+  -- (The throttle's "answer received" only while buying: every scan request sends one,
+  -- and in the 15 seconds after a purchase they filled 40% of the trace. Owner's log,
+  -- November 10.)
+  local chatty = event == "AUCTION_HOUSE_THROTTLED_MESSAGE_RESPONSE_RECEIVED"
   ns:On(event, function(a, b)
-    if Q.state == "buying" or (Q.buyAt and GetTime() - Q.buyAt < 15) then
+    if Q.state == "buying" or (not chatty and Q.buyAt and GetTime() - Q.buyAt < 15) then
       trace(("%s %s %s, state %s"):format(event, tostring(a), tostring(b), Q.state))
     end
   end)
@@ -1330,6 +1346,10 @@ end
 local function reasonLine(e)
   if not e then return "" end
   if e.reason == "flip" then return ("Vendor flip: a vendor pays %s."):format(money(e.worth)) end
+  if e.reason == "watch" then
+    return ("Watched item: up to %s, your price%s."):format(money(e.limit),
+      (e.worth or 0) > 0 and (" (a vendor pays " .. money(e.worth) .. ")") or "")
+  end
   if e.reason == "list" then
     return ("Shopping list %s: up to %s%s."):format(e.list or "", limitText(e),
       (e.want == math.huge and ", no limit on how many") or (e.want and (", %d more wanted"):format(e.want)) or "")
@@ -1663,6 +1683,17 @@ local function buildQueueView(parent)
   wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
   v.wheel = wheel
 
+  -- Watched items (Watched.lua): Vendor flips only, as that's where they're bought.
+  v.watched = T:Button(bar, "Watched", 96, function() ns:ToggleWatchedView(v) end, 22)
+  v.watched:SetPoint("LEFT", v.viewChoice, "RIGHT", 10, 0)
+  v.watched:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine("Watched items", 1, 1, 1)
+    GameTooltip:AddLine("Items you always want checked, each with the most you'd pay. Watch flips checks them every pass, and they're bought here, first in the list. Add one here or with Watch in its price window.", nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  v.watched:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
   v.lanes = {}
   for _, d in ipairs(LANES) do v.lanes[d.key] = buildLane(v, d) end
   v.empty = T:Text(v, 12, T.dim)
@@ -1910,6 +1941,8 @@ local function fillLane(L)
       -- (Magic, October 3: "of 48c" isn't needed at a glance).
       if e.profit and e.profit > 0 and afford < (e.n or 1) and afford > 0 then
         r.profit:SetText(("|cff7fd39c%s|r"):format(money(each * afford)))
+      elseif e.reason == "watch" and not (e.profit and e.profit > 0) then
+        r.profit:SetText("|cffb9a3ffwatched|r")   -- bought at your price, not to vendor
       else
         r.profit:SetText(e.profit and e.profit > 0 and ("|cff7fd39c" .. money(e.profit) .. "|r") or "")
       end
@@ -1989,6 +2022,12 @@ function ns:UpdatePanelScanButtons()
   v.matsBtn:SetShown(not lists)
   v.matsBtn:SetText((ns.Scan.active and not ns.Scan.full) and "Stop scan" or "Scan materials")
   if v.viewChoice then v.viewChoice:SetValue(view()) end
+  if v.watched then
+    v.watched:SetShown(not lists)
+    local n = ns.WatchedCount and ns:WatchedCount() or 0
+    v.watched:SetText(n > 0 and ("Watched (%d)"):format(n) or "Watched")
+    if lists and ns.ToggleWatchedView then ns:ToggleWatchedView(nil, false) end
+  end
 end
 
 -- Search every list bought from in the queue (its items and missing materials) at once.
@@ -3458,7 +3497,7 @@ end
 -- October 2: flips showed on the Vendor flips tab before the queue).
 local flipRebuild = false
 local function soonForFlip(_, id)
-  if flipRebuild or not shown() or view() ~= "flips" or not ns:VendorFlip(id) then return end
+  if flipRebuild or not shown() or view() ~= "flips" or not ns:FlipOrWatched(id) then return end
   flipRebuild = true
   C_Timer.After(1, function() flipRebuild = false; rebuildNow() end)
 end

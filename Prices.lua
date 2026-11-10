@@ -1340,6 +1340,7 @@ local function isGear(id)
   local _, _, _, _, _, classID = instantInfo(id)
   return classID == 2 or classID == 4
 end
+function ns:IsGearItem(id) return isGear(id) end
 
 -- Crafted items (any recipe's output in the recipe book): crafters post them in bulk to
 -- level their professions, so cheap ones turn up often.
@@ -1378,10 +1379,20 @@ local function flipCandidates()
     end
   end
   table.sort(list, function(a, b) return a.r > b.r end)
-  local ids = {}
-  for i = 1, math.min(#list, WATCH_ITEMS) do ids[i] = list[i].id end
+  -- Watched items first, every pass, on top of the ones picked here (Watched.lua; owner,
+  -- November 10). Gear stays with the full scans, for the reason above.
+  local ids, seen = {}, {}
+  for _, id in ipairs(ns.WatchedCheckIDs and ns:WatchedCheckIDs() or {}) do
+    if not isGear(id) then seen[id] = true; ids[#ids + 1] = id end
+  end
+  local picked = 0
+  for _, c in ipairs(list) do
+    if picked >= WATCH_ITEMS then break end
+    if not seen[c.id] then ids[#ids + 1] = c.id; picked = picked + 1 end
+  end
   return ids
 end
+ns.FlipWatchCandidates = flipCandidates   -- (for the tests)
 
 local function watchPass()
   watchTimer = nil
@@ -1395,7 +1406,7 @@ local function watchPass()
   end
   local ids = flipCandidates()
   if #ids == 0 then
-    ns:Debug("Flip watch: nothing close to vendor price; waiting for the next full scan.")
+    ns:Debug("Flip watch: nothing close to vendor price or watched; waiting for the next full scan.")
     watchTimer = C_Timer.NewTimer(WATCH_PAUSE, watchPass)
     return
   end
@@ -1403,7 +1414,7 @@ local function watchPass()
   Scan.queue = ids
   Scan.items, Scan.retry, Scan.retrying = #ids, {}, true   -- no retries: the next pass is soon
   Scan.total, Scan.done, Scan.active, Scan.pending = #ids, 0, true, nil
-  ns:Debug("Flip watch: re-checking", #ids, "items near vendor price")
+  ns:Debug("Flip watch: re-checking", #ids, "items near vendor price or watched")
   Scan:Next()
 end
 
