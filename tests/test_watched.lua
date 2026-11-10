@@ -142,6 +142,80 @@ T.test("Watched: a find at your price is announced as a watched item", function(
   T.runTimers()
 end)
 
+-- Codex review, November 10: a purchase planned at 200 each and waiting at Confirm was
+-- still sent after the price was lowered to 100 (or the item unwatched).
+T.test("Watched: a lower price or an unwatch applies to a purchase waiting at Confirm", function()
+  local cancelled = 0
+  rawset(C_AuctionHouse, "CancelCommoditiesPurchase", function() cancelled = cancelled + 1 end)
+  local function waiting(id, reason, limit)
+    local e = { id = id, lane = "flips", reason = reason, limit = limit }
+    Q.lanes = { flips = { e }, lists = {} }
+    Q.cur, Q.plan, Q.state = e, { kind = "commodity", qty = 3, cost = 380, total = 380 }, "confirm"
+    return e
+  end
+  local ok, err = pcall(function()
+    T.eq(ns:FlipLimitNow(KEEPSAKE), nil, "no vendor price, not watched")
+    ns:WatchItem(KEEPSAKE, 200)
+    T.eq(ns:FlipLimitNow(KEEPSAKE), 200)
+    local e = waiting(KEEPSAKE, "watch", 200)
+    T.eq(Q.limitDropped(e), false, "nothing changed: buy as planned")
+    T.eq(Q.state, "confirm")
+    ns:WatchItem(KEEPSAKE, 100)
+    T.eq(Q.limitDropped(e), true, "lowered: not sent")
+    T.eq(cancelled, 1, "the waiting purchase is called off")
+    T.eq(e.limit, 100, "looked up again at the new price")
+    T.eq(Q.plan, nil)
+    T.ok(Q.state ~= "confirm", "nothing left to confirm")
+    -- Removed while waiting: let go.
+    ns:WatchItem(KEEPSAKE, 200)
+    e = waiting(KEEPSAKE, "watch", 200)
+    ns:UnwatchItem(KEEPSAKE)
+    T.eq(Q.limitDropped(e), true, "unwatched: not sent")
+    T.eq(cancelled, 2)
+    T.eq(Q.cur, nil, "let go")
+    T.eq(Q.state, "idle")
+    -- An ordinary vendor flip goes ahead at its own limit, whatever happens to a watch.
+    e = waiting(SILK, "flip", 147)
+    T.eq(Q.limitDropped(e), false)
+    ns:WatchItem(SILK, 200)
+    T.eq(Q.limitDropped(e), false, "a higher price of yours: the plan still holds")
+    ns:UnwatchItem(SILK)
+    T.eq(Q.limitDropped(e), false, "unwatched: still a vendor flip at 147")
+    T.eq(Q.state, "confirm")
+    -- ...but not over a vendor flip's limit that went down (a bigger margin set meanwhile).
+    ns.db.settings.dealVendorPct = 50
+    T.eq(Q.limitDropped(e), true)
+    T.eq(e.limit, 82)
+    T.eq(cancelled, 3)
+  end)
+  ns.db.settings.dealVendorPct = 10
+  ns:UnwatchItem(KEEPSAKE); ns:UnwatchItem(SILK)
+  rawset(C_AuctionHouse, "CancelCommoditiesPurchase", nil)
+  Q.cur, Q.plan, Q.state, Q.note, Q.lanes = nil, nil, "idle", nil, { flips = {}, lists = {} }
+  T.runTimers()
+  assert(ok, err)
+end)
+
+T.test("Watched: watching an item with an old price doesn't chime", function()
+  local m = market()
+  local calls, real = 0, ns.CheckFlip
+  ns.CheckFlip = function() calls = calls + 1 end
+  local ok, err = pcall(function()
+    m[SILK] = { m = 150, a = 150, q = 2, l = "150:2", t = time() - 3600 }
+    ns:WatchItem(SILK, 200)
+    T.eq(calls, 0, "an hour old: the flip watch checks it on its next pass")
+    ns:UnwatchItem(SILK)
+    m[SILK].t = time() - 60
+    ns:WatchItem(SILK, 200)
+    T.eq(calls, 1, "a minute old: checked now")
+  end)
+  ns.CheckFlip = real
+  ns:UnwatchItem(SILK)
+  m[SILK] = nil
+  T.runTimers()
+  assert(ok, err)
+end)
+
 T.test("Buy queue logs: routine replies and errors with nothing being bought aren't saved", function()
   ns.db.settings.debug = true
   ns.db.buyTrace, ns.db.buyErrors = nil, nil

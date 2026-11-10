@@ -70,6 +70,7 @@ end
 local done, skipped = {}, {}   -- [itemID] = GetTime() nothing left; [itemID] = true skipped this session
 local STALE_SECONDS = 300      -- a flip's price older than this is shown as "seen N min ago"
 local DROP_SECONDS = 900       -- and older than this (a full scan's wait) isn't listed at all
+ns.FLIP_DROP_SECONDS = DROP_SECONDS   -- (Watched.lua: no chime for a find the queue leaves out)
 
 -- Listings the auction house won't sell at their price, this session: [auctionID] = true.
 -- A Nomad Trousers listing at 2s and a Rough Bronze Leggings one at 5s were refused with
@@ -853,6 +854,31 @@ function Q.noReply()
   again()
 end
 
+-- A vendor flip or watched item about to be sent: the most to pay for it can have gone
+-- down since it was planned (a watched item's price lowered, or the item unwatched, while
+-- the purchase waits at Confirm). Never sent above what it is now: looked up again at the
+-- new limit, or let go. A higher limit leaves the plan as it is, since it was planned
+-- under the lower one (Codex review, November 10). True when it stepped in.
+local function limitDropped(e)
+  if not (e and (e.reason == "flip" or e.reason == "watch") and ns.FlipLimitNow) then return false end
+  local now = ns:FlipLimitNow(e.id)
+  if now and now >= (e.limit or 0) then return false end
+  trace(("most to pay went down: %s to %s"):format(tostring(e.limit), tostring(now)))
+  if now then
+    if Q.state == "price" or Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
+    e.limit = now
+    Q.note = "The most to pay for it went down: checking again."
+    again()
+  else
+    dropCurrent()   -- (cancels one waiting at Confirm)
+    Q.note = ("Not buying %s: it's no longer watched or a vendor flip."):format(ns.ItemName(e.id) or "that")
+    Q.built = 0
+    rebuildNow()
+  end
+  return true
+end
+Q.limitDropped = limitDropped   -- (for the tests)
+
 -- One tick of the mouse wheel or a click on Buy: the next step of the purchase.
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
@@ -914,6 +940,8 @@ function ns:BuyQueueAct(clicked)
     again()
     return
   end
+  -- Vendor flips and watched items: never over what the most to pay is now.
+  if p and (Q.state == "ready" or Q.state == "confirm") and limitDropped(e) then return end
   -- A shopping list item: never more than the list still wants, checked again against
   -- the list itself right before buying, counting purchases still waiting for an answer.
   if p and e and e.reason == "list" and (Q.state == "ready" or Q.state == "confirm") and ns.ListStillWanted then

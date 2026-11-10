@@ -26,10 +26,15 @@ end
 
 -- Everything that shows or uses the list catches up: the Buy queue (a changed price can
 -- bring back an item it had set aside), the alerts (one already under your price chimes
--- now), the list and the price window.
+-- now), the list and the price window. Only a recent price chimes: the queue leaves out
+-- finds older than a full scan's wait, and the flip watch checks this item on its next
+-- pass anyway (Codex review, November 10: an hour-old price was announced as in the queue).
 local function changed(id)
   if ns.UnparkBuyQueue then ns:UnparkBuyQueue({ id }) end
-  if ns.CheckFlip then pcall(ns.CheckFlip, ns, id) end
+  local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
+  if ns.CheckFlip and rec and rec.t and time() - rec.t <= (ns.FLIP_DROP_SECONDS or 900) then
+    pcall(ns.CheckFlip, ns, id)
+  end
   if ns.RebuildBuyQueue then ns:RebuildBuyQueue() end
   if ns.RefreshWatchedView then ns:RefreshWatchedView() end
   if ns.RefreshPriceWindow then ns:RefreshPriceWindow() end
@@ -66,6 +71,21 @@ function ns:WatchLimit(id)
   if w.max and w.max > 0 and w.max >= (flip or 0) then return w.max, "you", sell end
   if flip then return flip, "vendor", sell end
   return nil, nil, sell
+end
+
+-- The most the Buy queue's Vendor flips may pay for an item now, whatever is listed: a
+-- watched item's limit, else a vendor flip's; nil when it's neither. BuyQueue.lua checks
+-- it again right before each purchase is sent, so a price lowered or removed while a
+-- purchase waits at Confirm applies to it too (Codex review, November 10).
+function ns:FlipLimitNow(id)
+  if ns:IsWatched(id) then
+    local limit = ns:WatchLimit(id)
+    return limit and math.floor(limit) or nil
+  end
+  local sell = ns:GetSellPrice(id)
+  if not (sell and sell > 0) or ns:GetVendorBuyPrice(id) then return end
+  local limit = ns:VendorFlipLimit(sell)
+  return limit > 0 and limit or nil
 end
 
 -- A watched item cheap enough to buy now, or nil. Shaped like a vendor flip (Shuffles.lua),
