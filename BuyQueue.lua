@@ -3578,11 +3578,17 @@ function ns:FlipsAnnounced(list)
   -- and could only be found by searching). Not while you're using a list (a lookup or purchase
   -- under way, or a click or tick there in the last 30 seconds): a list never buys a flip
   -- by accident, and the gold count on Vendor flips says they're there.
-  local switched = false
-  if shown() and view() == "lists" and Q.state == "idle" and not Q.cur and not listInUse() then
+  local switched, onView, st, cur = false, view(), Q.state, Q.cur
+  if shown() and onView == "lists" and st == "idle" and not cur and not listInUse() then
     setView("flips")
     switched = true
   end
+  -- (For checking, /fl debug: why a chime did or didn't show Vendor flips. Owner's test,
+  -- November 10: it stayed on Shopping lists, and nothing showed why.)
+  trace(("flip chime, %d new: %s (panel %s, tab %s, view %s, state %s, current %s, list used %s)"):format(#list,
+    switched and "showed Vendor flips" or "view left alone", tostring(side and side:IsShown() or false), tostring(S().tab),
+    onView, st, tostring(cur and cur.id),
+    Q.listTouched and ("%d s ago"):format(math.floor(GetTime() - Q.listTouched)) or "never"))
   if not (shown() and view() == "flips") then Q.unseenFlips = (Q.unseenFlips or 0) + #list end
   Q.built = 0
   if shown() and view() == "flips" and not switched then rebuildNow() end

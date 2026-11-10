@@ -448,6 +448,20 @@ T.test("Buy queue: using Shopping lists keeps a new flip from switching the view
   buyQueue.view, Q.listTouched = realView, nil
 end)
 
+-- Owner's test, November 10: a chime left Shopping lists on screen, and nothing showed why.
+T.test("Buy queue: a flip chime notes in the trace whether it showed Vendor flips", function()
+  local buyQueue = ns.db.settings.buyQueue
+  local realView, realUnseen = buyQueue.view, Q.unseenFlips
+  buyQueue.view, Q.listTouched, Q.cur, Q.state = "lists", nil, nil, "idle"
+  ns.db.settings.debug, ns.db.buyTrace = true, nil
+  ns:FlipsAnnounced({ { id = 91042 } })
+  local last = ns.db.buyTrace and ns.db.buyTrace[#ns.db.buyTrace] or ""
+  T.ok(last:find("flip chime, 1 new: view left alone (panel false, tab ", 1, true), last)
+  T.ok(last:find("view lists, state idle, current nil, list used never)", 1, true), last)
+  ns.db.settings.debug, ns.db.buyTrace = false, nil
+  buyQueue.view, Q.unseenFlips = realView, realUnseen
+end)
+
 -- The next five: Codex's review of November 9, with no wait between purchases.
 T.test("Buy queue: an older purchase's gold doesn't make the one under way look paid", function()
   withAHOpen(function()
