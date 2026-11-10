@@ -98,6 +98,32 @@ T.test("The sell price line in the game's tooltip data", function()
   rawset(_G, "Enum", real)
 end)
 
+-- Owner's saved data, November 9: 879 items on the auction house character were marked
+-- "vendors won't buy it" (667 priced on the other account), so their vendor flips were
+-- gone until a reload. Only a 1c price (Forever's essences) is checked against the line.
+T.test("A missing sell price line only rules out a 1c vendor price", function()
+  local BOOTS, ESSENCE = 60301, 60302
+  S.items[BOOTS] = { name = "Test Boots", sell = 250 }
+  S.items[ESSENCE] = { name = "Test Essence", sell = 1 }
+  local real = rawget(_G, "C_TooltipInfo")
+  rawset(_G, "C_TooltipInfo", { GetItemByID = function() return { lines = { { type = 0 } } } end })
+  T.eq(ns:GetSellPrice(BOOTS), 250)
+  T.eq(ns:GetSellPrice(ESSENCE), 1, "not known yet")
+  T.runTimers()
+  T.eq(ns:GetSellPrice(BOOTS), 250, "a real price stands without the line")
+  T.eq(ns:GetSellPrice(ESSENCE), nil, "1c with no line 3 seconds later: vendors won't buy it")
+  T.eq(ns.db.vendorSell[ESSENCE], 0)
+  rawset(_G, "C_TooltipInfo", real)
+end)
+
+T.test("A vendor price wrongly saved as none comes back", function()
+  local GLOVES = 60303
+  S.items[GLOVES] = { name = "Test Gloves", sell = 120 }
+  ns.db.vendorSell[GLOVES] = 0
+  T.eq(ns:GetSellPrice(GLOVES), 120)
+  T.eq(ns.db.vendorSell[GLOVES], 120)
+end)
+
 -- Gold audit, November 9: an old price became a shuffle or list limit.
 T.test("A chain isn't worked out from a price past the age limit", function()
   local MAT, OUT = 60101, 60102

@@ -166,10 +166,15 @@ local function canSell(id)
   return true
 end
 
+-- Only a 1c price is checked against the tooltip: the line can be missing for items
+-- vendors do buy, and the auction house character had 879 items marked "vendors won't
+-- buy it", 667 of them with a vendor price on the other account (Scalemail Boots, Jade,
+-- Lesser Healing Potion), so their vendor flips were gone until a reload (owner,
+-- November 9). A price saved as 0 that way comes back the next time the item is looked at.
 function ns:GetSellPrice(id)
   local saved = ns.db.vendorSell[id]
   local name, _, _, _, _, _, _, _, _, _, live = getItemInfo(id)
-  if name and live and live > 0 and not canSell(id) then live = 0 end
+  if name and live and live > 0 and live <= 1 and not canSell(id) then live = 0 end
   -- Items vendors won't buy report no price (Greater Magic Essence, October 2: nil while
   -- an old saved 1c was still shown). Remember them as 0 and show no vendor price.
   if name and (live == nil or live == 0) then
