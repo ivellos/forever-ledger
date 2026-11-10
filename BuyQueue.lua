@@ -78,6 +78,18 @@ local DROP_SECONDS = 900       -- and older than this (a full scan's wait) isn't
 local refusedAuctions = {}
 function ns:AuctionRefused(auctionID) return auctionID ~= nil and refusedAuctions[auctionID] == true end
 
+-- Both of those showed a bid equal to their buyout (5s on 5s, 2s on 2s), and the listing
+-- bought just after had no bid at all (owner's log, November 9): once the bid has reached
+-- the price, Buy is refused, so such a listing isn't tried or counted as a price at all.
+function ns.BidAtBuyout(r)
+  return r ~= nil and r.bidAmount ~= nil and r.buyoutAmount ~= nil and r.buyoutAmount > 0
+    and r.bidAmount >= r.buyoutAmount
+end
+-- A search result row (ItemSearchResultInfo) that can't be bought at its buyout.
+function ns:CantBuyOut(r)
+  return r ~= nil and (ns:AuctionRefused(r.auctionID) or ns.BidAtBuyout(r))
+end
+
 -- Flips the queue looked up and found nothing to buy: [itemID] = when. They stay out until
 -- a price newer than that comes in, not just for two minutes: gear's prices come only from
 -- scans, so a 13-minute-old one brought the same flip back every two minutes (owner,
@@ -748,8 +760,13 @@ local function planItem(key)
   local poorest   -- the cheapest one under the limit that costs more than you have
   for i = 1, n do
     local r = AH.GetItemSearchResultInfo(key, i)
+    local bidUp = r and ns.BidAtBuyout(r)
+    if bidUp and r.buyoutAmount <= e.limit then
+      trace(("auction %s at %d: bid %s, next bid %s, %s: passed over"):format(tostring(r.auctionID), r.buyoutAmount,
+        tostring(r.bidAmount), tostring(r.minBid), r.bidder and "has a bidder" or "no bidder"))
+    end
     if r and r.auctionID and r.buyoutAmount and r.buyoutAmount > 0 and r.buyoutAmount <= e.limit and not r.containsOwnerItem
-      and not (e.boughtIDs and e.boughtIDs[r.auctionID]) and not refusedAuctions[r.auctionID]
+      and not (e.boughtIDs and e.boughtIDs[r.auctionID]) and not refusedAuctions[r.auctionID] and not bidUp
       and (not e.suffix or rowIsVersion(r, e.suffix)) then
       -- A row of several (quantity over 1) is bought too, one at a time: the price is for
       -- one. These were left for the page, so a flip left the queue while still listed

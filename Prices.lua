@@ -962,9 +962,9 @@ local function itemUnits(itemKey)
     local r = C_AuctionHouse.GetItemSearchResultInfo(itemKey, i)
     -- buyoutAmount is already per item in Forever (beta test: dividing by quantity
     -- made Linen Reagent Bags 19c instead of 13s). The full scan's buyout is per listing.
-    -- A listing the auction house wouldn't sell the Buy queue isn't a price anyone can
-    -- pay (BuyQueue.lua), so it isn't one here either.
-    if r and r.buyoutAmount and r.buyoutAmount > 0 and not (ns.AuctionRefused and ns:AuctionRefused(r.auctionID)) then
+    -- A listing the auction house wouldn't sell the Buy queue, or whose bid has reached
+    -- its buyout, isn't a price anyone can pay (BuyQueue.lua), so it isn't one here either.
+    if r and r.buyoutAmount and r.buyoutAmount > 0 and not (ns.CantBuyOut and ns:CantBuyOut(r)) then
       units[#units + 1] = { r.buyoutAmount, math.max(r.quantity or 1, 1) }
     end
   end
@@ -1158,7 +1158,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   local isGear, getLink = {}, C_AuctionHouse.GetReplicateItemLink
   local samples = 0
   local timeLeft = C_AuctionHouse.GetReplicateItemTimeLeft
-  local probe = ns.db.settings.debug and { owner = 0, bands = {}, tl = timeLeft } or nil
+  local probe = ns.db.settings.debug and { owner = 0, bands = {}, tl = timeLeft, bidUp = 0, startUp = 0 } or nil
   local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
   local function suffixOf(idx, itemID)
     if not (getLink and instant) then return end
@@ -1195,7 +1195,10 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   local function chunk()
     local stop = math.min(i + 2000, n)
     for idx = i, stop - 1 do
-      local _, _, count, _, _, _, _, _, _, buyout, _, _, _, owner, ownerFull, _, itemID = C_AuctionHouse.GetReplicateItemInfo(idx)
+      local _, _, count, _, _, _, _, minBid, _, buyout, bidAmount, _, _, owner, ownerFull, _, itemID = C_AuctionHouse.GetReplicateItemInfo(idx)
+      -- A bid that has reached the buyout: Buy is refused (BuyQueue.lua ns.BidAtBuyout), so
+      -- it's left out like a listing with no buyout, not saved as a price or a flip.
+      local bidUp = buyout and buyout > 0 and bidAmount and bidAmount > 0 and bidAmount >= buyout
       -- How long each listing has left, as a band (1 under 30 minutes, 2 up to 2 hours,
       -- 3 up to 12, 4 up to 48): sell speed uses it to tell a sale from an expiry.
       local band = 0
@@ -1206,9 +1209,13 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       if probe then
         if owner and owner ~= "" or ownerFull and ownerFull ~= "" then probe.owner = probe.owner + 1 end
         if probe.tl then probe.bands[band] = (probe.bands[band] or 0) + 1 end
+        -- Checking the refused listings (November 9): a real bid at the price, or a
+        -- starting bid set at it?
+        if bidUp then probe.bidUp = probe.bidUp + 1
+        elseif buyout and buyout > 0 and minBid and minBid >= buyout then probe.startUp = probe.startUp + 1 end
       end
       if itemID then seen[itemID] = true else unread = unread + 1 end
-      if itemID and buyout and buyout > 0 then
+      if itemID and buyout and buyout > 0 and not bidUp then
         count = math.max(count or 1, 1)
         local t = byItem[itemID]
         if not t then t = {}; byItem[itemID] = t end
@@ -1238,8 +1245,9 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
         local bands = {}
         for b, c in pairs(probe.bands) do bands[#bands + 1] = tostring(b) .. "=" .. c end
         table.sort(bands)
-        ns:Debug(("Listing details: seller name on %d of %d; time left %s."):format(probe.owner, n,
-          probe.tl and (#bands > 0 and table.concat(bands, ", ") or "none read") or "function missing"))
+        ns:Debug(("Listing details: seller name on %d of %d; time left %s; a bid at the buyout on %d (left out), a starting bid at it on %d."):format(
+          probe.owner, n, probe.tl and (#bands > 0 and table.concat(bands, ", ") or "none read") or "function missing",
+          probe.bidUp, probe.startUp))
       end
       ns.db.lastFullScan = time()
       fullNote(("done: %d listings%s"):format(n, mine and "" or waited and (", %d seconds after asking"):format(waited) or ", not asked for by this request"))

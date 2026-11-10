@@ -931,4 +931,42 @@ T.test("Buy queue: a flip found gone stays out until a newer price", function()
   wipe(S.timers)
 end)
 
+-- The owner's log, November 9: both refused listings had a bid equal to their buyout
+-- (bid 500, next bid 500 on a 500 buyout); the one bought had no bid.
+T.test("Buy queue: a listing whose bid has reached its buyout isn't tried or saved", function()
+  T.eq(ns.BidAtBuyout({ buyoutAmount = 500, bidAmount = 500 }), true)
+  T.eq(ns.BidAtBuyout({ buyoutAmount = 500, bidAmount = 300 }), false, "a lower bid still leaves Buy")
+  T.eq(ns.BidAtBuyout({ buyoutAmount = 500 }), false, "no bid")
+  local rows = { { auctionID = 31, buyoutAmount = 400, bidAmount = 400, minBid = 400, quantity = 1 },
+    { auctionID = 32, buyoutAmount = 450, bidAmount = 300, minBid = 315, quantity = 1 },
+    { auctionID = 33, buyoutAmount = 500, quantity = 1 } }
+  local e = buyingItem(91124, 30)
+  e.limit, Q.state, Q.plan, Q.keys = 600, "search", nil, nil
+  ns.db.settings.buyQueue.limit = nil
+  S.money = 100000
+  searchRows(rows)
+  Q.planItem({ itemID = 91124 })
+  T.eq(Q.plan.auctionID, 32, "the bid-at-buyout listing is passed over, without a refused click")
+  Q.cur, Q.plan, Q.state = nil, nil, "idle"
+  local key = ns.MarketKey()
+  ns.db.prices[key] = ns.db.prices[key] or {}
+  T.fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 91124, itemSuffix = 0 })
+  noSearchRows()
+  T.eq(ns.db.prices[key][91124].m, 450, "nor saved as the cheapest price")
+  -- The full scan: bid (11th value) at the buyout (10th) is left out.
+  local listings = { { 400, 400, 91125 }, { 600, 0, 91125 } }
+  rawset(C_AuctionHouse, "GetNumReplicateItems", function() return #listings end)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", function(idx)
+    local l = listings[idx + 1]
+    return nil, nil, 1, nil, nil, nil, nil, l[1], nil, l[1], l[2], nil, nil, nil, nil, nil, l[3]
+  end)
+  S.now = S.now + 200
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(ns.db.prices[key][91125].m, 600, "the full scan leaves it out too")
+  rawset(C_AuctionHouse, "GetNumReplicateItems", nil)
+  rawset(C_AuctionHouse, "GetReplicateItemInfo", nil)
+  ns.db.prices[key][91124], ns.db.prices[key][91125], ns.db.lastFullListings = nil, nil, nil
+  wipe(S.timers)
+end)
+
 Q.cur, Q.plan, Q.state, Q.lateBuys = nil, nil, "idle", {}
