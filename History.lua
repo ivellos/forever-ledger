@@ -602,10 +602,11 @@ local function dropOld(s, cutoff, onDrop)
 end
 
 -- A finished day adds to the all-time figures.
+-- (ns.ReadAllTime, Core.lua, also reads a value an earlier realm move joined: gold audit G9.)
 local function addAllTime(id, cheapest, typical, key)
   local all = marketTable("historyAll", key)
-  local lo, sum, n = (all[id] or ""):match("^(%d+):(%d+):(%d+)$")
-  lo, sum, n = tonumber(lo), tonumber(sum) or 0, tonumber(n) or 0
+  local lo, sum, n = ns.ReadAllTime(all[id])
+  sum, n = sum or 0, n or 0
   all[id] = ("%.0f:%.0f:%.0f"):format(lo and math.min(lo, cheapest) or cheapest, sum + typical, n + 1)
 end
 
@@ -756,8 +757,8 @@ end
 -- The lowest price ever, when a finished day turns out lower.
 local function allTimeLowest(id, cheapest, key)
   local all = marketTable("historyAll", key)
-  local lo, sum, n = (all[id] or ""):match("^(%d+):(%d+):(%d+)$")
-  if lo and cheapest < tonumber(lo) then all[id] = ("%.0f:%s:%s"):format(cheapest, sum, n) end
+  local lo, sum, n = ns.ReadAllTime(all[id])
+  if lo and cheapest < lo then all[id] = ("%.0f:%.0f:%.0f"):format(cheapest, sum, n) end
 end
 
 -- One item's day into its history string. A day you have keeps its typical price and
@@ -1303,9 +1304,9 @@ end
 
 -- All time: lowest price ever seen and the average typical price, or nil.
 function ns:AllTimePrice(id)
-  local lo, sum, n = (marketTable("historyAll")[id] or ""):match("^(%d+):(%d+):(%d+)$")
+  local lo, sum, n = ns.ReadAllTime(marketTable("historyAll")[id])
   if not lo then return end
-  return tonumber(lo), tonumber(sum) / tonumber(n), tonumber(n)
+  return lo, sum / math.max(n, 1), n
 end
 
 ---------------------------------------------------------------------------

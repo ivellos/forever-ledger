@@ -44,6 +44,13 @@ function ns:AfterCut(copper, neutral)
   return copper - math.floor(copper * ns:AHCut(neutral))
 end
 
+-- What count at price each brings when one buyer takes them all: the cut is worked out on
+-- the whole sale and rounded down once, so 20 at 19c brings 361c, though 5% of 19c alone
+-- rounds to nothing (gold audit G8, November 9; the Empty Vial mail, 10 at 8c, lost 4c).
+function ns:SaleAfterCut(price, count, neutral)
+  return ns:AfterCut(price * math.max(math.floor(count or 1), 1), neutral)
+end
+
 -- What one unit fetches after the cut and one lost 8-hour deposit reserve. With needListings,
 -- thin markets (fewer than MIN_LISTED listed) don't count.
 -- What selling one on the auction house brings, after the cut. Selling means listing at

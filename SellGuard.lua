@@ -29,12 +29,24 @@ local function listing(frame)
   return id, price
 end
 
+-- How many the stacks page will list (1 if it doesn't say).
+local function quantity(frame)
+  local q = tonumber(call(frame, "GetQuantity") or call(frame.QuantityInput, "GetQuantity"))
+  return q and q >= 1 and math.floor(q) or 1
+end
+
 local function evaluate(g)
   local frame, post = g.frame, g.frame.PostButton
   local id, price = listing(frame)
   local sell = id and ns:GetSellPrice(id)
-  local net = price and ns:AfterCut(price)   -- (15% at a neutral auction house)
-  local bad = sell and net and net < sell
+  -- On the stacks page, the whole listing: a buyer taking it all pays one cut on the lot,
+  -- rounded down once, so 20 at 19c brings 361c against a vendor's 380c, though one at 19c
+  -- loses nothing to a 5% cut (gold audit G8). On the gear page each is its own auction.
+  -- (15% at a neutral auction house.)
+  local qty = g.stacks and quantity(frame) or 1
+  local net = price and ns:SaleAfterCut(price, qty)
+  local vendor = sell and sell * qty
+  local bad = vendor and net and net < vendor
   g.key = bad and (id .. ":" .. price) or nil
   if not bad then
     g.text:SetText("")
@@ -43,7 +55,7 @@ local function evaluate(g)
     return
   end
   -- Two short lines, centred under Post (owner, October 3: "centered and clean").
-  g.text:SetText(("|cffff7070Vendor pays: %s|r"):format(ns.Money(sell)))
+  g.text:SetText(("|cffff7070Vendor pays: %s%s|r"):format(ns.Money(vendor), qty > 1 and (" for %d"):format(qty) or ""))
   g.text2:SetText(("Auction house: %s after the %d%% cut"):format(ns.Money(net), math.floor(ns:AHCut() * 100 + 0.5)))
   local lock = ns.db.settings.sellGuard ~= false and not unlocked[g.key]
   g.anyway:SetShown(lock)
@@ -53,7 +65,7 @@ end
 local function guard(frame, name)
   if not frame or guards[frame] then return end
   local post = frame.PostButton
-  local g = { frame = frame }
+  local g = { frame = frame, stacks = name == "stacks" }
   guards[frame] = g
   -- Two single lines (one text with a line break was cut to "Vendor pays: 26s 92c...").
   g.text = T:Text(frame, 11)
@@ -98,8 +110,9 @@ local function guard(frame, name)
     since = 0
     evaluate(g)
   end)
-  ns:Debug(("Sell protection on %s: PostButton %s, GetItem %s, price from %s."):format(name, post and "yes" or "no",
-    frame.GetItem and "yes" or "no", frame.GetUnitPrice and "GetUnitPrice" or (frame.PriceInput and "PriceInput" or "nothing")))
+  ns:Debug(("Sell protection on %s: PostButton %s, GetItem %s, price from %s, quantity from %s."):format(name, post and "yes" or "no",
+    frame.GetItem and "yes" or "no", frame.GetUnitPrice and "GetUnitPrice" or (frame.PriceInput and "PriceInput" or "nothing"),
+    frame.GetQuantity and "GetQuantity" or (frame.QuantityInput and frame.QuantityInput.GetQuantity and "QuantityInput" or "nothing")))
 end
 
 ---------------------------------------------------------------------------

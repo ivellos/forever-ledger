@@ -307,13 +307,35 @@ function combine(into, from)
   end
 end
 
+-- All-time price figures (History.lua historyAll): "lowest:typicalSum:days", not dated. Two
+-- combine as the lower lowest, with the sums and days added (gold audit G9, November 9: the
+-- realm move joined them like dated history, "100:5000:5|120:6000:6", which nothing could
+-- read). A value joined that way before is read the same way. Returns lowest, sum, days or nil.
+function ns.ReadAllTime(s)
+  local lo, sum, n
+  for part in tostring(s or ""):gmatch("[^|]+") do
+    local l, a, d = part:match("^(%d+):(%d+):(%d+)$")
+    if l then
+      lo = math.min(lo or tonumber(l), tonumber(l))
+      sum, n = (sum or 0) + tonumber(a), (n or 0) + tonumber(d)
+    end
+  end
+  return lo, sum, n
+end
+
+local function combineAllTime(a, b)
+  local lo, sum, n = ns.ReadAllTime(a .. "|" .. b)
+  if not lo then return a end
+  return ("%.0f:%.0f:%.0f"):format(lo, sum, n)
+end
+
 -- Gear version history (History.lua) has its own fields per day or week, so two records
 -- of the same day can't just keep the cheaper row (Codex review, November 7):
 --   day  "day:cheapest:listed"            the cheaper price and the most listed
 --   week "week:cheapest:listedSum:days"   the row covering more days, with the cheaper price
 -- (Two weekly summaries of one week can't be added up without knowing which days each
--- covers, so the fuller one stands.)
-local VERSION_TABLES = { historyVersions = "day", historyVersionsWeekly = "week" }
+-- covers, so the fuller one stands.) All-time figures: combineAllTime above.
+local OWN_MERGE = { historyVersions = "day", historyVersionsWeekly = "week", historyAll = "all" }
 
 local function combinePeriods(a, b, kind)
   local byKey, keys = {}, {}
@@ -351,18 +373,20 @@ local function combineVersions(into, from, kind)
     local mine = into[k]
     if mine == nil then into[k] = v
     elseif type(mine) == "table" and type(v) == "table" then combineVersions(mine, v, kind)
-    elseif type(mine) == "string" and type(v) == "string" then into[k] = combinePeriods(mine, v, kind) end
+    elseif type(mine) == "string" and type(v) == "string" then
+      into[k] = kind == "all" and combineAllTime(mine, v) or combinePeriods(mine, v, kind)
+    end
   end
   return into
 end
 ns.CombineVersions = combineVersions   -- (tests)
 
 -- Puts every key and value in saved or received data under the plain realm.
--- kind: inside a gear version history table (VERSION_TABLES).
+-- kind: inside a table with its own way of combining (OWN_MERGE).
 function ns.PlainRealmData(t, kind)
   local renames
   for k, v in pairs(t) do
-    if type(v) == "table" then ns.PlainRealmData(v, kind or VERSION_TABLES[k])
+    if type(v) == "table" then ns.PlainRealmData(v, kind or OWN_MERGE[k])
     elseif type(v) == "string" and v:find("CAMWOW", 1, true) then t[k] = ns.PlainRealm(v) end
     if type(k) == "string" and k:find("CAMWOW", 1, true) then
       renames = renames or {}

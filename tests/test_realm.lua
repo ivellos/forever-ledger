@@ -51,6 +51,35 @@ T.test("Plain realm data: two servers' histories keep every day", function()
   T.eq(market[2], "4:1:1")
 end)
 
+-- Gold audit G9, November 9: all-time figures were joined like dated history.
+T.test("Plain realm data: two servers' all-time figures combine", function()
+  local db = { historyAll = {
+    ["CAMWOW US2 Realm 1 PvE|Alliance"] = { [1] = "100:5000:5", [2] = "7:70:1" },
+    ["CAMWOW US2 Realm 3 PvE|Alliance"] = { [1] = "120:6000:6", [3] = "9:90:1" },
+  } }
+  ns.PlainRealmData(db)
+  local all = db.historyAll["PvE|Alliance"]
+  T.eq(all[1], "100:11000:11", "the lower lowest, sums and days added")
+  T.eq(all[2], "7:70:1")
+  T.eq(all[3], "9:90:1")
+end)
+
+T.test("All-time figures an earlier realm move joined are still read", function()
+  local lo, sum, n = ns.ReadAllTime("100:5000:5|120:6000:6")
+  T.eq(lo, 100)
+  T.eq(sum, 11000)
+  T.eq(n, 11)
+  T.eq(ns.ReadAllTime(nil), nil)
+  local key = ns.MarketKey()
+  ns.db.historyAll[key] = ns.db.historyAll[key] or {}
+  ns.db.historyAll[key][60101] = "100:5000:5|120:6000:6"
+  local low, avg, days = ns:AllTimePrice(60101)
+  T.eq(low, 100, "the tooltip's all-time low comes back")
+  T.eq(avg, 1000)
+  T.eq(days, 11)
+  ns.db.historyAll[key][60101] = nil
+end)
+
 T.test("Plain realm data: the same character twice keeps its newest details and all recipes", function()
   local one, three = "Ivellos Veren-CAMWOW US2 Realm 1 PvE", "Ivellos Veren-CAMWOW US2 Realm 3 PvE"
   local db = { chars = {
