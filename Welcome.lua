@@ -172,13 +172,10 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.21.0",
+  version = "0.21.1",
   lines = {
-    { "Watch flips reads the whole auction house: between full scans it reads every item's cheapest price about every half minute (about 5,000 items in under 20 seconds), not 120 likely items every two minutes. Settings, Auction house, Buying: Read the whole auction house between full scans.", major = true },
-    { "Pause: in place of Scan materials, on the Buy queue panel and under the auction house window. It holds the flip watch and the Buy queue's own lookups, so your searches and the page you're on stay put until you click Resume. Buying still works." },
-    { "Your own searches: the whole-list reading waits a minute after you search, or while you're on an item's page, and checks just your watched items meanwhile.", change = true },
-    { "Scan materials: the buttons are gone, since full scans and the whole-list reading cover it. /fl scan materials still works.", change = true },
-    { "Ledger: after a refused purchase, the next gold you spend (another purchase, or a posting deposit) is no longer logged under that item.", fix = true },
+    { "Disenchant and craft values: what a disenchant or craft gives is valued at no more than its usual price this week, so a buyout that pushes a material's price up no longer makes expensive items look profitable. A drop in price still counts at once.", change = true },
+    { "Disenchanting: green weapons of item level 21-30 are valued at Greater Magic Essence, which is what they give in Forever, not Astral Essence.", fix = true },
   },
 }
 
