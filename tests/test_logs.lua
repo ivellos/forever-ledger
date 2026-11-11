@@ -86,3 +86,54 @@ T.test("A full log folds your own entries, never a partner's", function()
   T.eq(#ns.db.ledgerMonths, 1)
   T.eq(ns.db.ledgerMonths[1].c, ME)
 end)
+
+---------------------------------------------------------------------------
+-- Auction house purchases: which gold is which (History.lua takeHints)
+---------------------------------------------------------------------------
+-- At the auction house with 1000g, every earlier hint long gone (GetTime over 99000).
+local function atAH()
+  S.now, S.money = math.max(S.now, 1800099000) + 100, 10000000
+  T.fire("MERCHANT_CLOSED")
+  S.now = S.now + 2
+  ns.db.purchases = {}
+  T.fire("PLAYER_ENTERING_WORLD")
+end
+-- A purchase sent the way the Buy queue sends it (it names the item).
+local function bid(item, copper)
+  ns.queueBidItem = item
+  C_AuctionHouse.PlaceBid(1, copper)
+  ns.queueBidItem = nil
+end
+local function pay(copper)
+  S.now = S.now + 1
+  S.money = S.money - copper
+  T.fire("PLAYER_MONEY")
+end
+
+-- Owner's log, November 10: two Rough Bronze Leggings purchases at 5s were refused, then
+-- a 9s purchase and a 22c deposit were put down as Rough Bronze Leggings.
+T.test("A refused purchase doesn't name the next gold to leave", function()
+  atAH()
+  bid(2865, 500)   -- refused twice: no gold leaves
+  bid(2865, 500)
+  bid(4561, 900)
+  pay(900)
+  T.eq(#ns.db.purchases, 1)
+  T.eq(ns.db.purchases[1].id, 4561, "the one that cost 9s")
+  T.eq(ns.db.purchases[1].a, 900)
+  C_Item = { GetItemID = function(loc) return loc.id end }
+  C_AuctionHouse.PostItem({ id = 2589 }, 1, 1, 100)
+  C_Item = nil
+  pay(22)
+  T.eq(#ns.db.purchases, 1, "a deposit isn't a purchase")
+  T.eq(ns.db.money[ME][ns.LocalDay()].ahFee, 22)
+end)
+
+T.test("Two purchases at one price: the gold goes to the newer", function()
+  atAH()
+  bid(2865, 500)   -- refused
+  bid(4561, 500)
+  pay(500)
+  T.eq(#ns.db.purchases, 1)
+  T.eq(ns.db.purchases[1].id, 4561)
+end)

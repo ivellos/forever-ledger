@@ -182,18 +182,27 @@ local function takeHints(delta)
     for i, p in ipairs(pendingAll) do if p == h then table.remove(pendingAll, i); break end end
     return h
   end
+  -- A purchase whose cost is known (exact) only explains that amount, newest first: an
+  -- older one at the same price may have been refused, and a refused one's hint used to
+  -- explain the next gold to leave (owner's log, November 10: after two refused Rough
+  -- Bronze Leggings at 5s, a 9s purchase and a 22c deposit were put down as them).
+  for i = #pending, 1, -1 do
+    if pending[i].exact and pending[i].amount == want then return { take(pending[i]) } end
+  end
   for _, h in ipairs(pending) do
-    if h.amount == want then return { take(h) } end
+    if not h.exact and h.amount == want then return { take(h) } end
   end
   local sum, picks = 0, {}
   for _, h in ipairs(pending) do
-    if h.amount and sum + h.amount <= want then sum = sum + h.amount; picks[#picks + 1] = h end
+    if not h.exact and h.amount and sum + h.amount <= want then sum = sum + h.amount; picks[#picks + 1] = h end
   end
   if sum == want and #picks > 1 then
     for _, h in ipairs(picks) do take(h) end
     return picks
   end
-  if #pending > 0 then return { take(pending[1]) } end
+  for _, h in ipairs(pending) do
+    if not h.exact then return { take(h) } end
+  end
   return {}
 end
 
@@ -536,9 +545,12 @@ ns:OnReady(function()
   end)
   -- Buying one listing (gear and other single items): which item. The buy queue says
   -- which; otherwise it's the page you're on.
-  hook(C_AuctionHouse, "PlaceBid", function()
+  -- What it costs is known exactly (the gold taken is the amount bid), so only that
+  -- amount can be this purchase (takeHints).
+  hook(C_AuctionHouse, "PlaceBid", function(_, bidAmount)
     local id = ns.queueBidItem or lastShownItem
-    if id then hint({ source = "ahBuy", item = id, qty = 1, single = true }) end
+    local exact = type(bidAmount) == "number" and bidAmount > 0
+    if id then hint({ source = "ahBuy", item = id, qty = 1, single = true, amount = exact and bidAmount or nil, exact = exact or nil }) end
   end)
   pruneGold()
   -- Remove bad 0-gold readings saved before they were skipped, for characters that

@@ -11,6 +11,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - `/fl api` also lists the functions and events the whole-list reading uses.
 
+### Fixed
+- Ledger: after the auction house refused a purchase, the next gold you spent there (another purchase, or a posting deposit) could be logged as that item. A purchase is now only matched to gold that leaves at exactly its price.
+
 ## [0.20.0] - 2026-11-10
 
 ### Highlights
