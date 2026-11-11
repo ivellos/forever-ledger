@@ -713,6 +713,8 @@ end
 function ns:UpdateWatchButton()
   if ns.UpdatePanelScanButtons then ns:UpdatePanelScanButtons() end
   if ns.RefreshQueueView then ns:RefreshQueueView() end
+  -- Pause / Resume under the auction house window (UI.lua), like the panel's.
+  if ns.ahButton then ns.ahButton:SetText(ns.IsScanPaused and ns:IsScanPaused() and "Resume" or "Pause") end
   local w = ns.ahWatchButton
   if not w then return end
   local on = ns:IsFlipWatching()

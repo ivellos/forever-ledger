@@ -1383,6 +1383,7 @@ local SWEEP_PAUSE = 15
 -- or this often while an item's page stays open.
 local HELD_MIN, HELD_PAGE = 5, 10
 local sweepAfter   -- (GetTime) when a reading put off for you may go ahead
+local paused = false   -- the Pause button (ns:ToggleScanPause, below)
 local nextPause = WATCH_PAUSE
 local watching, watchTimer = false, nil
 -- Was the watch on when the auction house closed? For this character and this session
@@ -1506,7 +1507,7 @@ ns.FlipWatchSweepDone = sweepDone   -- (for the tests)
 
 local function watchPass()
   watchTimer = nil
-  if not watching then return end
+  if not watching or paused then return end   -- (Resume starts the next pass)
   if not ahOpen then ns:StopFlipWatch(); return end
   if Scan.active then watchTimer = C_Timer.NewTimer(10, watchPass); return end
   Scan.started = GetTime()
@@ -1553,7 +1554,7 @@ end
 
 function ns.FlipWatchNext()
   if watching and ns.RefreshFlipsIfShown then C_Timer.After(1, function() ns:RefreshFlipsIfShown() end) end
-  if watching and not watchTimer then
+  if watching and not watchTimer and not paused then
     local pause = nextPause
     -- A reading put off for you goes ahead once its wait is over, counted from when it was
     -- put off, not from the end of the watched items' checks.
@@ -1584,7 +1585,8 @@ end
 function ns:ToggleFlipWatch(quiet)
   if watching then ns:StopFlipWatch(); watchWasOn = false; return end
   if not ahOpen then ns:Print("Open the auction house first, then start the flip watch."); return end
-  watching = true
+  -- (Starting it means carry on: a pause ends too.)
+  watching, paused = true, false
   if not quiet then
     ns:Print("Flip watch on: a full scan every 15 minutes, and " ..
       (ns.SweepOn and ns:SweepOn() and "the whole auction house list read about every half minute in between. "
@@ -1597,11 +1599,34 @@ function ns:ToggleFlipWatch(quiet)
 end
 function ns:IsFlipWatching() return watching end
 
+-- Pause (owner, November 10, in place of Scan materials, which full scans and the whole-list
+-- reading made redundant): holds the flip watch and the Buy queue's own lookups
+-- (BuyQueue.lua), so your searches and the page you're on stay as you leave them, until you
+-- click Resume or close the auction house. What you click still runs: Buy and Go now, a
+-- queue row, Full scan, a list search. A full scan already asked for still arrives.
+function ns:IsScanPaused() return paused end
+function ns:ToggleScanPause()
+  if paused then
+    paused = false
+    ns:SetStatusText("")
+    if watching and not Scan.active and not watchTimer then watchPass() end
+  elseif ahOpen then
+    paused, sweepAfter = true, nil
+    if watchTimer then watchTimer:Cancel(); watchTimer = nil end
+    if countdown then countdown:Cancel(); countdown = nil end
+    if Scan.active and not Scan.full then Scan:Stop("Scan paused.") end
+    ns:SetStatusText("Paused: click Resume to carry on.")
+  end
+  if ns.UpdateWatchButton then ns:UpdateWatchButton() end
+  ns:RefreshUI()
+end
+
 -- The watch can only run with the auction house open. If it was on when you closed it,
 -- it starts again when you come back, so the first checks happen straight away
 -- (owner, October 3: flips sold while away, and the watch had to be restarted by hand).
 ns:On("AUCTION_HOUSE_CLOSED", function()
   watchWasOn = watching
+  paused = false   -- (each visit starts unpaused)
   ns:StopFlipWatch(true)
 end)
 ns:On("AUCTION_HOUSE_SHOW", function()

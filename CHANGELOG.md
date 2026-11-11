@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Changed
 - `/fl api` also lists the functions and events the whole-list reading uses.
+- Pause takes the place of Scan materials on the Buy queue panel and under the auction house window. It holds the flip watch and the Buy queue's own lookups, so your searches and the page you're on stay as you leave them, until you click Resume or close the auction house. Buy, Go now and clicking a row still work.
+
+### Removed
+- The Scan materials buttons (the Buy queue panel, under the auction house window, and the main window's footer): full scans and the whole-list reading cover it. `/fl scan materials` still checks just what your recipes use, and the flip watch still falls back to it when a full scan doesn't come.
 
 ### Fixed
 - Ledger: after the auction house refused a purchase, the next gold you spent there (another purchase, or a posting deposit) could be logged as that item. A purchase is now only matched to gold that leaves at exactly its price.

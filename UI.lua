@@ -199,13 +199,13 @@ local function buildMain()
   local full = T:Button(main, "Full scan", 140, function() ns.Scan:Start("full") end)
   full:SetPoint("BOTTOMLEFT", 12, 12)
   full:SetPrimary(true)
-  local scan = T:Button(main, "Scan materials", 120, function() ns.Scan:Start("watch") end)
-  scan:SetPoint("LEFT", full, "RIGHT", 6, 0)
+  -- (Scan materials was here until November 10: full scans and the whole-list reading cover
+  -- it, and /fl scan materials still does it.)
   -- One button for copying data across (owner's test, October 4: like the shopping
   -- lists' Share/import); Export, Import and Prices as text are tabs in its window.
   local dataBtn = T:Button(main, "Export / import", 120, function() ns:ShowExport() end)
-  dataBtn:SetPoint("LEFT", scan, "RIGHT", 18, 0)
-  main.scanBtn, main.fullBtn = scan, full
+  dataBtn:SetPoint("LEFT", full, "RIGHT", 18, 0)
+  main.fullBtn = full
   -- Away from the auction house they can't be clicked: say why (UI pass, November 9).
   local function scanHover(b, title, text)
     b:HookScript("OnEnter", function(self)
@@ -217,7 +217,6 @@ local function buildMain()
     b:HookScript("OnLeave", function() GameTooltip:Hide() end)
   end
   scanHover(full, "Full scan", "Reads every listing at once. The game allows one about every 15 minutes.")
-  scanHover(scan, "Scan materials", "Looks up the materials your recipes use, one item at a time.")
   -- Help: the first-run welcome again (Welcome.lua), bottom left like the other tabs'
   -- buttons (owner, October 5: not under the topic list).
   local welcomeBtn = T:Button(main, "Show the welcome again", 170, function()
@@ -232,9 +231,9 @@ local function buildMain()
   newsBtn:SetPoint("BOTTOMRIGHT", -12, 12)
   main.newsBtn = newsBtn
   main.footer = {
-    dashboard = { full, scan, newsBtn },
-    deals = { full, scan },
-    characters = { full, scan, dataBtn },
+    dashboard = { full, newsBtn },
+    deals = { full },
+    characters = { full, dataBtn },
     help = { welcomeBtn, newsBtn },
   }
 
@@ -397,7 +396,6 @@ function ns:RefreshUI()
     sf.content:SetHeight(sf.text:GetStringHeight() + 12)
     sf.UpdateScrollBar()
   end
-  main.scanBtn:SetEnabled(ns:IsAHOpen() and not ns.Scan.active)
   ns:UpdateFullScanButtons()
 end
 
@@ -1103,7 +1101,15 @@ function ns:OnAHShow()
   if ah and not ns.ahButton then
     -- Just below the window's bottom-right corner, level with Blizzard's Buy/Sell/Auctions
     -- tabs. Inside the window they covered the bid and buyout boxes on item pages.
-    ns.ahButton = blizzButton(ah, "Scan materials", 120, function() ns.Scan:Start("watch") end)
+    -- Pause / Resume, as on the Buy queue panel (BuyQueue.lua; owner, November 10).
+    ns.ahButton = blizzButton(ah, "Pause", 120, function() ns:ToggleScanPause() end)
+    ns.ahButton:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine("Pause", 1, 1, 1)
+      GameTooltip:AddLine("Holds the flip watch and the Buy queue's own lookups, so your searches and the page you're on stay as you leave them. Click Resume to carry on; closing the auction house ends it too.", nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    ns.ahButton:HookScript("OnLeave", function() GameTooltip:Hide() end)
     -- Auctionator adds its own tabs (Shopping, Selling, Cancelling, Auctionator) along the
     -- bottom, reaching the right side: go one row lower so we don't cover them.
     local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded

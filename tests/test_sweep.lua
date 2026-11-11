@@ -463,6 +463,34 @@ T.test("Sweep: put off for you, it says why once, and only watched items are che
   T.runTimers()
 end)
 
+-- Owner, November 10: Pause in place of Scan materials.
+T.test("Pause: holds the flip watch and the Buy queue's own lookups until Resume or the auction house closes", function()
+  local Scan = ns.Scan
+  T.eq(ns:IsScanPaused(), false)
+  Scan.active, Scan.quiet, Scan.queue = true, true, {}   -- a watch pass under way
+  ns:ToggleScanPause()
+  T.eq(ns:IsScanPaused(), true)
+  T.eq(Scan.active, false, "the pass under way stops")
+  Q.userPicked, Q.clickAt = nil, nil
+  T.eq(Q.pausedNow(), true, "the Buy queue looks nothing up by itself")
+  Q.clickAt = GetTime() - 5
+  T.eq(Q.pausedNow(), false, "right after your click or scroll it goes ahead (the next of a row)")
+  Q.clickAt = GetTime() - 11
+  T.eq(Q.pausedNow(), true)
+  Q.userPicked = true
+  T.eq(Q.pausedNow(), false, "Go now or a row you clicked")
+  Q.userPicked = nil
+  ns:ToggleScanPause()
+  T.eq(ns:IsScanPaused(), false, "Resume")
+  T.eq(Q.pausedNow(), false)
+  ns:ToggleScanPause()
+  T.fire("AUCTION_HOUSE_CLOSED")
+  T.eq(ns:IsScanPaused(), false, "closing the auction house ends it")
+  T.fire("AUCTION_HOUSE_SHOW")
+  T.runTimers()
+  Q.clickAt = nil
+end)
+
 ns.IsGearItem = realGear
 AH.IsThrottledMessageSystemReady, AH.HasFullBrowseResults, AH.GetBrowseResults = nil, nil, nil
 T.fire("AUCTION_HOUSE_CLOSED")
