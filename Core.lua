@@ -542,16 +542,24 @@ frame:SetScript("OnEvent", function(_, event, ...)
   end
 end)
 
-function ns:PrintPerf(reset)
-  if reset then ns.perf, ns.perfSince = {}, GetTime(); ns:Print("Timing reset. Play for a minute, then /fl perf."); return end
+-- The slowest tasks as lines of text, slowest single moment first (/fl perf, and the copy
+-- kept at logout with /fl debug on).
+function ns.PerfLines(n)
   local rows = {}
   for label, p in pairs(ns.perf) do rows[#rows + 1] = { label = label, p = p } end
   table.sort(rows, function(a, b) return a.p.max > b.p.max end)
-  ns:Print(("Time used by Forever Ledger over the last %d seconds, slowest single moment first:"):format(GetTime() - ns.perfSince))
-  for i = 1, math.min(12, #rows) do
+  local lines = {}
+  for i = 1, math.min(n, #rows) do
     local r = rows[i]
-    print(("  %s: slowest %.0f ms, %d times, %.0f ms total"):format(r.label, r.p.max, r.p.n, r.p.ms))
+    lines[i] = ("%s: slowest %.0f ms, %d times, %.0f ms total"):format(r.label, r.p.max, r.p.n, r.p.ms)
   end
+  return lines
+end
+
+function ns:PrintPerf(reset)
+  if reset then ns.perf, ns.perfSince = {}, GetTime(); ns:Print("Timing reset. Play for a minute, then /fl perf."); return end
+  ns:Print(("Time used by Forever Ledger over the last %d seconds, slowest single moment first:"):format(GetTime() - ns.perfSince))
+  for _, line in ipairs(ns.PerfLines(12)) do print("  " .. line) end
   -- Memory and loading, to see whether the data files (ClassicItems.lua) cost much.
   local update = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or UpdateAddOnMemoryUsage
   local usage = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or GetAddOnMemoryUsage
@@ -650,6 +658,11 @@ function ns:ApplyCharSettings()
 end
 
 ns:On("PLAYER_LOGOUT", function()
+  -- With /fl debug on, this session's /fl perf, to read after a reload (owner, November 11:
+  -- how long the Buy queue takes to rebuild when a flip comes in).
+  if ns.db and ns.db.settings and ns.db.settings.debug and ns.PerfLines then
+    ns.db.perfLog = { t = time(), secs = math.floor(GetTime() - ns.perfSince), lines = ns.PerfLines(25) }
+  end
   if ns.db and ns.accountSettings then
     ns.db.settings, ns.db.settingsAccount = ns.accountSettings, nil
   end

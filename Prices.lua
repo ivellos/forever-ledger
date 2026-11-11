@@ -1401,8 +1401,10 @@ local WATCH_ITEMS = 120     -- items re-checked per pass
 -- Between browse sweeps (Sweep.lua): auxForever read 7,718 items in 8.5 seconds on Forever.
 -- 15 seconds at first (owner, November 10); a reading takes about 16, and flips were bought
 -- by others within seconds, so a short breath only: every item about every 20 seconds
--- (owner, November 11). The reading still gives way to the Buy queue and to your searches.
-local SWEEP_PAUSE = 3
+-- (owner, November 11). The reading still gives way to the Buy queue and to your searches,
+-- so half a second is enough: every item about every 17 seconds, the auction house's own
+-- pace (about two requests a second, November 11).
+local SWEEP_PAUSE = 0.5
 -- Put off for you (Sweep.lua "held"): tried again when its wait is over, at least this soon,
 -- or this often while an item's page stays open.
 local HELD_MIN, HELD_PAGE = 5, 10

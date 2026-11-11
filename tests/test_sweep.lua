@@ -660,6 +660,37 @@ T.test("Buy queue: a busy auction house is looked at again within a quarter seco
   T.runTimers()
 end)
 
+-- Owner, November 11: full scans took 22-24 seconds, and nothing was bought meanwhile.
+T.test("Buy queue: a full scan under way doesn't hold a lookup back", function()
+  local Scan = ns.Scan
+  local realSearch = rawget(AH, "SendSearchQuery")
+  local searched = 0
+  rawset(AH, "SendSearchQuery", function() searched = searched + 1 end)
+  ns.lastUserSearch, ns.queueBusyUntil = nil, 0
+  Scan.active, Scan.full = true, true
+  Q.forceActive, Q.state, Q.key, Q.keys, Q.tries = true, "idle", nil, nil, 0
+  Q.cur = { id = MAT, lane = "flips", reason = "flip", limit = 90 }
+  Q.search()
+  T.eq(Q.state, "search", "looked up at once")
+  T.eq(searched, 1)
+  Scan.active, Scan.full = false, false
+  rawset(AH, "SendSearchQuery", realSearch)
+  Q.forceActive, Q.cur, Q.state = nil, nil, "idle"
+  T.runTimers()
+end)
+
+-- Owner, November 11: /fl perf, kept at logout with /fl debug on, to read after a reload.
+T.test("Perf: the slowest tasks as lines, slowest single moment first", function()
+  local real = ns.perf
+  ns.perf = { ["Buy queue"] = { n = 4, ms = 300, max = 120 }, ["Sweep"] = { n = 2, ms = 40, max = 30 },
+    ["Tooltip"] = { n = 9, ms = 900, max = 200 } }
+  local lines = ns.PerfLines(2)
+  T.eq(#lines, 2)
+  T.eq(lines[1], "Tooltip: slowest 200 ms, 9 times, 900 ms total")
+  T.eq(lines[2], "Buy queue: slowest 120 ms, 4 times, 300 ms total")
+  ns.perf = real
+end)
+
 -- Owner, November 10: Pause in place of Scan materials.
 T.test("Pause: holds the flip watch and the Buy queue's own lookups until Resume or the auction house closes", function()
   local Scan = ns.Scan

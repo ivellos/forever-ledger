@@ -236,7 +236,7 @@ local function setState(state)
     tostring(Q.note))
   if step ~= Q.lastStep then
     Q.lastStep = step
-    trace(step .. (throttle and " throttled" or "") .. (ns.Scan.active and " scanning" or ""))
+    trace(step .. (throttle and " throttled" or "") .. (ns.Scan.active and (ns.Scan.full and " full scan" or " scanning") or ""))
   end
   if refreshQueue then refreshQueue() end
 end
@@ -320,7 +320,7 @@ local function finishTarget(note, wakeIn, gone)
   Q.clicked = nil
   Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
   setState("idle")
-  C_Timer.After(0.3, prepare)
+  C_Timer.After(0, prepare)   -- (the next one straight away: owner, November 11)
 end
 
 -- The search can show listings the auction house won't sell: Shadowgems at 2s 25c, each
@@ -477,25 +477,26 @@ function search()
     timeout(2, search)
     return
   end
-  -- Only a full scan (a few seconds) is waited for. Other scans pause for a moment after
-  -- each lookup and purchase of ours instead (Prices.lua Scan:Next). Asked before waiting:
-  -- a scan that carries on keeps the game busy, and flips went while the queue waited
-  -- 3 seconds for it (owner's test, November 5: Golem Isospring).
+  -- Scans pause for a moment after each lookup and purchase of ours (Prices.lua Scan:Next).
+  -- Asked before waiting: a scan that carries on keeps the game busy, and flips went while
+  -- the queue waited 3 seconds for it (owner's test, November 5: Golem Isospring).
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 2)
-  -- (And a part of the flip watch's auction house list already on its way, a moment at most:
+  -- A full scan isn't waited for any more (owner, November 11: 22-24 seconds each with
+  -- 222,000 listings, every 15 minutes, with nothing bought meanwhile). Being tried: the
+  -- full scan log says whether it still arrives whole.
+  -- (A part of the flip watch's auction house list already on its way is, a moment at most:
   -- the sweep waits for the queue before asking for the next one, Sweep.lua.)
-  if throttled() or (ns.Scan.active and ns.Scan.full) or (ns.SweepWaiting and ns:SweepWaiting()) then
+  if throttled() or (ns.SweepWaiting and ns:SweepWaiting()) then
     -- The auction house is free again in a moment (a purchase's throttle, a part of the
     -- whole list on its way): looked at again every quarter second, and at once when the
     -- game says it's ready, not a whole second later (owner, November 11). Said once.
-    local kind = ns.Scan.full and "full" or "ah"
-    if not (Q.state == "wait" and Q.waitKind == kind) then
-      Q.waitFor = kind == "full" and "the full scan to finish" or "the auction house"
+    if not (Q.state == "wait" and Q.waitKind == "ah") then
+      Q.waitFor = "the auction house"
       Q.waitText, Q.waitHint = nil, nil   -- (not "Paused." from before)
       setState("wait")
-      Q.waitKind = kind
+      Q.waitKind = "ah"
     end
-    retry(kind == "full" and 1 or 0.25)
+    retry(0.25)
     return
   end
   -- You're searching the auction house yourself (a flip clicked in the main window, the
@@ -629,7 +630,7 @@ local function tooPoor(price)
   end
   Q.cur, Q.plan, Q.key, Q.keys = nil, nil, nil, nil
   setState("idle")
-  C_Timer.After(0.3, prepare)
+  C_Timer.After(0, prepare)   -- (the next one straight away: owner, November 11)
 end
 
 -- Start on the first item in the queue, if nothing's under way.

@@ -1039,7 +1039,8 @@ local function announce(all, usual)
 end
 
 -- One item's price was just saved (watch pass or your own search): alert at once if
--- it's a new vendor flip. Flips found within a second are announced together.
+-- it's a new vendor flip. Flips found together (one part of the auction house list, or a
+-- scan's results) are announced together.
 -- A watched item (Watched.lua) counts as a flip here, at your price.
 local function flipOrWatched(id)
   return (ns.WatchedFind and ns:WatchedFind(id)) or ns:VendorFlip(id)
@@ -1053,15 +1054,16 @@ function ns:CheckFlip(id)
   if flipAlerted[id] and f.cost >= flipAlerted[id] then return end
   flipAlerted[id] = f.cost
   pendingFlips[#pendingFlips + 1] = f
-  -- The Buy queue takes it now; the chime waits a second to gather any others (owner,
-  -- November 11: flips were bought by others a second or two after the chime).
+  -- The Buy queue takes it now; the chime waits a fifth of a second to gather any others
+  -- (owner, November 11: flips were bought by others a second or two after the chime, and
+  -- the whole-list reading finds a part's flips all at once, so a second was too long).
   if ns.FlipPending then
     local ok, err = pcall(ns.FlipPending, ns, f)
     if not ok then ns:Debug("Buy queue: new flip not taken", err) end
   end
   if not flipTimer then
     flipTimer = true
-    C_Timer.After(1, function()
+    C_Timer.After(0.2, function()
       flipTimer = false
       local list = pendingFlips
       pendingFlips = {}
