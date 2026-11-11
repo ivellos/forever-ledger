@@ -92,7 +92,8 @@ end
 -- One item: drop (true: the saved price has cheaper listings that are gone) and look:
 --   "check" a close look (an item search), "add" put the new cheapest into gear's saved
 --   listings, "touch" gear still listed at its saved cheapest gets a new time, or nil.
--- prev: the cheapest the last sweep saw (nil: not seen this visit); price: the cheapest now;
+-- prev: the cheapest the last sweep saw, if it was settled then (nil: not seen this visit,
+-- just became a flip, or its close look got no answer: judge); price: the cheapest now;
 -- rec: the saved price; limit: the most a vendor flip or watched item may cost (nil: neither).
 function ns.SweepDecide(prev, price, rec, limit, gear, now)
   local has = rec ~= nil and rec.m ~= nil and not rec.none
@@ -245,7 +246,8 @@ ask = function(first)
   -- Waiting from now: an answer the game sends while the request goes out (the old list
   -- being cleared) isn't this one's.
   S.state, S.askedAt = "waiting", GetTime()
-  if first then S.sent, S.sentAt, owns = true, GetTime(), true end
+  -- (sentClock: prices saved from now on are newer than the list's rows, judge.)
+  if first then S.sent, S.sentAt, S.sentClock, owns = true, GetTime(), time(), true end
   status(("Watching flips: reading the auction house list, part %d"):format(S.groups + 1))
   C_Timer.After(GROUP_WAIT, function()
     if S.tok == tok and S.state == "waiting" then
@@ -303,9 +305,15 @@ end
 
 
 -- One item of the list. Returns whether to remember its price for next time.
+-- What it returns is remembered for the next reading: { p = cheapest, e = a flip then
+-- (under its limit), at = when its close look was asked for }.
 local function judge(id, it, now, looks, stats)
   local market = ns.db.prices[ns.MarketKey()] or {}
   local rec = market[id]
+  -- Saved since this reading asked for the list (an item search, the Buy queue's lookup, a
+  -- full scan): newer than the list's row, so it's left as it is and judged afresh next
+  -- time (Codex review, November 10: an older row removed a cheaper listing just saved).
+  if rec and (rec.t or 0) >= (S.sentClock or math.huge) then return nil end
   local watched = ns.IsWatched and ns:IsWatched(id) or false
   -- What a vendor pays, the quick way (as ns:VendorFlip): most items aren't worth more.
   local raw = select(11, ns.GetItemInfo(id))
@@ -318,7 +326,13 @@ local function judge(id, it, now, looks, stats)
   end
   local limit
   if (watched or (raw and raw > it.min)) and ns.FlipLimitNow then limit = ns:FlipLimitNow(id) end
-  local prev = last[id]
+  local eligible = limit ~= nil and it.min <= limit
+  -- The same as last time only if it was settled then: not when it has just become a flip
+  -- (a new watch, its vendor price known at last), nor when its close look got no answer,
+  -- which is asked for again (Codex review, November 10). A close look that was answered
+  -- but left this row out (a bid at the buyout) stays settled.
+  local seen, prev = last[id], nil
+  if seen and seen.e == eligible and (not seen.at or (rec and (rec.t or 0) > seen.at)) then prev = seen.p end
   local drop, look = ns.SweepDecide(prev, it.min, rec, limit, ns:IsGearItem(id), now)
   if drop then
     local gone = ns:DropBelow(id, it.min, true)
@@ -327,7 +341,7 @@ local function judge(id, it, now, looks, stats)
   if look == "check" then
     looks[#looks + 1] = { id = id, price = it.min, watched = watched, new = prev ~= it.min,
       gain = (limit - it.min) / math.max(limit, 1) }
-    return false   -- (remembered once it's among the looks that run: see read's end)
+    return nil   -- (remembered once it's among the looks that run: see read's end)
   elseif look == "add" then
     if ns:AddCheapest(id, it.min, it.q) then stats.added = stats.added + 1 end
   elseif look == "touch" then
@@ -336,7 +350,7 @@ local function judge(id, it, now, looks, stats)
     local ok, err = pcall(ns.CheckFlip, ns, id)
     if not ok then ns:Debug("Flip check failed for", id, err) end
   end
-  return remember
+  return remember and { p = it.min, e = eligible } or nil
 end
 
 -- The whole list is here: read it once, then work through it a few hundred items a frame.
@@ -361,14 +375,14 @@ read = function(rows)
       if not ok then
         ns:Debug("Auction house list: skipped", id, keep)
       elseif keep then
-        fresh[id] = items[id].min
+        fresh[id] = keep
       end
     end
     i = stop
     if i < #ids then C_Timer.After(0, chunk); return end
     -- Done: the close looks to make, and what to remember for next time.
     local check = ns.SweepLookOrder(looks)
-    for _, id in ipairs(check) do fresh[id] = items[id].min end
+    for _, id in ipairs(check) do fresh[id] = { p = items[id].min, e = true, at = now } end
     -- (Bought or gone while the list came: judged afresh next time too.)
     for id in pairs(forgot) do fresh[id] = nil end
     last = fresh

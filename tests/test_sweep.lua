@@ -224,7 +224,11 @@ T.test("Sweep: reads every group, then acts only on what changed", function()
   T.eq(SW.state, "idle")
   T.runTimers()
 
-  -- The same list again: nothing changed, nothing to do.
+  -- The thread's close look is answered a second later, without the 80 row (a bid at the
+  -- buyout, say). Then the same list again: nothing changed, nothing to do.
+  S.now = S.now + 1
+  m[MAT].t = time()
+  S.now = S.now + 1
   full = false
   start()
   answer()
@@ -234,7 +238,8 @@ T.test("Sweep: reads every group, then acts only on what changed", function()
   T.same(result.ids, {}, "nothing new")
   T.eq(result.changed, false)
 
-  -- The close look saved the thread at 80 just now: the next sweeps leave it alone...
+  -- The close look saved the thread at 80 a moment ago: the next sweeps leave it alone...
+  S.now = S.now + 1
   m[MAT] = { m = 80, a = 90, q = 9, l = "80:4,95:7,120:9", t = time(), src = "scan" }
   rows, full = { row(MAT, 80, 4) }, true
   start()
@@ -362,6 +367,7 @@ T.test("Sweep: one bought or gone, then listed again at the same price, comes ba
   T.eq(m[GEAR].m, 150, "found and added")
   -- Bought: the saved listings now start higher (History.lua RemoveBought).
   m[GEAR] = { m = 170, a = 170, q = 2, l = "170:2", t = time(), src = "full" }
+  S.now = S.now + 1   -- (saved before the next list is asked for)
   start()
   answer()
   T.eq(m[GEAR].m, 170, "without being told, the same as last time is left alone")
@@ -370,6 +376,57 @@ T.test("Sweep: one bought or gone, then listed again at the same price, comes ba
   answer()
   T.eq(m[GEAR].m, 150, "judged afresh: back in front, so the Buy queue has it")
   m[GEAR] = nil
+  T.runTimers()
+end)
+
+-- Codex review, November 10: a price saved while the list was coming in is newer than the
+-- list's row for it, and the row removed the cheaper listing just saved.
+T.test("Sweep: a price saved while the list comes in is newer, so the list leaves it alone", function()
+  local m = market()
+  ns.lastUserSearch = nil
+  m[MAT] = { m = 200, a = 200, q = 3, l = "200:3", t = time() - 100, src = "full" }
+  rows, full = { row(MAT, 200, 3) }, false
+  start()
+  answer()   -- the first group
+  S.now = S.now + 1
+  m[MAT] = { m = 50, a = 163, q = 4, l = "50:1,200:4", t = time(), src = "scan" }   -- an item search
+  full = true
+  answer()
+  T.eq(result.outcome, "done")
+  T.eq(m[MAT].m, 50, "the cheaper listing just saved stays")
+  T.eq(m[MAT].l, "50:1,200:4")
+  -- The next list is newer than that price: if it still says 2c, the 50c one is gone.
+  S.now = S.now + 1
+  start()
+  answer()
+  T.eq(m[MAT].m, 200, "the next reading takes it off")
+  m[MAT] = nil
+  T.runTimers()
+end)
+
+-- Codex review, November 10: the same price as last time was left alone even when the item
+-- had just become a flip (a new watch), or when its close look got no answer.
+T.test("Sweep: the same price is looked at again when it just became a flip, or its look got no answer", function()
+  local m = market()
+  ns.lastUserSearch = nil
+  m[MAT] = { m = 250, a = 250, q = 2, l = "250:2", t = time() - 100, src = "full" }
+  rows, full = { row(MAT, 150, 2) }, true
+  S.now = S.now + 1
+  start(); answer()
+  T.same(result.ids, {}, "a vendor pays 1s: not a flip at 1s 50c")
+  ns.db.watchItems[MAT] = { max = 200, t = time() }
+  S.now = S.now + 1
+  start(); answer()
+  T.same(result.ids, { MAT }, "watched up to 2s: a close look at once")
+  S.now = S.now + 1
+  start(); answer()
+  T.same(result.ids, { MAT }, "that look got no answer: asked again")
+  S.now = S.now + 1
+  m[MAT].t = time()   -- answered, without this row (a bid at the buyout)
+  S.now = S.now + 1
+  start(); answer()
+  T.same(result.ids, {}, "answered: left alone")
+  ns.db.watchItems[MAT], m[MAT] = nil, nil
   T.runTimers()
 end)
 
