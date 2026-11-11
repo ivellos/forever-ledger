@@ -1608,14 +1608,14 @@ function ns:IsScanPaused() return paused end
 function ns:ToggleScanPause()
   if paused then
     paused = false
-    ns:SetStatusText("")
+    if ns.SetStatusText then ns:SetStatusText("") end
     if watching and not Scan.active and not watchTimer then watchPass() end
   elseif ahOpen then
     paused, sweepAfter = true, nil
     if watchTimer then watchTimer:Cancel(); watchTimer = nil end
     if countdown then countdown:Cancel(); countdown = nil end
     if Scan.active and not Scan.full then Scan:Stop("Scan paused.") end
-    ns:SetStatusText("Paused: click Resume to carry on.")
+    if ns.SetStatusText then ns:SetStatusText("Paused: click Resume to carry on.") end
   end
   if ns.UpdateWatchButton then ns:UpdateWatchButton() end
   ns:RefreshUI()
