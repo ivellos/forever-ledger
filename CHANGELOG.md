@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-10
+
+### Highlights
+- Δ **Watch flips reads the whole auction house**: between full scans it reads every item's cheapest price about every half minute (about 5,000 items in under 20 seconds), not 120 likely items every two minutes.
+- + **Pause**: in place of Scan materials. It holds the flip watch and the Buy queue's own lookups, so your searches and the page you're on stay put until you click Resume. Buying still works.
+- ~ **Your own searches**: the whole-list reading waits a minute after you search, or while you're on an item's page, and checks just your watched items meanwhile.
+- ~ **Scan materials**: the buttons are gone, since full scans and the whole-list reading cover it. `/fl scan materials` still works.
+- ✓ **Ledger**: after a refused purchase, the next gold you spend (another purchase, or a posting deposit) is no longer logged under that item.
+
 ### Added
 - Watch flips reads the whole auction house between full scans: about every half minute it reads the list a search with no name gives on the Buy page (every item, with its cheapest price), and looks closely only at items that just got cheap enough to be a vendor flip or a watched item at your price. Before, it checked about 120 likely items every two minutes and never saw the rest. Cheaper listings that have gone come off the saved prices at once. The Buy page's list then shows every item, cheapest first; the watch waits while you're on an item's page and for a minute after your own search, checking your watched items meanwhile, then reads the list again straight away. A flip bought or sold out and listed again at the same price comes straight back. New setting: Read the whole auction house between full scans (Settings, Auction house, Buying; on). If the list can't be read, the watch does the item checks instead.
 

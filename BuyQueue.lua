@@ -1791,7 +1791,7 @@ local function buildQueueView(parent)
       GameTooltip:AddLine("Checks the auction house for everything on your lists ticked \"Buy from this list in the Buy queue\" (and the materials you're short of), one item at a time. What's at or under your price shows up here.", nil, nil, nil, true)
     else
       GameTooltip:AddLine("Watch flips", 1, 1, 1)
-      GameTooltip:AddLine("Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes) and quick checks of likely items in between. New flips chime and join the queue. Click again to stop.", nil, nil, nil, true)
+      GameTooltip:AddLine("Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes), and the whole auction house list read about every half minute in between. New flips chime and join the queue. Click again to stop.", nil, nil, nil, true)
     end
     GameTooltip:Show()
   end)

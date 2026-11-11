@@ -172,15 +172,13 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.20.0",
+  version = "0.21.0",
   lines = {
-    { "Watched items: pick items to always check, each with the most you'd pay (or \"vendor\"). Watch flips checks them every pass, and they go first in the Buy queue's Vendor flips. Add one with Watch in its price window.", major = true },
-    { "Buy queue: a row of several (bags) is bought one at a time, and buying goes on after a purchase that got no answer, as in the beta.", change = true },
-    { "Vendor flips: items vendors buy are no longer marked \"vendors won't buy it\" partway through a session, which hid their flips until a reload.", fix = true },
-    { "Refused listings: one the auction house won't sell at its price is skipped, and a flip found gone stays off the list until a newer price comes in.", fix = true },
-    { "Sell protection: on the stacks page the cut is worked out on the whole listing, so 20 at 19c no longer slips under a vendor's price.", fix = true },
-    { "Undercuts: they need a price from the last 30 minutes, so a listing that's since sold can't get a fine auction canceled.", fix = true },
-    { "Damaged gear: Worth to you uses what a vendor pays for it as it is.", fix = true },
+    { "Watch flips reads the whole auction house: between full scans it reads every item's cheapest price about every half minute (about 5,000 items in under 20 seconds), not 120 likely items every two minutes. Settings, Auction house, Buying: Read the whole auction house between full scans.", major = true },
+    { "Pause: in place of Scan materials, on the Buy queue panel and under the auction house window. It holds the flip watch and the Buy queue's own lookups, so your searches and the page you're on stay put until you click Resume. Buying still works." },
+    { "Your own searches: the whole-list reading waits a minute after you search, or while you're on an item's page, and checks just your watched items meanwhile.", change = true },
+    { "Scan materials: the buttons are gone, since full scans and the whole-list reading cover it. /fl scan materials still works.", change = true },
+    { "Ledger: after a refused purchase, the next gold you spend (another purchase, or a posting deposit) is no longer logged under that item.", fix = true },
   },
 }
 
