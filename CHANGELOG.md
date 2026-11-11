@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-11
+
+### Highlights
+- Δ **Faster flips**: a new flip chimes and goes to the Buy queue as soon as its part of the auction house list arrives, not once the whole list is read, and the list is read about every 20 seconds instead of every half minute.
+- ~ **Gear flips**: looked up straight from the stat version the list saw, so they're ready to buy a moment after they're found.
+- ~ **Buy queue**: carries on the moment the auction house is free again, and takes a new flip at once.
+- ✓ **Rogue poisons**: no longer vendor flips. The game gives them a vendor price, but vendors won't buy them.
+
 ### Changed
 - Watch flips: a new flip chimes and goes to the Buy queue as soon as the part of the auction house list it's in arrives (the list comes cheapest first), not once the whole list is read: about 8 seconds sooner on average. The list is read again after 3 seconds instead of 15, so every item is seen about every 20 seconds.
 - Buy queue: a gear flip from the list is looked up straight from the stat versions the list saw, without searching its name first; a lookup waiting for a busy auction house goes on as soon as the game says it's ready, not a second later; and a new flip joins the queue at once, not a second after the chime.

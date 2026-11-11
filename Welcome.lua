@@ -172,10 +172,12 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.21.1",
+  version = "0.22.0",
   lines = {
-    { "Disenchant and craft values: what a disenchant or craft gives is valued at no more than its usual price this week, so a buyout that pushes a material's price up no longer makes expensive items look profitable. A drop in price still counts at once.", change = true },
-    { "Disenchanting: green weapons of item level 21-30 are valued at Greater Magic Essence, which is what they give in Forever, not Astral Essence.", fix = true },
+    { "Faster flips: a new flip chimes and goes to the Buy queue as soon as its part of the auction house list arrives, not once the whole list is read, and the list is read about every 20 seconds instead of every half minute.", major = true },
+    { "Gear flips: looked up straight from the stat version the list saw, so they're ready to buy a moment after they're found.", change = true },
+    { "Buy queue: carries on the moment the auction house is free again, and takes a new flip at once.", change = true },
+    { "Rogue poisons: no longer vendor flips. The game gives them a vendor price, but vendors won't buy them.", fix = true },
   },
 }
 
