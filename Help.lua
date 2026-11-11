@@ -13,7 +13,7 @@ ns.HELP = {
     { "Open this window", "Type /fl, or click the minimap button." },
     { "Learn your recipes", "Open each profession window once on every character." },
     { "Price everything", "At the auction house, click Full scan (allowed about every 15 minutes)." },
-    { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it short (today's cheapest price and what it's worth to you), with Shift for more. With 20 or more listed, selling on the auction house is valued from today's prices; with fewer, from this month's usual price if that's lower, so a few hopeful listings don't fool it, and a gray line says so." },
+    { "Tooltips", "Hover any item to see what it's worth to you. Settings can make it short (today's cheapest price and what it's worth to you), with Shift for more. With 20 or more listed, selling on the auction house is valued from today's prices; with fewer, from this month's usual price if that's lower, so a few hopeful listings don't fool it, and a gray line says so. What a disenchant or craft gives is valued at no more than its usual price this week, so a buyout that spikes a material's price doesn't make a disenchant look profitable." },
     { "Bags", "A bag's tooltip shows what one slot costs at today's cheapest price (auction house or vendor), and which bag is the cheapest per slot right now, so you buy the cheapest space first." },
     { sub = "Settings and look" },
     { "Search", "Settings and Help each have a search box above their list: type two letters or more to see everything that mentions it, from every section at once." },

@@ -189,6 +189,29 @@ T.test("Disenchanting: item level 21-30 green weapons give Greater Magic Essence
   T.eq(ns:DisenchantYield(60013).tested, true, "marked as tested in Forever")
 end)
 
+-- A player on Discord, November 10: Astral Essence was bought out and relisted high, and
+-- expensive items showed as profitable disenchants. A chain's result is valued at no more
+-- than its usual price this week; a drop still counts at once.
+T.test("Disenchanting: a spike in a material's price doesn't raise what a disenchant is worth", function()
+  S.items[60016] = { name = "Green Hat", quality = 2, ilvl = 12, classID = 4, equipLoc = "INVTYPE_HEAD" }
+  me({ Enchanting = { rank = 50 } })
+  price(DUST, 1000)
+  price(LESSER_MAGIC, 9000)   -- bought out and relisted at 90s today
+  local key, d = ns.MarketKey(), ns.LocalDay()
+  ns.db.history = ns.db.history or {}
+  ns.db.history[key] = ns.db.history[key] or {}
+  local days = {}
+  for i = 1, 5 do days[#days + 1] = ("%d:%d:%d"):format(d - i, 1900, 2000) end
+  ns.db.history[key][LESSER_MAGIC] = table.concat(days, "|")
+  ns:InvalidateValues(true)
+  near((ns:GetValue(60016)), 1.18 * 950 + 0.31 * 1900, "the essence at its usual 20s, after the cut")
+  price(LESSER_MAGIC, 1000)   -- and a drop counts at once
+  ns:InvalidateValues(true)
+  near((ns:GetValue(60016)), 1.18 * 950 + 0.31 * 950, "today's 10s")
+  ns.db.history[key][LESSER_MAGIC] = nil
+  ns:InvalidateValues(true)
+end)
+
 T.test("Essences: splitting a greater one into 3 lesser", function()
   price(LESSER_MAGIC, 5000)
   price(GREATER_MAGIC, 10000)

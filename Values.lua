@@ -73,6 +73,16 @@ local function ahSale(id, needListings)
     local ok, st = pcall(ns.PriceStats, ns, id, "month")
     if ok and st and st.points >= 4 and st.low and st.low < p then p = st.low end
   end
+  -- A chain's result (a disenchant's materials, a craft's output) at no more than its usual
+  -- price this week, however many are listed: a buyout that spikes today's price can't make
+  -- a purchase look profitable, while a drop counts at once (a player on Discord, November
+  -- 10: Astral Essence bought out, expensive items shown as profitable disenchants; Frank
+  -- chose the lower of the two). A real rise counts once the week's median has caught up,
+  -- after about 4 days (the week, not Deals' window: all of history would take weeks).
+  if needListings and ns.UsualPrice then
+    local ok, usual, points = pcall(ns.UsualPrice, ns, id, "week")
+    if ok and usual and (points or 0) >= 3 and usual < p then p = usual end
+  end
   return ns:AuctionSaleValue(id, p)
 end
 

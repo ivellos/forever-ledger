@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- What a disenchant or a craft gives is valued at no more than its usual price this week. Someone buying out a material and relisting it high (Astral Essence on one market) no longer makes expensive items look like profitable disenchants or crafts; a drop in price still counts at once. A real rise counts once the week's usual price catches up, after about four days.
+
 ### Fixed
 - Disenchanting: green weapons of item level 21-30 are valued at Greater Magic Essence, which is what they give in Forever, not Lesser or Greater Astral Essence. A Dire Wand showed as a profitable disenchant on Astral Essence prices. The Disenchant finder's hover for those item levels lists each kind's materials.
 
