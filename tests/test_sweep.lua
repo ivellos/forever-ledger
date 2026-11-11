@@ -491,6 +491,29 @@ T.test("Pause: holds the flip watch and the Buy queue's own lookups until Resume
   Q.clickAt = nil
 end)
 
+-- Codex review, November 10: /fl scan asked for a full scan, Pause came while it waited,
+-- and when none came the materials scan started anyway.
+T.test("Pause: a full scan that doesn't come starts no materials scan in its place", function()
+  local Scan = ns.Scan
+  local realWatch, started = Scan.StartWatch, 0
+  Scan.StartWatch = function() started = started + 1 end
+  wipe(S.timers)
+  ns.db.lastFullScan, Scan.heldUntil = nil, nil
+  Scan:StartFull(true)   -- (/fl scan: the materials instead if the full scan doesn't come)
+  ns:ToggleScanPause()
+  T.eq(ns:IsScanPaused(), true)
+  T.eq(Scan.active, true, "the full scan already asked for is still awaited")
+  T.runTimers()          -- 30 seconds, no answer
+  T.eq(started, 0, "paused: nothing in its place")
+  T.eq(Scan.active, false)
+  ns:ToggleScanPause()
+  Scan:StartFull(true)
+  T.runTimers()
+  T.eq(started, 1, "not paused: the materials, as before")
+  Scan.StartWatch = realWatch
+  Scan.active, Scan.full, Scan.heldUntil, ns.db.lastFullScan = false, false, nil, nil
+end)
+
 ns.IsGearItem = realGear
 AH.IsThrottledMessageSystemReady, AH.HasFullBrowseResults, AH.GetBrowseResults = nil, nil, nil
 T.fire("AUCTION_HOUSE_CLOSED")

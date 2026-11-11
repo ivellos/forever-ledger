@@ -1136,7 +1136,11 @@ function Scan:StartFull(fallback)
     self.active, self.full = false, false
     self.heldUntil = time() + FULL_HOLD
     if not fallback and ns.FlipWatchNext then ns.FlipWatchNext() end
-    if fallback then
+    if fallback and ns.IsScanPaused and ns:IsScanPaused() then
+      -- Paused while it waited: nothing starts in its place, though the full scan asked for
+      -- is still read if it comes (Codex review, November 10: the materials scan started).
+      ns:Print("The auction house hasn't sent the full scan yet; keep it open and it's read if it arrives. Paused, so nothing else is scanned meanwhile.")
+    elseif fallback then
       ns:Print("The auction house hasn't sent the full scan yet. Scanning your materials instead; keep the auction house open and it's read if it arrives.")
       self:StartWatch()
     else
