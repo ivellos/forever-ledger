@@ -1053,6 +1053,12 @@ function ns:CheckFlip(id)
   if flipAlerted[id] and f.cost >= flipAlerted[id] then return end
   flipAlerted[id] = f.cost
   pendingFlips[#pendingFlips + 1] = f
+  -- The Buy queue takes it now; the chime waits a second to gather any others (owner,
+  -- November 11: flips were bought by others a second or two after the chime).
+  if ns.FlipPending then
+    local ok, err = pcall(ns.FlipPending, ns, f)
+    if not ok then ns:Debug("Buy queue: new flip not taken", err) end
+  end
   if not flipTimer then
     flipTimer = true
     C_Timer.After(1, function()

@@ -112,7 +112,7 @@ local PAGES = {
         { key = "watchResume", label = "Resume the flip watch", kind = "check",
           help = "If the flip watch was on when you closed the auction house, start it again when you come back. It can only scan while the auction house is open." },
         { key = "watchSweep", label = "Read the whole auction house between full scans", kind = "check",
-          help = "The flip watch reads the auction house's whole list about every half minute (the same as a search with no name on the Buy page, whose list then shows every item, cheapest first) and looks closely at items that just got cheap enough. It waits while you're on an item's page and for a minute after your own search. Off: it checks about 120 likely items each time instead." },
+          help = "The flip watch reads the auction house's whole list about every 20 seconds (the same as a search with no name on the Buy page, whose list then shows every item, cheapest first) and looks closely at items that just got cheap enough. It waits while you're on an item's page and for a minute after your own search. Off: it checks about 120 likely items each time instead." },
         { key = "keepGold", label = "Buy queue: always keep", kind = "money", plainUnit = "g",
           help = "The Buy queue never takes your gold below this, so there's always enough for repairs, training or a mount. Type 100 for 100g. \"off\": it may spend all of it. (The most to spend each visit is on the Buy queue itself.)" },
       } },

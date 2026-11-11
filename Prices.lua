@@ -1380,9 +1380,11 @@ end)
 ---------------------------------------------------------------------------
 local WATCH_PAUSE = 30      -- seconds between passes
 local WATCH_ITEMS = 120     -- items re-checked per pass
--- Between browse sweeps (Sweep.lua): auxForever read 7,718 items in 8.5 seconds on Forever,
--- so a fresh look at every item about every half minute (owner, November 10).
-local SWEEP_PAUSE = 15
+-- Between browse sweeps (Sweep.lua): auxForever read 7,718 items in 8.5 seconds on Forever.
+-- 15 seconds at first (owner, November 10); a reading takes about 16, and flips were bought
+-- by others within seconds, so a short breath only: every item about every 20 seconds
+-- (owner, November 11). The reading still gives way to the Buy queue and to your searches.
+local SWEEP_PAUSE = 3
 -- Put off for you (Sweep.lua "held"): tried again when its wait is over, at least this soon,
 -- or this often while an item's page stays open.
 local HELD_MIN, HELD_PAGE = 5, 10
@@ -1500,7 +1502,7 @@ local function sweepDone(outcome, ids, changed, wait)
     itemPass(ids, "possible flips from the auction house list")
     return
   end
-  -- Nothing to look at closely: the pass ends here. (No deal check every half minute: each
+  -- Nothing to look at closely: the pass ends here. (No deal check after every reading: each
   -- changed item was checked for a flip as it changed.)
   Scan.active, Scan.quiet = false, nil
   if changed and ns.SyncSoon then ns:SyncSoon() end
@@ -1593,7 +1595,7 @@ function ns:ToggleFlipWatch(quiet)
   watching, paused = true, false
   if not quiet then
     ns:Print("Flip watch on: a full scan every 15 minutes, and " ..
-      (ns.SweepOn and ns:SweepOn() and "the whole auction house list read about every half minute in between. "
+      (ns.SweepOn and ns:SweepOn() and "the whole auction house list read about every 20 seconds in between. "
         or "items near vendor price re-checked in between. ") ..
       "A chime means a new flip. It pauses when you close the auction house and picks up when you come back.")
   end

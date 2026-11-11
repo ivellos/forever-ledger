@@ -202,7 +202,7 @@ end
 
 -- ...and a section is armed: only then does anything get looked up or bought.
 local function active()
-  return shown() and Q.armed ~= nil
+  return Q.forceActive or (shown() and Q.armed ~= nil)   -- (forceActive: for the tests)
 end
 
 -- The last 200 steps, to see why a purchase goes round again (owner, November 5: looking
@@ -226,7 +226,7 @@ local function holdScans()
 end
 
 local function setState(state)
-  Q.state, Q.tok = state, Q.tok + 1
+  Q.state, Q.tok, Q.waitKind = state, Q.tok + 1, nil
   if state == "ready" or state == "confirm" then holdScans() end
   local throttle = AH.IsThrottledMessageSystemReady and not AH.IsThrottledMessageSystemReady()
   trace(("%s item=%s qty=%s note=%s%s%s"):format(state, tostring(Q.cur and Q.cur.id), tostring(Q.plan and Q.plan.qty),
@@ -267,6 +267,14 @@ end
 local search, prepare, updateBinding, rebuildNow
 local spendable, sortFlips
 
+-- Look again in secs, unless the state changes or a newer retry is asked for first (so a
+-- wait never runs two of them at once).
+local function retry(secs)
+  Q.retryTok = (Q.retryTok or 0) + 1
+  local tok, rt = Q.tok, Q.retryTok
+  C_Timer.After(secs, function() if Q.tok == tok and Q.retryTok == rt then search() end end)
+end
+
 -- The auction house keeps one item search at a time: when the queue looks up the next
 -- item, a page still showing the last one spins on "Searching..." for good (owner,
 -- October 2). Go back to the search list instead, which shows the queue's lookups.
@@ -288,8 +296,8 @@ local function finishTarget(note, wakeIn, gone)
     if gone and e.lane == "flips" then
       checkedFlips[e.id] = time()
       -- The whole-list reading judges it afresh next time, so one listed again at the
-      -- same price brings it back (Sweep.lua).
-      if ns.SweepForget then ns:SweepForget(e.id) end
+      -- same price brings it back (Sweep.lua); the versions it saw are out of date.
+      if ns.SweepForget then ns:SweepForget(e.id, true) end
     end
     if wakeIn then C_Timer.After(wakeIn, function() Q.built = 0; rebuildNow() end) end
     local list = Q.lanes[e.lane] or {}
@@ -458,6 +466,7 @@ function search()
   if pausedNow() then
     Q.waitText, Q.waitHint = PAUSED, "Click Resume below to carry on, or Go now to look this one up."
     if Q.state ~= "wait" then setState("wait") end
+    Q.waitKind = nil   -- (not waiting for the auction house: its ready event leaves this alone)
     timeout(2, search)
     return
   end
@@ -469,9 +478,17 @@ function search()
   -- (And a part of the flip watch's auction house list already on its way, a moment at most:
   -- the sweep waits for the queue before asking for the next one, Sweep.lua.)
   if throttled() or (ns.Scan.active and ns.Scan.full) or (ns.SweepWaiting and ns:SweepWaiting()) then
-    Q.waitFor = ns.Scan.full and "the full scan to finish" or "the auction house"
-    setState("wait")
-    timeout(1, search)
+    -- The auction house is free again in a moment (a purchase's throttle, a part of the
+    -- whole list on its way): looked at again every quarter second, and at once when the
+    -- game says it's ready, not a whole second later (owner, November 11). Said once.
+    local kind = ns.Scan.full and "full" or "ah"
+    if not (Q.state == "wait" and Q.waitKind == kind) then
+      Q.waitFor = kind == "full" and "the full scan to finish" or "the auction house"
+      Q.waitText, Q.waitHint = nil, nil   -- (not "Paused." from before)
+      setState("wait")
+      Q.waitKind = kind
+    end
+    retry(kind == "full" and 1 or 0.25)
     return
   end
   -- You're searching the auction house yourself (a flip clicked in the main window, the
@@ -488,6 +505,18 @@ function search()
   leaveStalePage()
   Q.tries = (Q.tries or 0) + 1
   if Q.tries > 3 then finishTarget("no reply from the auction house."); return end
+  -- Gear: the stat versions the whole-list reading just saw cheap enough (Sweep.lua), searched
+  -- straight away: searching the name first took a moment and replaced the list being read
+  -- (owner, November 11). Flips only: a list's limit isn't the one the reading used.
+  if e.gear and not Q.key and e.lane == "flips" and not e.noVersions and ns.SweepVersions then
+    local keys, partial = ns:SweepVersions(e.id, e.limit)
+    if keys then
+      trace(("versions from the auction house list: %d%s"):format(#keys, partial and ", maybe more further on" or ""))
+      e.versionsPartial = partial
+      Q.key = table.remove(keys, 1)
+      Q.keys = keys
+    end
+  end
   -- Gear: find its stat versions first (one row each in the search list).
   if e.gear and not Q.key then
     local name = ns.GetItemInfo(e.id) or ns.ItemName(e.id)
@@ -517,6 +546,7 @@ function search()
   if not ok then ns:Debug("Buy queue: search failed", err); finishTarget("couldn't search for it."); return end
   timeout(5, search)
 end
+Q.search = function() return search() end   -- (for the tests)
 
 -- The cheapest one costs more than you have (the last scan's price, or what a lookup
 -- found). Those stay in the list, greyed, and are skipped until you have the gold: they
@@ -841,6 +871,15 @@ local function planItem(key)
       return
     end
     if poorest then tooPoor(poorest); return end
+    -- Versions from only part of the list (Sweep.lua): dearer ones under the limit may come
+    -- further on, so the name is searched after all before saying none are left.
+    if e.versionsPartial then
+      trace("versions from the list all gone: searching the name")
+      e.versionsPartial, e.noVersions = nil, true
+      Q.key, Q.keys, Q.tries = nil, nil, 0
+      search()
+      return
+    end
     finishTarget(("none left at %s or less."):format(limitText(e)), nil, true)
     return
   end
@@ -1093,6 +1132,11 @@ ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
   Q.keys = keys
   Q.key, Q.tries = table.remove(Q.keys, 1), 0
   search()
+end)
+
+-- The auction house is ready for the next request: a lookup waiting for it goes now.
+ns:On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function()
+  if Q.state == "wait" and Q.waitKind == "ah" then retry(0) end
 end)
 
 ns:On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
@@ -1791,7 +1835,7 @@ local function buildQueueView(parent)
       GameTooltip:AddLine("Checks the auction house for everything on your lists ticked \"Buy from this list in the Buy queue\" (and the materials you're short of), one item at a time. What's at or under your price shows up here.", nil, nil, nil, true)
     else
       GameTooltip:AddLine("Watch flips", 1, 1, 1)
-      GameTooltip:AddLine("Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes), and the whole auction house list read about every half minute in between. New flips chime and join the queue. Click again to stop.", nil, nil, nil, true)
+      GameTooltip:AddLine("Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes), and the whole auction house list read about every 20 seconds in between. New flips chime and join the queue as soon as the part of the list they're in arrives. Click again to stop.", nil, nil, nil, true)
     end
     GameTooltip:Show()
   end)
@@ -3564,8 +3608,9 @@ end
 -- queue within a second, not at the end of the pass, which could be 2 minutes (owner,
 -- October 2: flips showed on the Vendor flips tab before the queue).
 local flipRebuild = false
+local pendingRebuild = false   -- (a new flip's rebuild next frame, ns:FlipPending below)
 local function soonForFlip(_, id)
-  if flipRebuild or not shown() or view() ~= "flips" or not ns:FlipOrWatched(id) then return end
+  if flipRebuild or pendingRebuild or not shown() or view() ~= "flips" or not ns:FlipOrWatched(id) then return end
   flipRebuild = true
   C_Timer.After(1, function() flipRebuild = false; rebuildNow() end)
 end
@@ -3573,6 +3618,18 @@ end
 ns:OnReady(function()
   hooksecurefunc(ns, "CheckFlip", soonForFlip)
 end)
+
+-- A new flip on its way to the chime (Shuffles.lua CheckFlip): into the queue next frame,
+-- even one set aside after "none left", not after the chime's second of gathering (owner,
+-- November 11: flips were bought by others a second or two after the chime). Several in
+-- one go make one rebuild.
+function ns:FlipPending(f)
+  if not f then return end
+  done[f.id] = nil
+  if pendingRebuild or not shown() or view() ~= "flips" then return end
+  pendingRebuild = true
+  C_Timer.After(0, function() pendingRebuild = false; rebuildNow() end)
+end
 
 -- New flips just announced (Shuffles.lua): into the queue at once, even an item set
 -- aside for its two minutes after "none left" (owner's test, October 3: a flip was

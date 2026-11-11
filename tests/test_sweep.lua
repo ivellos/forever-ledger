@@ -220,14 +220,14 @@ T.test("Sweep: reads every group, then acts only on what changed", function()
   T.eq(result.changed, true)
   T.eq(m[PLAIN].m, 8, "its cheaper listings are gone"); T.eq(m[PLAIN].l, "8:8")
   T.eq(m[GEAR].m, 150, "gear's new cheapest added"); T.eq(m[GEAR].q, 3)
-  T.eq(m[MAT].m, 95, "a material waits for its close look")
+  T.eq(m[MAT].m, 80, "a material's new cheapest goes in at once, as a stand-in until its close look")
   T.eq(SW.state, "idle")
   T.runTimers()
 
   -- The thread's close look is answered a second later, without the 80 row (a bid at the
   -- buyout, say). Then the same list again: nothing changed, nothing to do.
   S.now = S.now + 1
-  m[MAT].t = time()
+  m[MAT] = { m = 95, a = 100, q = 8, l = "95:3,120:8", t = time(), src = "scan" }
   S.now = S.now + 1
   full = false
   start()
@@ -264,6 +264,7 @@ T.test("Sweep: another search replacing the list ends it, to be tried again next
   T.eq(ns:SweepOwnsList(), false)
   T.eq(SW.fails, 0, "not a failure")
   ns.lastUserSearch = nil
+  market()[MAT] = nil   -- (put in from the first group)
   T.runTimers()
 end)
 
@@ -297,6 +298,7 @@ T.test("Sweep: buying comes first; the next group waits for the Buy queue", func
   for i = #S.timers, 1, -1 do S.timers[i]() end
   T.eq(result.outcome, "broken")
   T.eq(SW.fails, 0)
+  market()[MAT] = nil   -- (put in from the first group)
   T.runTimers()
 end)
 
@@ -422,7 +424,8 @@ T.test("Sweep: the same price is looked at again when it just became a flip, or 
   start(); answer()
   T.same(result.ids, { MAT }, "that look got no answer: asked again")
   S.now = S.now + 1
-  m[MAT].t = time()   -- answered, without this row (a bid at the buyout)
+  -- Answered, without this row (a bid at the buyout): the saved listings are the search's.
+  m[MAT] = { m = 250, a = 250, q = 2, l = "250:2", t = time(), src = "scan" }
   S.now = S.now + 1
   start(); answer()
   T.same(result.ids, {}, "answered: left alone")
@@ -460,6 +463,127 @@ T.test("Sweep: put off for you, it says why once, and only watched items are che
   ns.db.watchItems[MAT] = nil
   ns.db.settings.debug, ns.db.sweepLog, ns.lastUserSearchBy = false, nil, nil
   T.fire("AUCTION_HOUSE_SHOW")   -- (forgets the page)
+  T.runTimers()
+end)
+
+-- Owner, November 11: flips chimed and were bought by others a second or two later, while
+-- the rest of the list (about 16 seconds of it) was still coming.
+T.test("Sweep: a new flip is acted on as soon as its part of the list comes", function()
+  local m = market()
+  ns.lastUserSearch = nil
+  ns.db.settings.debug, ns.db.sweepLog = true, nil
+  m[MAT], m[GEAR], m[SILK] = nil, nil, nil
+  local k1 = { itemID = GEAR, itemLevel = 0, itemSuffix = 0, battlePetSpeciesID = 0 }
+  local k2 = { itemID = GEAR, itemLevel = 0, itemSuffix = 7, battlePetSpeciesID = 0 }
+  local function gearRow(key, price, qty) return { itemKey = key, minPrice = price, totalQuantity = qty } end
+  rows, full = { row(MAT, 80, 4), gearRow(k1, 150, 1) }, false
+  S.now = S.now + 1
+  start()
+  answer()
+  T.eq(result, nil, "the list isn't over")
+  T.eq(m[GEAR] and m[GEAR].m, 150, "gear goes in front at once")
+  T.eq(m[MAT] and m[MAT].m, 80, "a material too, as a stand-in")
+  local keys, partial = ns:SweepVersions(GEAR, 180)
+  T.same(keys, { k1 }, "the version the Buy queue can search straight away")
+  T.eq(partial, true, "dearer versions under the limit may still come")
+  -- The next group comes with its rows: silk at 30c is a flip (a vendor pays 50c).
+  T.fire("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", { gearRow(k2, 175, 2), row(SILK, 30, 5) })
+  T.eq(m[SILK] and m[SILK].m, 30, "acted on before the list is over")
+  T.same(ns:SweepVersions(GEAR, 180), { k1, k2 }, "both versions under 1s 80c, cheapest first")
+  T.eq(ns:SweepVersions(GEAR, 160)[2], nil, "only those under the limit asked for")
+  -- Meanwhile the Buy queue looked the thread up: what's saved is its search now.
+  m[MAT] = { m = 80, a = 80, q = 4, l = "80:4", t = time(), src = "scan" }
+  rows, full = { row(SILK, 30, 5), row(MAT, 80, 4), gearRow(k1, 150, 1), gearRow(k2, 175, 2) }, true
+  table.remove(S.timers)()   -- (the group's answer carries on next frame)
+  T.eq(result.outcome, "done")
+  T.same(result.ids, { SILK }, "only the material no search has seen gets its close look")
+  keys, partial = ns:SweepVersions(GEAR, 180)
+  T.eq(#keys, 2); T.eq(partial, false, "the whole list: no more to come")
+  local line = ns.db.sweepLog[#ns.db.sweepLog]
+  T.ok(line:find("New flips as their part came: 3 (parts read as they came: 2)", 1, true), line)
+  T.ok(line:find("Flips can only be in the first 1 parts", 1, true), line)
+  T.runTimers()
+
+  -- Its close look got no answer, and the next list says 60c: the stand-in comes off.
+  S.now = S.now + 1
+  rows, full = { row(SILK, 60, 5) }, true
+  start()
+  answer()
+  T.eq(m[SILK].m, 60, "the 30c one is gone")
+  -- A purchase keeps the versions; none left, or a minute on, they're out of date.
+  ns:SweepForget(GEAR)
+  T.ok(ns:SweepVersions(GEAR, 180), "kept after a purchase")
+  S.now = S.now + 61
+  T.eq(ns:SweepVersions(GEAR, 180), nil, "a minute old")
+  ns:SweepForget(GEAR, true)
+  m[MAT], m[GEAR], m[SILK] = nil, nil, nil
+  ns.db.settings.debug, ns.db.sweepLog = false, nil
+  T.runTimers()
+end)
+
+T.test("Buy queue: a gear flip searches the versions the list saw, not its name first", function()
+  local realSearch, realVersions = rawget(AH, "SendSearchQuery"), ns.SweepVersions
+  local searched = {}
+  rawset(AH, "SendSearchQuery", function(key) searched[#searched + 1] = key end)
+  rawset(AH, "GetNumItemSearchResults", function() return 0 end)
+  rawset(AH, "HasFullItemSearchResults", function() return true end)
+  local k1 = { itemID = GEAR, itemLevel = 0, itemSuffix = 0, battlePetSpeciesID = 0 }
+  local k2 = { itemID = GEAR, itemLevel = 0, itemSuffix = 7, battlePetSpeciesID = 0 }
+  local partial = false
+  ns.SweepVersions = function(_, id) if id == GEAR then return { k1, k2 }, partial end end
+  ns.lastUserSearch, ns.queueBusyUntil = nil, 0
+  local sentBefore = #sent
+  Q.forceActive, Q.state, Q.key, Q.keys, Q.tries = true, "idle", nil, nil, 0
+  Q.cur = { id = GEAR, gear = true, lane = "flips", reason = "flip", limit = 180 }
+  Q.search()
+  T.eq(Q.state, "search")
+  T.eq(searched[1], k1, "the cheaper version, straight away")
+  T.same(Q.keys, { k2 })
+  T.eq(#sent, sentBefore, "no search by name")
+  -- From part of the list: both versions gone, so the name is searched after all.
+  partial = true
+  Q.cur, Q.key, Q.keys, Q.tries = { id = GEAR, gear = true, lane = "flips", reason = "flip", limit = 180 }, nil, nil, 0
+  Q.search()
+  Q.planItem(k1)
+  T.eq(searched[#searched], k2, "the next version")
+  Q.planItem(k2)
+  T.eq(Q.state, "browse", "then the name")
+  T.eq(#sent, sentBefore + 1)
+  -- A shopping list's gear always searches the name: its limit isn't the one the list used.
+  Q.cur, Q.key, Q.keys, Q.tries = { id = GEAR, gear = true, lane = "lists", reason = "list", limit = 180 }, nil, nil, 0
+  Q.search()
+  T.eq(Q.state, "browse")
+  rawset(AH, "SendSearchQuery", realSearch)
+  rawset(AH, "GetNumItemSearchResults", nil)
+  rawset(AH, "HasFullItemSearchResults", nil)
+  ns.SweepVersions = realVersions
+  Q.forceActive, Q.cur, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"
+  T.runTimers()
+end)
+
+T.test("Buy queue: a busy auction house is looked at again within a quarter second, and at once when it's ready", function()
+  local ready = false
+  AH.IsThrottledMessageSystemReady = function() return ready end
+  ns.lastUserSearch, ns.queueBusyUntil = nil, 0
+  Q.forceActive, Q.state, Q.key, Q.keys, Q.tries = true, "idle", nil, nil, 0
+  Q.cur = { id = MAT, lane = "flips", reason = "flip", limit = 90 }
+  wipe(S.timers)
+  Q.search()
+  T.eq(Q.state, "wait"); T.eq(Q.waitKind, "ah")
+  local tok = Q.tok
+  table.remove(S.timers)()   -- a quarter second later: still busy
+  T.eq(Q.state, "wait")
+  T.eq(Q.tok, tok, "said once, not again every quarter second")
+  T.eq(#S.timers, 1, "one look waiting, never two")
+  ready = true
+  T.fire("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
+  table.remove(S.timers)()   -- (next frame)
+  T.eq(Q.state, "search", "looked up as soon as the game said so")
+  local tok2 = Q.tok
+  table.remove(S.timers, 1)()   -- the older look: nothing more
+  T.eq(Q.tok, tok2)
+  AH.IsThrottledMessageSystemReady = function() return true end
+  Q.forceActive, Q.cur, Q.state = nil, nil, "idle"
   T.runTimers()
 end)
 
