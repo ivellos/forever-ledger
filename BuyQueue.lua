@@ -1007,13 +1007,17 @@ end
 local function confirmStack()
   local e, p = Q.cur, Q.plan
   Q.buyAt, Q.lastMoney, Q.buyFrom, Q.lastPlan = GetTime(), GetMoney(), GetMoney(), p
+  local tok = Q.tok
   local ok, err = pcall(AH.ConfirmCommoditiesPurchase, e.id, p.qty)
   if not ok then ns:Print("Couldn't confirm that purchase: " .. tostring(err)); again(); return end
+  -- The game blocked it while the call ran (blocked, below, already moved the state on):
+  -- nothing is on its way, so no waiting for an answer (Codex review, November 11).
+  if Q.tok ~= tok then return end
   setState("buying")
   timeout(10, Q.noReply)
 end
 
--- One tick buys a stack (owner, November 11; Settings: Buy a stack in one tick). The game
+-- One tick buys a stack (owner, November 11; Settings: Confirm stacks with a second click, off). The game
 -- needs your click to start a stack's purchase (StartCommoditiesPurchase), not to confirm
 -- it, so the confirm goes ahead by itself once the final price has come back within the
 -- limit and what you can spend: the same checks a second tick would get. If the game
@@ -1095,8 +1099,10 @@ function ns:BuyQueueAct(clicked)
   end
   if not withinLimits(e, p) then return end
   if Q.state == "ready" and p and p.kind == "commodity" then
+    local tok = Q.tok
     local ok, err = pcall(AH.StartCommoditiesPurchase, e.id, p.qty)
     if not ok then ns:Print("Couldn't start that purchase: " .. tostring(err)); again(); return end
+    if Q.tok ~= tok then return end   -- (blocked while the call ran)
     setState("price")
     timeout(6, function() pcall(AH.CancelCommoditiesPurchase); Q.note = "No final price came back: checking again."; again() end)
   elseif Q.state == "confirm" and p and p.kind == "commodity" then
@@ -1105,9 +1111,11 @@ function ns:BuyQueueAct(clicked)
     -- So the purchase is logged under the right item (History.lua's PlaceBid hook).
     ns.queueBidItem = e.id
     Q.buyAt, Q.lastMoney, Q.buyFrom, Q.lastPlan = GetTime(), GetMoney(), GetMoney(), p
+    local tok = Q.tok
     local ok, err = pcall(AH.PlaceBid, p.auctionID, p.price)
     ns.queueBidItem = nil
     if not ok then ns:Print("Couldn't buy that: " .. tostring(err)); again(); return end
+    if Q.tok ~= tok then return end   -- (blocked while the call ran)
     setState("buying")
     timeout(6, Q.noReply)
   elseif Q.state == "wait" and Q.waitText then
@@ -1218,7 +1226,7 @@ ns:On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
   if total and total <= Q.cur.limit * Q.plan.qty and total <= spendable() then
     Q.plan.total = total
     setState("confirm")
-    if ns.db.settings.buyStackOneTick ~= false and not autoBlocked then autoConfirm() end
+    if not ns.db.settings.stackTwoClicks and not autoBlocked then autoConfirm() end
   else
     pcall(AH.CancelCommoditiesPurchase)
     if total and refusedTwice(("the real price is %s each, over %s."):format(money(math.ceil(total / Q.plan.qty)), limitText(Q.cur))) then return end
@@ -1464,8 +1472,12 @@ end
 -- If the game won't let an addon buy (it could restrict these calls), say so plainly.
 local function blocked(addon, fn)
   if addon ~= ADDON then return end
+  -- A purchase call blocked: nothing was bought, so no gold leaving now is its.
+  local name = tostring(fn)
+  if name:find("PlaceBid", 1, true) or name:find("CommoditiesPurchase", 1, true) then Q.buyAt, Q.lastPlan = nil, nil end
   -- A stack's confirm done by itself (autoConfirm): the game wants your click for it after
-  -- all, so this stack waits for your next tick, and later ones take two ticks again.
+  -- all, so this stack waits for your next tick, and later ones take two ticks again. (This
+  -- can come while the call is still running, or just after it: Codex review, November 11.)
   if Q.autoAt and GetTime() - Q.autoAt < 2 and tostring(fn):find("ConfirmCommoditiesPurchase", 1, true) then
     autoBlocked, Q.autoAt = true, nil
     ns:Print("The game wants your click to confirm a stack of materials, so the Buy queue asks for a second tick again.")
@@ -1558,7 +1570,7 @@ local function statusText()
       ("%s each, up to %s. %s"):format(money(p.cost / p.qty), limitText(e), how), "Buy"
   end
   if st == "price" then
-    return "Getting the final price for " .. name .. "...", (ns.db.settings.buyStackOneTick ~= false and not autoBlocked)
+    return "Getting the final price for " .. name .. "...", (not ns.db.settings.stackTwoClicks and not autoBlocked)
       and "Bought as soon as the final price comes back within your limit." or "Stacks are bought in two steps: price, then confirm.", GREY:format("Wait")
   end
   if st == "confirm" and p then
@@ -1870,7 +1882,7 @@ local function buildQueueView(parent)
   wheel:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine("Scroll to buy", 1, 1, 1)
-    GameTooltip:AddLine("Each tick of the mouse wheel, up or down, buys the next item: anywhere over Vendor flips (drag the bar on the right to scroll its list), or over the top strip of Shopping lists. A stack of materials is confirmed in the same tick (Settings, Auction house: Buy a stack in one tick). It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
+    GameTooltip:AddLine("Each tick of the mouse wheel, up or down, buys the next item: anywhere over Vendor flips (drag the bar on the right to scroll its list), or over the top strip of Shopping lists. A stack of materials is confirmed in the same tick (unless Confirm stacks with a second click is ticked in Settings, Auction house). It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)

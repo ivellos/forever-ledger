@@ -507,7 +507,7 @@ T.test("Sweep: a new flip is acted on as soon as its part of the list comes", fu
   keys, partial = ns:SweepVersions(GEAR, 180)
   T.eq(#keys, 2); T.eq(partial, false, "the whole list: no more to come")
   local line = ns.db.sweepLog[#ns.db.sweepLog]
-  T.ok(line:find("New flips as their part came: 3 (parts read as they came: 2)", 1, true), line)
+  T.ok(line:find("New flips as their part came: 3, in parts 1, 1, 2 (parts read as they came: 2)", 1, true), line)
   T.ok(line:find("Flips can only be in the first 1 parts", 1, true), line)
   T.runTimers()
 

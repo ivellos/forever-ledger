@@ -867,11 +867,11 @@ T.test("Buy queue: a stack's confirm goes ahead by itself once the final price i
   T.fire("COMMODITY_PRICE_UPDATED", 11, 55)
   T.eq(confirmed, 1, "over 10c each: not bought")
   -- Settings off: a second tick confirms.
-  ns.db.settings.buyStackOneTick = false
+  ns.db.settings.stackTwoClicks = true
   pricing()
   T.fire("COMMODITY_PRICE_UPDATED", 9, 45)
   T.eq(Q.state, "confirm"); T.eq(confirmed, 1)
-  ns.db.settings.buyStackOneTick = true
+  ns.db.settings.stackTwoClicks = false
   -- The game wants a click for it after all: this stack waits for your tick, and later ones
   -- take two ticks again.
   pricing()
@@ -884,6 +884,24 @@ T.test("Buy queue: a stack's confirm goes ahead by itself once the final price i
   T.fire("COMMODITY_PRICE_UPDATED", 9, 45)
   T.eq(Q.state, "confirm", "two ticks from now on")
   T.eq(confirmed, 2)
+  Q.autoBlockedNow(true)
+  -- Codex review, November 11: the game's blocked event can come while the call is still
+  -- running. Then nothing is on its way: no waiting for an answer, and the next tick confirms.
+  rawset(C_AuctionHouse, "ConfirmCommoditiesPurchase", function()
+    confirmed = confirmed + 1
+    T.fire("ADDON_ACTION_BLOCKED", "ForeverLedger", "C_AuctionHouse.ConfirmCommoditiesPurchase()")
+  end)
+  pricing()
+  wipe(S.timers)
+  T.fire("COMMODITY_PRICE_UPDATED", 9, 45)
+  T.eq(confirmed, 3)
+  T.eq(Q.state, "confirm", "back to Confirm, not waiting on a purchase that was blocked")
+  T.eq(Q.lastPlan, nil, "no gold is put down to it")
+  T.eq(Q.autoBlockedNow(), true)
+  T.runTimers()
+  T.eq(Q.state, "confirm", "no answer is waited for, so nothing gives it up")
+  confirmed = 2
+  rawset(C_AuctionHouse, "ConfirmCommoditiesPurchase", function() confirmed = confirmed + 1 end)
   Q.autoBlockedNow(true)
   -- Busy auction house: confirmed the moment it's ready.
   local ready = false

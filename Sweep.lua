@@ -304,7 +304,7 @@ ask = function(first)
   S.state, S.askedAt = "waiting", GetTime()
   -- (sentClock: prices saved from now on are newer than the list's rows, judge.)
   if first then S.sent, S.sentAt, S.sentClock, owns = true, GetTime(), time(), true end
-  status(("Watching flips: reading the auction house list, part %d"):format(S.groups + 1))
+  status(("Watching flips: reading the AH list, part %d"):format(S.groups + 1))
   local wait = S.afterQueue and AFTER_QUEUE_WAIT or GROUP_WAIT
   C_Timer.After(wait, function()
     if S.tok == tok and S.state == "waiting" then
@@ -384,6 +384,10 @@ local function earlyJudge(id, it, now)
   S.early[id] = { rec = saved, price = it.min, limit = limit, gear = gear, watched = it.watched }
   if not gear and saved then provisional[id] = { rec = saved, l = saved.l, t = saved.t } end
   S.earlyCount = S.earlyCount + 1
+  -- (Which part it came in, for the log: if flips keep to the cheap end of the list, that end
+  -- could be read more often. Owner, November 11: the auction house answers about two
+  -- requests a second, so a whole reading can't be quicker.)
+  S.flipParts[#S.flipParts + 1] = S.earlyParts
 end
 
 -- Rows that just came (the first group, or one the game added).
@@ -642,8 +646,9 @@ read = function(rows)
       if ns.RefreshFlipsIfShown then C_Timer.After(0.5, function() ns:RefreshFlipsIfShown() end) end
     end
     local money = ns.MoneyPlain or tostring
-    logLine(("Auction house list: %s. New flips as their part came: %d (parts read as they came: %d). Cheaper listings gone on %d items (%d units); %d to look at closely%s; gear added %d, still listed %d. Waited for the Buy queue %d times, for the auction house %d times (%.1f s). Flips can only be in the first %d parts (up to %s)%s."):format(
-      summary, S.earlyCount, S.earlyParts, stats.dropped, stats.gone, #check,
+    logLine(("Auction house list: %s. New flips as their part came: %d%s (parts read as they came: %d). Cheaper listings gone on %d items (%d units); %d to look at closely%s; gear added %d, still listed %d. Waited for the Buy queue %d times, for the auction house %d times (%.1f s). Flips can only be in the first %d parts (up to %s)%s."):format(
+      summary, S.earlyCount, #S.flipParts > 0 and (", in parts " .. table.concat(S.flipParts, ", ")) or "",
+      S.earlyParts, stats.dropped, stats.gone, #check,
       #looks > #check and (" (%d more next time)"):format(#looks - #check) or "",
       stats.added, stats.touched, S.yields, S.throttled, S.throttledFor, math.ceil(within / GROUP_SIZE), money(ceiling),
       unsorted > 0 and ("; %d rows out of price order"):format(unsorted) or ""))
@@ -685,6 +690,7 @@ function ns:StartSweep(done)
   S.onDone, S.groups, S.yielded, S.emptyOnce, S.sent, S.sentAt = done, 0, false, nil, nil, nil
   S.items, S.early, S.earlyParts, S.earlyCount, S.upTo, S.yields, S.afterQueue = {}, {}, 0, 0, 0, 0, nil
   S.throttled, S.throttledFor, S.throttledSince, S.holdWhy, S.holdFirst, S.newFlips = 0, 0, nil, nil, nil, nil
+  S.flipParts = {}
   S.run = (S.run or 0) + 1
   local run = S.run
   S.state = "holding"

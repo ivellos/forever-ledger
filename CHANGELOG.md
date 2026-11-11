@@ -6,13 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Buy a stack in one tick (Settings, Auction house, Buying; on): the tick or click that starts buying a stack of materials also confirms it, once the final price comes back within the limit and what you can spend. If the game wants a second click after all, the Buy queue goes back to asking for one.
+- One tick buys a stack of materials: the tick or click that starts buying it also confirms it, once the final price comes back within the limit and what you can spend. To confirm it yourself, tick Confirm stacks with a second click (Settings, Auction house, Buying). If the game wants a second click after all, the Buy queue goes back to asking for one.
 
 ### Changed
-- Watch flips: the auction house list is read faster. Each part was asked for half a second after the auction house was ready again; now it's asked for the moment it's ready. When a part brings a new flip, the Buy queue looks it up before the next part is asked for, and the list carries on as soon as nothing is waiting for your click, not 4 seconds after the last purchase.
+- Watch flips: when a part of the auction house list brings a new flip, the Buy queue looks it up before the next part is asked for, and the list carries on as soon as nothing is waiting for your click, not 4 seconds after the last purchase. Each part is asked for the moment the auction house is ready (it answers about two requests a second, so a whole reading still takes about 17 seconds).
 - After your own search on the auction house, the list waits half a minute before replacing your results, not a minute.
 - Scroll to buy: a tick of the wheel up buys too, not only down, and over Vendor flips the wheel buys anywhere over the section, its list included (drag the bar on the right to scroll the list). Over a shopping list the wheel still scrolls it.
-- With `/fl debug` on, the list's log also says how often and how long it waited for the auction house.
+- The status line says "reading the AH list, part N", so it fits.
+- With `/fl debug` on, the list's log also says how often and how long it waited for the auction house, and which parts new flips came in.
 
 ## [0.22.0] - 2026-11-11
 
