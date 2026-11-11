@@ -847,6 +847,20 @@ T.test("Buy queue: a listing that's gone leaves nothing to wait for", function()
   ERR_ITEM_NOT_FOUND = real
 end)
 
+-- Owner, November 11: the chime of a test a few minutes earlier had already gone from the
+-- 200 lines, most of them the same "idle" step again.
+T.test("Buy queue: the same step twice is written once", function()
+  ns.db.settings.debug, ns.db.buyTrace = true, nil
+  Q.cur, Q.plan, Q.note, Q.lastStep = nil, nil, "Test note", nil
+  Q.setState("idle")
+  Q.setState("idle")
+  T.eq(#ns.db.buyTrace, 1)
+  Q.note = "Another note"
+  Q.setState("idle")
+  T.eq(#ns.db.buyTrace, 2, "a new note is a new step")
+  ns.db.settings.debug, ns.db.buyTrace, Q.note = false, nil, nil
+end)
+
 T.test("Buy queue: its logs are only kept with debug on", function()
   ns.db.buyTrace, ns.db.buyErrors = nil, nil
   buying(91011)

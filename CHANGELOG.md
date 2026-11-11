@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - Watch flips: a new flip chimes and goes to the Buy queue as soon as the part of the auction house list it's in arrives (the list comes cheapest first), not once the whole list is read: about 8 seconds sooner on average. The list is read again after 3 seconds instead of 15, so every item is seen about every 20 seconds.
 - Buy queue: a gear flip from the list is looked up straight from the stat versions the list saw, without searching its name first; a lookup waiting for a busy auction house goes on as soon as the game says it's ready, not a second later; and a new flip joins the queue at once, not a second after the chime.
-- With `/fl debug` on, the list's log also says how many new flips were acted on as their part came, how often the list waited for the Buy queue, and how far into the list a flip can be.
+- With `/fl debug` on, the list's log also says how many new flips were acted on as their part came, how often the list waited for the Buy queue, and how far into the list a flip can be. The Buy queue's log writes a step that repeats only once, so it reaches further back.
 
 ### Fixed
 - Rogue poisons (Instant, Deadly, Crippling, Mind-numbing and Wound Poison, every rank) are no longer vendor flips or valued at a vendor: the game gives them a vendor price, but vendors won't buy them.

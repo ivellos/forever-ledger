@@ -229,8 +229,15 @@ local function setState(state)
   Q.state, Q.tok, Q.waitKind = state, Q.tok + 1, nil
   if state == "ready" or state == "confirm" then holdScans() end
   local throttle = AH.IsThrottledMessageSystemReady and not AH.IsThrottledMessageSystemReady()
-  trace(("%s item=%s qty=%s note=%s%s%s"):format(state, tostring(Q.cur and Q.cur.id), tostring(Q.plan and Q.plan.qty),
-    tostring(Q.note), throttle and " throttled" or "", ns.Scan.active and " scanning" or ""))
+  -- The same step again (the queue settles on "idle" several times a second while the
+  -- list is read) is written once, so the log reaches further back (owner, November 11:
+  -- a test from a few minutes before had already gone from the 200 lines).
+  local step = ("%s item=%s qty=%s note=%s"):format(state, tostring(Q.cur and Q.cur.id), tostring(Q.plan and Q.plan.qty),
+    tostring(Q.note))
+  if step ~= Q.lastStep then
+    Q.lastStep = step
+    trace(step .. (throttle and " throttled" or "") .. (ns.Scan.active and " scanning" or ""))
+  end
   if refreshQueue then refreshQueue() end
 end
 Q.setState = setState   -- (for the tests)
