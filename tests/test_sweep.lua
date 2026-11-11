@@ -183,7 +183,7 @@ local result
 local function start()
   result = nil
   wipe(S.timers)
-  return ns:StartSweep(function(outcome, ids, changed) result = { outcome = outcome, ids = ids, changed = changed } end)
+  return ns:StartSweep(function(outcome, ids, changed, wait) result = { outcome = outcome, ids = ids, changed = changed, wait = wait } end)
 end
 -- The game answers the request on its way; the sweep carries on next frame.
 local function answer()
@@ -347,6 +347,62 @@ T.test("Sweep: the flip watch looks closely at what it found, or does its item c
   Scan:Stop("test")
   T.eq(SW.state, "idle")
   T.eq(result, nil, "no callback once stopped")
+  T.runTimers()
+end)
+
+-- Owner's test, November 10: Birchwood Mauls at 9s, bought out, then listed again at 9s,
+-- only showed after a reload.
+T.test("Sweep: one bought or gone, then listed again at the same price, comes back", function()
+  local m = market()
+  ns.lastUserSearch = nil
+  m[GEAR] = nil
+  rows, full = { row(GEAR, 150, 1) }, true
+  start()
+  answer()
+  T.eq(m[GEAR].m, 150, "found and added")
+  -- Bought: the saved listings now start higher (History.lua RemoveBought).
+  m[GEAR] = { m = 170, a = 170, q = 2, l = "170:2", t = time(), src = "full" }
+  start()
+  answer()
+  T.eq(m[GEAR].m, 170, "without being told, the same as last time is left alone")
+  ns:SweepForget(GEAR)   -- (the Buy queue, on a purchase or "none left")
+  start()
+  answer()
+  T.eq(m[GEAR].m, 150, "judged afresh: back in front, so the Buy queue has it")
+  m[GEAR] = nil
+  T.runTimers()
+end)
+
+-- Owner's test, November 10: the old item checks ran with nothing searched by hand, and
+-- nothing showed why; and those 120 checks took two minutes.
+T.test("Sweep: put off for you, it says why once, and only watched items are checked meanwhile", function()
+  ns.db.settings.debug, ns.db.sweepLog = true, nil
+  ns.lastUserSearch, ns.lastUserSearchBy = GetTime() - 30, "SendBrowseQuery"
+  start()
+  T.eq(result.outcome, "held")
+  T.eq(ns.db.sweepLog and #ns.db.sweepLog, 1)
+  T.ok(ns.db.sweepLog[1]:find("put off, a search (SendBrowseQuery) 30 s ago.", 1, true), ns.db.sweepLog[1])
+  T.eq(math.floor(result.wait + 0.5), 30, "the list can be read in 30 seconds")
+  start()
+  T.eq(#ns.db.sweepLog, 1, "said once until the list is next read")
+  local realPage = ns.ItemPageOpen
+  ns.ItemPageOpen = function() return true, "ItemSellFrame" end
+  start()
+  T.eq(result.outcome, "held")
+  T.eq(result.wait, nil, "on an item's page: for as long as it stays open")
+  ns.ItemPageOpen = realPage
+  -- Meanwhile only the watched items are checked, not the usual 120.
+  local Scan = ns.Scan
+  ns.lastUserSearch = nil
+  ns.db.watchItems[MAT] = { t = time() }
+  Scan.active, Scan.sweep, Scan.quiet = true, true, true
+  ns.FlipWatchSweepDone("held", {}, false, 30)
+  T.eq(Scan.total, 1, "the watched thread only")
+  T.eq(Scan.pending, MAT)
+  Scan:Stop("test")
+  ns.db.watchItems[MAT] = nil
+  ns.db.settings.debug, ns.db.sweepLog, ns.lastUserSearchBy = false, nil, nil
+  T.fire("AUCTION_HOUSE_SHOW")   -- (forgets the page)
   T.runTimers()
 end)
 

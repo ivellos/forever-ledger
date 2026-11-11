@@ -889,11 +889,14 @@ end
 -- You're on one item's page, buying or listing: the auction house keeps one item search
 -- at a time, so a quiet check would replace what that page shows, however long you stay
 -- (owner, November 5: looking up an item and listing it with the flip watch on).
+-- Also says which page, for the browse sweep's log (Sweep.lua).
+local PAGES = { "ItemBuyFrame", "CommoditiesBuyFrame", "ItemSellFrame", "CommoditiesSellFrame" }
 local function itemPageOpen()
   local ah = AuctionHouseFrame
   if not ah then return false end
-  for _, page in ipairs({ ah.ItemBuyFrame, ah.CommoditiesBuyFrame, ah.ItemSellFrame, ah.CommoditiesSellFrame }) do
-    if page:IsShown() then return true end
+  for _, name in ipairs(PAGES) do
+    local page = ah[name]
+    if page and page:IsShown() then return true, name end
   end
   return false
 end
@@ -1056,8 +1059,10 @@ if C_AuctionHouse and hooksecurefunc then
   for _, fn in ipairs({ "SendSearchQuery", "SendBrowseQuery", "SearchForItemKeys" }) do
     if C_AuctionHouse[fn] then
       -- The buy queue's lookups use their own short pause (ns.queueBusyUntil) instead.
+      -- (Which one, for the browse sweep's log: owner, November 10, the sweep waited for a
+      -- search with none made by hand, so the game's own window may send them.)
       hooksecurefunc(C_AuctionHouse, fn, function()
-        if not Scan.sending and not ns.queueSending then ns.lastUserSearch = GetTime() end
+        if not Scan.sending and not ns.queueSending then ns.lastUserSearch, ns.lastUserSearchBy = GetTime(), fn end
       end)
     end
   end
@@ -1374,6 +1379,10 @@ local WATCH_ITEMS = 120     -- items re-checked per pass
 -- Between browse sweeps (Sweep.lua): auxForever read 7,718 items in 8.5 seconds on Forever,
 -- so a fresh look at every item about every half minute (owner, November 10).
 local SWEEP_PAUSE = 15
+-- Put off for you (Sweep.lua "held"): tried again when its wait is over, at least this soon,
+-- or this often while an item's page stays open.
+local HELD_MIN, HELD_PAGE = 5, 10
+local sweepAfter   -- (GetTime) when a reading put off for you may go ahead
 local nextPause = WATCH_PAUSE
 local watching, watchTimer = false, nil
 -- Was the watch on when the auction house closed? For this character and this session
@@ -1419,10 +1428,11 @@ function ns.FlipWatchScore(ratio, perDay, listed, isCrafted)
   return close * busy * (isCrafted and 1.5 or 1)
 end
 
-local function flipCandidates()
+-- watchedOnly: just the watched items (while the browse sweep waits for you).
+local function flipCandidates(watchedOnly)
   local market = ns.db.prices[ns.MarketKey()] or {}
   local list = {}
-  for id, rec in pairs(market) do
+  for id, rec in pairs(watchedOnly and {} or market) do
     local sell = rec.m and not rec.none and ns:GetSellPrice(id)
     if sell and sell >= 5 and rec.m <= sell * 1.5 and not ns:GetVendorBuyPrice(id) and not isGear(id) then
       local ok, sp = pcall(ns.SellSpeed, ns, id)
@@ -1457,19 +1467,28 @@ local function itemPass(ids, what)
 end
 
 -- The browse sweep is over (Sweep.lua). "done": ids are the items that just got cheap enough
--- to look at closely; changed: saved prices changed. "failed": the list couldn't be read,
--- and "held": you're searching or on an item's page, so the item checks run this time
--- instead (they wait for you their own way). "broken": another search replaced the list;
--- the next pass tries again.
-local function sweepDone(outcome, ids, changed)
+-- to look at closely; changed: saved prices changed. "failed": the list couldn't be read, so
+-- the item checks run this time instead. "held": you're searching or on an item's page, so
+-- only your watched items are checked (they wait for you their own way), and the list is
+-- read as soon as wait is over (owner, November 10: the 120 item checks took two minutes,
+-- so one search put the whole list off for that long). "broken": another search replaced
+-- the list; the next pass tries again.
+local function sweepDone(outcome, ids, changed, wait)
   if not (Scan.active and Scan.sweep) then return end   -- (stopped meanwhile)
   Scan.sweep = nil
-  if outcome == "failed" or outcome == "held" then
+  if outcome == "held" then
+    nextPause = SWEEP_PAUSE
+    sweepAfter = GetTime() + math.max(HELD_MIN, wait or HELD_PAGE)
+    local list = flipCandidates(true)
+    if #list > 0 then
+      itemPass(list, "watched items (the whole list is read once you've finished searching)")
+      return
+    end
+  elseif outcome == "failed" then
     nextPause = WATCH_PAUSE
     local list = flipCandidates()
     if #list > 0 then
-      itemPass(list, outcome == "held" and "items near vendor price or watched (waiting to read the whole list while you search)"
-        or "items near vendor price or watched (the auction house list couldn't be read)")
+      itemPass(list, "items near vendor price or watched (the auction house list couldn't be read)")
       return
     end
   elseif ids and #ids > 0 then
@@ -1535,14 +1554,18 @@ end
 function ns.FlipWatchNext()
   if watching and ns.RefreshFlipsIfShown then C_Timer.After(1, function() ns:RefreshFlipsIfShown() end) end
   if watching and not watchTimer then
-    watchTimer = C_Timer.NewTimer(nextPause, watchPass)
-    showCountdown(GetTime() + nextPause)
+    local pause = nextPause
+    -- A reading put off for you goes ahead once its wait is over, counted from when it was
+    -- put off, not from the end of the watched items' checks.
+    if sweepAfter then pause = math.max(HELD_MIN, sweepAfter - GetTime()); sweepAfter = nil end
+    watchTimer = C_Timer.NewTimer(pause, watchPass)
+    showCountdown(GetTime() + pause)
   end
 end
 
 function ns:StopFlipWatch(silent)
   if not watching then return end
-  watching = false
+  watching, sweepAfter = false, nil
   if watchTimer then watchTimer:Cancel(); watchTimer = nil end
   if countdown then countdown:Cancel(); countdown = nil end
   ns:SetStatusText("")

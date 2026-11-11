@@ -273,7 +273,12 @@ local function finishTarget(note, wakeIn, gone)
   local e = Q.cur
   if e then
     done[e.id] = GetTime() - (wakeIn and DONE_FOR - wakeIn or 0)
-    if gone and e.lane == "flips" then checkedFlips[e.id] = time() end
+    if gone and e.lane == "flips" then
+      checkedFlips[e.id] = time()
+      -- The whole-list reading judges it afresh next time, so one listed again at the
+      -- same price brings it back (Sweep.lua).
+      if ns.SweepForget then ns:SweepForget(e.id) end
+    end
     if wakeIn then C_Timer.After(wakeIn, function() Q.built = 0; rebuildNow() end) end
     local list = Q.lanes[e.lane] or {}
     for i, x in ipairs(list) do if x == e then table.remove(list, i); break end end
@@ -428,6 +433,9 @@ local function bought(n, cost, e)
   end
   if e and e.want then e.want = e.want - n end
   if e then Q.note = ("Bought %d %s for %s."):format(n, ns.ItemName(e.id), money(cost)) end
+  -- One listed again at the price just bought at is new to the whole-list reading
+  -- (Sweep.lua; owner, November 10: Birchwood Mauls at 9s only showed after a reload).
+  if e and ns.SweepForget then ns:SweepForget(e.id) end
 end
 
 function search()

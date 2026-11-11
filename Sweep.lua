@@ -34,9 +34,17 @@ ns.SweepState = S        -- (for the tests)
 -- States: idle; holding (waiting for the auction house to be free); waiting (a request is on
 -- its way); got (its answer came, carrying on next frame); reading (working through the list).
 local last, lastMarket = {}, nil   -- [itemID] = the cheapest the last complete sweep saw, this visit
+local forgot = {}                  -- [itemID] = true: forgotten since this reading asked for the list
 local owns = false                 -- the game's browse list is the sweep's, until anyone else searches
 
 function ns:SweepOwnsList() return owns end
+
+-- The Buy queue bought one, or found none left: the next reading judges it afresh, as if
+-- not seen before. Otherwise one listed again at the same price looked unchanged and was
+-- left out until a full scan or a reload (owner, November 10: Birchwood Mauls at 9s).
+function ns:SweepForget(id)
+  if id then last[id], forgot[id] = nil, true end
+end
 
 function ns:SweepAvailable()
   return AH ~= nil and AH.SendBrowseQuery ~= nil and AH.RequestMoreBrowseResults ~= nil
@@ -132,6 +140,17 @@ end
 ---------------------------------------------------------------------------
 local ask, finish
 
+-- Kept with /fl debug on (last 30), like the full scan log: how the list came, to check it
+-- against full scans (owner's test).
+local function logLine(text)
+  ns:Debug(text)
+  if not ns.db.settings.debug then return end
+  local log = ns.db.sweepLog or {}
+  ns.db.sweepLog = log
+  log[#log + 1] = date("%m-%d %H:%M:%S ") .. text
+  while #log > 30 do table.remove(log, 1) end
+end
+
 -- Every quality, sorted by price then name, as the game's own empty search does: with no
 -- quality filter the game finds nothing (Buy queue, owner's test October 2), and it expects
 -- a price and a name sort (warcraft.wiki.gg, SendBrowseQuery).
@@ -159,7 +178,8 @@ local function status(text)
 end
 
 -- Why the sweep can't send now, or nil. first: the opening search, which replaces the list
--- on the Buy page, so it also waits for you.
+-- on the Buy page, so it also waits for you. For "page" and "you", also what was seen (for
+-- the log) and the seconds until it may go ahead (nil: while the page stays open).
 local pageSeen
 local function holdReason(first)
   if not (ns.IsAHOpen and ns:IsAHOpen()) then return "closed" end
@@ -168,9 +188,16 @@ local function holdReason(first)
   if ns.queueBusyUntil and GetTime() < ns.queueBusyUntil then return "queue" end
   if ns.BuyQueueBusy and ns:BuyQueueBusy() then return "queue" end
   if first then
-    if ns.ItemPageOpen and ns.ItemPageOpen() then pageSeen = GetTime(); return "page" end
-    local you = math.max(ns.lastUserSearch or -math.huge, pageSeen or -math.huge)
-    if GetTime() - you < AFTER_YOU then return "you" end
+    local open, page = false, nil
+    if ns.ItemPageOpen then open, page = ns.ItemPageOpen() end
+    if open then pageSeen = GetTime(); return "page", ("%s open"):format(page or "an item's page") end
+    local searched, seen = ns.lastUserSearch or -math.huge, pageSeen or -math.huge
+    local you = math.max(searched, seen)
+    local ago = GetTime() - you
+    if ago < AFTER_YOU then
+      local what = searched >= seen and ("a search (%s)"):format(ns.lastUserSearchBy or "?") or "an item's page"
+      return "you", ("%s %d s ago"):format(what, math.floor(ago)), AFTER_YOU - ago
+    end
   end
 end
 
@@ -182,11 +209,19 @@ end
 
 -- Send the opening search (first) or ask for the next group, once the auction house is free.
 ask = function(first)
-  local why = holdReason(first)
+  local why, seen, wait = holdReason(first)
   if why == "closed" then return finish("stopped") end
   -- You're on an item's page or just searched: the list isn't replaced under you. This
-  -- pass does the item checks instead, which wait for you their own way (Prices.lua).
-  if why == "page" or why == "you" then return finish("held", why == "page" and "an item's page is open" or "you searched") end
+  -- pass checks your watched items instead, and the list is read once the wait is over
+  -- (Prices.lua). Logged once until the next reading, with what was seen (owner, November
+  -- 10: the old item checks ran with nothing searched, and nothing showed why).
+  if why == "page" or why == "you" then
+    if not S.heldLogged then
+      S.heldLogged = true
+      logLine(("Auction house list: put off, %s."):format(seen or why))
+    end
+    return finish("held", seen, nil, nil, wait)
+  end
   if why then
     if why == "queue" then S.yielded = true end
     S.state = "holding"
@@ -200,6 +235,7 @@ ask = function(first)
   S.sending, ns.Scan.sending = true, true
   local ok, err
   if first then
+    forgot = {}
     ok, err = pcall(AH.SendBrowseQuery, query())
   else
     ok, err = pcall(AH.RequestMoreBrowseResults)
@@ -265,16 +301,6 @@ if AH and hooksecurefunc then
   end
 end
 
--- Kept with /fl debug on (last 30), like the full scan log: how the list came, to check it
--- against full scans (owner's test).
-local function logLine(text)
-  ns:Debug(text)
-  if not ns.db.settings.debug then return end
-  local log = ns.db.sweepLog or {}
-  ns.db.sweepLog = log
-  log[#log + 1] = date("%m-%d %H:%M:%S ") .. text
-  while #log > 30 do table.remove(log, 1) end
-end
 
 -- One item of the list. Returns whether to remember its price for next time.
 local function judge(id, it, now, looks, stats)
@@ -343,6 +369,8 @@ read = function(rows)
     -- Done: the close looks to make, and what to remember for next time.
     local check = ns.SweepLookOrder(looks)
     for _, id in ipairs(check) do fresh[id] = items[id].min end
+    -- (Bought or gone while the list came: judged afresh next time too.)
+    for id in pairs(forgot) do fresh[id] = nil end
     last = fresh
     local changed = stats.dropped + stats.added + stats.touched > 0
     if changed then
@@ -358,14 +386,16 @@ read = function(rows)
 end
 
 -- outcome: "done", "failed" (couldn't read the list: the watch does item checks this time),
--- "held" (you're searching or on an item's page: item checks this time, not counted as a
--- failure), "broken" (another search replaced it: tried again next pass) or "stopped".
-finish = function(outcome, why, ids, changed)
+-- "held" (you're searching or on an item's page: your watched items are checked, and the list read
+-- once the wait is over; not counted as a failure), "broken" (another search replaced it: tried
+-- again next pass) or "stopped".
+-- wait ("held"): seconds until it may go ahead, nil while an item's page is open.
+finish = function(outcome, why, ids, changed, wait)
   local done = S.onDone
   S.tok = S.tok + 1
   S.state, S.onDone, S.sent, S.askedAt = "idle", nil, nil, nil
   if outcome == "done" then
-    S.fails = 0
+    S.fails, S.heldLogged = 0, nil
   elseif outcome == "failed" then
     S.fails = S.fails + 1
     logLine(("Auction house list couldn't be read: %s (%d in a row)."):format(why or "?", S.fails))
@@ -375,7 +405,7 @@ finish = function(outcome, why, ids, changed)
   elseif outcome == "broken" then
     logLine("Auction house list: " .. (why or "stopped") .. "; trying again next time.")
   end
-  if done then done(outcome, ids or {}, changed and true or false) end
+  if done then done(outcome, ids or {}, changed and true or false, wait) end
 end
 
 ---------------------------------------------------------------------------
@@ -406,7 +436,7 @@ end
 
 -- Each visit starts afresh: another auction house, or prices changed while you were away.
 ns:On("AUCTION_HOUSE_SHOW", function()
-  last, lastMarket, S.fails, pageSeen = {}, nil, 0, nil
+  last, lastMarket, S.fails, pageSeen, S.heldLogged, forgot = {}, nil, 0, nil, nil, {}
 end)
 ns:On("AUCTION_HOUSE_CLOSED", function()
   owns = false
