@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Watch flips reads the whole auction house between full scans: about every half minute it reads the list a search with no name gives on the Buy page (every item, with its cheapest price), and looks closely only at items that just got cheap enough to be a vendor flip or a watched item at your price. Before, it checked about 120 likely items every two minutes and never saw the rest. Cheaper listings that have gone come off the saved prices at once. The Buy page's list then shows every item, cheapest first; the watch waits while you're on an item's page and for a minute after your own search, and does the item checks meanwhile. New setting: Read the whole auction house between full scans (Settings, Auction house, Buying; on). If the list can't be read, the watch does the item checks instead.
+
+### Changed
+- `/fl api` also lists the functions and events the whole-list reading uses.
+
 ## [0.20.0] - 2026-11-10
 
 ### Highlights

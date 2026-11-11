@@ -48,7 +48,7 @@ local DEFAULTS = {
   quietChars = {},   -- [charKey] = true: quiet mode turned on with /fl quiet there, kept until turned off (Quiet.lua)
   shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
   watchItems = {},   -- [itemID] = { max = copper or nil for the vendor price, t = added }: watched items (Watched.lua)
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, dealChat = true, sellGuard = true, watchResume = true, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, dealChat = true, sellGuard = true, watchResume = true, watchSweep = true, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
     dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, dashboard = {}, ledger = {}, deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
     svcCrafting = true, svcFood = true, svcPortal = true, svcSummon = true, svcLockpick = true,
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
@@ -978,6 +978,9 @@ function ns:ApiReport()
     -- Buy queue (BuyQueue.lua): buying needs these, each from a click or a mouse wheel tick.
     "C_AuctionHouse.StartCommoditiesPurchase", "C_AuctionHouse.CancelCommoditiesPurchase", "C_AuctionHouse.PlaceBid",
     "C_AuctionHouse.SendBrowseQuery", "C_AuctionHouse.GetBrowseResults", "C_AuctionHouse.HasFullBrowseResults",
+    -- The flip watch's browse sweep (Sweep.lua): the whole list, and the searches that replace it.
+    "C_AuctionHouse.RequestMoreBrowseResults", "C_AuctionHouse.SearchForItemKeys", "C_AuctionHouse.SearchForFavorites",
+    "Enum.AuctionHouseFilter.PoorQuality", "Enum.AuctionHouseSortOrder.Name",
     "C_AuctionHouse.GetItemCommodityStatus", "C_AuctionHouse.GetQuoteDurationRemaining", "C_AuctionHouse.IsThrottledMessageSystemReady", "C_CVar.SetCVar", "SetOverrideBindingClick",
     "Enum.TooltipDataLineType.SellPrice",
     "Auctionator.API.v1.GetAuctionPriceByItemID", "TSM_API.GetCustomPriceValue", "AucAdvanced.API.GetMarketValue",
@@ -1002,6 +1005,10 @@ function ns:ApiReport()
   print("  Market: " .. ns.MarketKey())
   print(("  %s GLOBAL_MOUSE_DOWN event (Buy queue panel comes to the front)"):format(
     ns:EventKnown("GLOBAL_MOUSE_DOWN") and "|cff7fd39cyes|r" or "|cffee8597no|r "))
+  for _, event in ipairs({ "AUCTION_HOUSE_BROWSE_RESULTS_ADDED", "AUCTION_HOUSE_BROWSE_FAILURE" }) do
+    print(("  %s %s event (reading the whole auction house list)"):format(
+      ns:EventKnown(event) and "|cff7fd39cyes|r" or "|cffee8597no|r ", event))
+  end
   -- Which ruleset the character is on (owner, October 3: group characters by ruleset,
   -- not by server name, if the game says it). Each is tried safely and printed.
   local function try(label, fn)

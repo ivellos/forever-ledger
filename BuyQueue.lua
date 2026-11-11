@@ -245,6 +245,13 @@ local function throttled()
   return AH.IsThrottledMessageSystemReady and not AH.IsThrottledMessageSystemReady()
 end
 
+-- Looking something up or waiting on a purchase's answer: the flip watch's browse sweep
+-- (Sweep.lua) waits for it before asking for its next group.
+function ns:BuyQueueBusy()
+  local s = Q.state
+  return s == "browse" or s == "search" or s == "price" or s == "buying"
+end
+
 local search, prepare, updateBinding, rebuildNow
 local spendable, sortFlips
 
@@ -431,7 +438,9 @@ function search()
   -- a scan that carries on keeps the game busy, and flips went while the queue waited
   -- 3 seconds for it (owner's test, November 5: Golem Isospring).
   ns.queueBusyUntil = math.max(ns.queueBusyUntil or 0, GetTime() + 2)
-  if throttled() or (ns.Scan.active and ns.Scan.full) then
+  -- (And a part of the flip watch's auction house list already on its way, a moment at most:
+  -- the sweep waits for the queue before asking for the next one, Sweep.lua.)
+  if throttled() or (ns.Scan.active and ns.Scan.full) or (ns.SweepWaiting and ns:SweepWaiting()) then
     Q.waitFor = ns.Scan.full and "the full scan to finish" or "the auction house"
     setState("wait")
     timeout(1, search)
