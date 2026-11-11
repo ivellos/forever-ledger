@@ -420,13 +420,26 @@ local function buildFinder(side)
     local function per(fn) local out = {}; for i, k in ipairs(kinds) do out[i] = fn(b[k], k) end; return out end
 
     add("Item level " .. b.label .. " greens", white)
-    add(b.armor and b.armor.tested and "Armor tested in Forever" or "Classic's table", dim)
+    local armorT, weaponT = b.armor and b.armor.tested, b.weapon and b.weapon.tested
+    add((armorT and weaponT and "Tested in Forever") or (armorT and "Armor tested in Forever")
+      or (weaponT and "Weapons tested in Forever") or "Classic's table", dim)
     add("Chance per item", accent, per(function(_, k) return k == "armor" and "Armor" or "Weapons" end), accent)
-    -- The same materials in the same order for armor and weapons; only the chances differ.
-    for i, o in ipairs(b[kinds[1]].odds or {}) do
+    -- Every material either kind can give, each with its chance for armor and for weapons
+    -- (item level 21-30 weapons give a different essence: Values.lua).
+    local mats, seen = {}, {}
+    for _, k in ipairs(kinds) do
+      for _, o in ipairs(b[k].odds or {}) do
+        if not seen[o[1]] then seen[o[1]] = true; mats[#mats + 1] = o end
+      end
+    end
+    for _, o in ipairs(mats) do
       local range = o[3] == o[4] and tostring(o[3]) or (o[3] .. "-" .. o[4])
-      add(range .. " " .. ns:DisenchantMaterialName(o[1]), white,
-        per(function(y) return (y.odds[i] and y.odds[i][2] or 0) .. "%" end), white)
+      add(range .. " " .. ns:DisenchantMaterialName(o[1]), white, per(function(y)
+        for _, x in ipairs(y.odds or {}) do
+          if x[1] == o[1] then return x[2] .. "%" end
+        end
+        return "-"
+      end), white)
     end
     -- The average over many disenchants: each material's chance x its average count x
     -- its worth, added up (owner asked, October 3).

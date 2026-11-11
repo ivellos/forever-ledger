@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- Disenchanting: green weapons of item level 21-30 are valued at Greater Magic Essence, which is what they give in Forever, not Lesser or Greater Astral Essence. A Dire Wand showed as a profitable disenchant on Astral Essence prices. The Disenchant finder's hover for those item levels lists each kind's materials.
+
 ## [0.21.0] - 2026-11-10
 
 ### Highlights

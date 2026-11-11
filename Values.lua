@@ -119,16 +119,22 @@ for id, name in pairs({
 -- disenchants (4-6 Strange Dust, sometimes 1-2 Lesser Astral Essence). The rest are
 -- Classic's table, assumed until tested. Averages: dust or essence 75% of the time
 -- (the other 20%), shard 5%. Weapons swap the dust and essence chances.
+-- Weapons of item level 21-30 give Greater Magic Essence in Forever, not Astral: every one
+-- in the owner's disenchant log (five, item levels 22-30, a Dire Wand among them; November
+-- 10), as a player reported on Discord and CraftShuffle Forever 0.2.4 found.
 -- How many drop when that material comes up (Classic's ranges), by average.
 local RANGES = { [1.5] = { 1, 2 }, [2.5] = { 2, 3 }, [3.5] = { 2, 5 }, [5] = { 4, 6 } }
 -- odds = { { itemID, chance, low, high }, ... } for tooltips (the Disenchant finder).
-local function row(maxLevel, dust, dustAvg, essence, essAvg, shard)
+-- weaponEssence: weapons' essence when it isn't armor's. tested: "armor", "weapon" or
+-- "both", checked in Forever.
+local function row(maxLevel, dust, dustAvg, essence, essAvg, shard, weaponEssence, tested)
   local d, e = RANGES[dustAvg] or { dustAvg, dustAvg }, RANGES[essAvg] or { essAvg, essAvg }
-  return { maxLevel = maxLevel,
+  local wess = weaponEssence or essence
+  return { maxLevel = maxLevel, tested = tested,
     armor  = { { dust, 0.75 * dustAvg }, { essence, 0.20 * essAvg }, { shard, 0.05 },
       odds = { { dust, 75, d[1], d[2] }, { essence, 20, e[1], e[2] }, { shard, 5, 1, 1 } } },
-    weapon = { { dust, 0.20 * dustAvg }, { essence, 0.75 * essAvg }, { shard, 0.05 },
-      odds = { { dust, 20, d[1], d[2] }, { essence, 75, e[1], e[2] }, { shard, 5, 1, 1 } } } }
+    weapon = { { dust, 0.20 * dustAvg }, { wess, 0.75 * essAvg }, { shard, 0.05 },
+      odds = { { dust, 20, d[1], d[2] }, { wess, 75, e[1], e[2] }, { shard, 5, 1, 1 } } } }
 end
 local DISENCHANT = {
   { maxLevel = 15,
@@ -141,8 +147,8 @@ local DISENCHANT = {
       odds = { { STRANGE_DUST, 75, 2, 3 }, { GREATER_MAGIC, 20, 1, 2 }, { SMALL_GLIMMERING, 5, 1, 1 } } },
     weapon = { { STRANGE_DUST, 0.50 }, { GREATER_MAGIC, 1.125 }, { SMALL_GLIMMERING, 0.05 },
       odds = { { STRANGE_DUST, 20, 2, 3 }, { GREATER_MAGIC, 75, 1, 2 }, { SMALL_GLIMMERING, 5, 1, 1 } } } },
-  row(25, STRANGE_DUST, 5, 10998, 1.5, SMALL_GLIMMERING),   -- Lesser Astral Essence
-  row(30, 11083, 1.5, 11082, 1.5, 11084),                   -- Soul Dust, Greater Astral, Large Glimmering
+  row(25, STRANGE_DUST, 5, 10998, 1.5, SMALL_GLIMMERING, GREATER_MAGIC, "both"),   -- Lesser Astral Essence
+  row(30, 11083, 1.5, 11082, 1.5, 11084, GREATER_MAGIC, "weapon"),                 -- Soul Dust, Greater Astral, Large Glimmering
   row(35, 11083, 3.5, 11134, 1.5, 11138),                   -- Lesser Mystic, Small Glowing Shard
   row(40, 11137, 1.5, 11135, 1.5, 11139),                   -- Vision Dust, Greater Mystic, Large Glowing
   row(45, 11137, 3.5, 11174, 1.5, 11177),                   -- Lesser Nether, Small Radiant Shard
@@ -164,8 +170,10 @@ do
     -- Enchanting skill needed (Classic: 1 up to level 20, then 25 more per 5 levels).
     local skill = band.maxLevel <= 20 and 1 or (band.maxLevel - 20) * 5
     band.armor.skill, band.weapon.skill = skill, skill
-    -- Tested in Forever: 16-20 armor (owner, 22 items). The rest is Classic's table.
-    band.armor.tested = band.tested == "armor" or nil
+    -- Tested in Forever: 16-20 armor (owner, 22 items), 21-25 armor (15) and 21-30 weapons
+    -- (5, November 10). The rest is Classic's table.
+    band.armor.tested = (band.tested == "armor" or band.tested == "both") or nil
+    band.weapon.tested = (band.tested == "weapon" or band.tested == "both") or nil
     ns.DISENCHANT_BANDS[#ns.DISENCHANT_BANDS + 1] = { key = band.maxLevel, label = levels,
       armor = band.armor, weapon = band.weapon }
     low = band.maxLevel + 1

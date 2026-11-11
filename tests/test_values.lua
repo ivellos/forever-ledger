@@ -171,6 +171,24 @@ T.test("Disenchanting ignores thin markets for the materials", function()
   near((ns:GetValue(60012)), 0.31 * 1900, "only the essence counts")
 end)
 
+-- Owner's disenchant log, November 10 (and a player on Discord): green weapons of item
+-- level 21-30 give Greater Magic Essence in Forever, not Astral. Armor is Classic's.
+T.test("Disenchanting: item level 21-30 green weapons give Greater Magic Essence", function()
+  S.items[60013] = { name = "Dire Wand", quality = 2, ilvl = 26, classID = 2, equipLoc = "INVTYPE_RANGEDRIGHT" }
+  S.items[60014] = { name = "Green Sword", quality = 2, ilvl = 23, classID = 2, equipLoc = "INVTYPE_WEAPON" }
+  S.items[60015] = { name = "Green Belt", quality = 2, ilvl = 23, classID = 4, equipLoc = "INVTYPE_WAIST" }
+  local function has(yield, id)
+    for _, y in ipairs(yield or {}) do if y[1] == id then return y[2] end end
+  end
+  near(has(ns:DisenchantYield(60013), GREATER_MAGIC), 1.125, "item level 26")
+  T.eq(has(ns:DisenchantYield(60013), 11082), nil, "not Greater Astral")
+  near(has(ns:DisenchantYield(60014), GREATER_MAGIC), 1.125, "item level 23")
+  T.eq(has(ns:DisenchantYield(60014), 10998), nil, "not Lesser Astral")
+  T.ok(has(ns:DisenchantYield(60015), 10998), "armor still gives Lesser Astral")
+  T.eq(has(ns:DisenchantYield(60015), GREATER_MAGIC), nil)
+  T.eq(ns:DisenchantYield(60013).tested, true, "marked as tested in Forever")
+end)
+
 T.test("Essences: splitting a greater one into 3 lesser", function()
   price(LESSER_MAGIC, 5000)
   price(GREATER_MAGIC, 10000)
