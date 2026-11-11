@@ -171,7 +171,25 @@ end
 -- buy it", 667 of them with a vendor price on the other account (Scalemail Boots, Jade,
 -- Lesser Healing Potion), so their vendor flips were gone until a reload (owner,
 -- November 9). A price saved as 0 that way comes back the next time the item is looked at.
+-- Items the game gives a vendor price that vendors won't take, so they're never a vendor
+-- flip or valued at a vendor: rogue poisons (owner, November 11: Instant Poison was a
+-- vendor flip at its 5c, and the vendor wouldn't buy it). Every rank, so none is bought by
+-- accident. The tooltip check above can't be used for them: it misreads too many items
+-- that vendors do buy.
+local VENDOR_WONT_BUY = {
+  [6947] = true, [6949] = true, [6950] = true, [8926] = true, [8927] = true, [8928] = true,   -- Instant Poison to VI
+  [2892] = true, [2893] = true, [8984] = true, [8985] = true, [20844] = true,                 -- Deadly Poison to V
+  [3775] = true, [3776] = true,                                                                -- Crippling Poison, II
+  [5237] = true, [6951] = true, [9186] = true,                                                 -- Mind-numbing Poison to III
+  [10918] = true, [10920] = true, [10921] = true, [10922] = true,                              -- Wound Poison to IV
+}
+ns.VENDOR_WONT_BUY = VENDOR_WONT_BUY
+
 function ns:GetSellPrice(id)
+  if VENDOR_WONT_BUY[id] then
+    if (ns.db.vendorSell[id] or 0) > 0 then ns.db.vendorSell[id] = 0 end
+    return nil
+  end
   local saved = ns.db.vendorSell[id]
   local name, _, _, _, _, _, _, _, _, _, live = getItemInfo(id)
   if name and live and live > 0 and live <= 1 and not canSell(id) then live = 0 end

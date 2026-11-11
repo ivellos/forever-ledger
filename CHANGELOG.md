@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Buy queue: a gear flip from the list is looked up straight from the stat versions the list saw, without searching its name first; a lookup waiting for a busy auction house goes on as soon as the game says it's ready, not a second later; and a new flip joins the queue at once, not a second after the chime.
 - With `/fl debug` on, the list's log also says how many new flips were acted on as their part came, how often the list waited for the Buy queue, and how far into the list a flip can be.
 
+### Fixed
+- Rogue poisons (Instant, Deadly, Crippling, Mind-numbing and Wound Poison, every rank) are no longer vendor flips or valued at a vendor: the game gives them a vendor price, but vendors won't buy them.
+
 ## [0.21.1] - 2026-11-11
 
 ### Highlights

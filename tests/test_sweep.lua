@@ -561,6 +561,44 @@ T.test("Buy queue: a gear flip searches the versions the list saw, not its name 
   T.runTimers()
 end)
 
+-- Codex review, November 11: from part of the list, version A had gone up to more than you
+-- could spend, and version B, at a price you could pay, wasn't in the part read yet.
+T.test("Buy queue: versions from part of the list search the name before 'more than you can spend'", function()
+  local realSearch, realVersions = rawget(AH, "SendSearchQuery"), ns.SweepVersions
+  local k1 = { itemID = GEAR, itemLevel = 0, itemSuffix = 0, battlePetSpeciesID = 0 }
+  rawset(AH, "SendSearchQuery", function() end)
+  rawset(AH, "GetNumItemSearchResults", function() return 1 end)
+  rawset(AH, "GetItemSearchResultInfo", function() return { auctionID = 31, buyoutAmount = 200, quantity = 1 } end)
+  rawset(AH, "HasFullItemSearchResults", function() return true end)
+  ns.SweepVersions = function(_, id) if id == GEAR then return { k1 }, true end end
+  ns.db.settings.buyQueue.limit, Q.spent, S.money = 100, 0, 100000
+  ns.lastUserSearch, ns.queueBusyUntil = nil, 0
+  local sentBefore = #sent
+  Q.forceActive, Q.state, Q.key, Q.keys, Q.tries = true, "idle", nil, nil, 0
+  local e = { id = GEAR, gear = true, lane = "flips", reason = "flip", limit = 270 }
+  Q.cur = e
+  Q.search()
+  Q.planItem(k1)   -- A: 2s now, with 1s left to spend
+  T.eq(Q.state, "browse", "the name is searched, not set aside as more than you can spend")
+  T.eq(#sent, sentBefore + 1)
+  T.eq(Q.cur, e)
+  -- From the whole list (not partial): then it is set aside.
+  ns.SweepVersions = function(_, id) if id == GEAR then return { k1 }, false end end
+  e = { id = GEAR, gear = true, lane = "flips", reason = "flip", limit = 270 }
+  Q.cur, Q.key, Q.keys, Q.tries = e, nil, nil, 0
+  Q.search()
+  Q.planItem(k1)
+  T.eq(e.poorAt, 200, "the whole list had no cheaper version: more than you can spend")
+  rawset(AH, "SendSearchQuery", realSearch)
+  rawset(AH, "GetNumItemSearchResults", nil)
+  rawset(AH, "GetItemSearchResultInfo", nil)
+  rawset(AH, "HasFullItemSearchResults", nil)
+  ns.SweepVersions = realVersions
+  ns.db.settings.buyQueue.limit = nil
+  Q.forceActive, Q.cur, Q.key, Q.keys, Q.state = nil, nil, nil, nil, "idle"
+  T.runTimers()
+end)
+
 T.test("Buy queue: a busy auction house is looked at again within a quarter second, and at once when it's ready", function()
   local ready = false
   AH.IsThrottledMessageSystemReady = function() return ready end

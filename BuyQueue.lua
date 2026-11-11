@@ -870,16 +870,18 @@ local function planItem(key)
       search()
       return
     end
-    if poorest then tooPoor(poorest); return end
-    -- Versions from only part of the list (Sweep.lua): dearer ones under the limit may come
-    -- further on, so the name is searched after all before saying none are left.
+    -- Versions from only part of the list (Sweep.lua): others under the limit may come
+    -- further on, so the name is searched after all before saying none are left, or that
+    -- the cheapest is more than you can spend (Codex review, November 11: one version
+    -- dearer now, another at a price you could pay not seen yet).
     if e.versionsPartial then
-      trace("versions from the list all gone: searching the name")
+      trace("versions from the list all gone or too dear: searching the name")
       e.versionsPartial, e.noVersions = nil, true
       Q.key, Q.keys, Q.tries = nil, nil, 0
       search()
       return
     end
+    if poorest then tooPoor(poorest); return end
     finishTarget(("none left at %s or less."):format(limitText(e)), nil, true)
     return
   end

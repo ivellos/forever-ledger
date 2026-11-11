@@ -124,6 +124,22 @@ T.test("A vendor price wrongly saved as none comes back", function()
   T.eq(ns.db.vendorSell[GLOVES], 120)
 end)
 
+-- Owner, November 11: Instant Poison was a vendor flip at its 5c vendor price, and the
+-- vendor wouldn't buy it.
+T.test("Rogue poisons have no vendor price, so they're never a vendor flip", function()
+  local INSTANT, WOUND = 6947, 10922
+  S.items[INSTANT] = { name = "Instant Poison", sell = 5 }
+  S.items[WOUND] = { name = "Wound Poison IV", sell = 40 }
+  ns.db.vendorSell[INSTANT] = 5
+  T.eq(ns:GetSellPrice(INSTANT), nil)
+  T.eq(ns.db.vendorSell[INSTANT], 0, "remembered as vendors won't buy it")
+  T.eq(ns:GetSellPrice(WOUND), nil, "every rank")
+  price(INSTANT, 2)
+  T.eq(ns:VendorFlip(INSTANT), nil, "listed at 2c: not a flip")
+  ns.db.prices[ns.MarketKey()][INSTANT] = nil
+  S.items[INSTANT], S.items[WOUND], ns.db.vendorSell[INSTANT] = nil, nil, nil
+end)
+
 -- Gold audit, November 9: an old price became a shuffle or list limit.
 T.test("A chain isn't worked out from a price past the age limit", function()
   local MAT, OUT = 60101, 60102
