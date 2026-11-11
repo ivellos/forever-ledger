@@ -27,7 +27,8 @@ local GROUP_WAIT = 10    -- seconds to wait for one group before giving up on th
 local AFTER_QUEUE_WAIT = 6   -- the same, for the first group after the Buy queue's lookups: if
                              -- they cost us the list, the next reading starts sooner
 local VERSIONS_FRESH = 60    -- seconds the list's gear versions are handed to the Buy queue
-local AFTER_YOU = 60     -- after your own search or item page, before the list replaces your results
+local AFTER_YOU = 30     -- after your own search or item page, before the list replaces your results
+                         -- (a minute at first, owner November 10; 30 seconds, November 11)
 local FRESH = 300        -- a saved price this recent needs no close look (older shows as "seen N min ago")
 local REFRESH = 600      -- a flip still listed is looked at again once its saved price is this old,
                          -- so the Buy queue doesn't leave it out as old (it drops finds over 15 minutes)
@@ -264,12 +265,27 @@ ask = function(first)
       -- (Counted once per wait, for the log.)
       if S.state ~= "holding" or not S.afterQueue then S.yields = S.yields + 1 end
       S.yielded, S.afterQueue = true, true
+    elseif why == "throttle" and S.holdWhy ~= "throttle" then
+      S.throttled = S.throttled + 1
+      S.throttledSince = GetTime()
     end
-    S.state = "holding"
+    if why ~= "throttle" and S.holdWhy == "throttle" and S.throttledSince then
+      S.throttledFor = S.throttledFor + (GetTime() - S.throttledSince)
+      S.throttledSince = nil
+    end
+    -- Busy for a moment after each group: asked again the moment the game says it's ready
+    -- (below), not half a second later, which was most of each group's 0.63 seconds
+    -- (owner, November 11). The half-second look stays as a fallback.
+    S.state, S.holdWhy, S.holdFirst = "holding", why, first
     local tok = S.tok
     C_Timer.After(0.5, function() if S.tok == tok and S.state == "holding" then safely(ask, first) end end)
     return
   end
+  if S.holdWhy == "throttle" and S.throttledSince then
+    S.throttledFor = S.throttledFor + (GetTime() - S.throttledSince)
+    S.throttledSince = nil
+  end
+  S.holdWhy = nil
   S.tok = S.tok + 1
   local tok = S.tok
   -- Not your own search (Prices.lua, History.lua), and not another search breaking ours.
@@ -409,7 +425,10 @@ local function early(rows)
       noteVersion(key, price, it.limit)
     end
   end
-  if S.earlyCount > before and ns.InvalidateValues then ns:InvalidateValues() end
+  if S.earlyCount > before then
+    S.newFlips = true   -- (the Buy queue goes first: step, below)
+    if ns.InvalidateValues then ns:InvalidateValues() end
+  end
 end
 
 local read
@@ -421,7 +440,19 @@ local function step()
     local ok, err = pcall(early, AH.GetBrowseResults() or {})
     if not ok then ns:Debug("Auction house list: early look failed", err) end
   end
-  if not AH.HasFullBrowseResults() then return ask(false) end
+  if not AH.HasFullBrowseResults() then
+    -- A new flip in this group: the Buy queue starts its lookup first (it claims the auction
+    -- house as it starts, next frame), instead of waiting for the next group to come
+    -- (owner, November 11). Then the list carries on.
+    if S.newFlips then
+      S.newFlips = nil
+      S.state, S.holdWhy = "holding", nil
+      local tok = S.tok
+      C_Timer.After(0.1, function() if S.tok == tok and S.state == "holding" then safely(ask, false) end end)
+      return
+    end
+    return ask(false)
+  end
   local rows = AH.GetBrowseResults() or {}
   if #rows == 0 and not S.emptyOnce then
     -- The first answer can be the old list being cleared: give the real one a moment.
@@ -453,6 +484,10 @@ ns:On("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", function(added)
   end
 end)
 ns:On("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", onAnswer)
+-- The auction house is ready for the next request: a group held for it goes now.
+ns:On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function()
+  if S.state == "holding" and S.holdWhy == "throttle" then safely(ask, S.holdFirst) end
+end)
 ns:On("AUCTION_HOUSE_BROWSE_FAILURE", function()
   if S.state == "waiting" or S.state == "got" then finish("failed", "the auction house said the search failed") end
 end)
@@ -607,10 +642,10 @@ read = function(rows)
       if ns.RefreshFlipsIfShown then C_Timer.After(0.5, function() ns:RefreshFlipsIfShown() end) end
     end
     local money = ns.MoneyPlain or tostring
-    logLine(("Auction house list: %s. New flips as their part came: %d (parts read as they came: %d). Cheaper listings gone on %d items (%d units); %d to look at closely%s; gear added %d, still listed %d. Waited for the Buy queue %d times. Flips can only be in the first %d parts (up to %s)%s."):format(
+    logLine(("Auction house list: %s. New flips as their part came: %d (parts read as they came: %d). Cheaper listings gone on %d items (%d units); %d to look at closely%s; gear added %d, still listed %d. Waited for the Buy queue %d times, for the auction house %d times (%.1f s). Flips can only be in the first %d parts (up to %s)%s."):format(
       summary, S.earlyCount, S.earlyParts, stats.dropped, stats.gone, #check,
       #looks > #check and (" (%d more next time)"):format(#looks - #check) or "",
-      stats.added, stats.touched, S.yields, math.ceil(within / GROUP_SIZE), money(ceiling),
+      stats.added, stats.touched, S.yields, S.throttled, S.throttledFor, math.ceil(within / GROUP_SIZE), money(ceiling),
       unsorted > 0 and ("; %d rows out of price order"):format(unsorted) or ""))
     finish("done", nil, check, changed)
   end
@@ -649,6 +684,7 @@ function ns:StartSweep(done)
   if S.state ~= "idle" then return false end
   S.onDone, S.groups, S.yielded, S.emptyOnce, S.sent, S.sentAt = done, 0, false, nil, nil, nil
   S.items, S.early, S.earlyParts, S.earlyCount, S.upTo, S.yields, S.afterQueue = {}, {}, 0, 0, 0, 0, nil
+  S.throttled, S.throttledFor, S.throttledSince, S.holdWhy, S.holdFirst, S.newFlips = 0, 0, nil, nil, nil, nil
   S.run = (S.run or 0) + 1
   local run = S.run
   S.state = "holding"

@@ -847,6 +847,69 @@ T.test("Buy queue: a listing that's gone leaves nothing to wait for", function()
   ERR_ITEM_NOT_FOUND = real
 end)
 
+-- Owner, November 11: one tick buys a stack. The game needs the click to start the purchase,
+-- not to confirm it.
+T.test("Buy queue: a stack's confirm goes ahead by itself once the final price is within the limit", function()
+  local confirmed = 0
+  rawset(C_AuctionHouse, "ConfirmCommoditiesPurchase", function() confirmed = confirmed + 1 end)
+  rawset(C_AuctionHouse, "IsThrottledMessageSystemReady", function() return true end)
+  local e = { id = 91201, lane = "flips", reason = "flip", limit = 10 }
+  S.items[e.id] = { name = "Item 91201", sell = 20 }
+  S.money, ns.db.settings.buyQueue.limit = 100000, nil
+  local function pricing()
+    Q.cur, Q.plan, Q.state = e, { kind = "commodity", qty = 5, cost = 45, at = GetTime() }, "price"
+  end
+  pricing()
+  T.fire("COMMODITY_PRICE_UPDATED", 9, 45)
+  T.eq(confirmed, 1, "confirmed in the same tick")
+  T.eq(Q.state, "buying")
+  pricing()
+  T.fire("COMMODITY_PRICE_UPDATED", 11, 55)
+  T.eq(confirmed, 1, "over 10c each: not bought")
+  -- Settings off: a second tick confirms.
+  ns.db.settings.buyStackOneTick = false
+  pricing()
+  T.fire("COMMODITY_PRICE_UPDATED", 9, 45)
+  T.eq(Q.state, "confirm"); T.eq(confirmed, 1)
+  ns.db.settings.buyStackOneTick = true
+  -- The game wants a click for it after all: this stack waits for your tick, and later ones
+  -- take two ticks again.
+  pricing()
+  T.fire("COMMODITY_PRICE_UPDATED", 9, 45)
+  T.eq(confirmed, 2)
+  T.fire("ADDON_ACTION_BLOCKED", "ForeverLedger", "C_AuctionHouse.ConfirmCommoditiesPurchase()")
+  T.eq(Q.state, "confirm", "back to Confirm")
+  T.eq(Q.autoBlockedNow(), true)
+  pricing()
+  T.fire("COMMODITY_PRICE_UPDATED", 9, 45)
+  T.eq(Q.state, "confirm", "two ticks from now on")
+  T.eq(confirmed, 2)
+  Q.autoBlockedNow(true)
+  -- Busy auction house: confirmed the moment it's ready.
+  local ready = false
+  rawset(C_AuctionHouse, "IsThrottledMessageSystemReady", function() return ready end)
+  pricing()
+  T.fire("COMMODITY_PRICE_UPDATED", 9, 45)
+  T.eq(Q.state, "confirm"); T.eq(confirmed, 2)
+  ready = true
+  T.fire("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
+  T.runTimers()
+  T.eq(confirmed, 3, "confirmed when the auction house was ready")
+  rawset(C_AuctionHouse, "ConfirmCommoditiesPurchase", nil)
+  rawset(C_AuctionHouse, "IsThrottledMessageSystemReady", nil)
+  Q.cur, Q.plan, Q.state, Q.lateBuys = nil, nil, "idle", {}
+  T.runTimers()
+end)
+
+T.test("Buy queue: with nothing left to buy, scans carry on at once", function()
+  Q.forceActive, Q.cur, Q.state = true, nil, "idle"
+  Q.lanes, Q.built, Q.armed = { flips = {}, lists = {} }, GetTime(), "flips"
+  ns.queueBusyUntil = GetTime() + 4   -- (held back after a purchase)
+  Q.prepare()
+  T.ok(ns.queueBusyUntil <= GetTime(), "not 4 seconds after the last purchase")
+  Q.forceActive, Q.armed = nil, nil
+end)
+
 -- Owner, November 11: the chime of a test a few minutes earlier had already gone from the
 -- 200 lines, most of them the same "idle" step again.
 T.test("Buy queue: the same step twice is written once", function()

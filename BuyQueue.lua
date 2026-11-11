@@ -226,7 +226,7 @@ local function holdScans()
 end
 
 local function setState(state)
-  Q.state, Q.tok, Q.waitKind = state, Q.tok + 1, nil
+  Q.state, Q.tok, Q.waitKind, Q.confirmWhenReady = state, Q.tok + 1, nil, nil
   if state == "ready" or state == "confirm" then holdScans() end
   local throttle = AH.IsThrottledMessageSystemReady and not AH.IsThrottledMessageSystemReady()
   -- The same step again (the queue settles on "idle" several times a second while the
@@ -647,6 +647,10 @@ function prepare()
     if not x.waiting and not cantAfford(x) then e = x; break end
   end
   if not e then
+    -- Nothing to buy or waiting for your click: the whole-list reading and other scans carry
+    -- on now, not up to 4 seconds after the last purchase (holdScans; owner, November 11).
+    -- A purchase still waiting for its answer keeps them back (ns:BuyQueueBusy).
+    ns.queueBusyUntil = math.min(ns.queueBusyUntil or 0, GetTime())
     setState("idle")
     return
   end
@@ -965,6 +969,76 @@ local function limitDropped(e)
 end
 Q.limitDropped = limitDropped   -- (for the tests)
 
+-- Right before a purchase step, its limits once more: they may have changed since it was
+-- planned. False if it stopped (it looks again, or lets the item go).
+local function withinLimits(e, p)
+  -- The limit (or your gold) may have changed since this was planned: never over it.
+  local need = p and ((Q.state == "confirm" and p.total) or (Q.state == "ready" and (p.cost or p.price)))
+  if need and need > spendable() then
+    if Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
+    Q.note = "That costs more than you can spend now: checking again."
+    again()
+    return false
+  end
+  -- Vendor flips and watched items: never over what the most to pay is now.
+  if p and (Q.state == "ready" or Q.state == "confirm") and limitDropped(e) then return false end
+  -- A shopping list item: never more than the list still wants, checked again against
+  -- the list itself right before buying, counting purchases still waiting for an answer.
+  if p and e and e.reason == "list" and (Q.state == "ready" or Q.state == "confirm") and ns.ListStillWanted then
+    local units = p.kind == "commodity" and p.qty or 1
+    local left = listLeft(e.id)
+    if units > left then
+      if Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
+      ns:Debug(("Buy queue: stopped buying %d %s, the list only wants %d more."):format(units, ns.ItemName(e.id), left))
+      e.want = left
+      if left <= 0 then
+        listHasAll(e)
+      else
+        Q.note = "Checking how many the list still wants."
+        again()
+      end
+      return false
+    end
+  end
+  return true
+end
+
+-- A stack whose final price came back: buy it.
+local function confirmStack()
+  local e, p = Q.cur, Q.plan
+  Q.buyAt, Q.lastMoney, Q.buyFrom, Q.lastPlan = GetTime(), GetMoney(), GetMoney(), p
+  local ok, err = pcall(AH.ConfirmCommoditiesPurchase, e.id, p.qty)
+  if not ok then ns:Print("Couldn't confirm that purchase: " .. tostring(err)); again(); return end
+  setState("buying")
+  timeout(10, Q.noReply)
+end
+
+-- One tick buys a stack (owner, November 11; Settings: Buy a stack in one tick). The game
+-- needs your click to start a stack's purchase (StartCommoditiesPurchase), not to confirm
+-- it, so the confirm goes ahead by itself once the final price has come back within the
+-- limit and what you can spend: the same checks a second tick would get. If the game
+-- wants a click for it after all, that stack waits for your next tick and later ones take
+-- two again (blocked, below).
+local autoBlocked = false
+local function autoConfirm()
+  if Q.state ~= "confirm" or not (Q.cur and Q.plan) then return end
+  if throttled() then
+    Q.confirmWhenReady = true   -- (the moment it's ready: AUCTION_HOUSE_THROTTLED_SYSTEM_READY)
+    return
+  end
+  Q.confirmWhenReady = nil
+  if not withinLimits(Q.cur, Q.plan) then return end
+  trace("confirming by itself: the final price is within the limit")
+  Q.autoAt = GetTime()
+  confirmStack()
+end
+Q.autoConfirm = autoConfirm   -- (for the tests)
+function Q.autoBlockedNow(reset)   -- (for the tests)
+  if reset then autoBlocked = false end
+  return autoBlocked
+end
+Q.prepare = function() return prepare() end   -- (for the tests)
+
 -- One tick of the mouse wheel or a click on Buy: the next step of the purchase.
 -- A click can arrive as both "down" and "up", so two within 0.15 s count once.
 local lastAct = 0
@@ -1019,45 +1093,14 @@ function ns:BuyQueueAct(clicked)
     again()
     return
   end
-  -- The limit (or your gold) may have changed since this was planned: never over it.
-  local need = p and ((Q.state == "confirm" and p.total) or (Q.state == "ready" and (p.cost or p.price)))
-  if need and need > spendable() then
-    if Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
-    Q.note = "That costs more than you can spend now: checking again."
-    again()
-    return
-  end
-  -- Vendor flips and watched items: never over what the most to pay is now.
-  if p and (Q.state == "ready" or Q.state == "confirm") and limitDropped(e) then return end
-  -- A shopping list item: never more than the list still wants, checked again against
-  -- the list itself right before buying, counting purchases still waiting for an answer.
-  if p and e and e.reason == "list" and (Q.state == "ready" or Q.state == "confirm") and ns.ListStillWanted then
-    local units = p.kind == "commodity" and p.qty or 1
-    local left = listLeft(e.id)
-    if units > left then
-      if Q.state == "confirm" then pcall(AH.CancelCommoditiesPurchase) end
-      ns:Debug(("Buy queue: stopped buying %d %s, the list only wants %d more."):format(units, ns.ItemName(e.id), left))
-      e.want = left
-      if left <= 0 then
-        listHasAll(e)
-      else
-        Q.note = "Checking how many the list still wants."
-        again()
-      end
-      return
-    end
-  end
+  if not withinLimits(e, p) then return end
   if Q.state == "ready" and p and p.kind == "commodity" then
     local ok, err = pcall(AH.StartCommoditiesPurchase, e.id, p.qty)
     if not ok then ns:Print("Couldn't start that purchase: " .. tostring(err)); again(); return end
     setState("price")
     timeout(6, function() pcall(AH.CancelCommoditiesPurchase); Q.note = "No final price came back: checking again."; again() end)
   elseif Q.state == "confirm" and p and p.kind == "commodity" then
-    Q.buyAt, Q.lastMoney, Q.buyFrom, Q.lastPlan = GetTime(), GetMoney(), GetMoney(), p
-    local ok, err = pcall(AH.ConfirmCommoditiesPurchase, e.id, p.qty)
-    if not ok then ns:Print("Couldn't confirm that purchase: " .. tostring(err)); again(); return end
-    setState("buying")
-    timeout(10, Q.noReply)
+    confirmStack()
   elseif Q.state == "ready" and p and p.kind == "item" then
     -- So the purchase is logged under the right item (History.lua's PlaceBid hook).
     ns.queueBidItem = e.id
@@ -1146,6 +1189,10 @@ end)
 -- The auction house is ready for the next request: a lookup waiting for it goes now.
 ns:On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function()
   if Q.state == "wait" and Q.waitKind == "ah" then retry(0) end
+  if Q.state == "confirm" and Q.confirmWhenReady then
+    local tok = Q.tok
+    C_Timer.After(0, function() if Q.tok == tok then autoConfirm() end end)
+  end
 end)
 
 ns:On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
@@ -1171,6 +1218,7 @@ ns:On("COMMODITY_PRICE_UPDATED", function(unitPrice, totalPrice)
   if total and total <= Q.cur.limit * Q.plan.qty and total <= spendable() then
     Q.plan.total = total
     setState("confirm")
+    if ns.db.settings.buyStackOneTick ~= false and not autoBlocked then autoConfirm() end
   else
     pcall(AH.CancelCommoditiesPurchase)
     if total and refusedTwice(("the real price is %s each, over %s."):format(money(math.ceil(total / Q.plan.qty)), limitText(Q.cur))) then return end
@@ -1416,6 +1464,15 @@ end
 -- If the game won't let an addon buy (it could restrict these calls), say so plainly.
 local function blocked(addon, fn)
   if addon ~= ADDON then return end
+  -- A stack's confirm done by itself (autoConfirm): the game wants your click for it after
+  -- all, so this stack waits for your next tick, and later ones take two ticks again.
+  if Q.autoAt and GetTime() - Q.autoAt < 2 and tostring(fn):find("ConfirmCommoditiesPurchase", 1, true) then
+    autoBlocked, Q.autoAt = true, nil
+    ns:Print("The game wants your click to confirm a stack of materials, so the Buy queue asks for a second tick again.")
+    Q.note = "The game wants your click to confirm: one more tick buys them."
+    setState("confirm")
+    return
+  end
   ns:Print(("The game blocked %s for addons. Buy from the auction house page instead, and tell us on Discord."):format(tostring(fn)))
   Q.note = "The game blocked buying from the addon."
   setState("idle")
@@ -1483,7 +1540,8 @@ local function statusText()
   local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. (e.suffix and (" " .. ns:VersionLabel(e.suffix)) or "") .. "|r") or ""
   local st = Q.state
   -- How to buy, said where you'd look (Magic, October 3: "which area do I scroll in?").
-  local how = S().wheel and "Scroll down over this strip, or click Buy." or "Click Buy (or tick Scroll to buy and scroll here)."
+  local how = S().wheel and (Q.armed == "flips" and "Scroll anywhere over Vendor flips, or click Buy." or "Scroll over this strip, or click Buy.")
+    or "Click Buy (or tick Scroll to buy and scroll here)."
   local GREY = "|cff888888%s|r"
   if st == "wait" then
     if Q.waitText then return Q.waitText, Q.waitHint or "Carries on a few seconds after you stop, or click Go now.", "Go now" end
@@ -1499,7 +1557,10 @@ local function statusText()
     return ("Buy %d %s for %s"):format(p.qty, name, money(p.cost)),
       ("%s each, up to %s. %s"):format(money(p.cost / p.qty), limitText(e), how), "Buy"
   end
-  if st == "price" then return "Getting the final price for " .. name .. "...", "Stacks are bought in two steps: price, then confirm.", GREY:format("Wait") end
+  if st == "price" then
+    return "Getting the final price for " .. name .. "...", (ns.db.settings.buyStackOneTick ~= false and not autoBlocked)
+      and "Bought as soon as the final price comes back within your limit." or "Stacks are bought in two steps: price, then confirm.", GREY:format("Wait")
+  end
   if st == "confirm" and p then
     return ("|cffffd100Confirm:|r %d %s for %s"):format(p.qty, name, money(p.total)),
       ("%s each. %s"):format(money(p.total / p.qty), S().wheel and "Scroll or click once more to buy them." or "Click Confirm to buy them."), "Confirm"
@@ -1648,14 +1709,21 @@ local function buildLane(v, d)
   L.edge:Hide()
   strip:SetScript("OnClick", function() arm(d.key) end)
   -- The wheel over the strip: makes this the section you buy from, then (with Scroll to
-  -- buy ticked) each tick down buys. Over the list below, the wheel scrolls the list.
-  strip:EnableMouseWheel(true)
-  strip:SetScript("OnMouseWheel", function(_, delta)
+  -- buy ticked) each tick buys, up or down (owner, November 11: only down did). Vendor
+  -- flips buy with the wheel anywhere over the section, its list too (the bar on the right
+  -- drags the list); over a shopping list the wheel scrolls the list.
+  local function wheel()
     noteListUse()
-    if delta >= 0 then return end
     if Q.armed ~= d.key then arm(d.key)
     elseif S().wheel then ns:BuyQueueAct() end
-  end)
+  end
+  L.wheel = wheel   -- (for the tests)
+  strip:EnableMouseWheel(true)
+  strip:SetScript("OnMouseWheel", wheel)
+  if d.key == "flips" then
+    L:EnableMouseWheel(true)
+    L:SetScript("OnMouseWheel", function() if S().wheel then wheel() end end)
+  end
   L.title = T:Text(strip, 11, T.accent)
   L.title:SetPoint("TOPLEFT", 12, -4)   -- (12: room for the edge and the glow)
   L.title:SetPoint("RIGHT", strip, "RIGHT", -116, 0)
@@ -1735,7 +1803,12 @@ local function buildLane(v, d)
     fs:SetText(c[1])
   end
   L.sf, L.content = T:Scroll(L)
-  L.sf:HookScript("OnMouseWheel", noteListUse)
+  local scrollList = L.sf:GetScript("OnMouseWheel")
+  L.sf:SetScript("OnMouseWheel", function(self, delta)
+    if d.key == "flips" and S().wheel then wheel(); return end
+    noteListUse()
+    if scrollList then scrollList(self, delta) end
+  end)
   L.sf:SetPoint("TOPLEFT", header, "BOTTOMLEFT", -2, -1)
   L.sf:SetPoint("BOTTOMRIGHT", -3, 3)
   L.rows = {}
@@ -1797,7 +1870,7 @@ local function buildQueueView(parent)
   wheel:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine("Scroll to buy", 1, 1, 1)
-    GameTooltip:AddLine("With the mouse over the top strip (it glows when there's something to buy), each tick of the wheel down buys the next item; stacks of materials take a second tick to confirm. It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
+    GameTooltip:AddLine("Each tick of the mouse wheel, up or down, buys the next item: anywhere over Vendor flips (drag the bar on the right to scroll its list), or over the top strip of Shopping lists. A stack of materials is confirmed in the same tick (Settings, Auction house: Buy a stack in one tick). It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2008,7 +2081,8 @@ local function fillLane(L)
     L:SetScript("OnUpdate", nil)
   end
   L.title:SetText(("%s  |cff888888%d to buy|r%s"):format(d.title, ready,
-    wheel and ("   |cff" .. (lit and hex(c) or "888888") .. "scroll down here to buy|r") or "   |cff888888click Buy, or tick Scroll to buy|r"))
+    wheel and ("   |cff" .. (lit and hex(c) or "888888") .. (d.key == "flips" and "scroll anywhere here to buy|r" or "scroll here to buy|r"))
+      or "   |cff888888click Buy, or tick Scroll to buy|r"))
   local a, b, label
   if armed then
     a, b, label = statusText()

@@ -210,6 +210,9 @@ T.test("Sweep: reads every group, then acts only on what changed", function()
   T.eq(ns:SweepOwnsList(), true)
   T.eq(ns:SweepWaiting(), true, "the Buy queue waits a moment for it")
   answer()
+  T.eq(more, 0, "new flips in this group: the Buy queue goes first")
+  T.eq(SW.state, "holding")
+  table.remove(S.timers)()   -- (a tenth of a second later)
   T.eq(more, 1, "not complete: the next group")
   T.eq(result, nil)
   full = true
@@ -258,6 +261,7 @@ T.test("Sweep: another search replacing the list ends it, to be tried again next
   rows, full = { row(MAT, 80, 4) }, false
   start()
   answer()
+  table.remove(S.timers)()   -- (the thread was a new flip: the next group a moment later)
   T.eq(SW.state, "waiting")
   AH.SendBrowseQuery({ searchString = "linen" })   -- the Buy queue looking up gear, or you
   T.eq(result.outcome, "broken")
@@ -269,15 +273,15 @@ T.test("Sweep: another search replacing the list ends it, to be tried again next
 end)
 
 T.test("Sweep: right after your own search it doesn't replace your results", function()
-  ns.lastUserSearch = GetTime() - 30
+  ns.lastUserSearch = GetTime() - 20
   sent = {}
   start()
   T.eq(result.outcome, "held", "the item checks run this time instead")
   T.eq(#sent, 0, "nothing sent")
-  ns.lastUserSearch = GetTime() - 61
+  ns.lastUserSearch = GetTime() - 31
   rows, full = { row(MAT, 80, 4) }, true
   start()
-  T.eq(#sent, 1, "a minute later it goes ahead")
+  T.eq(#sent, 1, "half a minute later it goes ahead")
   answer()
   T.eq(result.outcome, "done")
   ns.lastUserSearch = nil
@@ -285,7 +289,7 @@ T.test("Sweep: right after your own search it doesn't replace your results", fun
 end)
 
 T.test("Sweep: buying comes first; the next group waits for the Buy queue", function()
-  rows, full, more = { row(MAT, 80, 4) }, false, 0
+  rows, full, more = { row(PLAIN, 50, 4) }, false, 0   -- (not a flip: a vendor pays 10c)
   start()
   Q.state = "search"   -- the queue looks something up
   answer()
@@ -437,12 +441,12 @@ end)
 -- nothing showed why; and those 120 checks took two minutes.
 T.test("Sweep: put off for you, it says why once, and only watched items are checked meanwhile", function()
   ns.db.settings.debug, ns.db.sweepLog = true, nil
-  ns.lastUserSearch, ns.lastUserSearchBy = GetTime() - 30, "SendBrowseQuery"
+  ns.lastUserSearch, ns.lastUserSearchBy = GetTime() - 10, "SendBrowseQuery"
   start()
   T.eq(result.outcome, "held")
   T.eq(ns.db.sweepLog and #ns.db.sweepLog, 1)
-  T.ok(ns.db.sweepLog[1]:find("put off, a search (SendBrowseQuery) 30 s ago.", 1, true), ns.db.sweepLog[1])
-  T.eq(math.floor(result.wait + 0.5), 30, "the list can be read in 30 seconds")
+  T.ok(ns.db.sweepLog[1]:find("put off, a search (SendBrowseQuery) 10 s ago.", 1, true), ns.db.sweepLog[1])
+  T.eq(math.floor(result.wait + 0.5), 20, "the list can be read in 20 seconds (half a minute after your search)")
   start()
   T.eq(#ns.db.sweepLog, 1, "said once until the list is next read")
   local realPage = ns.ItemPageOpen
@@ -486,6 +490,9 @@ T.test("Sweep: a new flip is acted on as soon as its part of the list comes", fu
   local keys, partial = ns:SweepVersions(GEAR, 180)
   T.same(keys, { k1 }, "the version the Buy queue can search straight away")
   T.eq(partial, true, "dearer versions under the limit may still come")
+  T.eq(SW.state, "holding", "the Buy queue goes first")
+  table.remove(S.timers)()   -- (then the next group, a tenth of a second later)
+  T.eq(SW.state, "waiting")
   -- The next group comes with its rows: silk at 30c is a flip (a vendor pays 50c).
   T.fire("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", { gearRow(k2, 175, 2), row(SILK, 30, 5) })
   T.eq(m[SILK] and m[SILK].m, 30, "acted on before the list is over")
@@ -518,6 +525,34 @@ T.test("Sweep: a new flip is acted on as soon as its part of the list comes", fu
   ns:SweepForget(GEAR, true)
   m[MAT], m[GEAR], m[SILK] = nil, nil, nil
   ns.db.settings.debug, ns.db.sweepLog = false, nil
+  T.runTimers()
+end)
+
+-- Owner, November 11: each group took 0.63 seconds; the queue's own lookups were answered
+-- in 0.1 to 0.2.
+T.test("Sweep: a group held for a busy auction house goes the moment it's ready", function()
+  local ready = true
+  AH.IsThrottledMessageSystemReady = function() return ready end
+  ns.lastUserSearch, ns.queueBusyUntil = nil, 0
+  ns.db.settings.debug, ns.db.sweepLog = true, nil
+  rows, full, more = { row(PLAIN, 50, 4) }, false, 0
+  start()
+  ready = false
+  answer()
+  T.eq(SW.state, "holding", "busy just after the group")
+  T.eq(more, 0)
+  S.now = S.now + 0.2
+  ready = true
+  T.fire("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
+  T.eq(more, 1, "asked for at once")
+  T.eq(SW.state, "waiting")
+  full = true
+  answer()
+  T.eq(result.outcome, "done")
+  local line = ns.db.sweepLog[#ns.db.sweepLog]
+  T.ok(line:find("for the auction house 1 times (0.2 s)", 1, true), line)
+  ns.db.settings.debug, ns.db.sweepLog = false, nil
+  AH.IsThrottledMessageSystemReady = function() return true end
   T.runTimers()
 end)
 
