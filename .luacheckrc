@@ -30,7 +30,7 @@ read_globals = {
 
   -- Common engine helpers, events, names, money, sound and cursor/UI functions.
   "Ambiguate", "ChatFrame_AddMessageEventFilter", "ChatFrame_SendTell", "ClearCursor",
-  "ClearOverrideBindings", "CreateFrame", "date", "debugprofilestop", "geterrorhandler",
+  "ClearOverrideBindings", "CreateFrame", "date", "debugprofilestop", "debugstack", "geterrorhandler",
   "GetCoinTextureString", "GetCurrentKeyBoardFocus", "GetCursorInfo", "GetCursorPosition",
   "GetCVar", "GetFileIDFromPath", "GetMoney", "GetMouseFoci", "GetMouseFocus",
   "GetNormalizedRealmName", "GetRealmID", "GetRealmName", "GetRealZoneText",
