@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - `/fl api` lists which of the game's WoW Forever frame art and window templates your client has, for the coming WoW Forever look (the last report is kept in the saved data).
+- Shuffles, Sells to a vendor: an All professions tick box shows every profession's crafts that sell to a vendor for more than their materials cost at today's prices, whoever knows them. Recipes come from your profession windows; for professions none of your characters has opened, from Classic's recipes (marked as such, not yet seen in Forever). Each one's steps say the profession and who of yours knows it.
 
 ### Changed
 - Clicking Watch flips reads the auction house list at once, instead of waiting out the half minute after your own search (an item's page that's still open is still waited for).
