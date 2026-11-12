@@ -1649,6 +1649,12 @@ function ns:ToggleFlipWatch(quiet)
   if not ahOpen then ns:Print("Open the auction house first, then start the flip watch."); return end
   -- (Starting it means carry on: a pause ends too.)
   watching, paused = true, false
+  -- Your click means start now: no waiting out the half minute after your own search
+  -- (Sweep.lua ns:SweepResetWait). Not when it comes back on by itself.
+  if not quiet then
+    sweepAfter, heldFor = nil, nil
+    if ns.SweepResetWait then ns:SweepResetWait() end
+  end
   if not quiet then
     ns:Print("Flip watch on: a full scan every 15 minutes, and " ..
       (ns.SweepOn and ns:SweepOn() and "the whole auction house list read about every 20 seconds in between. "

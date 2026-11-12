@@ -288,6 +288,22 @@ T.test("Sweep: right after your own search it doesn't replace your results", fun
   T.runTimers()
 end)
 
+-- Owner, November 12: Stop, then Watch flips again, should read the list at once.
+T.test("Sweep: starting Watch flips by hand ends the wait after your search", function()
+  ns.lastUserSearch = GetTime() - 5
+  sent = {}
+  start()
+  T.eq(result.outcome, "held", "your search 5 s ago: put off")
+  ns:SweepResetWait()   -- (what Watch flips does when you click it)
+  T.eq(ns.lastUserSearch, nil)
+  rows, full = { row(MAT, 80, 4) }, true
+  start()
+  T.eq(#sent, 1, "asked for at once")
+  answer()
+  T.eq(result.outcome, "done")
+  T.runTimers()
+end)
+
 T.test("Sweep: buying comes first; the next group waits for the Buy queue", function()
   rows, full, more = { row(PLAIN, 50, 4) }, false, 0   -- (not a flip: a vendor pays 10c)
   start()

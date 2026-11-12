@@ -1071,9 +1071,14 @@ function ns:ApiReport()
   -- planning/UI_OVERHAUL_PREP.md): which of the game's frame art this client has, and at
   -- what size, and which of Blizzard's window and control templates. The names are the
   -- ones EllesmereUI's WoW Forever look draws with.
+  -- Kept (this /fl api's only) so it can be read from the saved data after a reload: a
+  -- fresh report each time, each part "not available" until it's read (Codex review of
+  -- b0296a7: a failed part kept the last report's result).
+  local look = { t = time(), art = "not available", templates = "not available" }
+  ns.db.apiLook = look
   try("Forever art", function()
     local found = {}
-    if not (C_Texture and C_Texture.GetAtlasInfo) then return "no atlas lookup" end
+    if not (C_Texture and C_Texture.GetAtlasInfo) then look.art = "no atlas lookup"; return look.art end
     for _, a in ipairs({ "UI-Frame-Metal-CornerTopLeft", "_UI-Frame-Metal-EdgeTop", "!UI-Frame-Metal-EdgeLeft",
                          "UI-Frame-Metal-CornerBottomRight", "UI-HUD-ActionBar-Frame", "ui-frame-portraitmetal",
                          "uiframe-tab-left", "common-dropdown-bg", "common-search-border-left",
@@ -1082,10 +1087,8 @@ function ns:ApiReport()
       local info = C_Texture.GetAtlasInfo(a)
       found[#found + 1] = info and ("+%s %dx%d"):format(a, info.width or 0, info.height or 0) or ("-" .. a)
     end
-    -- Kept (the last /fl api only) so it can be read from the saved data after a reload.
-    local text = table.concat(found, " ")
-    ns.db.apiLook = { t = time(), art = text, templates = ns.db.apiLook and ns.db.apiLook.templates }
-    return text
+    look.art = table.concat(found, " ")
+    return look.art
   end)
   try("Window templates", function()
     local found = {}
@@ -1101,10 +1104,8 @@ function ns:ApiReport()
     for _, l in ipairs({ "ButtonFrameTemplateNoPortrait", "PortraitFrameTemplate" }) do
       found[#found + 1] = ((layouts and layouts[l]) and "+" or "-") .. "layout " .. l
     end
-    local text = table.concat(found, " ")
-    ns.db.apiLook = ns.db.apiLook or { t = time() }
-    ns.db.apiLook.templates = text
-    return text
+    look.templates = table.concat(found, " ")
+    return look.templates
   end)
   try("Spells cast saved", function()
     local n = 0

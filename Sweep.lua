@@ -246,6 +246,14 @@ local function holdReason(first)
   end
 end
 
+-- Watch flips started by your click: the half minute after your own search or an item's
+-- page ends now (owner, November 12: "hitting stop then start again should just reset
+-- it"). A page that's still open is still waited for, so it isn't changed under you.
+function ns:SweepResetWait()
+  pageSeen, S.heldLogged = nil, nil
+  ns.lastUserSearch = nil
+end
+
 -- Run fn; an error ends the sweep as failed instead of leaving the watch stuck.
 local function safely(fn, ...)
   local ok, err = pcall(fn, ...)
