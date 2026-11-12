@@ -427,10 +427,18 @@ function ns:CheapListings(id, price)
   return n, n > 0 and cost / n or nil
 end
 
+-- When each item's saved price last changed from a live look (a search, a purchase, the
+-- auction house list), on the GetTime clock. The Buy queue looks up and buys while a full
+-- scan is on its way, and the scan may have been taken before that, so a full scan leaves
+-- these items' prices as they are (Codex review of a6f26af). Only this session's: a full
+-- scan asked for before a reload is compared with nothing.
+local liveAt = {}
+
 -- You bought `qty` of an item at `each` (or less) per unit: take them off its saved price
 -- ladder, so flips and deals drop without waiting for the next full scan. Takes from
 -- the dearest level at or below what you paid (what you most likely bought).
 function ns:RemoveBought(id, qty, each)
+  if id then liveAt[id] = GetTime() end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   if not (rec and rec.l and not rec.none) then return end
   local levels, prev = {}, 0
@@ -512,6 +520,7 @@ function ns:DropBelow(id, price, quiet)
   rec.q = math.max(0, (rec.q or 0) - gone)
   rec.l = table.concat(out, ",")
   rec.m = price
+  liveAt[id] = GetTime()
   ns.LadderTypical(rec)
   if ns.CheckFlip then
     local ok, err = pcall(ns.CheckFlip, ns, id)
@@ -553,6 +562,7 @@ function ns:AddCheapest(id, price, listed)
     rec.t = time()
     ns.LadderTypical(rec)
   end
+  liveAt[id] = GetTime()
   if ns.CheckFlip then
     local ok, err = pcall(ns.CheckFlip, ns, id)
     if not ok then ns:Debug("Flip check failed for", id, err) end
@@ -603,11 +613,17 @@ function ns.TypicalPrice(units)
 end
 
 -- units: list of { unitPrice, quantity }
-local function record(id, units, src)
+-- liveSince (full scans): when the scan was asked for, on the GetTime clock. An item whose
+-- price changed from a live look since then keeps it; the scan adds only its versions
+-- and price history.
+local function record(id, units, src, liveSince)
   if ns.InvalidateValues then ns:InvalidateValues() end
   local key = ns.MarketKey()
   ns.db.prices[key] = ns.db.prices[key] or {}
+  local keep = src == "full" and liveSince and liveAt[id] and liveAt[id] >= liveSince
+  if src ~= "full" then liveAt[id] = GetTime() end
   if #units == 0 then
+    if keep then return end
     ns.db.prices[key][id] = { t = time(), src = src or "scan", none = true }
     if ns.CheckFlip then pcall(ns.CheckFlip, ns, id) end   -- forgets a flip that sold out
     return
@@ -658,7 +674,11 @@ local function record(id, units, src)
     sx = #sx > 0 and table.concat(sx, ";") or nil,
     sxt = sxt,
   }
-  ns.db.prices[key][id] = rec
+  if keep and old then
+    old.sx, old.sxt = rec.sx, rec.sxt
+  else
+    ns.db.prices[key][id] = rec
+  end
   -- A watch pass or your own search: alert straight away if this made a new vendor
   -- flip (full scans check everything at once when they finish).
   if src ~= "full" and ns.CheckFlip then
@@ -1185,7 +1205,7 @@ end)
 -- seen: every item it listed, priced or not. since: when the listings were taken, at the
 -- earliest.
 local NEW_SIZE_AFTER = 86400
-local function markGone(seen, unread, n, since)
+local function markGone(seen, unread, n, since, liveSince)
   if n <= 0 or unread > 0 then return 0 end   -- (a row it couldn't read could be any item)
   local key, now = ns.MarketKey(), time()
   ns.db.lastFullListings = ns.db.lastFullListings or {}
@@ -1202,7 +1222,8 @@ local function markGone(seen, unread, n, since)
   ns.db.lastFullListings[key] = { n = n, t = now }
   local market, gone = ns.db.prices[key] or {}, 0
   for id, rec in pairs(market) do
-    if not seen[id] and not rec.none and (rec.t or 0) < since and (rec.src == "full" or rec.src == "scan") then
+    if not seen[id] and not rec.none and (rec.t or 0) < since and (rec.src == "full" or rec.src == "scan")
+      and not (liveAt[id] and liveAt[id] >= liveSince) then
       market[id] = { t = now, src = "full", none = true }
       gone = gone + 1
     end
@@ -1228,7 +1249,9 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   Scan.askedAt = nil
   local started = mine and Scan.started or GetTime()
   -- (Not knowing when another addon asked: a minute back is plenty for what's newer.)
-  local since = time() - (mine and (GetTime() - started) or waited or 60)
+  local back = mine and (GetTime() - started) or waited or 60
+  local since = time() - back
+  local liveSince = GetTime() - back   -- (the same moment on the GetTime clock, for liveAt)
   local n = C_AuctionHouse.GetNumReplicateItems() or 0
   if not mine then ns:Debug("Reading another addon's full scan:", n, "listings") end
   local byItem, i = {}, 0
@@ -1310,14 +1333,15 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       local items, versions, gearWith = 0, 0, 0
       local sold = soldTracker()
       for id, units in pairs(byItem) do
-        record(id, units, "full"); items = items + 1
+        record(id, units, "full", liveSince); items = items + 1
         sold.add(id, units)
         local has = false
         for _, u in ipairs(units) do if u[3] then versions = versions + 1; has = true end end
         if has then gearWith = gearWith + 1 end
       end
       sold.finish()
-      ns:Debug(("Full scan: %d items no longer listed."):format(markGone(seen, unread, n, since)))
+      ns:Debug(("Full scan: %d items no longer listed."):format(markGone(seen, unread, n, since, liveSince)))
+      wipe(liveAt)   -- (older than any full scan still to come)
       -- For checking gear versions (/fl debug): did the scan see any "of the Eagle" listings?
       ns:Debug(("Gear versions: %d listings with random stats across %d items (link function: %s)."):format(
         versions, gearWith, getLink and "yes" or "missing"))

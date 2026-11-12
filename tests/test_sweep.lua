@@ -679,6 +679,60 @@ T.test("Buy queue: a full scan under way doesn't hold a lookup back", function()
   T.runTimers()
 end)
 
+-- Codex review of a6f26af: with the Buy queue looking up and buying while a full scan is on
+-- its way, the scan's snapshot may be older than what it saw. Pending full scan, then a
+-- lookup and purchase, then the older snapshot: the purchase stays.
+T.test("Full scan: an item looked up or bought since it was asked for keeps its newer price", function()
+  local Scan = ns.Scan
+  local key = ns.MarketKey()
+  local realMarket = ns.db.prices[key]
+  ns.db.prices[key] = {}
+  local m = ns.db.prices[key]
+  local BOUGHT, UNTOUCHED, BEFORE, DROPPED = 94010, 94011, 94012, 94013
+  for _, id in ipairs({ BOUGHT, UNTOUCHED, BEFORE, DROPPED }) do S.items[id] = { name = "Test Wool " .. id, sell = 10 } end
+  wipe(S.timers)
+  ns.RecordPrice(BEFORE, { { 70, 3 } }, "scan")   -- looked up before the scan was asked for
+  m[UNTOUCHED] = { m = 100, a = 100, q = 4, l = "100:4", t = time() - 5000, src = "full" }
+  m[DROPPED] = { m = 60, a = 60, q = 4, l = "60:1,90:4", t = time() - 5000, src = "full" }
+  S.now = S.now + 5
+  Scan.active, Scan.full, Scan.started = true, true, GetTime()   -- the full scan is asked for
+  S.now = S.now + 5
+  ns.RecordPrice(BOUGHT, { { 50, 1 } }, "scan")   -- the Buy queue's lookup...
+  ns:RemoveBought(BOUGHT, 1, 50)                 -- ...and purchase
+  T.eq(m[BOUGHT].none, true, "bought the only one")
+  ns:DropBelow(DROPPED, 90, true)                 -- the list: the 60c one is gone
+  S.now = S.now + 15
+  -- The snapshot, taken before all that: five of the bought item at 2s each.
+  local listings = { { 1000, 5, BOUGHT }, { 300, 1, UNTOUCHED }, { 80, 1, BEFORE }, { 80, 1, BEFORE } }
+  rawset(AH, "GetNumReplicateItems", function() return #listings end)
+  rawset(AH, "GetReplicateItemInfo", function(idx)
+    local l = listings[idx + 1]
+    return nil, nil, l[2], nil, nil, nil, nil, l[1], nil, l[1], nil, nil, nil, nil, nil, nil, l[3]
+  end)
+  ns.db.lastFullListings = { [key] = { n = #listings, t = time() } }
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(m[BOUGHT].none, true, "bought since the scan was asked for: the snapshot doesn't bring it back")
+  T.eq(m[BOUGHT].src, "scan")
+  T.eq(m[UNTOUCHED].m, 300, "not looked at since: taken from the scan")
+  T.eq(m[BEFORE].m, 80, "looked at before the scan was asked for: the scan is the newer")
+  T.eq(m[DROPPED].none, nil, "on the list since: not marked gone")
+  T.eq(m[DROPPED].m, 90)
+  T.eq(Scan.active, false)
+  -- The next full scan, asked for later, is newer than the purchase: it's taken whole.
+  S.now = S.now + 900
+  Scan.active, Scan.full, Scan.started = true, true, GetTime()
+  S.now = S.now + 20
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(m[BOUGHT].m, 200, "a later scan counts again")
+  T.eq(m[BOUGHT].none, nil)
+  T.eq(m[DROPPED].none, true, "not in a later scan: gone")
+  rawset(AH, "GetNumReplicateItems", nil)
+  rawset(AH, "GetReplicateItemInfo", nil)
+  ns.db.prices[key], ns.db.lastFullListings = realMarket, nil
+  Scan.active, Scan.full = false, false
+  wipe(S.timers)
+end)
+
 -- Owner, November 11: /fl perf, kept at logout with /fl debug on, to read after a reload.
 T.test("Perf: the slowest tasks as lines, slowest single moment first", function()
   local real = ns.perf
