@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- `/fl api` lists which of the game's WoW Forever frame art and window templates your client has, for the coming WoW Forever look.
+
 ## [0.23.0] - 2026-11-11
 
 ### Highlights

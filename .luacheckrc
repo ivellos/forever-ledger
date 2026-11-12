@@ -14,7 +14,7 @@ read_globals = {
   "C_MerchantFrame", "C_MountJournal", "C_PartyInfo", "C_PetJournal", "C_PvP",
   "C_QuestLog", "C_Seasons", "C_SpecializationInfo", "C_Spell", "C_SpellBook",
   "C_SuperTrack", "C_Talent", "C_Texture", "C_Timer", "C_TooltipInfo", "C_ToyBox",
-  "C_TradeSkillUI", "C_Traits", "C_UnitAuras", "C_XMLUtil", "Enum", "ItemLocation",
+  "C_TradeSkillUI", "C_Traits", "C_UnitAuras", "C_XMLUtil", "Enum", "ItemLocation", "NineSliceLayouts",
   "TooltipDataProcessor", "UiMapPoint",
 
   -- Frames, UI enums, localized strings and constants supplied by Blizzard.

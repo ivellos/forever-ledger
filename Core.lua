@@ -1067,6 +1067,39 @@ function ns:ApiReport()
     end
     return table.concat(found, " ")
   end)
+  -- The WoW Forever look (owner, November 11: make the addon fit the game's own windows;
+  -- planning/UI_OVERHAUL_PREP.md): which of the game's frame art this client has, and at
+  -- what size, and which of Blizzard's window and control templates. The names are the
+  -- ones EllesmereUI's WoW Forever look draws with.
+  try("Forever art", function()
+    local found = {}
+    if not (C_Texture and C_Texture.GetAtlasInfo) then return "no atlas lookup" end
+    for _, a in ipairs({ "UI-Frame-Metal-CornerTopLeft", "_UI-Frame-Metal-EdgeTop", "!UI-Frame-Metal-EdgeLeft",
+                         "UI-Frame-Metal-CornerBottomRight", "UI-HUD-ActionBar-Frame", "ui-frame-portraitmetal",
+                         "uiframe-tab-left", "common-dropdown-bg", "common-search-border-left",
+                         "common-button-tertiary-square-normal", "common-coinbox-left", "uitools-icon-close",
+                         "Ui-Dialog-New-Background" }) do
+      local info = C_Texture.GetAtlasInfo(a)
+      found[#found + 1] = info and ("+%s %dx%d"):format(a, info.width or 0, info.height or 0) or ("-" .. a)
+    end
+    return table.concat(found, " ")
+  end)
+  try("Window templates", function()
+    local found = {}
+    for _, t in ipairs({ "ButtonFrameTemplate", "PortraitFrameTemplate", "BasicFrameTemplateWithInset", "DefaultPanelTemplate",
+                         "UIPanelButtonTemplate", "UICheckButtonTemplate", "InputBoxTemplate", "SearchBoxTemplate",
+                         "ScrollFrameTemplate", "UIPanelScrollFrameTemplate", "WowStyle1DropdownTemplate", "UIDropDownMenuTemplate" }) do
+      local ok
+      if C_XMLUtil and C_XMLUtil.GetTemplateInfo then ok = C_XMLUtil.GetTemplateInfo(t) ~= nil
+      else ok = pcall(CreateFrame, "Frame", nil, nil, t) end
+      found[#found + 1] = (ok and "+" or "-") .. t
+    end
+    local layouts = type(NineSliceLayouts) == "table" and NineSliceLayouts or nil
+    for _, l in ipairs({ "ButtonFrameTemplateNoPortrait", "PortraitFrameTemplate" }) do
+      found[#found + 1] = ((layouts and layouts[l]) and "+" or "-") .. "layout " .. l
+    end
+    return table.concat(found, " ")
+  end)
   try("Spells cast saved", function()
     local n = 0
     for _ in pairs((ns.db.casts or {})[ns.CharKey()] or {}) do n = n + 1 end
