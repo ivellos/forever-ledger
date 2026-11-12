@@ -168,7 +168,8 @@ T.test("Deal check: it belongs to the auction house it started at, and a deal go
     ns.neutralAH = true
     local nm = {}
     ns.db.prices[ns.MarketKey()] = nm
-    for id = 95101, 95900 do nm[id] = { m = 100, a = 100, q = 1, t = time(), src = "scan" } end
+    -- (Other items at about the usual price: no deals.)
+    for id = 95101, 95900 do nm[id] = { m = 950, a = 950, q = 1, t = time(), src = "scan" } end
     local function cheap() nm[DEAL] = { m = 600, a = 600, q = 2, l = "600:2", t = time(), src = "scan" } end
     cheap()
     ns.db.alertsSeen = nil
