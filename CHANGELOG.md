@@ -15,7 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A new flip chimes as soon as it's found, not a second later; the list is read again after half a second instead of 3; and after a purchase the next flip is looked up straight away.
 - The Buy queue keeps looking up and buying while a full scan comes in (over 20 seconds on a busy auction house), instead of waiting for it to finish. An item looked up or bought meanwhile keeps that newer price: the full scan may have been taken before it, so it can't bring back a listing you just bought.
 - The status line says "reading the AH list, part N", so it fits.
-- With `/fl debug` on, the list's log also says how often and how long it waited for the auction house, and which parts new flips came in; the Buy queue's log says when a full scan was under way; and `/fl perf`'s timings are kept at logout, to read afterward.
+- With `/fl debug` on, the list's log also says how often and how long it waited for the auction house, and which parts new flips came in; the Buy queue's log says when a full scan was under way; and `/fl perf`'s timings are kept at logout, to read afterward, and include reading a full scan.
 
 ## [0.22.0] - 2026-11-11
 

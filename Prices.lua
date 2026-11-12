@@ -1295,7 +1295,9 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
     end
     return suffix
   end
-  local function chunk()
+  -- Timed for /fl perf: each part of 2,000 listings, and the last, which saves them all.
+  local chunk
+  chunk = ns.Timed("Full scan: reading", function()
     local stop = math.min(i + 2000, n)
     for idx = i, stop - 1 do
       local _, _, count, _, _, _, _, minBid, _, buyout, bidAmount, _, _, owner, ownerFull, _, itemID = C_AuctionHouse.GetReplicateItemInfo(idx)
@@ -1384,7 +1386,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
       ns:RefreshUI()
       if mine and ns.FlipWatchNext then ns.FlipWatchNext() end
     end
-  end
+  end)
   chunk()
 end)
 
