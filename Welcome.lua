@@ -1,4 +1,5 @@
 local _, ns = ...
+local print = ns.LocalizedPrint
 local T = ns.Theme
 
 ---------------------------------------------------------------------------
@@ -216,7 +217,7 @@ local function kindIcon(parent, kind, size)
   f:EnableMouse(true)
   f:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine(k[3], 1, 1, 1)
+    ns:TooltipAddLine(k[3], 1, 1, 1)
     GameTooltip:Show()
   end)
   f:SetScript("OnLeave", function() GameTooltip:Hide() end)

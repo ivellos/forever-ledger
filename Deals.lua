@@ -101,8 +101,8 @@ function ns:BuildDeals(parent)
   f.thin:SetHitRectInsets(0, -(f.thin.label:GetStringWidth() + 8), 0, 0)   -- the name ticks it too
   f.thin:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Show doubtful deals too", 1, 1, 1)
-    GameTooltip:AddLine("Also lists deals with few days of prices, or prices that jump around, so the usual price is more of a guess.", nil, nil, nil, true)
+    ns:TooltipAddLine("Show doubtful deals too", 1, 1, 1)
+    ns:TooltipAddLine("Also lists deals with few days of prices, or prices that jump around, so the usual price is more of a guess.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   f.thin:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -120,8 +120,8 @@ function ns:BuildDeals(parent)
   f.mode:SetPoint("TOPRIGHT", -4, -42)
   f.mode:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Deals or Booty Bay", 1, 1, 1)
-    GameTooltip:AddLine("Booty Bay compares the neutral auction house (Booty Bay, Gadgetzan, Everlook) with yours, each after its own cut: 15% there. Its prices come from opening it and scanning there, and are kept apart from yours everywhere else.", nil, nil, nil, true)
+    ns:TooltipAddLine("Deals or Booty Bay", 1, 1, 1)
+    ns:TooltipAddLine("Booty Bay compares the neutral auction house (Booty Bay, Gadgetzan, Everlook) with yours, each after its own cut: 15% there. Its prices come from opening it and scanning there, and are kept apart from yours everywhere else.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   f.mode:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -184,9 +184,9 @@ local function getHeader(i)
     end)
     h:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:AddLine(self.label or "", 1, 1, 1)
-      if self.tip then GameTooltip:AddLine(self.tip, nil, nil, nil, true) end
-      GameTooltip:AddLine("Click to sort.", 0.7, 0.7, 0.7)
+      ns:TooltipAddLine(self.label or "", 1, 1, 1)
+      if self.tip then ns:TooltipAddLine(self.tip, nil, nil, nil, true) end
+      ns:TooltipAddLine("Click to sort.", 0.7, 0.7, 0.7)
       GameTooltip:Show()
     end)
     h:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -198,24 +198,24 @@ end
 local function neutralTip(self, d)
   local a = T.accent
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:AddLine(ns.ItemName(d.id) or "?", 1, 1, 1)
-  GameTooltip:AddLine("Allows for one listing that doesn't sell (its deposit is lost).", 0.7, 0.7, 0.7, true)
-  GameTooltip:AddLine(" ")
-  GameTooltip:AddLine("Booty Bay (15% cut)", a[1], a[2], a[3])
-  GameTooltip:AddDoubleLine("  Cheapest", ns.Money(d.there) .. " |cff999999" .. d.listedThere .. " listed|r", 0.7, 0.7, 0.7, 1, 1, 1)
-  GameTooltip:AddDoubleLine("  Selling there brings", ns.Money(d.netThere), 0.7, 0.7, 0.7, 1, 1, 1)
-  GameTooltip:AddDoubleLine("  Seen", ns.Age(d.t), 0.7, 0.7, 0.7, 1, 1, 1)
-  GameTooltip:AddLine(("Your auction house (%g%% cut)"):format(ns:AHCut(false) * 100), a[1], a[2], a[3])
-  GameTooltip:AddDoubleLine("  Cheapest", ns.Money(d.here) .. " |cff999999" .. d.listedHere .. " listed|r", 0.7, 0.7, 0.7, 1, 1, 1)
-  GameTooltip:AddDoubleLine("  Selling here brings", ns.Money(d.netHere), 0.7, 0.7, 0.7, 1, 1, 1)
-  GameTooltip:AddLine(" ")
+  ns:TooltipAddLine(ns.ItemName(d.id) or "?", 1, 1, 1)
+  ns:TooltipAddLine("Allows for one listing that doesn't sell (its deposit is lost).", 0.7, 0.7, 0.7, true)
+  ns:TooltipAddLine(" ")
+  ns:TooltipAddLine("Booty Bay (15% cut)", a[1], a[2], a[3])
+  ns:TooltipAddDoubleLine("  Cheapest", ns.Money(d.there) .. " |cff999999" .. d.listedThere .. " listed|r", 0.7, 0.7, 0.7, 1, 1, 1)
+  ns:TooltipAddDoubleLine("  Selling there brings", ns.Money(d.netThere), 0.7, 0.7, 0.7, 1, 1, 1)
+  ns:TooltipAddDoubleLine("  Seen", ns.Age(d.t), 0.7, 0.7, 0.7, 1, 1, 1)
+  ns:TooltipAddLine(("Your auction house (%g%% cut)"):format(ns:AHCut(false) * 100), a[1], a[2], a[3])
+  ns:TooltipAddDoubleLine("  Cheapest", ns.Money(d.here) .. " |cff999999" .. d.listedHere .. " listed|r", 0.7, 0.7, 0.7, 1, 1, 1)
+  ns:TooltipAddDoubleLine("  Selling here brings", ns.Money(d.netHere), 0.7, 0.7, 0.7, 1, 1, 1)
+  ns:TooltipAddLine(" ")
   if d.dir == "buy" then
-    GameTooltip:AddLine(("Buy at Booty Bay for %s, sell here for %s after the cut: %s more each."):format(
+    ns:TooltipAddLine(("Buy at Booty Bay for %s, sell here for %s after the cut: %s more each."):format(
       ns.Money(d.there), ns.Money(d.netHere), ns.Money(d.buyProfit)), 0.5, 0.83, 0.61, true)
   else
-    GameTooltip:AddLine(("Selling at Booty Bay instead brings %s more each."):format(ns.Money(d.gain)), 0.5, 0.83, 0.61, true)
+    ns:TooltipAddLine(("Selling at Booty Bay instead brings %s more each."):format(ns.Money(d.gain)), 0.5, 0.83, 0.61, true)
   end
-  GameTooltip:AddLine("Prices move: Booty Bay's are only as fresh as your last visit there.", 0.5, 0.5, 0.5, true)
+  ns:TooltipAddLine("Prices move: Booty Bay's are only as fresh as your last visit there.", 0.5, 0.5, 0.5, true)
   GameTooltip:Show()
 end
 
@@ -225,20 +225,20 @@ local function showTip(self)
   if d.neutral then return neutralTip(self, d) end
   local a = T.accent
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:AddDoubleLine(ns.ItemName(d.id) or "?", ("%d%% below usual"):format(math.floor(d.pct * 100 + 0.5)),
+  ns:TooltipAddDoubleLine(ns.ItemName(d.id) or "?", ("%d%% below usual"):format(math.floor(d.pct * 100 + 0.5)),
     1, 1, 1, 0.5, 0.83, 0.61)
   for _, e in ipairs(ns:DealExplain(d)) do
     if e.head then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(e.head, a[1], a[2], a[3])
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine(e.head, a[1], a[2], a[3])
     elseif e.note then
-      GameTooltip:AddLine(e.note, e.color[1], e.color[2], e.color[3], true)
+      ns:TooltipAddLine(e.note, e.color[1], e.color[2], e.color[3], true)
     else
-      GameTooltip:AddDoubleLine("  " .. e[1], e[2], 0.7, 0.7, 0.7, 1, 1, 1)
+      ns:TooltipAddDoubleLine("  " .. e[1], e[2], 0.7, 0.7, 0.7, 1, 1, 1)
     end
   end
-  GameTooltip:AddLine(" ")
-  GameTooltip:AddLine("Click to search the auction house.", 0.5, 0.5, 0.5)
+  ns:TooltipAddLine(" ")
+  ns:TooltipAddLine("Click to search the auction house.", 0.5, 0.5, 0.5)
   GameTooltip:Show()
 end
 

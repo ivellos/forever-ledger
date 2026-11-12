@@ -93,6 +93,7 @@ function T:Apply()
   if T.theme.font then T.font = T.theme.font end
   -- Grey text (descriptions, hints) a little dimmer on Default and Gilded, so the names
   -- above it stand out (owner's test, October 4).
+  if ns.localeFont then T.font = ns.localeFont end
   T.dim = { 1, 1, 1, T.theme.dimAlpha or 0.53 }
   T.accent = T:FromHex(s and s.accent) or euiAccent() or T.theme.accent
 end
@@ -102,7 +103,7 @@ end
 function T:Refresh()
   local E = EllesmereUI
   if type(E) ~= "table" then return end
-  if type(E.GetFontPath) == "function" and not T.theme.font then
+  if not ns.localeFont and type(E.GetFontPath) == "function" and not T.theme.font then
     local ok, path = pcall(E.GetFontPath)
     if ok and type(path) == "string" and path ~= "" then T.font = path end
   end
@@ -256,7 +257,7 @@ function T:Font(fs, size, color)
   fs:SetShadowOffset(1, -1)
   local c = color or T.text
   fs:SetTextColor(c[1], c[2], c[3], c[4] or 1)
-  return fs
+  return ns.LocalizeFontString(fs)
 end
 
 function T:Text(parent, size, color, layer)
@@ -322,6 +323,7 @@ function T:Button(parent, label, width, onClick, height, name)
   local fs = T:Text(b, 12)
   fs:SetPoint("CENTER")
   b:SetFontString(fs)
+  ns.LocalizeButton(b)
   b:SetText(label)
   function b:SetSelected(on) self.selected = on; buttonLook(self, false) end
   -- The main action on a screen: accent edge and tint.
@@ -436,13 +438,13 @@ function T:MoneyPreview(eb, plainUnit)
     local v = ns.ParseMoneyLoose(self:GetText(), plainUnit)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     if v == -1 then
-      GameTooltip:AddLine("= any price", 1, 1, 1)
+      ns:TooltipAddLine("= any price", 1, 1, 1)
     elseif v then
-      GameTooltip:AddLine("= " .. (v > 0 and ns.Money(v) or "off"), 1, 1, 1)
+      ns:TooltipAddLine("= " .. (v > 0 and ns.Money(v) or "off"), 1, 1, 1)
     else
-      GameTooltip:AddLine("Not a price yet", 1, 0.5, 0.5)
+      ns:TooltipAddLine("Not a price yet", 1, 0.5, 0.5)
     end
-    GameTooltip:AddLine(("Enter saves. Examples: 2g 50s 25c, 2 50 25 or 2.50.25 (gold silver copper), 2 50 (gold silver), 25s, 75c%s%s."):format(
+    ns:TooltipAddLine(("Enter saves. Examples: 2g 50s 25c, 2 50 25 or 2.50.25 (gold silver copper), 2 50 (gold silver), 25s, 75c%s%s."):format(
       plainUnit == "g" and ", or 3 for 3g" or "", self.allowAny and ", any" or ""), 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end)
@@ -522,7 +524,7 @@ function T:MoneyBox(parent, onChange, plainUnit, allowAny, offText)
     local v = self.value or 0
     if self.compact and v > 0 and not self:HasFocus() and shortPrice(v) ~= ns.MoneyPlain(v) then
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:AddLine(ns.Money(v), 1, 1, 1)
+      ns:TooltipAddLine(ns.Money(v), 1, 1, 1)
       GameTooltip:Show()
     end
   end)
@@ -573,6 +575,7 @@ function T:Tab(parent, label, onClick)
   local fs = T:Text(b, 12, T.dim)   -- (12, lighter, like the mockup)
   fs:SetPoint("CENTER")
   b:SetFontString(fs)
+  ns.LocalizeButton(b)
   b:SetText(label)
   b:SetSize(fs:GetStringWidth() + 20, 28)   -- 20, not 24: ten main tabs must fit the smallest window
   b.line = b:CreateTexture(nil, "OVERLAY")
@@ -929,3 +932,5 @@ end
 
 ns:OnReady(function() T:Refresh() end)
 ns:On("PLAYER_LOGIN", function() T:Refresh() end)
+
+if ns.localeFont then T.SERIF = ns.localeFont end

@@ -170,29 +170,29 @@ end
 function ns:AddClassicSourceLines(tt, name)
   local e = name and ns.CLASSIC_RECIPES and ns.CLASSIC_RECIPES[name:lower()]
   if not e then return end
-  tt:AddLine(" ")
-  tt:AddLine("In original Classic (unconfirmed in Forever):", 1, 0.82, 0)
+  ns:AddTooltipLine(tt, " ")
+  ns:AddTooltipLine(tt, "In original Classic (unconfirmed in Forever):", 1, 0.82, 0)
   for _, id in ipairs(e.vendors or {}) do
     local v = classicNPC(id, "vendor")
     if v then
-      tt:AddDoubleLine("Sold by " .. v.npc, (v.zone or "?") .. (v.x and (" %.0f, %.0f"):format(v.x * 100, v.y * 100) or "")
+      ns:AddTooltipDoubleLine(tt, "Sold by " .. v.npc, (v.zone or "?") .. (v.x and (" %.0f, %.0f"):format(v.x * 100, v.y * 100) or "")
         .. (friendly(v) and "" or (" (%s only)"):format(ns.OtherFaction())), 1, 1, 1, 0.8, 0.8, 0.8)
     end
   end
   for _, m in ipairs(e.mobs or {}) do
     local v = classicNPC(m[1], "mob")
     if v then
-      tt:AddDoubleLine(("%s (%s%%)"):format(v.npc, m[2] >= 1 and ("%.0f"):format(m[2]) or ("%.2f"):format(m[2])),
+      ns:AddTooltipDoubleLine(tt, ("%s (%s%%)"):format(v.npc, m[2] >= 1 and ("%.0f"):format(m[2]) or ("%.2f"):format(m[2])),
         v.zone or "?", 1, 1, 1, 0.8, 0.8, 0.8)
     end
   end
   if e.mobCount and e.mobCount > #(e.mobs or {}) then
-    tt:AddLine(("...and %d more kinds of mob."):format(e.mobCount - #(e.mobs or {})), 0.8, 0.8, 0.8)
+    ns:AddTooltipLine(tt, ("...and %d more kinds of mob."):format(e.mobCount - #(e.mobs or {})), 0.8, 0.8, 0.8)
   end
-  if e.quest then tt:AddLine("Quest: " .. e.quest, 1, 1, 1) end
+  if e.quest then ns:AddTooltipLine(tt, "Quest: " .. e.quest, 1, 1, 1) end
   local s = ns:ClassicSource(name)
   if s and s.otherSide then
-    tt:AddLine(("Only the %s can get this recipe. For you, the way is the neutral auction house (Booty Bay, Gadgetzan, Everlook)."):format(
+    ns:AddTooltipLine(tt, ("Only the %s can get this recipe. For you, the way is the neutral auction house (Booty Bay, Gadgetzan, Everlook)."):format(
       ns.OtherFaction()), 0.93, 0.52, 0.59, true)
   end
 end
@@ -260,7 +260,7 @@ end
 
 local function ahText(s)
   local price, rec = recipeAH(s)
-  if price then return "  |cffffd100AH " .. ns.Money(price) .. "|r" end
+  if price then return "  |cffffd100" .. ns.LocalizeText("AH") .. " " .. ns.Money(price) .. "|r" end
   if rec and rec.none then return dim("  none on AH") end
   return ""
 end
@@ -268,12 +268,12 @@ end
 local function sourceText(s)
   -- Recipes with no recipe item to find were taught by trainers in Classic.
   -- Forever also adds recipes Classic never had (Favor vendors, camping).
-  if not s then return dim("trainer, or new in Forever") end
+  if not s then return dim(ns.LocalizeText("trainer, or new in Forever")) end
   if s.kind == "ah" then
     return ("On the auction house: |cffffd100%s|r %s"):format(ns.Money(s.price), dim(("(%d listed)"):format(s.listed or 0)))
   end
   local classic = s.conf ~= "seen"
-  local where = s.zone and (", " .. s.zone) or ""
+  local where = s.zone and (", " .. ns.LocalizeText(s.zone)) or ""
   local text
   if s.kind == "trainer" then
     -- Every trainer of a tier teaches the same list (owner, beta), and higher tiers teach
@@ -310,7 +310,7 @@ local function sourceText(s)
     text = s.kind or "?"
   end
   -- Short, so prices fit; the hover and summary line explain it.
-  return text .. (classic and dim("  (Classic)") or "")
+  return text .. (classic and dim(ns.LocalizeText("  (Classic)")) or "")
 end
 
 ---------------------------------------------------------------------------
@@ -408,8 +408,8 @@ function ns:BuildRecipes(parent)
   f.custom:SetHitRectInsets(0, -(f.custom.label:GetStringWidth() + 8), 0, 0)   -- the name ticks it too
   f.custom:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Use my types", 1, 1, 1)
-    GameTooltip:AddLine("On: recipes you right-clicked keep the type you gave them. Off: every recipe uses the automatic type (your choices are kept for later).", nil, nil, nil, true)
+    ns:TooltipAddLine("Use my types", 1, 1, 1)
+    ns:TooltipAddLine("On: recipes you right-clicked keep the type you gave them. Off: every recipe uses the automatic type (your choices are kept for later).", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   f.custom:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -428,7 +428,7 @@ function ns:BuildRecipes(parent)
     local n = 0
     for _ in pairs(ns.db.recipeTypes) do n = n + 1 end
     if n == 0 then ns:Print("You haven't set any types yet."); return end
-    StaticPopup_Show("FOREVER_LEDGER_CLEAR_TYPES", n)
+    ns:ShowPopup("FOREVER_LEDGER_CLEAR_TYPES", n)
   end, 22)
   f.clear:SetPoint("LEFT", f.custom.label, "RIGHT", 14, 0)
   local hint = T:Text(f.search, 11, T.section)
@@ -474,7 +474,7 @@ local function layoutTabs(list, others)
       if tip then
         b:HookScript("OnEnter", function(self)
           GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-          GameTooltip:AddLine(tip, 1, 1, 1)
+          ns:TooltipAddLine(tip, 1, 1, 1)
           GameTooltip:Show()
         end)
         b:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -494,8 +494,8 @@ local function layoutTabs(list, others)
       f.other = T:Dropdown(f, 170, function(v) if v ~= "" then current = v; ns:RefreshRecipes() end end)
       f.other:HookScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:AddLine("Other professions", 1, 1, 1)
-        GameTooltip:AddLine("Professions this character doesn't have. A star: another of your characters on this realm and faction has it.", nil, nil, nil, true)
+        ns:TooltipAddLine("Other professions", 1, 1, 1)
+        ns:TooltipAddLine("Professions this character doesn't have. A star: another of your characters on this realm and faction has it.", nil, nil, nil, true)
         GameTooltip:Show()
       end)
       f.other:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -588,15 +588,15 @@ local function getRow(i)
     ns:AddClassicSourceLines(GameTooltip, self.recipeName)
     local price, rec = recipeAH(self.src)
     if price then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddDoubleLine("Recipe on the auction house", ns.Money(price), 1, 0.82, 0, 1, 1, 1)
-      GameTooltip:AddLine(("%d listed, scanned %s"):format(rec.q or 0, ns.Age(rec.t)), 0.8, 0.8, 0.8)
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddDoubleLine("Recipe on the auction house", ns.Money(price), 1, 0.82, 0, 1, 1, 1)
+      ns:TooltipAddLine(("%d listed, scanned %s"):format(rec.q or 0, ns.Age(rec.t)), 0.8, 0.8, 0.8)
     elseif rec and rec.none then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(("Recipe not on the auction house (scanned %s)"):format(ns.Age(rec.t)), 0.8, 0.8, 0.8)
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine(("Recipe not on the auction house (scanned %s)"):format(ns.Age(rec.t)), 0.8, 0.8, 0.8)
     end
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Right-click to set your own type, shift-right-click for automatic.", T.accent[1], T.accent[2], T.accent[3])
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddLine("Right-click to set your own type, shift-right-click for automatic.", T.accent[1], T.accent[2], T.accent[3])
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -872,8 +872,8 @@ local function trainerRows(width, lay)
       name = e.v.name or "?",
       skill = "",
       known = e.profession or dim("?"),
-      source = ("%s%s%s"):format(e.v.zone or "?", e.v.x and ("  (%.1f, %.1f)"):format(e.v.x * 100, e.v.y * 100) or "",
-        e.classic and dim("  (Classic)") or e.guard and "  |cff7fd39c(guard)|r" or ""),
+      source = ("%s%s%s"):format(ns.LocalizeText(e.v.zone or "?"), e.v.x and ("  (%.1f, %.1f)"):format(e.v.x * 100, e.v.y * 100) or "",
+        e.classic and dim(ns.LocalizeText("  (Classic)")) or e.guard and "  |cff7fd39c(guard)|r" or ""),
       type = e.tier or (e.guard and not e.named and dim("shop") or dim("?")),
       profit = e.v.title and dim(e.v.title) or "",
     }
@@ -935,7 +935,7 @@ function ns:RefreshRecipes()
     h:SetSize(math.max(lay[c.key].w, 1), 22)
     h.fs:SetJustifyH(c.key == "profit" and not trainers and "RIGHT" or "LEFT")
     local sorted = sort and sortable and sort.key == c.key
-    h.fs:SetText(c.label .. (sorted and (sort.desc and " v" or " ^") or ""))
+    h.fs:SetText(ns.LocalizeText(c.label) .. (sorted and (sort.desc and " v" or " ^") or ""))
     local col = sorted and { T.accent[1], T.accent[2], T.accent[3], 1 } or T.dim
     h.fs:SetTextColor(col[1], col[2], col[3], col[4] or 1)
   end

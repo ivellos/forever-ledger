@@ -149,8 +149,8 @@ local C = { name = 22, max = 178, now = 340, vendor = 410, x = 416 }
 local function tip(frame, title, text, anchor)
   frame:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, anchor or "ANCHOR_TOP")
-    GameTooltip:AddLine(title, 1, 1, 1)
-    GameTooltip:AddLine(text, nil, nil, nil, true)
+    ns:TooltipAddLine(title, 1, 1, 1)
+    ns:TooltipAddLine(text, nil, nil, nil, true)
     GameTooltip:Show()
   end)
   frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -184,8 +184,8 @@ local function addFromBox(v)
     return
   end
   ns:WatchItem(id, max)
-  ns:Print(("Watching %s, %s. Watch flips looks for it every time it reads the auction house."):format(ns.ItemName(id) or "it",
-    max > 0 and ("up to " .. ns.Money(max)) or "at the vendor price"))
+  ns:Print(ns.LocalizeText("Watching %s, %s. Watch flips looks for it every time it reads the auction house."):format(ns.ItemName(id) or "it",
+    max > 0 and (ns.LocalizeText("up to ") .. ns.Money(max)) or ns.LocalizeText("at the vendor price")))
   v.add:SetText(""); v.max:SetText("")
   v.pendingID = nil
   v.add:ClearFocus(); v.max:ClearFocus()
@@ -213,19 +213,19 @@ local function row(v, i)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetItemByID(r.id)
     local limit, how, sell = ns:WatchLimit(r.id)
-    GameTooltip:AddLine(" ")
+    ns:TooltipAddLine(" ")
     if how == "you" then
-      GameTooltip:AddLine(("Bought at %s or less, your price."):format(ns.Money(limit)), T.accent[1], T.accent[2], T.accent[3], true)
+      ns:TooltipAddLine(ns.LocalizeText("Bought at %s or less, your price."):format(ns.Money(limit)), T.accent[1], T.accent[2], T.accent[3], true)
     elseif how == "vendor" then
-      GameTooltip:AddLine(("Bought at %s or less: a vendor pays %s, less your vendor flip margin."):format(ns.Money(limit), ns.Money(sell)),
+      ns:TooltipAddLine(ns.LocalizeText("Bought at %s or less: a vendor pays %s, less your vendor flip margin."):format(ns.Money(limit), ns.Money(sell)),
         T.accent[1], T.accent[2], T.accent[3], true)
     else
-      GameTooltip:AddLine("Not bought yet: vendors don't buy it, so type the most you'd pay in Up to.", 1, 0.82, 0, true)
+      ns:TooltipAddLine("Not bought yet: vendors don't buy it, so type the most you'd pay in Up to.", 1, 0.82, 0, true)
     end
     if ns.IsGearItem and ns:IsGearItem(r.id) then
-      GameTooltip:AddLine("Gear: any stat version at or under the price.", 0.7, 0.7, 0.7, true)
+      ns:TooltipAddLine("Gear: any stat version at or under the price.", 0.7, 0.7, 0.7, true)
     end
-    GameTooltip:AddLine("Click to search for it on the auction house.", 0.6, 0.6, 0.6)
+    ns:TooltipAddLine("Click to search for it on the auction house.", 0.6, 0.6, 0.6)
     GameTooltip:Show()
   end)
   r.hit:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -238,8 +238,8 @@ local function row(v, i)
   r.max.compact = true
   r.max:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Up to", 1, 1, 1)
-    GameTooltip:AddLine("The most the Buy queue pays for it. \"vendor\": only when a vendor pays more (a vendor flip). A price of yours that's lower than that still buys vendor flips.", nil, nil, nil, true)
+    ns:TooltipAddLine("Up to", 1, 1, 1)
+    ns:TooltipAddLine("The most the Buy queue pays for it. \"vendor\": only when a vendor pays more (a vendor flip). A price of yours that's lower than that still buys vendor flips.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   r.max:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -287,7 +287,7 @@ local function refresh()
   v.content:SetHeight(math.max(#list * ROW_H, ROW_H))
   v.sf.UpdateScrollBar()
   v.empty:SetShown(#list == 0)
-  v.count:SetText(#list == 0 and "" or ("%d watched. Green: at or under Up to right now."):format(#list))
+  v.count:SetText(#list == 0 and "" or ns.LocalizeText("%d watched. Green: at or under Up to right now."):format(#list))
 end
 
 function ns:RefreshWatchedView() refresh() end
@@ -417,7 +417,7 @@ local function onModifiedClick(link)
   end
   if not ns:IsWatched(id) then
     ns:WatchItem(id, nil)
-    ns:Print(("Watching %s at the vendor price. Type a price in Up to to buy it for more."):format(link))
+    ns:Print(ns.LocalizeText("Watching %s at the vendor price. Type a price in Up to to buy it for more."):format(link))
   end
 end
 if HandleModifiedItemClick then hooksecurefunc("HandleModifiedItemClick", onModifiedClick) end

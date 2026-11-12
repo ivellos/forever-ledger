@@ -1,4 +1,5 @@
 local _, ns = ...
+local print = ns.LocalizedPrint
 
 ---------------------------------------------------------------------------
 -- Dungeon runs (owner, October 3: players count their runs and what dropped, chasing

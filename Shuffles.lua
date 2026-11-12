@@ -1,4 +1,6 @@
 local _, ns = ...
+local RaidNotice_AddMessage = ns.LocalizedRaidNotice
+local print = ns.LocalizedPrint
 
 ---------------------------------------------------------------------------
 -- Shuffle finder: things you can buy for less than they're worth to you,
@@ -39,7 +41,7 @@ end
 
 -- Text for one craft or conversion step, with the craft's extra materials unless skipBuys.
 local function stepText(o, skipBuys)
-  local step = o.step
+  local step = ns.LocalizeText(o.step)
   if o.kind == "craft" then
     if not skipBuys then
       local extra = {}
@@ -322,7 +324,7 @@ function ns:FindAllVendorCrafts()
           next = { kind = "vendor", value = sell, id = rec.out },
           rec = { n = name, out = rec.out, oq = rec.oq, r = rec.r }, units = first[2], buys = buys,
           prof = rec.prof,
-          who = rec.prof .. (who and (": " .. who) or ", none of yours") .. (rec.classic and ", Classic recipe" or ""),
+          who = rec.prof .. (who and (": " .. who) or ns.LocalizeText(", none of yours")) .. (rec.classic and ns.LocalizeText(", Classic recipe") or ""),
         }
         local s = build(first[1], o, cost, listed, market, margin, secs)
         -- One row per recipe, not per item made: build's key is the item, which would
@@ -424,6 +426,9 @@ local PROF_ICONS = {
   Cooking = "Interface\\Icons\\INV_Misc_Food_15", ["First Aid"] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
   Fishing = "Interface\\Icons\\Trade_Fishing", Mining = "Interface\\Icons\\Trade_Mining",
 }
+for english,chinese in pairs({Alchemy="炼金术",Blacksmithing="锻造",Enchanting="附魔",Engineering="工程学",Leatherworking="制皮",Tailoring="裁缝",Cooking="烹饪",["First Aid"]="急救",Fishing="钓鱼",Mining="采矿"}) do
+  PROF_ICONS[chinese]=PROF_ICONS[english]
+end
 local DISENCHANT_ICON = "Interface\\Icons\\Spell_Holy_RemoveCurse"
 local VENDOR_ICON = "Interface\\Icons\\INV_Misc_Coin_01"
 local AH_ICON = "Interface\\Icons\\INV_Misc_Coin_04"
@@ -598,7 +603,7 @@ function ns:ShuffleShoppingControls(d, s, width, top)
   end
   local c = d.shopping
   if c.key ~= s.key then c.key, c.runs, c.target = s.key, 1, "new" end
-  local opts = { { value = "new", label = "New list: " .. ns:ShuffleName(s) } }
+  local opts = { { value = "new", label = ns.LocalizeText("New list: %s"):format(ns:ShuffleName(s)) } }
   local selected = c.target == "new"
   for _, l in ipairs(ns:ShoppingLists()) do
     if not l.countHave and not l.temp and not l.crateID and not l.anyPrice then
@@ -632,10 +637,10 @@ end
 
 -- The buying limit and profit, as one line.
 function ns:ShuffleProfitLine(s)
-  local limit = (s.single or s.group) and ("Buy at up to %s. "):format(ns.Money(s.maxBuy)) or ""
-  local hour = s.opt.kind == "vendor" and "" or (", about %s an hour"):format(ns.Money(s.perHour))
-  return ("%sProfit %s %s (%d%%)%s."):format(
-    limit, ns.Money(s.profit), s.single and "each" or "per craft", returnPct(s), hour)
+  local limit = (s.single or s.group) and ns.LocalizeText("Buy at up to %s. "):format(ns.Money(s.maxBuy)) or ""
+  local hour = s.opt.kind == "vendor" and "" or ns.LocalizeText(", about %s an hour"):format(ns.Money(s.perHour))
+  return ns.LocalizeText("%sProfit %s %s (%d%%)%s."):format(
+    limit, ns.Money(s.profit), ns.LocalizeText(s.single and "each" or "per craft"), returnPct(s), hour)
 end
 
 -- How many times the shuffle could be done profitably with what's listed now, limited
@@ -1102,9 +1107,9 @@ local function announce(all, usual)
   local chat = ns.db.settings.dealChat ~= false   -- (Settings: UI pass, November 9)
   for _, p in ipairs(poor) do
     if chat then
-      ns:Print(("Found %s: %s (%s), but you can't afford it yet: %s each, you have %s."):format(
-        p.f.watched == "you" and "a watched item" or "a vendor flip", itemName(p.f.id),
-        p.f.watched == "you" and ("up to " .. ns.Money(p.f.maxBuy)) or ("vendor pays " .. ns.Money(p.f.opt.value)),
+      ns:Print(ns.LocalizeText("Found %s: %s (%s), but you can't afford it yet: %s each, you have %s."):format(
+        p.f.watched == "you" and ns.LocalizeText("a watched item") or ns.LocalizeText("a vendor flip"), itemName(p.f.id),
+        p.f.watched == "you" and (ns.LocalizeText("up to ") .. ns.Money(p.f.maxBuy)) or (ns.LocalizeText("vendor pays ") .. ns.Money(p.f.opt.value)),
         ns.Money(p.one), ns.Money(cash)))
     end
   end
@@ -1114,15 +1119,15 @@ local function announce(all, usual)
     local f = flips[1]
     -- Watched items at your price (Watched.lua) say so, not "vendor pays".
     if f.watched == "you" then
-      text = ("Watched item: %s at %s (up to %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.maxBuy))
+      text = ns.LocalizeText("Watched item: %s at %s (up to %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.maxBuy))
     else
-      text = ("Vendor flip: %s at %s (vendor pays %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.opt.value))
+      text = ns.LocalizeText("Vendor flip: %s at %s (vendor pays %s)"):format(itemName(f.id), ns.Money(f.cost), ns.Money(f.opt.value))
     end
-    if #flips > 1 then text = text .. (" and %d more"):format(#flips - 1) end
+    if #flips > 1 then text = text .. ns.LocalizeText(" and %d more"):format(#flips - 1) end
   else
     -- Names the tab: the auction house panel only holds flips and shopping lists (owner,
     -- November 9: looked for 2 deals there and found nothing).
-    text = ("%d new %s below the usual price: see the Deals tab (/fl deals)"):format(usual, usual == 1 and "deal" or "deals")
+    text = ns.LocalizeText("%d new %s below the usual price: see the Deals tab (/fl deals)"):format(usual, ns.LocalizeText(usual == 1 and "deal" or "deals"))
   end
   -- Off in Settings if it covers your windows (Magic, October 3: it landed on the Buy queue).
   if ns.db.settings.dealScreen ~= false and RaidNotice_AddMessage and RaidWarningFrame then
@@ -1136,17 +1141,17 @@ local function announce(all, usual)
     if ns.db.settings.openFlips and ns.OpenFlips and ns.fullScanDone then ns:OpenFlips() end
     for _, f in ipairs(chat and flips or {}) do
       if f.watched == "you" then
-        ns:Print(("Watched item: %s, %d at %s or less. It's in the Buy queue, first under Vendor flips."):format(
+        ns:Print(ns.LocalizeText("Watched item: %s, %d at %s or less. It's in the Buy queue, first under Vendor flips."):format(
           itemName(f.id), f.buys[1].listed or 1, ns.Money(f.maxBuy)))
       else
-        ns:Print(("New vendor flip: %s, %d at %s or less (vendor pays %s). It's in the Buy queue, under Vendor flips."):format(
+        ns:Print(ns.LocalizeText("New vendor flip: %s, %d at %s or less (vendor pays %s). It's in the Buy queue, under Vendor flips."):format(
           itemName(f.id), f.buys[1].listed or 1, ns.Money(f.maxBuy), ns.Money(f.opt.value)))
       end
     end
   end
   if usual > 0 and chat then
-    ns:Print(("%d new %s below the usual price: see the Deals tab (/fl deals)."):format(
-      usual, usual == 1 and "deal" or "deals"))
+    ns:Print(ns.LocalizeText("%d new %s below the usual price: see the Deals tab (/fl deals)."):format(
+      usual, ns.LocalizeText(usual == 1 and "deal" or "deals")))
   end
 end
 

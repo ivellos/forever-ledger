@@ -866,8 +866,7 @@ ns.Scan = Scan
 -- "45s" or "2m 5s" since the scan started.
 local function took()
   local s = math.floor(GetTime() - (Scan.started or GetTime()) + 0.5)
-  if s < 60 then return s .. "s" end
-  return ("%dm %ds"):format(math.floor(s / 60), s % 60)
+  return ns.FormatElapsed(s)
 end
 
 local SORTS
@@ -1403,13 +1402,13 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
         showProgress(n, n)
         local secs = math.floor(GetTime() - started + 0.5)
         if mine then
-          ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
+          ns:Print(ns.LocalizeText("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
         elseif waited then
           -- Says when, not whose: another addon may have asked meanwhile, and the results
           -- don't say who asked (Codex review, November 7).
-          ns:Print(("Full scan done: %d listings across %d items, about %d min after Forever Ledger asked for one."):format(n, items, math.max(1, math.floor(waited / 60 + 0.5))))
+          ns:Print(ns.LocalizeText("Full scan done: %d listings across %d items, about %d min after Forever Ledger asked for one."):format(n, items, math.max(1, math.floor(waited / 60 + 0.5))))
         else
-          ns:Print(("Another addon ran a full scan; Forever Ledger read it too: %d listings across %d items in %ds."):format(n, items, secs))
+          ns:Print(ns.LocalizeText("Another addon ran a full scan; Forever Ledger read it too: %d listings across %d items in %ds."):format(n, items, secs))
         end
         -- ns.fullScanDone: alerts from this check may open the Buy queue (Shuffles.lua).
         if ns.CheckDeals then
@@ -1602,11 +1601,11 @@ local function showCountdown(untilTime, held)
     if held == "page" then
       ns:SetStatusText("Watching flips: waiting for the item page")
     elseif held then
-      ns:SetStatusText(("Watching flips: your search, list in %ds"):format(left))
+      ns:SetStatusText(ns.LocalizeText("Watching flips: your search, list in %ds"):format(left))
     else
       local full = Scan:FullWait()
-      ns:SetStatusText(("Watching flips: next check in %ds%s"):format(left,
-        full > 0 and full < math.huge and (", full scan in %d min"):format(math.ceil(full / 60)) or ""))
+      ns:SetStatusText(ns.LocalizeText("Watching flips: next check in %ds%s"):format(left,
+        full > 0 and full < math.huge and ns.LocalizeText(", full scan in %d min"):format(math.ceil(full / 60)) or ""))
     end
   end)
 end

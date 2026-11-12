@@ -149,23 +149,23 @@ local function row(i)
   r:SetScript("OnEnter", function(self)
     local e = self.e
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine(e.title, 1, 1, 1)
-    GameTooltip:AddLine(e.forever and "Seen in Forever" or "From Classic: not yet confirmed in Forever", 0.6, 0.6, 0.6)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("What to do", 1, 0.82, 0)
-    GameTooltip:AddLine(e.how, 0.85, 0.85, 0.85, true)
-    GameTooltip:AddLine("Why it pays", 1, 0.82, 0)
-    GameTooltip:AddLine(e.why, 0.85, 0.85, 0.85, true)
+    ns:TooltipAddLine(e.title, 1, 1, 1)
+    ns:TooltipAddLine(e.forever and "Seen in Forever" or "From Classic: not yet confirmed in Forever", 0.6, 0.6, 0.6)
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddLine("What to do", 1, 0.82, 0)
+    ns:TooltipAddLine(e.how, 0.85, 0.85, 0.85, true)
+    ns:TooltipAddLine("Why it pays", 1, 0.82, 0)
+    ns:TooltipAddLine(e.why, 0.85, 0.85, 0.85, true)
     if e.ids then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(e.vendor and "A vendor pays" or "Prices from your scans", 1, 0.82, 0)
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine(e.vendor and "A vendor pays" or "Prices from your scans", 1, 0.82, 0)
       for _, id in ipairs(e.ids) do
         local p = e.vendor and ns:GetSellPrice(id) or (ns:GetPrice(id))
-        GameTooltip:AddDoubleLine("  " .. ns.ItemName(id), p and ns.Money(p) or "not scanned yet", 0.8, 0.8, 0.8, 1, 1, 1)
+        ns:TooltipAddDoubleLine("  " .. ns.ItemName(id), p and ns.Money(p) or "not scanned yet", 0.8, 0.8, 0.8, 1, 1, 1)
       end
     end
-    if e.service then GameTooltip:AddLine("Click: the Customers window.", T.accent[1], T.accent[2], T.accent[3])
-    elseif e.ids and not e.vendor then GameTooltip:AddLine("Click: search the auction house for it.", T.accent[1], T.accent[2], T.accent[3]) end
+    if e.service then ns:TooltipAddLine("Click: the Customers window.", T.accent[1], T.accent[2], T.accent[3])
+    elseif e.ids and not e.vendor then ns:TooltipAddLine("Click: search the auction house for it.", T.accent[1], T.accent[2], T.accent[3]) end
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)

@@ -194,21 +194,21 @@ local function row(i)
     if not self.why then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     local w = self.why
-    GameTooltip:AddLine(self.spell, 1, 1, 1)
+    ns:TooltipAddLine(self.spell, 1, 1, 1)
     -- The verdict in its group's colour, then short labelled sections (owner, October 6).
     local col = self.color or "ffffff"
     local r, g, b = tonumber(col:sub(1, 2), 16) / 255, tonumber(col:sub(3, 4), 16) / 255, tonumber(col:sub(5, 6), 16) / 255
-    if w.verdict then GameTooltip:AddLine(w.verdict, r, g, b, true) end
-    if w.reason then GameTooltip:AddLine(w.reason, 0.85, 0.85, 0.85, true) end
+    if w.verdict then ns:TooltipAddLine(w.verdict, r, g, b, true) end
+    if w.reason then ns:TooltipAddLine(w.reason, 0.85, 0.85, 0.85, true) end
     if w.upgrade then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine("When to upgrade", 1, 0.82, 0)
-      GameTooltip:AddLine(w.upgrade, 0.8, 0.8, 0.8, true)
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine("When to upgrade", 1, 0.82, 0)
+      ns:TooltipAddLine(w.upgrade, 0.8, 0.8, 0.8, true)
     end
     if w.notes and #w.notes > 0 then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine("Note", 1, 0.82, 0)
-      for _, n in ipairs(w.notes) do GameTooltip:AddLine(n, 0.65, 0.65, 0.65, true) end
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine("Note", 1, 0.82, 0)
+      for _, n in ipairs(w.notes) do ns:TooltipAddLine(n, 0.65, 0.65, 0.65, true) end
     end
     GameTooltip:Show()
   end)
