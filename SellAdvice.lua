@@ -97,14 +97,32 @@ function ns:SellKeepReason(id)
   end
 end
 
--- The character who'd disenchant it: the best enchanter of yours.
-local function enchanter()
-  local best, name
-  for _, c in pairs(ns.db.chars or {}) do
-    local p = c.profs and c.profs.Enchanting
-    if p and (p.rank or 0) > (best or -1) then best, name = p.rank or 0, c.name end
+-- Who'd disenchant it, or nil if nobody who can get it can. A bound copy (soulbound,
+-- account-bound or a quest item) stays with this character, so only this character's
+-- Enchanting counts; anything else can be mailed, so the best enchanter of yours that the
+-- disenchant value counts (Values.lua ns:BestEnchanter). Codex review of 3bb2be7: a
+-- soulbound green was offered to an alt who couldn't receive it.
+local function enchanter(id, bound)
+  local yield = ns:DisenchantYield(id)
+  local need = yield and yield.skill or 1
+  if bound then
+    local me = ns.db.chars and ns.db.chars[ns.CharKey()]
+    local p = me and me.profs and me.profs.Enchanting
+    if p and (p.rank or 1) >= need then return me.name end
+    return nil
   end
-  return name
+  local name, skill = ns:BestEnchanter()
+  if name and (skill or 0) >= need then return name end
+end
+
+-- An auction price recent enough to advise on: your own scan within the price age in
+-- Settings (12 hours), or another addon's current price (Auctionator, TSM). Worth to you
+-- may still use an older price; a suggestion to post shouldn't (Codex review of 3bb2be7).
+local function recentPrice(id)
+  local price, _, t = ns:GetPrice(id)
+  if not price then return false end
+  if t == nil then return true end
+  return time() - t <= (ns.db.settings.maxAgeHours or 12) * 3600
 end
 
 -- From the tooltip's own lines: bound (soulbound, account-bound or a quest item), and
@@ -139,11 +157,15 @@ function ns:SellFacts(id, bound, usable, copyPrice)
   f.gear = ns.IsGearItem and ns:IsGearItem(id) or false
   f.quality = select(3, ns.GetItemInfo(id))
   f.vendor = copyPrice or ns:GetSellPrice(id)
+  local fresh = recentPrice(id)
   for _, o in ipairs(ns:Options(id) or {}) do
-    if o.kind == "ah" and not f.ah then f.ah = o.value end
+    if o.kind == "ah" and not f.ah and fresh then f.ah = o.value end
     if o.kind == "disenchant" and not f.de then f.de = o.value end
   end
-  if f.de then f.deWho = enchanter() end
+  if f.de then
+    f.deWho = enchanter(id, bound)
+    if not f.deWho then f.de = nil end
+  end
   if ns.SellSpeed then
     local ok, sp = pcall(ns.SellSpeed, ns, id)
     f.speed = ok and sp and sp.key or nil

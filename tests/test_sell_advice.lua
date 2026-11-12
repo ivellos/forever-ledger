@@ -6,7 +6,8 @@ local ME = ns.CharKey()
 local ITEM, GRAY, GEAR = 96001, 96002, 96003
 S.items[ITEM] = { name = "Test Wool", sell = 100 }
 S.items[GRAY] = { name = "Test Bone", sell = 10, quality = 0 }
-S.items[GEAR] = { name = "Test Gloves", sell = 50, quality = 2, classID = 4 }
+S.items[GEAR] = { name = "Test Gloves", sell = 50, quality = 2, ilvl = 20, equipLoc = "INVTYPE_HAND", classID = 4 }
+local DUST = 10940
 
 local V = ns.SellVerdict
 
@@ -129,6 +130,65 @@ T.test("Sell suggestion: the tooltip line, only for an item you have", function(
   T.eq(added[1], "Sell: Vendor = " .. ns.Money(10))
   ns.db.prices[key][ITEM], ns.db.vendorSell[ITEM], ns.db.vendorSell[GRAY] = nil, nil, nil
   S.bags[ITEM], S.bags[GRAY] = nil, nil
+  ns.db.chars = realChars
+  ns:BuildUsageIndex()
+  ns:InvalidateValues(true)
+end)
+
+-- Codex review of 3bb2be7: a 48-hour-old auction price was advised as current.
+T.test("Sell suggestion: only a recent auction price counts", function()
+  local realChars = ns.db.chars
+  ns.db.chars = {}
+  ns:BuildUsageIndex()
+  local key = ns.MarketKey()
+  ns.db.prices[key] = ns.db.prices[key] or {}
+  ns.db.prices[key][ITEM] = { m = 1000, a = 1000, q = 30, t = S.now - 48 * 3600 }
+  ns.db.vendorSell[ITEM] = 100
+  ns.db.settings.maxAgeHours = 12
+  ns:InvalidateValues(true)
+  T.eq(ns:SellFacts(ITEM, false, true).ah, nil, "48 hours old: no auction price to advise on")
+  local tip, added = fakeTip({})
+  S.bags[ITEM] = 1
+  ns:AddSellLines(tip, ITEM, false, true)
+  T.eq(#added, 0, "a white item with no recent price: nothing said")
+  ns.db.prices[key][ITEM].t = S.now - 3600
+  ns:InvalidateValues(true)
+  T.eq(ns:SellFacts(ITEM, false, true).ah, 930, "an hour old: counted")
+  ns.db.prices[key][ITEM], ns.db.vendorSell[ITEM], S.bags[ITEM] = nil, nil, nil
+  ns.db.chars = realChars
+  ns:BuildUsageIndex()
+  ns:InvalidateValues(true)
+end)
+
+-- Codex review of 3bb2be7: a soulbound green was offered for disenchanting by an alt, who
+-- can't receive it.
+T.test("Sell suggestion: a bound item is only disenchanted by the character who has it", function()
+  local realChars = ns.db.chars
+  local ALT = "Alt Tester-" .. (ns.RealmName() or "?")
+  local function chars(meEnch, altEnch)
+    ns.db.chars = {
+      [ME] = { name = "Tester", realm = ns.RealmName(), faction = "Alliance", profs = meEnch and { Enchanting = { rank = 100 } } or {} },
+      [ALT] = { name = "Alt", realm = ns.RealmName(), faction = "Alliance", profs = altEnch and { Enchanting = { rank = 100 } } or {} },
+    }
+    ns:BuildUsageIndex()
+    ns:InvalidateValues(true)
+  end
+  local key = ns.MarketKey()
+  ns.db.prices[key] = ns.db.prices[key] or {}
+  ns.db.prices[key][DUST] = { m = 1000, a = 1000, q = 50, t = S.now }
+  ns.db.vendorSell[GEAR] = 50
+  chars(false, true)
+  local f = ns:SellFacts(GEAR, true, false)
+  T.eq(f.de, nil, "soulbound, and only the alt enchants: no disenchant suggestion")
+  T.eq(V(f).kind, "vendor")
+  f = ns:SellFacts(GEAR, false, true)
+  T.ok(f.de and f.de > 0, "not bound: the alt can have it")
+  T.eq(f.deWho, "Alt")
+  chars(true, false)
+  f = ns:SellFacts(GEAR, true, false)
+  T.ok(f.de and f.de > 0, "soulbound, and this character enchants")
+  T.eq(f.deWho, "Tester")
+  ns.db.prices[key][DUST], ns.db.vendorSell[GEAR] = nil, nil
   ns.db.chars = realChars
   ns:BuildUsageIndex()
   ns:InvalidateValues(true)
