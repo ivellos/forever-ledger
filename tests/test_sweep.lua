@@ -823,8 +823,11 @@ T.test("Full scan: one stopped while saving leaves a scan started in its place a
     local l = listings[idx + 1]
     return nil, nil, l[2], nil, nil, nil, nil, l[1], nil, l[1], nil, nil, nil, nil, nil, nil, l[3]
   end)
-  local realSearch, sent = rawget(AH, "SendSearchQuery"), {}
+  local realSearch, realKey, realReady, sent = rawget(AH, "SendSearchQuery"), rawget(AH, "MakeItemKey"),
+    rawget(AH, "IsThrottledMessageSystemReady"), {}
   rawset(AH, "SendSearchQuery", function(k) sent[#sent + 1] = k and k.itemID end)
+  rawset(AH, "MakeItemKey", function(id) return { itemID = id } end)
+  rawset(AH, "IsThrottledMessageSystemReady", function() return true end)
   ns.queueBusyUntil, ns.lastUserSearch = 0, nil
   T.fire("AUCTION_HOUSE_SHOW")
   wipe(S.timers)
@@ -842,6 +845,8 @@ T.test("Full scan: one stopped while saving leaves a scan started in its place a
   T.eq(ns.db.prices[key][94033].m, 100, "the full scan was saved all the same")
   debugprofilestop = realClock
   rawset(AH, "SendSearchQuery", realSearch)
+  rawset(AH, "MakeItemKey", realKey)
+  rawset(AH, "IsThrottledMessageSystemReady", realReady)
   rawset(AH, "GetNumReplicateItems", nil)
   rawset(AH, "GetReplicateItemInfo", nil)
   ns.db.prices[key], ns.db.lastFullListings = realMarket, nil
