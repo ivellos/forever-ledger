@@ -142,7 +142,9 @@ end
 local view
 local ROW_H = 24
 -- Columns, from a row's left: name, Up to box, Now (right edge), Vendor pays (right edge), remove.
-local C = { name = 22, max = 214, now = 354, vendor = 410, x = 416 }
+-- (Up to further left than at first: a price over 1g under Now ran into its box; owner,
+-- UI pass checks, November 11. Long names are cut and shown whole on hover.)
+local C = { name = 22, max = 178, now = 340, vendor = 410, x = 416 }
 
 local function tip(frame, title, text, anchor)
   frame:HookScript("OnEnter", function(self)

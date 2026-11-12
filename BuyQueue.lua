@@ -1969,9 +1969,11 @@ local function buildQueueView(parent)
   v.pauseBtn = T:Button(v, "Pause", 118, function() ns:ToggleScanPause() end, 22)
   v.pauseBtn:SetPoint("LEFT", v.fullBtn, "RIGHT", 6, 0)
   tip(v.pauseBtn, "Pause", "Holds the flip watch and the Buy queue's own lookups, so your searches and the page you're on stay as you leave them. Buy, Go now and clicking a row still work. Click Resume to carry on; closing the auction house ends it too.")
-  -- Above the buttons: the scan's progress on the left, what you've bought on the right.
+  -- Above the buttons: the flip watch's status line, the whole width; above it, what you've
+  -- bought. (They shared one line, and the status was cut off once the totals grew: owner,
+  -- UI pass checks, November 11.)
   v.totals = T:Text(v, 11, T.dim)
-  v.totals:SetPoint("BOTTOMRIGHT", -10, 36)
+  v.totals:SetPoint("BOTTOMRIGHT", -10, 52)
   v.totals:SetJustifyH("RIGHT")
   v.totals:SetWordWrap(false)
   v.totalsHit = CreateFrame("Frame", nil, v)
@@ -1991,7 +1993,7 @@ local function buildQueueView(parent)
   v.totalsHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
   v.status = T:Text(v, 11, { 0.73, 0.64, 1, 1 })
   v.status:SetPoint("BOTTOMLEFT", 12, 36)
-  v.status:SetPoint("RIGHT", v.totals, "LEFT", -10, 0)
+  v.status:SetPoint("RIGHT", v, "RIGHT", -10, 0)
   v.status:SetJustifyH("LEFT")
   v.status:SetWordWrap(false)
 
@@ -1999,8 +2001,8 @@ local function buildQueueView(parent)
   -- something; what's left shows beside it, teal, yellow when nearly gone, red when
   -- spent. The gold you always keep is in Settings, as it's set once (keepGold).
   local row = CreateFrame("Frame", nil, v)
-  row:SetPoint("BOTTOMLEFT", 10, 56)
-  row:SetPoint("BOTTOMRIGHT", -10, 56)
+  row:SetPoint("BOTTOMLEFT", 10, 70)
+  row:SetPoint("BOTTOMRIGHT", -10, 70)
   row:SetHeight(22)
   local lab = T:Text(row, 11, T.dim)
   lab:SetPoint("LEFT", 2, 0)
@@ -2058,7 +2060,7 @@ end
 -- Stack the ticked sections, splitting the height between them.
 local function layoutLanes(v)
   local t = ticked()
-  local top, bottom, gap = 38, 82, 6   -- bottom: Spend at most, the totals line and the scan buttons
+  local top, bottom, gap = 38, 96, 6   -- bottom: Spend at most, the totals, the status line and the scan buttons
   local h = v:GetHeight() - top - bottom
   local n = #t
   v.empty:SetShown(n == 0)
