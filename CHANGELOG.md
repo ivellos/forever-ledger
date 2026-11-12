@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Sell suggestion in the tooltip of items in your bags: Keep (a quest needs it, a recipe of one of your characters uses it, you watch it, or it's on your list), or Sell: Vendor, Sell: Auction house or Sell: Close call when the two are near, with the reason; disenchanting too when it brings more. Only a suggestion: nothing is sold. Settings, Tooltips, Sell suggestion.
+
 ## [0.23.0] - 2026-11-11
 
 ### Highlights
