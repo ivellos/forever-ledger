@@ -857,7 +857,10 @@ local function soldTracker()
   return t
 end
 
-local Scan = { queue = {}, active = false, done = 0, total = 0 }
+-- session: counts stops. A new scan can only start once the last has stopped (Start and
+-- StartList refuse while one is active), so a full scan still saving after a stop can tell
+-- that the scan now running isn't its own (Codex review of 028e8f5).
+local Scan = { queue = {}, active = false, done = 0, total = 0, session = 0 }
 ns.Scan = Scan
 
 -- "45s" or "2m 5s" since the scan started.
@@ -1016,6 +1019,7 @@ function Scan:Stop(reason)
   -- The flip watch's browse sweep is part of its pass (Sweep.lua).
   if self.sweep and ns.StopSweep then ns:StopSweep() end
   self.active, self.pending, self.full, self.waiting, self.sweep = false, nil, false, false, nil
+  self.session = self.session + 1
   self.queue = {}
   -- The flip watch's quiet checks don't announce each pass.
   if was and not (self.quiet and not reason) then
@@ -1263,6 +1267,15 @@ local SAVE_MS = 10
 local function msNow() return debugprofilestop and debugprofilestop() or GetTime() * 1000 end
 ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   local mine = Scan.active and Scan.full
+  -- Still our scan, not stopped since (closing the auction house, /fl stop, Pause) with
+  -- another started in its place: reading and saving take a few seconds, and the scan
+  -- state, its progress line and the flip watch's next pass are the new scan's then
+  -- (Codex review of 028e8f5: a list search stopped after its first item).
+  local session = Scan.session
+  local function stillOurs() return mine and Scan.session == session end
+  local function showProgress(done, total)
+    if stillOurs() or not Scan.active then ns:UpdateScanStatus(done, total) end
+  end
   if readingFull and GetTime() - lastFullRead < 120 then return end   -- (unstick after an error)
   -- Another addon's scan: once per scan (ignore repeat events for a minute).
   if not mine and GetTime() - lastFullRead < 60 then return end
@@ -1355,7 +1368,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
     end
     i = stop
     if i < n then
-      ns:UpdateScanStatus(i, n)
+      showProgress(i, n)
       C_Timer.After(0, chunk)
     else
       local items, versions, gearWith = 0, 0, 0
@@ -1385,8 +1398,9 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
           ns.neutralAH = nil
           if ns.InvalidateValues then ns:InvalidateValues(true) end
         end
-        if mine then Scan.active = false end
-        ns:UpdateScanStatus(n, n)
+        local ours = stillOurs()
+        if ours then Scan.active = false end
+        showProgress(n, n)
         local secs = math.floor(GetTime() - started + 0.5)
         if mine then
           ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
@@ -1407,7 +1421,7 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
         end
         if ns.SyncSoon then ns:SyncSoon() end
         ns:RefreshUI()
-        if mine and ns.FlipWatchNext then ns.FlipWatchNext() end
+        if ours and ns.FlipWatchNext then ns.FlipWatchNext() end
       end
       -- Saving every item at once froze the game for 1.4 seconds at the end of each full
       -- scan (owner's /fl perf, November 11, 5,300 items): SAVE_MS of it a frame instead. The

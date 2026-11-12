@@ -806,6 +806,49 @@ T.test("Full scan: its prices are saved a few milliseconds a frame", function()
   wipe(S.timers)
 end)
 
+-- Codex review of 028e8f5: stopped while it was still saving, with a list search started in
+-- its place, the full scan's end marked the search finished after its first item.
+T.test("Full scan: one stopped while saving leaves a scan started in its place alone", function()
+  local Scan = ns.Scan
+  local key = ns.MarketKey()
+  local realMarket = ns.db.prices[key]
+  ns.db.prices[key] = {}
+  wipe(S.timers)
+  local realClock, ms = debugprofilestop, 0
+  debugprofilestop = function() ms = ms + 4; return ms end   -- (three items a frame)
+  local listings = {}
+  for id = 94030, 94033 do listings[#listings + 1] = { 100, 1, id } end
+  rawset(AH, "GetNumReplicateItems", function() return #listings end)
+  rawset(AH, "GetReplicateItemInfo", function(idx)
+    local l = listings[idx + 1]
+    return nil, nil, l[2], nil, nil, nil, nil, l[1], nil, l[1], nil, nil, nil, nil, nil, nil, l[3]
+  end)
+  local realSearch, sent = rawget(AH, "SendSearchQuery"), {}
+  rawset(AH, "SendSearchQuery", function(k) sent[#sent + 1] = k and k.itemID end)
+  ns.queueBusyUntil, ns.lastUserSearch = 0, nil
+  T.fire("AUCTION_HOUSE_SHOW")
+  wipe(S.timers)
+  Scan.active, Scan.full, Scan.started = true, true, GetTime()
+  S.now = S.now + 20
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.eq(Scan.active, true, "still saving the last one")
+  Scan:Stop("test")   -- (/fl stop, or closing the auction house)
+  Scan:StartList({ 94040, 94041 }, "a test list")
+  T.eq(Scan.pending, 94040, "the list's first lookup is sent")
+  T.runTimers()       -- the full scan finishes saving, then the list goes on
+  local second = false
+  for _, id in ipairs(sent) do if id == 94041 then second = true end end
+  T.ok(second, "the list's second lookup is sent too")
+  T.eq(ns.db.prices[key][94033].m, 100, "the full scan was saved all the same")
+  debugprofilestop = realClock
+  rawset(AH, "SendSearchQuery", realSearch)
+  rawset(AH, "GetNumReplicateItems", nil)
+  rawset(AH, "GetReplicateItemInfo", nil)
+  ns.db.prices[key], ns.db.lastFullListings = realMarket, nil
+  if Scan.active then Scan:Stop("test") end
+  wipe(S.timers)
+end)
+
 -- Owner, November 11: /fl perf, kept at logout with /fl debug on, to read after a reload.
 T.test("Perf: the slowest tasks as lines, slowest single moment first", function()
   local real = ns.perf
