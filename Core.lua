@@ -1082,7 +1082,10 @@ function ns:ApiReport()
       local info = C_Texture.GetAtlasInfo(a)
       found[#found + 1] = info and ("+%s %dx%d"):format(a, info.width or 0, info.height or 0) or ("-" .. a)
     end
-    return table.concat(found, " ")
+    -- Kept (the last /fl api only) so it can be read from the saved data after a reload.
+    local text = table.concat(found, " ")
+    ns.db.apiLook = { t = time(), art = text, templates = ns.db.apiLook and ns.db.apiLook.templates }
+    return text
   end)
   try("Window templates", function()
     local found = {}
@@ -1098,7 +1101,10 @@ function ns:ApiReport()
     for _, l in ipairs({ "ButtonFrameTemplateNoPortrait", "PortraitFrameTemplate" }) do
       found[#found + 1] = ((layouts and layouts[l]) and "+" or "-") .. "layout " .. l
     end
-    return table.concat(found, " ")
+    local text = table.concat(found, " ")
+    ns.db.apiLook = ns.db.apiLook or { t = time() }
+    ns.db.apiLook.templates = text
+    return text
   end)
   try("Spells cast saved", function()
     local n = 0
