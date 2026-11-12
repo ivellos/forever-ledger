@@ -16,7 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The Buy queue keeps looking up and buying while a full scan comes in (over 20 seconds on a busy auction house), instead of waiting for it to finish. An item looked up or bought meanwhile keeps that newer price: the full scan may have been taken before it, so it can't bring back a listing you just bought.
 - The status line says "reading the AH list, part N", so it fits.
 - The check for new flips and deals after each scan goes a few hundred items at a time, so the game no longer hitches for up to a third of a second just as a scan finishes and its flips are to be bought.
-- With `/fl debug` on, the list's log also says how often and how long it waited for the auction house, and which parts new flips came in; the Buy queue's log says when a full scan was under way, and which version numbers the auction house gives gear; and `/fl perf`'s timings are kept at logout, to read afterward, and include reading a full scan.
+- With `/fl debug` on, the list's log also says how often and how long it waited for the auction house, which parts new flips came in, and what sent a search it waited for; the Buy queue's log says when a full scan was under way, and which version numbers the auction house gives gear; and `/fl perf`'s timings are kept at logout, to read afterward, and include reading a full scan.
 
 ### Fixed
 - Buy queue: most gear purchases the auction house answers with an error go through anyway (the gold leaves a moment later). The queue now carries on to the next listing as soon as that happens, instead of waiting 2 seconds and searching again, and such a purchase no longer counts as a refusal, so two in a row don't make it give up on a row still listed.

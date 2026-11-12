@@ -233,7 +233,8 @@ local function holdReason(first)
     local you = math.max(searched, seen)
     local ago = GetTime() - you
     if ago < AFTER_YOU then
-      local what = searched >= seen and ("a search (%s)"):format(ns.lastUserSearchBy or "?") or "an item's page"
+      local from = ns.lastUserSearchFrom and (", " .. ns.lastUserSearchFrom) or ""
+      local what = searched >= seen and ("a search (%s%s)"):format(ns.lastUserSearchBy or "?", from) or "an item's page"
       return "you", ("%s %d s ago"):format(what, math.floor(ago)), AFTER_YOU - ago
     end
   end

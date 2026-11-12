@@ -441,7 +441,7 @@ end)
 -- nothing showed why; and those 120 checks took two minutes.
 T.test("Sweep: put off for you, it says why once, and only watched items are checked meanwhile", function()
   ns.db.settings.debug, ns.db.sweepLog = true, nil
-  ns.lastUserSearch, ns.lastUserSearchBy = GetTime() - 10, "SendBrowseQuery"
+  ns.lastUserSearch, ns.lastUserSearchBy, ns.lastUserSearchFrom = GetTime() - 10, "SendBrowseQuery", nil
   start()
   T.eq(result.outcome, "held")
   T.eq(ns.db.sweepLog and #ns.db.sweepLog, 1)
@@ -467,6 +467,36 @@ T.test("Sweep: put off for you, it says why once, and only watched items are che
   ns.db.watchItems[MAT] = nil
   ns.db.settings.debug, ns.db.sweepLog, ns.lastUserSearchBy = false, nil, nil
   T.fire("AUCTION_HOUSE_SHOW")   -- (forgets the page)
+  T.runTimers()
+end)
+
+-- Owner, November 11: the list was put off for "your" search a second after the Buy queue
+-- bought a stack, with no search made by hand. With /fl debug the log says what sent it.
+T.test("Sweep: the log names what sent a search it waits for", function()
+  local byItself = table.concat({
+    '[string "@Interface/AddOns/ForeverLedger/Prices.lua"]:1120: in function <Interface/AddOns/ForeverLedger/Prices.lua:1117>',
+    "[C]: in function `SendBrowseQuery'",
+    '[string "@Interface/AddOns/Blizzard_AuctionHouseUI/Blizzard_AuctionHouseFrame.lua"]:500: in function `RefreshSearchResults\'',
+    '[string "@Interface/AddOns/Blizzard_AuctionHouseUI/Blizzard_AuctionHouseFrame.lua"]:300: in function `OnEvent\'',
+    '[string "*:OnEvent"]:1: in function <[string "*:OnEvent"]:1>',
+  }, "\n")
+  T.eq(ns.SearchCaller(byItself), "Blizzard_AuctionHouseUI; OnEvent")
+  local clicked = table.concat({
+    '[string "@Interface\\AddOns\\Auctionator\\Source\\Search.lua"]:5: in function `OnSearchClicked\'',
+    '[string "*:OnClick"]:1: in function <[string "*:OnClick"]:1>',
+  }, "\n")
+  T.eq(ns.SearchCaller(clicked), "Auctionator; OnClick > OnSearchClicked", "the first handler started it")
+  T.eq(ns.SearchCaller(nil), nil)
+  ns.db.settings.debug, ns.db.sweepLog = true, nil
+  ns.lastUserSearch, ns.lastUserSearchBy = GetTime() - 5, "SendBrowseQuery"
+  ns.lastUserSearchFrom = "Blizzard_AuctionHouseUI; OnEvent"
+  start()
+  T.eq(result.outcome, "held")
+  T.ok(ns.db.sweepLog[1]:find("put off, a search (SendBrowseQuery, Blizzard_AuctionHouseUI; OnEvent) 5 s ago.", 1, true),
+    ns.db.sweepLog[1])
+  ns.lastUserSearch, ns.lastUserSearchBy, ns.lastUserSearchFrom = nil, nil, nil
+  ns.db.settings.debug, ns.db.sweepLog = false, nil
+  T.fire("AUCTION_HOUSE_SHOW")
   T.runTimers()
 end)
 

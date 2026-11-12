@@ -1092,6 +1092,24 @@ local function saveLive(id, units, complete)
   end
 end
 
+-- Who sent a search, from debugstack's text (/fl debug): the addons in the call chain,
+-- nearest first, leaving this one out, and the script handlers it came through, the first
+-- one started it ("OnClick": you; "OnEvent" or "OnUpdate": the window by itself). Owner,
+-- November 11: the list reading was put off for "your" search a second after the Buy
+-- queue bought a stack, with no search made by hand.
+function ns.SearchCaller(stack)
+  if type(stack) ~= "string" then return nil end
+  local addons, handlers, seen = {}, {}, {}
+  for name in stack:gmatch("AddOns[/\\]([%w_%-]+)[/\\]") do
+    if name ~= "ForeverLedger" and not seen[name] then seen[name] = true; addons[#addons + 1] = name end
+  end
+  for h in stack:gmatch("(On%u%a+)") do
+    if not seen[h] then seen[h] = true; table.insert(handlers, 1, h) end
+  end
+  return ("%s; %s"):format(#addons > 0 and table.concat(addons, " < ") or "no addon",
+    #handlers > 0 and table.concat(handlers, " > ") or "no handler")
+end
+
 -- Your own searches (not the addon's): noted so the flip watch can wait for you.
 if C_AuctionHouse and hooksecurefunc then
   for _, fn in ipairs({ "SendSearchQuery", "SendBrowseQuery", "SearchForItemKeys" }) do
@@ -1100,7 +1118,12 @@ if C_AuctionHouse and hooksecurefunc then
       -- (Which one, for the browse sweep's log: owner, November 10, the sweep waited for a
       -- search with none made by hand, so the game's own window may send them.)
       hooksecurefunc(C_AuctionHouse, fn, function()
-        if not Scan.sending and not ns.queueSending then ns.lastUserSearch, ns.lastUserSearchBy = GetTime(), fn end
+        if Scan.sending or ns.queueSending then return end
+        ns.lastUserSearch, ns.lastUserSearchBy, ns.lastUserSearchFrom = GetTime(), fn, nil
+        if ns.db.settings.debug and debugstack then
+          local ok, stack = pcall(debugstack, 2, 12, 0)
+          if ok then ns.lastUserSearchFrom = ns.SearchCaller(stack) end
+        end
       end)
     end
   end
