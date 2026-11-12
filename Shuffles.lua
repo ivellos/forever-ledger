@@ -843,15 +843,28 @@ end
 -- deposit refresh changes (a live quote can become available without a new scan): judging
 -- all 2,500 items took up to 0.2 s per Deals tab redraw (/fl perf, October 3).
 local judged, judgedSig = {}, nil
-function ns:FindDeals(maxAge)
+local function freshJudged()
   local s = ns.db.settings
-  local market = ns.db.prices[ns.MarketKey()] or {}
-  local vendorPct, vendorMin = (s.dealVendorPct or 10) / 100, s.dealVendorMin or 0
   local sig = table.concat({ ns.MarketKey(), ns.LocalDay and ns.LocalDay() or 0, tostring(s.dealUsualPct),
     tostring(s.dealWindow), tostring(s.dealUsualMin), tostring(s.ahCut), tostring(s.dealHistory),
     tostring(s.source), tostring(ns.depositRevision or 0),
     tostring(math.floor(GetTime() / 30)) }, "|")
   if sig ~= judgedSig then judged, judgedSig = {}, sig end
+end
+-- One item's below-usual-price deal, or nil (rec: its saved price, recent and listed).
+local function usualDeal(id, rec)
+  local j = judged[id]
+  if not (j and j.t == rec.t and j.m == rec.m) then
+    j = { t = rec.t, m = rec.m, d = judgeUsual(id, rec) or false }
+    judged[id] = j
+  end
+  return j.d or nil
+end
+function ns:FindDeals(maxAge)
+  local s = ns.db.settings
+  local market = ns.db.prices[ns.MarketKey()] or {}
+  local vendorPct, vendorMin = (s.dealVendorPct or 10) / 100, s.dealVendorMin or 0
+  freshJudged()
   local now, deals = time(), {}
   for id, rec in pairs(market) do
     local price = rec.m
@@ -867,12 +880,8 @@ function ns:FindDeals(maxAge)
           deals[#deals + 1] = { kind = "vendor", id = id, price = price, worth = sell, listed = n or rec.q }
         end
       end
-      local j = judged[id]
-      if not (j and j.t == rec.t and j.m == price) then
-        j = { t = rec.t, m = price, d = judgeUsual(id, rec) or false }
-        judged[id] = j
-      end
-      if j.d then deals[#deals + 1] = j.d end
+      local d = usualDeal(id, rec)
+      if d then deals[#deals + 1] = d end
     end
   end
   table.sort(deals, function(a, b) return a.worth - a.price > b.worth - b.price end)
@@ -1074,30 +1083,68 @@ end
 
 -- Called when a scan finishes: every vendor flip on the tab not yet alerted, and
 -- below-usual-price deals not already alerted at this price or lower.
+-- A few hundred items a frame: all at once it took 185 ms on average and 285 at most after
+-- each scan (owner's /fl perf, November 11), a hitch just as the scan's flips were to be
+-- bought. A check started while one is under way takes over from the beginning.
+local DEAL_BATCH = 400
+local dealRun = 0
 function ns:CheckDeals()
   ns:InvalidateValues(true)   -- the scan just changed prices
   if ns.RefreshDealsIfShown then ns:RefreshDealsIfShown() end
-  local flipAlerted, alerted = seen("flips"), seen("deals")
-  local now, flips = time(), {}
-  for id in pairs(ns.db.prices[ns.MarketKey()] or {}) do
-    local f = flipOrWatched(id)
-    if not f then
-      flipAlerted[id] = nil
-    elseif now - (f.t or 0) <= DEAL_RECENT and (not flipAlerted[id] or f.cost < flipAlerted[id]) then
-      flipAlerted[id] = f.cost
-      flips[#flips + 1] = f
+  dealRun = dealRun + 1
+  local run, full, now = dealRun, ns.fullScanDone, time()
+  local market = ns.db.prices[ns.MarketKey()] or {}
+  local ids = {}
+  for id in pairs(market) do ids[#ids + 1] = id end
+  local found, usual, i = {}, {}, 1
+  local step
+  step = ns.Timed("Deal check", function()
+    if run ~= dealRun then return end
+    local flipAlerted = seen("flips")
+    freshJudged()
+    local stop = math.min(i + DEAL_BATCH - 1, #ids)
+    for k = i, stop do
+      local id = ids[k]
+      local f = flipOrWatched(id)
+      if not f then
+        flipAlerted[id] = nil
+      elseif now - (f.t or 0) <= DEAL_RECENT and (not flipAlerted[id] or f.cost < flipAlerted[id]) then
+        found[#found + 1] = id
+      end
+      local rec = market[id]
+      if rec and rec.m and not rec.none and now - (rec.t or 0) <= DEAL_RECENT then
+        local d = usualDeal(id, rec)
+        if d and d.kind == "usual" then usual[#usual + 1] = d end
+      end
     end
-  end
-  table.sort(flips, function(a, b) return a.profit > b.profit end)
-  local usual = 0
-  for _, d in ipairs(ns:FindDeals()) do
-    local key = d.kind .. d.id
-    if d.kind == "usual" and ns:DealShown(d) and (not alerted[key] or d.price < alerted[key]) then
-      alerted[key] = d.price
-      usual = usual + 1
+    i = stop + 1
+    if i <= #ids then C_Timer.After(0, step); return end
+    -- All looked at. Flips are marked as announced only now, each looked at again (bought,
+    -- or alerted by itself, in the moment since), so none is marked and never announced.
+    local flips = {}
+    for _, id in ipairs(found) do
+      local f = flipOrWatched(id)
+      if f and now - (f.t or 0) <= DEAL_RECENT and (not flipAlerted[id] or f.cost < flipAlerted[id]) then
+        flipAlerted[id] = f.cost
+        flips[#flips + 1] = f
+      end
     end
-  end
-  announce(flips, usual)
+    table.sort(flips, function(a, b) return a.profit > b.profit end)
+    local alerted, count = seen("deals"), 0
+    for _, d in ipairs(usual) do
+      local key = d.kind .. d.id
+      if ns:DealShown(d) and (not alerted[key] or d.price < alerted[key]) then
+        alerted[key] = d.price
+        count = count + 1
+      end
+    end
+    -- (After a full scan, alerts may open the Buy queue: announce reads ns.fullScanDone.)
+    local was = ns.fullScanDone
+    ns.fullScanDone = full
+    announce(flips, count)
+    ns.fullScanDone = was
+  end)
+  step()
 end
 
 -- /fl deals list: every current deal shown on the tabs, alerted or not.
@@ -1114,4 +1161,3 @@ function ns:PrintDeals()
   printGrouped(deals, 20)
 end
 ns.FindShuffles = ns.Timed("Finding shuffles", ns.FindShuffles)
-ns.CheckDeals = ns.Timed("Deal check", ns.CheckDeals)

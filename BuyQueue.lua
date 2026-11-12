@@ -1163,6 +1163,22 @@ ns:On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
   end
   ns:Debug(("Buy queue: looking up %s: %d rows, %d of them this item, cheapest %s, limit %s."):format(ns.ItemName(e.id),
     rows, ours, cheapest and ns.MoneyPlain(cheapest) or "-", e.limit == math.huge and "any" or ns.MoneyPlain(e.limit)))
+  -- Whether the auction house's version numbers are the full scan's (from item links): if
+  -- they are, a gear flip a full scan finds could be searched without this name search
+  -- first (owner, November 11). Item key level:suffix@cheapest, the item's own level, and
+  -- the full scan's versions (suffix:cheapest:listed).
+  if ns.db.settings.debug and ours > 0 then
+    local seen = {}
+    for _, r in ipairs(AH.GetBrowseResults() or {}) do
+      local k = r.itemKey
+      if k and k.itemID == e.id and #seen < 8 then
+        seen[#seen + 1] = ("%s:%s@%s"):format(tostring(k.itemLevel), tostring(k.itemSuffix), tostring(r.minPrice))
+      end
+    end
+    local rec = (ns.db.prices[ns.MarketKey()] or {})[e.id]
+    trace(("versions by name: %s; item level %s; full scan saw %s"):format(table.concat(seen, ", "),
+      tostring(select(4, ns.GetItemInfo(e.id))), rec and rec.sx or "none"))
+  end
   if #keys == 0 then
     -- A list without this item at all isn't the answer yet: the first one can be empty
     -- or the previous search's (owner's test, October 2: every gear flip dropped at once

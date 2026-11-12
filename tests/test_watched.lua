@@ -135,8 +135,38 @@ T.test("Watched: a find at your price is announced as a watched item", function(
     ns:WatchItem(SILK, 200)
     ns.db.alertsSeen = nil
     ns:CheckDeals()
+    T.runTimers()   -- (the check goes a few hundred items a frame)
   end)
   T.ok(out:find("Watched item: Test Silk, 12 at 2s or less", 1, true), "chat line: " .. out)
+  ns:UnwatchItem(SILK)
+  m[SILK], S.money = nil, 0
+  T.runTimers()
+end)
+
+-- Owner's /fl perf, November 11: the check after each scan took 185 ms on average, 285 at
+-- most, all in one frame.
+T.test("Deal check: a few hundred items a frame, and a find announced once", function()
+  local m = market()
+  for id = 95000, 95999 do m[id] = { m = 100, a = 100, q = 1, t = time(), src = "scan" } end
+  m[SILK] = { m = 180, a = 180, q = 12, l = "180:12", t = time() }
+  S.money = 100000
+  ns:WatchItem(SILK, 200)
+  ns.db.alertsSeen = nil
+  wipe(S.timers)
+  local looked, real = 0, ns.WatchedFind
+  ns.WatchedFind = function(self, id) looked = looked + 1; return real(self, id) end
+  local out = printed(function()
+    ns:CheckDeals()
+    T.ok(looked > 0 and looked <= 400, "one part in this frame: " .. looked)
+    ns:CheckDeals()   -- a second check while the first is under way takes over
+    T.runTimers()
+  end)
+  ns.WatchedFind = real
+  local _, n = out:gsub("Watched item: Test Silk, 12 at 2s or less", "")
+  T.eq(n, 1, "announced once: " .. out)
+  out = printed(function() ns:CheckDeals(); T.runTimers() end)
+  T.eq(out:find("Test Silk", 1, true), nil, "and not again at the same price")
+  for id = 95000, 95999 do m[id] = nil end
   ns:UnwatchItem(SILK)
   m[SILK], S.money = nil, 0
   T.runTimers()
