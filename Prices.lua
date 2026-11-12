@@ -1258,6 +1258,9 @@ end
 -- The results arrive for every addon, so a full scan started by another addon
 -- (Auctionator, TSM...) is read too. They share Blizzard's 15-minute limit.
 local readingFull, lastFullRead = false, 0
+-- Milliseconds of saving a full scan's prices per frame, and the clock for it.
+local SAVE_MS = 10
+local function msNow() return debugprofilestop and debugprofilestop() or GetTime() * 1000 end
 ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
   local mine = Scan.active and Scan.full
   if readingFull and GetTime() - lastFullRead < 120 then return end   -- (unstick after an error)
@@ -1357,57 +1360,78 @@ ns:On("REPLICATE_ITEM_LIST_UPDATE", function()
     else
       local items, versions, gearWith = 0, 0, 0
       local sold = soldTracker()
-      for id, units in pairs(byItem) do
-        record(id, units, "full", liveSince); items = items + 1
-        sold.add(id, units)
-        local has = false
-        for _, u in ipairs(units) do if u[3] then versions = versions + 1; has = true end end
-        if has then gearWith = gearWith + 1 end
+      local savingFrom = GetTime()
+      -- Once every item is saved.
+      local function done()
+        sold.finish()
+        ns:Debug(("Full scan: %d items no longer listed."):format(markGone(seen, unread, n, since, liveSince)))
+        wipe(liveAt)   -- (older than any full scan still to come)
+        -- For checking gear versions (/fl debug): did the scan see any "of the Eagle" listings?
+        ns:Debug(("Gear versions: %d listings with random stats across %d items (link function: %s)."):format(
+          versions, gearWith, getLink and "yes" or "missing"))
+        if probe then
+          local bands = {}
+          for b, c in pairs(probe.bands) do bands[#bands + 1] = tostring(b) .. "=" .. c end
+          table.sort(bands)
+          ns:Debug(("Listing details: seller name on %d of %d; time left %s; a bid at the buyout on %d (left out), a starting bid at it on %d."):format(
+            probe.owner, n, probe.tl and (#bands > 0 and table.concat(bands, ", ") or "none read") or "function missing",
+            probe.bidUp, probe.startUp))
+        end
+        ns.db.lastFullScan = time()
+        fullNote(("done: %d listings%s"):format(n, mine and "" or waited and (", %d seconds after asking"):format(waited) or ", not asked for by this request"))
+        ns:Debug(("Full scan: %d items saved over %.1f s."):format(items, GetTime() - savingFrom))
+        readingFull = false
+        if not ahOpen and ns.neutralAH then
+          ns.neutralAH = nil
+          if ns.InvalidateValues then ns:InvalidateValues(true) end
+        end
+        if mine then Scan.active = false end
+        ns:UpdateScanStatus(n, n)
+        local secs = math.floor(GetTime() - started + 0.5)
+        if mine then
+          ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
+        elseif waited then
+          -- Says when, not whose: another addon may have asked meanwhile, and the results
+          -- don't say who asked (Codex review, November 7).
+          ns:Print(("Full scan done: %d listings across %d items, about %d min after Forever Ledger asked for one."):format(n, items, math.max(1, math.floor(waited / 60 + 0.5))))
+        else
+          ns:Print(("Another addon ran a full scan; Forever Ledger read it too: %d listings across %d items in %ds."):format(n, items, secs))
+        end
+        -- ns.fullScanDone: alerts from this check may open the Buy queue (Shuffles.lua).
+        if ns.CheckDeals then
+          C_Timer.After(0.5, function()
+            ns.fullScanDone = true
+            ns:CheckDeals()
+            ns.fullScanDone = nil
+          end)
+        end
+        if ns.SyncSoon then ns:SyncSoon() end
+        ns:RefreshUI()
+        if mine and ns.FlipWatchNext then ns.FlipWatchNext() end
       end
-      sold.finish()
-      ns:Debug(("Full scan: %d items no longer listed."):format(markGone(seen, unread, n, since, liveSince)))
-      wipe(liveAt)   -- (older than any full scan still to come)
-      -- For checking gear versions (/fl debug): did the scan see any "of the Eagle" listings?
-      ns:Debug(("Gear versions: %d listings with random stats across %d items (link function: %s)."):format(
-        versions, gearWith, getLink and "yes" or "missing"))
-      if probe then
-        local bands = {}
-        for b, c in pairs(probe.bands) do bands[#bands + 1] = tostring(b) .. "=" .. c end
-        table.sort(bands)
-        ns:Debug(("Listing details: seller name on %d of %d; time left %s; a bid at the buyout on %d (left out), a starting bid at it on %d."):format(
-          probe.owner, n, probe.tl and (#bands > 0 and table.concat(bands, ", ") or "none read") or "function missing",
-          probe.bidUp, probe.startUp))
-      end
-      ns.db.lastFullScan = time()
-      fullNote(("done: %d listings%s"):format(n, mine and "" or waited and (", %d seconds after asking"):format(waited) or ", not asked for by this request"))
-      readingFull = false
-      if not ahOpen and ns.neutralAH then
-        ns.neutralAH = nil
-        if ns.InvalidateValues then ns:InvalidateValues(true) end
-      end
-      if mine then Scan.active = false end
-      ns:UpdateScanStatus(n, n)
-      local secs = math.floor(GetTime() - started + 0.5)
-      if mine then
-        ns:Print(("Full scan done: %d listings across %d items in %s."):format(n, items, took()))
-      elseif waited then
-        -- Says when, not whose: another addon may have asked meanwhile, and the results
-        -- don't say who asked (Codex review, November 7).
-        ns:Print(("Full scan done: %d listings across %d items, about %d min after Forever Ledger asked for one."):format(n, items, math.max(1, math.floor(waited / 60 + 0.5))))
-      else
-        ns:Print(("Another addon ran a full scan; Forever Ledger read it too: %d listings across %d items in %ds."):format(n, items, secs))
-      end
-      -- ns.fullScanDone: alerts from this check may open the Buy queue (Shuffles.lua).
-      if ns.CheckDeals then
-        C_Timer.After(0.5, function()
-          ns.fullScanDone = true
-          ns:CheckDeals()
-          ns.fullScanDone = nil
-        end)
-      end
-      if ns.SyncSoon then ns:SyncSoon() end
-      ns:RefreshUI()
-      if mine and ns.FlipWatchNext then ns.FlipWatchNext() end
+      -- Saving every item at once froze the game for 1.4 seconds at the end of each full
+      -- scan (owner's /fl perf, November 11, 5,300 items): SAVE_MS of it a frame instead. The
+      -- market stays this scan's meanwhile (readingFull), and a price looked up or bought
+      -- meanwhile stays as it is (liveAt).
+      local ids, k = {}, 0
+      for id in pairs(byItem) do ids[#ids + 1] = id end
+      local save
+      save = ns.Timed("Full scan: saving", function()
+        local from = msNow()
+        while k < #ids do
+          k = k + 1
+          local id = ids[k]
+          local units = byItem[id]
+          record(id, units, "full", liveSince); items = items + 1
+          sold.add(id, units)
+          local has = false
+          for _, u in ipairs(units) do if u[3] then versions = versions + 1; has = true end end
+          if has then gearWith = gearWith + 1 end
+          if msNow() - from >= SAVE_MS then break end
+        end
+        if k < #ids then C_Timer.After(0, save) else done() end
+      end)
+      save()
     end
   end)
   chunk()

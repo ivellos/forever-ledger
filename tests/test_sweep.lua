@@ -766,6 +766,46 @@ T.test("Full scan: an item looked up or bought since it was asked for keeps its 
   wipe(S.timers)
 end)
 
+-- Owner's /fl perf, November 11: saving a full scan's 5,300 items took 1.4 seconds in one
+-- frame, a freeze just as its flips came.
+T.test("Full scan: its prices are saved a few milliseconds a frame", function()
+  local Scan = ns.Scan
+  local key = ns.MarketKey()
+  local realMarket = ns.db.prices[key]
+  ns.db.prices[key] = {}
+  local m = ns.db.prices[key]
+  wipe(S.timers)
+  local realClock, ms = debugprofilestop, 0
+  debugprofilestop = function() ms = ms + 4; return ms end   -- (each item "takes" 4 ms)
+  local listings = {}
+  for id = 94020, 94029 do listings[#listings + 1] = { 100, 1, id } end
+  rawset(AH, "GetNumReplicateItems", function() return #listings end)
+  rawset(AH, "GetReplicateItemInfo", function(idx)
+    local l = listings[idx + 1]
+    return nil, nil, l[2], nil, nil, nil, nil, l[1], nil, l[1], nil, nil, nil, nil, nil, nil, l[3]
+  end)
+  local function saved()
+    local c = 0
+    for id = 94020, 94029 do if m[id] then c = c + 1 end end
+    return c
+  end
+  Scan.active, Scan.full, Scan.started = true, true, GetTime()
+  S.now = S.now + 20
+  T.fire("REPLICATE_ITEM_LIST_UPDATE")
+  T.ok(saved() > 0 and saved() < 10, "some in this frame: " .. saved())
+  T.eq(Scan.active, true, "the scan isn't done until all are saved")
+  T.runTimers()
+  T.eq(saved(), 10, "all of them in the end")
+  T.eq(m[94020].m, 100)
+  T.eq(Scan.active, false)
+  debugprofilestop = realClock
+  rawset(AH, "GetNumReplicateItems", nil)
+  rawset(AH, "GetReplicateItemInfo", nil)
+  ns.db.prices[key], ns.db.lastFullListings = realMarket, nil
+  Scan.active, Scan.full = false, false
+  wipe(S.timers)
+end)
+
 -- Owner, November 11: /fl perf, kept at logout with /fl debug on, to read after a reload.
 T.test("Perf: the slowest tasks as lines, slowest single moment first", function()
   local real = ns.perf
