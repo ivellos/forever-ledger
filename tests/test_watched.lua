@@ -159,8 +159,9 @@ T.test("Deal check: it belongs to the auction house it started at, and a deal go
   local s = ns.db.settings
   local realUsual, realStats, realMin, realPct = ns.DealUsualPrice, ns.PriceStats, s.dealUsualMin, s.dealUsualPct
   local DEAL = 95100
+  local judged = {}
   local ok, err = pcall(function()
-    ns.DealUsualPrice = function() return 1000, "TSM" end
+    ns.DealUsualPrice = function(_, id) judged[id] = true; return 1000, "TSM" end
     ns.PriceStats = function() return nil end
     s.dealUsualMin, s.dealUsualPct = 0, 20
     S.items[DEAL] = { name = "Test Deal", sell = 1 }
@@ -182,13 +183,21 @@ T.test("Deal check: it belongs to the auction house it started at, and a deal go
     T.eq(out:find("below the usual price", 1, true), nil, "nothing announced: " .. out)
     local here = ns.db.alertsSeen and ns.db.alertsSeen[ns.MarketKey()]
     T.eq(here and next(here.deals), nil, "nothing marked at the faction auction house")
-    -- At Booty Bay throughout, but the deal sold out before the check finished.
+    -- At Booty Bay throughout, but the deal sold out after the check had judged it and
+    -- before it finished. (Half a minute on, so it's judged afresh, not from the cache.)
+    S.now = S.now + 31
+    cheap()
     ns.neutralAH, ns.db.alertsSeen = true, nil
+    wipe(judged)
+    local stepped = false
     out = printed(function()
       ns:CheckDeals()
+      while not judged[DEAL] and #S.timers > 0 do table.remove(S.timers, 1)() end
+      stepped = judged[DEAL] and #S.timers > 0
       nm[DEAL] = { t = time(), src = "scan", none = true }
       T.runTimers()
     end)
+    T.ok(stepped, "judged before the last part, so it sold out mid-check")
     T.eq(out:find("below the usual price", 1, true), nil, "gone by the end: " .. out)
     -- Still there at the end: announced.
     cheap()
