@@ -1000,6 +1000,39 @@ T.test("Buy queue: a listing the auction house won't sell at its price is passed
   wipe(S.timers)
 end)
 
+-- Owner's log, November 11: 10 of 12 purchases refused with error 10 went through after all
+-- (the gold left 0.3-0.8 s later); the queue still waited 2 seconds, and gave up on a row of
+-- Linen Bags after two of them.
+T.test("Buy queue: an item bought after an error goes on at once, and isn't a refusal", function()
+  local e = buyingItem(91126, 31)
+  e.limit = 600
+  Q.plan.key = { itemID = 91126 }
+  ns.db.settings.buyQueue.limit = nil
+  S.money = 100000
+  wipe(S.timers)
+  T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+  T.eq(Q.state, "wait")
+  T.eq(e.refused, 1)
+  searchRows({ { auctionID = 31, buyoutAmount = 500, quantity = 1 }, { auctionID = 32, buyoutAmount = 550, quantity = 1 } })
+  T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 31)
+  noSearchRows()
+  T.eq(Q.bought, 1, "counted")
+  T.eq(e.refused, 0, "not a refusal")
+  T.eq(Q.plan and Q.plan.auctionID, 32, "the next listing straight away, from the page")
+  T.ok(Q.state ~= "wait", "no 2-second wait")
+  -- A success that comes after the queue has moved on only counts.
+  Q.plan, Q.state = { kind = "item", auctionID = 33, price = 9, key = { itemID = 91126 } }, "buying"
+  T.fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+  local waiting = Q.plan
+  Q.plan, Q.state = { kind = "item", auctionID = 34, price = 9 }, "search"
+  T.fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 33)
+  T.eq(Q.bought, 2)
+  T.eq(Q.state, "search", "left as it was")
+  T.ok(Q.plan ~= waiting)
+  Q.cur, Q.plan, Q.state, Q.lateBuys, Q.wonDue = nil, nil, "idle", {}, {}
+  wipe(S.timers)
+end)
+
 T.test("Buy queue: a listing the auction house won't sell isn't saved as a price", function()
   local key = ns.MarketKey()
   ns.db.prices[key] = ns.db.prices[key] or {}

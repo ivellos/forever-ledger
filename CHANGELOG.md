@@ -17,6 +17,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The status line says "reading the AH list, part N", so it fits.
 - With `/fl debug` on, the list's log also says how often and how long it waited for the auction house, and which parts new flips came in; the Buy queue's log says when a full scan was under way; and `/fl perf`'s timings are kept at logout, to read afterward, and include reading a full scan.
 
+### Fixed
+- Buy queue: most gear purchases the auction house answers with an error go through anyway (the gold leaves a moment later). The queue now carries on to the next listing as soon as that happens, instead of waiting 2 seconds and searching again, and such a purchase no longer counts as a refusal, so two in a row don't make it give up on a row still listed.
+
 ## [0.22.0] - 2026-11-11
 
 ### Highlights

@@ -1291,6 +1291,15 @@ local function lateSuccess(kind, auctionID, paidOnly)
       e.boughtIDs = e.boughtIDs or {}
       e.boughtIDs[plan.auctionID] = true
     end
+    -- Error 10 first, then the purchase went through: 10 of 12 "refused" purchases in the
+    -- owner's log of November 11, the gold leaving 0.3-0.8 s after the error. It wasn't a
+    -- refusal, so it doesn't count toward setting the item aside (two of those gave up on
+    -- rows still listed), and the queue goes on now, from the page it has, instead of
+    -- searching again after 2 seconds.
+    if Q.cur == e then
+      e.refused = math.max((e.refused or 0) - 1, 0)
+      if Q.state == "wait" and Q.plan == plan then again(true) end
+    end
   end
   return true
 end
