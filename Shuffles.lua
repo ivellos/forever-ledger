@@ -1086,20 +1086,30 @@ end
 -- A few hundred items a frame: all at once it took 185 ms on average and 285 at most after
 -- each scan (owner's /fl perf, November 11), a hitch just as the scan's flips were to be
 -- bought. A check started while one is under way takes over from the beginning.
+-- A check belongs to the auction house it started at: leaving a neutral one (or going to
+-- another) mid-check ends it, or its deals were judged and marked against the other's
+-- prices (Codex review of ab3fd99).
 local DEAL_BATCH = 400
 local dealRun = 0
+-- A below-usual-price deal on an item's current saved price, or nil.
+local function usualNow(id, market, now)
+  local rec = market[id]
+  if not (rec and rec.m and not rec.none and now - (rec.t or 0) <= DEAL_RECENT) then return end
+  local d = usualDeal(id, rec)
+  if d and d.kind == "usual" then return d end
+end
 function ns:CheckDeals()
   ns:InvalidateValues(true)   -- the scan just changed prices
   if ns.RefreshDealsIfShown then ns:RefreshDealsIfShown() end
   dealRun = dealRun + 1
-  local run, full, now = dealRun, ns.fullScanDone, time()
-  local market = ns.db.prices[ns.MarketKey()] or {}
+  local run, full, now, key = dealRun, ns.fullScanDone, time(), ns.MarketKey()
   local ids = {}
-  for id in pairs(market) do ids[#ids + 1] = id end
+  for id in pairs(ns.db.prices[key] or {}) do ids[#ids + 1] = id end
   local found, usual, i = {}, {}, 1
   local step
   step = ns.Timed("Deal check", function()
-    if run ~= dealRun then return end
+    if run ~= dealRun or ns.MarketKey() ~= key then return end
+    local market = ns.db.prices[key] or {}
     local flipAlerted = seen("flips")
     freshJudged()
     local stop = math.min(i + DEAL_BATCH - 1, #ids)
@@ -1111,16 +1121,13 @@ function ns:CheckDeals()
       elseif now - (f.t or 0) <= DEAL_RECENT and (not flipAlerted[id] or f.cost < flipAlerted[id]) then
         found[#found + 1] = id
       end
-      local rec = market[id]
-      if rec and rec.m and not rec.none and now - (rec.t or 0) <= DEAL_RECENT then
-        local d = usualDeal(id, rec)
-        if d and d.kind == "usual" then usual[#usual + 1] = d end
-      end
+      if usualNow(id, market, now) then usual[#usual + 1] = id end
     end
     i = stop + 1
     if i <= #ids then C_Timer.After(0, step); return end
-    -- All looked at. Flips are marked as announced only now, each looked at again (bought,
-    -- or alerted by itself, in the moment since), so none is marked and never announced.
+    -- All looked at. Flips and deals are marked as announced only now, each looked at again
+    -- (bought, sold out, or alerted by itself in the moment since: Codex review of ab3fd99),
+    -- so none is marked and never announced, or announced when it's gone.
     local flips = {}
     for _, id in ipairs(found) do
       local f = flipOrWatched(id)
@@ -1131,10 +1138,11 @@ function ns:CheckDeals()
     end
     table.sort(flips, function(a, b) return a.profit > b.profit end)
     local alerted, count = seen("deals"), 0
-    for _, d in ipairs(usual) do
-      local key = d.kind .. d.id
-      if ns:DealShown(d) and (not alerted[key] or d.price < alerted[key]) then
-        alerted[key] = d.price
+    for _, id in ipairs(usual) do
+      local d = usualNow(id, market, now)
+      local dk = d and d.kind .. d.id
+      if d and ns:DealShown(d) and (not alerted[dk] or d.price < alerted[dk]) then
+        alerted[dk] = d.price
         count = count + 1
       end
     end

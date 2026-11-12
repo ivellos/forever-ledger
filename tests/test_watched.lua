@@ -153,6 +153,57 @@ T.test("Deal check: a few hundred items a frame, and a find announced once", fun
   T.runTimers()
 end)
 
+-- Codex review of ab3fd99: leaving Booty Bay mid-check judged and marked its deals against
+-- the faction auction house; and a deal that sold out mid-check was still announced.
+T.test("Deal check: it belongs to the auction house it started at, and a deal gone by the end isn't announced", function()
+  local s = ns.db.settings
+  local realUsual, realStats, realMin, realPct = ns.DealUsualPrice, ns.PriceStats, s.dealUsualMin, s.dealUsualPct
+  local DEAL = 95100
+  local ok, err = pcall(function()
+    ns.DealUsualPrice = function() return 1000, "TSM" end
+    ns.PriceStats = function() return nil end
+    s.dealUsualMin, s.dealUsualPct = 0, 20
+    S.items[DEAL] = { name = "Test Deal", sell = 1 }
+    T.fire("AUCTION_HOUSE_CLOSED")   -- (deposits from the vendor price)
+    ns.neutralAH = true
+    local nm = {}
+    ns.db.prices[ns.MarketKey()] = nm
+    for id = 95101, 95900 do nm[id] = { m = 100, a = 100, q = 1, t = time(), src = "scan" } end
+    local function cheap() nm[DEAL] = { m = 600, a = 600, q = 2, l = "600:2", t = time(), src = "scan" } end
+    cheap()
+    ns.db.alertsSeen = nil
+    wipe(S.timers)
+    local out = printed(function()
+      ns:CheckDeals()
+      ns.neutralAH = nil   -- left Booty Bay before the check finished
+      T.runTimers()
+    end)
+    T.eq(out:find("below the usual price", 1, true), nil, "nothing announced: " .. out)
+    local here = ns.db.alertsSeen and ns.db.alertsSeen[ns.MarketKey()]
+    T.eq(here and next(here.deals), nil, "nothing marked at the faction auction house")
+    -- At Booty Bay throughout, but the deal sold out before the check finished.
+    ns.neutralAH, ns.db.alertsSeen = true, nil
+    out = printed(function()
+      ns:CheckDeals()
+      nm[DEAL] = { t = time(), src = "scan", none = true }
+      T.runTimers()
+    end)
+    T.eq(out:find("below the usual price", 1, true), nil, "gone by the end: " .. out)
+    -- Still there at the end: announced.
+    cheap()
+    ns.db.alertsSeen = nil
+    out = printed(function() ns:CheckDeals(); T.runTimers() end)
+    T.ok(out:find("1 new deal below the usual price", 1, true), "announced: " .. out)
+  end)
+  ns.neutralAH = true
+  ns.db.prices[ns.MarketKey()] = nil
+  ns.neutralAH, ns.db.alertsSeen = nil, nil
+  ns.DealUsualPrice, ns.PriceStats, s.dealUsualMin, s.dealUsualPct = realUsual, realStats, realMin, realPct
+  S.items[DEAL] = nil
+  wipe(S.timers)
+  assert(ok, err)
+end)
+
 -- Codex review, November 10: a purchase planned at 200 each and waiting at Confirm was
 -- still sent after the price was lowered to 100 (or the item unwatched).
 T.test("Watched: a lower price or an unwatch applies to a purchase waiting at Confirm", function()
