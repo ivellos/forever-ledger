@@ -27,7 +27,7 @@
 - **Tooltips:** what an item is worth to you (you choose which ways count) and the best few ways to use it, the auction price, how fast it sells, what it disenchants into, which of your recipes use it, and quests that need it ("keep it" if you will). Hold Ctrl for its price history. One line with Shift for more, if you prefer.
 - **Deals:** listings well below their usual price, with the usual price, how many days of scans it's based on, the next listing up and the resale profit, rated Good, Fair or Thin. A Booty Bay view compares the neutral auction house with yours, each after its own cut.
 - **Vendor flips:** things on the auction house for less than a vendor pays. Watch flips keeps scanning while the auction house is open, reading every item's cheapest price about every 20 seconds between full scans, and chimes when one turns up. Pause holds it (and the Buy queue's own lookups) while you search yourself.
-- **Watched items:** items you always want checked, each with the most you'd pay (or only under what a vendor pays). Watch flips checks them on every pass, and they go first in the Buy queue.
+- **Watched items:** items you always want checked, each with the most you'd pay (or only under what a vendor pays). Watch flips looks for them every time it reads the auction house, and they go first in the Buy queue.
 - **Shuffles:** buy materials, craft, disenchant or convert, and sell, ranked by gold an hour, with every step spelled out.
 - **On the auction house:** listings worth buying get a green bar and a badge saying why (FLIP, DE, CRAFT, USE).
 - **Disenchant finder:** green armor and weapons by item level, with what each is worth to disenchant, on average and on a bad or good roll; add them to a shopping list in one click.
@@ -35,7 +35,7 @@
 - **Gear versions:** "of the Eagle" and "of the Whale" are priced separately, each with its own price graph.
 
 ### Buying
-- **Buy queue:** flips and shopping list items beside the auction house, best profit you can afford first; click Buy or scroll over it to buy the next one.
+- **Buy queue:** flips and shopping list items beside the auction house, best profit you can afford first; click Buy or scroll over it to buy the next one, a stack of materials in one tick.
 - **Spend at most:** cap what the queue spends each auction house visit, or always keep some gold back for repairs.
 - **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy (type any in Want to keep buying whatever is under your price) from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Add a shuffle's materials in one click; each price limit says where it came from. Share a list as text.
 ### Selling

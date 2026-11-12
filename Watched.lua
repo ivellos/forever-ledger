@@ -221,7 +221,7 @@ local function row(v, i)
       GameTooltip:AddLine("Not bought yet: vendors don't buy it, so type the most you'd pay in Up to.", 1, 0.82, 0, true)
     end
     if ns.IsGearItem and ns:IsGearItem(r.id) then
-      GameTooltip:AddLine("Gear is checked by the full scan (about every 15 minutes), not between them.", 0.7, 0.7, 0.7, true)
+      GameTooltip:AddLine("Gear: any stat version at or under the price.", 0.7, 0.7, 0.7, true)
     end
     GameTooltip:AddLine("Click to search for it on the auction house.", 0.6, 0.6, 0.6)
     GameTooltip:Show()

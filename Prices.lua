@@ -1488,6 +1488,7 @@ local SWEEP_PAUSE = 0.5
 -- or this often while an item's page stays open.
 local HELD_MIN, HELD_PAGE = 5, 10
 local sweepAfter   -- (GetTime) when a reading put off for you may go ahead
+local heldFor      -- why it was put off: "search" (yours) or "page" (an item's page open)
 local paused = false   -- the Pause button (ns:ToggleScanPause, below)
 local nextPause = WATCH_PAUSE
 local watching, watchTimer = false, nil
@@ -1528,6 +1529,7 @@ local function sweepDone(outcome, ids, changed, wait)
   if outcome == "held" then
     nextPause = SWEEP_PAUSE
     sweepAfter = GetTime() + math.max(HELD_MIN, wait or HELD_PAGE)
+    heldFor = wait and "search" or "page"   -- (no wait: for as long as an item's page is open)
   elseif outcome == "failed" then
     nextPause = (ns.SweepSlower and ns:SweepSlower()) and WATCH_PAUSE or FAILED_PAUSE
   elseif ids and #ids > 0 then
@@ -1572,7 +1574,9 @@ end
 -- While waiting, the status corner counts down to the next check, so a quiet spell
 -- doesn't look like the watch has stopped (owner test, September 30).
 local countdown
-local function showCountdown(untilTime)
+-- held: why the list waits for you ("search" or "page"), so the line says so (UI pass,
+-- November 11: it only counted down, and the old item checks it replaced said why).
+local function showCountdown(untilTime, held)
   if countdown then countdown:Cancel() end
   countdown = C_Timer.NewTicker(1, function(self)
     local left = math.ceil(untilTime - GetTime())
@@ -1580,21 +1584,31 @@ local function showCountdown(untilTime)
       self:Cancel(); countdown = nil
       return
     end
-    local full = Scan:FullWait()
-    ns:SetStatusText(("Watching flips: next check in %ds%s"):format(left,
-      full > 0 and full < math.huge and (", full scan in %d min"):format(math.ceil(full / 60)) or ""))
+    -- (Short: "reading the auction house list, part N" was cut off; owner, November 11.)
+    if held == "page" then
+      ns:SetStatusText("Watching flips: waiting for the item page")
+    elseif held then
+      ns:SetStatusText(("Watching flips: your search, list in %ds"):format(left))
+    else
+      local full = Scan:FullWait()
+      ns:SetStatusText(("Watching flips: next check in %ds%s"):format(left,
+        full > 0 and full < math.huge and (", full scan in %d min"):format(math.ceil(full / 60)) or ""))
+    end
   end)
 end
 
 function ns.FlipWatchNext()
   if watching and ns.RefreshFlipsIfShown then C_Timer.After(1, function() ns:RefreshFlipsIfShown() end) end
   if watching and not watchTimer and not paused then
-    local pause = nextPause
+    local pause, held = nextPause, nil
     -- A reading put off for you goes ahead once its wait is over, counted from when it was
-    -- put off, not from the end of the watched items' checks.
-    if sweepAfter then pause = math.max(HELD_MIN, sweepAfter - GetTime()); sweepAfter = nil end
+    -- put off.
+    if sweepAfter then
+      pause, held = math.max(HELD_MIN, sweepAfter - GetTime()), heldFor
+      sweepAfter, heldFor = nil, nil
+    end
     watchTimer = C_Timer.NewTimer(pause, watchPass)
-    showCountdown(GetTime() + pause)
+    showCountdown(GetTime() + pause, held)
   end
 end
 

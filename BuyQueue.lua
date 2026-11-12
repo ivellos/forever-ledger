@@ -1137,8 +1137,8 @@ function ns:BuyQueueAct(clicked)
       if left > 0 then
         Q.endSaid = true
         local limited = spendable() < GetMoney()
-        local text = ("That's everything you can buy: the %d left %s more than %s or wait for a lower price.")
-          :format(left, left == 1 and "costs" or "cost", limited and "your limit allows" or "you have")
+        local text = ("That's everything you can buy: the %d left %s more than %s, or %s waiting for a lower price.")
+          :format(left, left == 1 and "costs" or "cost", limited and "your limit allows" or "you have", left == 1 and "is" or "are")
         if UIErrorsFrame and ns.db.settings.dealScreen ~= false then UIErrorsFrame:AddMessage(text, 1, 0.3, 0.3) end
         if ns.db.settings.dealSound ~= false then pcall(PlaySound, (SOUNDKIT and SOUNDKIT.IG_QUEST_FAILED) or 847, "Master") end
         Q.note = text

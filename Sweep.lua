@@ -256,10 +256,10 @@ end
 ask = function(first)
   local why, seen, wait = holdReason(first)
   if why == "closed" then return finish("stopped") end
-  -- You're on an item's page or just searched: the list isn't replaced under you. This
-  -- pass checks your watched items instead, and the list is read once the wait is over
-  -- (Prices.lua). Logged once until the next reading, with what was seen (owner, November
-  -- 10: the old item checks ran with nothing searched, and nothing showed why).
+  -- You're on an item's page or just searched: the list isn't replaced under you, and is
+  -- read once the wait is over (Prices.lua; the status line says why meanwhile). Logged once
+  -- until the next reading, with what was seen (owner, November 10: the list was put off
+  -- with nothing searched, and nothing showed why).
   if why == "page" or why == "you" then
     if not S.heldLogged then
       S.heldLogged = true

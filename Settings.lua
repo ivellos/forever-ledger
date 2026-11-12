@@ -108,7 +108,7 @@ local PAGES = {
           after = function() if ns.RefreshListsView then ns:RefreshListsView() end; if ns.RebuildBuyQueue then ns:RebuildBuyQueue() end end,
           help = "Unlimited-stock vendor items on shopping lists normally stay out of the auction house queue. On: buy them there at no more than the vendor price. Limited-stock items stay ordinary auction house items." },
         { key = "openFlips", label = "Open the Buy queue after a full scan", kind = "check",
-          help = "When a full scan finds vendor flips and the Buy queue beside the auction house is closed, open it. The flip watch's quick checks only chime." },
+          help = "When a full scan finds vendor flips and the Buy queue beside the auction house is closed, open it. New flips found between full scans only chime." },
         { key = "stackTwoClicks", label = "Confirm stacks with a second click", kind = "check",
           help = "Off: a stack of materials is bought in one tick or click, since the one that starts the purchase also confirms it once the final price comes back within the limit and what you can spend. On: a second tick or click confirms it, after the final price is shown." },
         { key = "watchResume", label = "Resume the flip watch", kind = "check",
