@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-11
+
+### Highlights
+- Δ **No more freezes after a scan**: a full scan's prices are saved a little at a time instead of freezing the game for over a second, and the check for new deals no longer stutters.
+- Δ **One tick buys a stack**: the tick that starts buying a stack of materials also confirms it, within your limit. Settings can bring back the second click.
+- ~ **Faster flips**: the chime comes as soon as a flip is found, the list is read again after half a second, the next flip is looked up straight after a purchase, and buying carries on during full scans.
+- ~ **Scroll to buy**: up or down, anywhere over Vendor flips.
+- ✓ **"Refused" purchases that went through**: the Buy queue moves straight on instead of pausing, and no longer gives up on a row it's buying.
+- ~ **Clearer status line**: on a line of its own, and it says when the flip watch waits for your search.
+
 ### Added
 - One tick buys a stack of materials: the tick or click that starts buying it also confirms it, once the final price comes back within the limit and what you can spend. To confirm it yourself, tick Confirm stacks with a second click (Settings, Auction house, Buying). If the game wants a second click after all, the Buy queue goes back to asking for one.
 

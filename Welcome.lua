@@ -172,12 +172,14 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.22.0",
+  version = "0.23.0",
   lines = {
-    { "Faster flips: a new flip chimes and goes to the Buy queue as soon as its part of the auction house list arrives, not once the whole list is read, and the list is read about every 20 seconds instead of every half minute.", major = true },
-    { "Gear flips: looked up straight from the stat version the list saw, so they're ready to buy a moment after they're found.", change = true },
-    { "Buy queue: carries on the moment the auction house is free again, and takes a new flip at once.", change = true },
-    { "Rogue poisons: no longer vendor flips. The game gives them a vendor price, but vendors won't buy them.", fix = true },
+    { "No more freezes after a scan: a full scan's prices are saved a little at a time instead of freezing the game for over a second, and the check for new deals no longer stutters.", major = true },
+    { "One tick buys a stack: the tick that starts buying a stack of materials also confirms it, within your limit. Settings can bring back the second click.", major = true },
+    { "Faster flips: the chime comes as soon as a flip is found, the list is read again after half a second, the next flip is looked up straight after a purchase, and buying carries on during full scans.", change = true },
+    { "Scroll to buy: up or down, anywhere over Vendor flips.", change = true },
+    { "\"Refused\" purchases that went through: the Buy queue moves straight on instead of pausing, and no longer gives up on a row it's buying.", fix = true },
+    { "Clearer status line: on a line of its own, and it says when the flip watch waits for your search.", change = true },
   },
 }
 
