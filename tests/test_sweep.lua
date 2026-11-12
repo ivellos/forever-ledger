@@ -276,7 +276,7 @@ T.test("Sweep: right after your own search it doesn't replace your results", fun
   ns.lastUserSearch = GetTime() - 20
   sent = {}
   start()
-  T.eq(result.outcome, "held", "the item checks run this time instead")
+  T.eq(result.outcome, "held", "put off this time")
   T.eq(#sent, 0, "nothing sent")
   ns.lastUserSearch = GetTime() - 31
   rows, full = { row(MAT, 80, 4) }, true
@@ -306,7 +306,9 @@ T.test("Sweep: buying comes first; the next group waits for the Buy queue", func
   T.runTimers()
 end)
 
-T.test("Sweep: an empty or missing list fails; three in a row and the watch goes back to item checks", function()
+-- Until November 11, 2026, three failures in a row switched the reading off for the visit and
+-- the old item checks ran instead; Frank had those removed.
+T.test("Sweep: an empty or missing list fails; after three in a row the watch tries again more slowly", function()
   T.eq(ns:SweepOn(), true)
   rows, full = {}, true
   for n = 1, 3 do
@@ -316,11 +318,12 @@ T.test("Sweep: an empty or missing list fails; three in a row and the watch goes
     table.remove(S.timers)()   -- (2 seconds later)
     T.eq(result.outcome, "failed")
     T.eq(SW.fails, n)
+    T.eq(ns:SweepSlower(), n >= 3)
   end
-  T.eq(ns:SweepOn(), false)
-  T.fire("AUCTION_HOUSE_SHOW")   -- the next visit tries again
+  T.eq(ns:SweepOn(), true, "still read: nothing in its place")
+  T.fire("AUCTION_HOUSE_SHOW")   -- the next visit starts afresh
   T.runTimers()
-  T.eq(ns:SweepOn(), true)
+  T.eq(ns:SweepSlower(), false)
   -- No answer at all within 10 seconds.
   start()
   for i = #S.timers, 1, -1 do S.timers[i]() end
@@ -328,12 +331,9 @@ T.test("Sweep: an empty or missing list fails; three in a row and the watch goes
   T.eq(SW.fails, 1)
   T.fire("AUCTION_HOUSE_SHOW")
   T.runTimers()
-  ns.db.settings.watchSweep = false
-  T.eq(ns:SweepOn(), false, "Settings: off")
-  ns.db.settings.watchSweep = true
 end)
 
-T.test("Sweep: the flip watch looks closely at what it found, or does its item checks", function()
+T.test("Sweep: the flip watch looks closely at what it found, and searches nothing in a failed reading's place", function()
   local Scan = ns.Scan
   ns.lastUserSearch = nil
   Scan.active, Scan.sweep, Scan.quiet = true, true, true
@@ -347,6 +347,10 @@ T.test("Sweep: the flip watch looks closely at what it found, or does its item c
   Scan.active, Scan.sweep, Scan.quiet = true, true, true
   ns.FlipWatchSweepDone("broken", {}, false)
   T.eq(Scan.active, false)
+  -- The list couldn't be read: the pass ends too, with no item checks in its place.
+  Scan.active, Scan.sweep, Scan.quiet = true, true, true
+  ns.FlipWatchSweepDone("failed", {}, false)
+  T.eq(Scan.active, false, "nothing searched in its place")
   -- Stopped meanwhile: nothing more.
   ns.FlipWatchSweepDone("done", { MAT }, true)
   T.eq(Scan.active, false)
@@ -439,7 +443,7 @@ end)
 
 -- Owner's test, November 10: the old item checks ran with nothing searched by hand, and
 -- nothing showed why; and those 120 checks took two minutes.
-T.test("Sweep: put off for you, it says why once, and only watched items are checked meanwhile", function()
+T.test("Sweep: put off for you, it says why once, and nothing is searched meanwhile", function()
   ns.db.settings.debug, ns.db.sweepLog = true, nil
   ns.lastUserSearch, ns.lastUserSearchBy, ns.lastUserSearchFrom = GetTime() - 10, "SendBrowseQuery", nil
   start()
@@ -455,15 +459,14 @@ T.test("Sweep: put off for you, it says why once, and only watched items are che
   T.eq(result.outcome, "held")
   T.eq(result.wait, nil, "on an item's page: for as long as it stays open")
   ns.ItemPageOpen = realPage
-  -- Meanwhile only the watched items are checked, not the usual 120.
+  -- Meanwhile nothing is searched in its place, watched items included (until November 11,
+  -- 2026 the old item checks searched those; the list sees them once it's read again).
   local Scan = ns.Scan
   ns.lastUserSearch = nil
   ns.db.watchItems[MAT] = { t = time() }
   Scan.active, Scan.sweep, Scan.quiet = true, true, true
   ns.FlipWatchSweepDone("held", {}, false, 30)
-  T.eq(Scan.total, 1, "the watched thread only")
-  T.eq(Scan.pending, MAT)
-  Scan:Stop("test")
+  T.eq(Scan.active, false, "nothing searched meanwhile")
   ns.db.watchItems[MAT] = nil
   ns.db.settings.debug, ns.db.sweepLog, ns.lastUserSearchBy = false, nil, nil
   T.fire("AUCTION_HOUSE_SHOW")   -- (forgets the page)

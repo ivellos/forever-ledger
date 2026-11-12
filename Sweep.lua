@@ -33,7 +33,7 @@ local FRESH = 300        -- a saved price this recent needs no close look (older
 local REFRESH = 600      -- a flip still listed is looked at again once its saved price is this old,
                          -- so the Buy queue doesn't leave it out as old (it drops finds over 15 minutes)
 local MAX_LOOKS = 60     -- close looks per pass; the rest next time
-local FAILS_TO_STOP = 3  -- failed sweeps in one visit before the watch goes back to item checks
+local FAILS_SLOWER = 3   -- failed readings in a row before the watch tries every half minute (Prices.lua)
 local CHUNK = 400        -- items worked through per frame, so a long list doesn't stall the game
 
 local S = { state = "idle", tok = 0, fails = 0 }
@@ -88,10 +88,16 @@ function ns:SweepAvailable()
     and AH.HasFullBrowseResults ~= nil and AH.GetBrowseResults ~= nil
 end
 
--- Whether the flip watch reads the list this pass (Settings, Auction house, Buying).
+-- Whether the flip watch reads the list: always, where the client can. (Until November 11,
+-- 2026 a setting could turn it off, and three failed readings in a row turned it off for
+-- the visit; the old item checks ran instead. Frank had them removed.)
 function ns:SweepOn()
-  return ns.db.settings.watchSweep ~= false and ns:SweepAvailable() and S.fails < FAILS_TO_STOP
+  return ns:SweepAvailable()
 end
+
+-- After FAILS_SLOWER failed readings in a row, the flip watch tries again every half minute
+-- (Prices.lua), not a few seconds later.
+function ns:SweepSlower() return S.fails >= FAILS_SLOWER end
 
 -- A group is on its way: the Buy queue waits a moment for it (BuyQueue.lua search()).
 function ns:SweepWaiting()
@@ -658,10 +664,10 @@ read = function(rows)
   chunk()
 end
 
--- outcome: "done", "failed" (couldn't read the list: the watch does item checks this time),
--- "held" (you're searching or on an item's page: your watched items are checked, and the list read
--- once the wait is over; not counted as a failure), "broken" (another search replaced it: tried
--- again next pass) or "stopped".
+-- outcome: "done", "failed" (couldn't read the list: tried again soon, more slowly after a few
+-- in a row), "held" (you're searching or on an item's page: the list is read once the wait is
+-- over; not counted as a failure), "broken" (another search replaced it: tried again next
+-- pass) or "stopped".
 -- wait ("held"): seconds until it may go ahead, nil while an item's page is open.
 finish = function(outcome, why, ids, changed, wait)
   local done = S.onDone
@@ -672,8 +678,8 @@ finish = function(outcome, why, ids, changed, wait)
   elseif outcome == "failed" then
     S.fails = S.fails + 1
     logLine(("Auction house list couldn't be read: %s (%d in a row)."):format(why or "?", S.fails))
-    if S.fails == FAILS_TO_STOP then
-      ns:Print("Couldn't read the whole auction house list " .. FAILS_TO_STOP .. " times in a row, so the flip watch checks likely items instead until you next open the auction house.")
+    if S.fails == FAILS_SLOWER then
+      ns:Print("Couldn't read the whole auction house list " .. FAILS_SLOWER .. " times in a row, so the flip watch tries again every half minute; full scans carry on as usual.")
     end
   elseif outcome == "broken" then
     logLine("Auction house list: " .. (why or "stopped") .. "; trying again next time.")

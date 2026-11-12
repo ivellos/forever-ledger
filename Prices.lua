@@ -1442,11 +1442,17 @@ end)
 ---------------------------------------------------------------------------
 -- Flip watch (/fl watch): while the auction house stays open, keep looking for vendor
 -- flips. A full scan whenever Blizzard allows one (about every 15 minutes); in between,
--- slow re-checks of the items closest to their vendor price. New flips chime and open
--- the Vendor flips tab (through CheckDeals). It only looks; buying is always your click.
+-- the auction house's whole list (Sweep.lua), with a close look at what just got cheap
+-- enough. New flips chime and go to the Buy queue. It only looks; buying is always your
+-- click. (The old item checks, about 120 likely items searched one by one, were the
+-- fallback until November 11, 2026, when the owner had them removed; the last commit with
+-- them is ab3fd99.)
 ---------------------------------------------------------------------------
-local WATCH_PAUSE = 30      -- seconds between passes
-local WATCH_ITEMS = 120     -- items re-checked per pass
+-- Before trying again after a few readings in a row couldn't be read, or, in a client
+-- that can't read the list, before looking whether a full scan is allowed yet.
+local WATCH_PAUSE = 30
+-- After one reading that couldn't be read: tried again this soon.
+local FAILED_PAUSE = 5
 -- Between browse sweeps (Sweep.lua): auxForever read 7,718 items in 8.5 seconds on Forever.
 -- 15 seconds at first (owner, November 10); a reading takes about 16, and flips were bought
 -- by others within seconds, so a short breath only: every item about every 20 seconds
@@ -1466,11 +1472,8 @@ local watching, watchTimer = false, nil
 -- the auction house (owner, October 3).
 local watchWasOn = false
 
--- Items whose cheapest listing was within 50% of what a vendor pays, best bets first
--- (flipCandidates below).
--- Gear is left out: its stat versions ("of the Eagle") share one item ID, and each
--- quick search came back with a different version's listings, so prices (and
--- disenchant shuffles) jumped back and forth every pass. Full scans see all versions.
+-- Gear (weapons and armor): its stat versions ("of the Eagle") share one item ID, so one
+-- search shows only one version's listings.
 local instantInfo = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 local function isGear(id)
   if not instantInfo then return false end
@@ -1479,60 +1482,7 @@ local function isGear(id)
 end
 function ns:IsGearItem(id) return isGear(id) end
 
--- Crafted items (any recipe's output in the recipe book): crafters post them in bulk to
--- level their professions, so cheap ones turn up often.
-local craftedSet, craftedAt
-local function crafted(id)
-  if not craftedSet or GetTime() - (craftedAt or 0) > 600 then
-    craftedSet, craftedAt = {}, GetTime()
-    for _, book in pairs(ns.db.recipeBook or {}) do
-      for _, r in pairs(book) do if r.out then craftedSet[r.out] = true end end
-    end
-  end
-  return craftedSet[id]
-end
-
--- Which items to re-check (owner, October 7: not only the closest to vendor price, but
--- the ones that get posted a lot: Linen Cloth over a rare item that happens to be cheap).
--- Score = closeness x how busy: closeness runs from 1.5 (half the vendor price or less)
--- down to 0 at 150% of it; busy is 1 + the units bought a day (sell speed, which new
--- posts replace) on a log scale, or the number listed when there's no sell speed yet;
--- crafted items count half again.
-function ns.FlipWatchScore(ratio, perDay, listed, isCrafted)
-  local close = math.max(0, 1.5 - ratio)
-  local busy = 1 + math.log(1 + (perDay or (listed or 0) * 0.2))
-  return close * busy * (isCrafted and 1.5 or 1)
-end
-
--- watchedOnly: just the watched items (while the browse sweep waits for you).
-local function flipCandidates(watchedOnly)
-  local market = ns.db.prices[ns.MarketKey()] or {}
-  local list = {}
-  for id, rec in pairs(watchedOnly and {} or market) do
-    local sell = rec.m and not rec.none and ns:GetSellPrice(id)
-    if sell and sell >= 5 and rec.m <= sell * 1.5 and not ns:GetVendorBuyPrice(id) and not isGear(id) then
-      local ok, sp = pcall(ns.SellSpeed, ns, id)
-      local perDay = ok and sp and sp.perDay or nil
-      list[#list + 1] = { id = id, r = ns.FlipWatchScore(rec.m / sell, perDay, rec.q, crafted(id)) }
-    end
-  end
-  table.sort(list, function(a, b) return a.r > b.r end)
-  -- Watched items first, every pass, on top of the ones picked here (Watched.lua; owner,
-  -- November 10). Gear stays with the full scans, for the reason above.
-  local ids, seen = {}, {}
-  for _, id in ipairs(ns.WatchedCheckIDs and ns:WatchedCheckIDs() or {}) do
-    if not isGear(id) then seen[id] = true; ids[#ids + 1] = id end
-  end
-  local picked = 0
-  for _, c in ipairs(list) do
-    if picked >= WATCH_ITEMS then break end
-    if not seen[c.id] then ids[#ids + 1] = c.id; picked = picked + 1 end
-  end
-  return ids
-end
-ns.FlipWatchCandidates = flipCandidates   -- (for the tests)
-
--- One pass of quiet item checks: the items picked above, or the browse sweep's close looks.
+-- One pass of quiet item checks: the browse sweep's close looks at what just got cheap.
 local function itemPass(ids, what)
   Scan.quiet = true
   Scan.queue = ids
@@ -1543,30 +1493,19 @@ local function itemPass(ids, what)
 end
 
 -- The browse sweep is over (Sweep.lua). "done": ids are the items that just got cheap enough
--- to look at closely; changed: saved prices changed. "failed": the list couldn't be read, so
--- the item checks run this time instead. "held": you're searching or on an item's page, so
--- only your watched items are checked (they wait for you their own way), and the list is
--- read as soon as wait is over (owner, November 10: the 120 item checks took two minutes,
--- so one search put the whole list off for that long). "broken": another search replaced
--- the list; the next pass tries again.
+-- to look at closely; changed: saved prices changed. "failed": the list couldn't be read,
+-- so it's read again in a few seconds, or every half minute after a few in a row (full
+-- scans carry on). "held": you're searching or on an item's page, so the list is read as
+-- soon as wait is over. "broken": another search replaced the list; the next pass tries
+-- again.
 local function sweepDone(outcome, ids, changed, wait)
   if not (Scan.active and Scan.sweep) then return end   -- (stopped meanwhile)
   Scan.sweep = nil
   if outcome == "held" then
     nextPause = SWEEP_PAUSE
     sweepAfter = GetTime() + math.max(HELD_MIN, wait or HELD_PAGE)
-    local list = flipCandidates(true)
-    if #list > 0 then
-      itemPass(list, "watched items (the whole list is read once you've finished searching)")
-      return
-    end
   elseif outcome == "failed" then
-    nextPause = WATCH_PAUSE
-    local list = flipCandidates()
-    if #list > 0 then
-      itemPass(list, "items near vendor price or watched (the auction house list couldn't be read)")
-      return
-    end
+    nextPause = (ns.SweepSlower and ns:SweepSlower()) and WATCH_PAUSE or FAILED_PAUSE
   elseif ids and #ids > 0 then
     itemPass(ids, "possible flips from the auction house list")
     return
@@ -1591,7 +1530,7 @@ local function watchPass()
     return
   end
   -- Between full scans: the whole auction house list (Sweep.lua), with a close look only at
-  -- what just got cheap enough (owner, November 10). Today's item checks when it can't.
+  -- what just got cheap enough (owner, November 10).
   if ns.SweepOn and ns:SweepOn() then
     nextPause = SWEEP_PAUSE
     Scan.quiet, Scan.sweep, Scan.active = true, true, true
@@ -1599,14 +1538,10 @@ local function watchPass()
     if not ns:StartSweep(sweepDone) then sweepDone("failed", {}, false) end   -- (one already going: never stuck)
     return
   end
+  -- A client that can't read the whole list: full scans only.
+  ns:Debug("Flip watch: this client can't read the auction house list; waiting for the next full scan.")
   nextPause = WATCH_PAUSE
-  local ids = flipCandidates()
-  if #ids == 0 then
-    ns:Debug("Flip watch: nothing close to vendor price or watched; waiting for the next full scan.")
-    watchTimer = C_Timer.NewTimer(WATCH_PAUSE, watchPass)
-    return
-  end
-  itemPass(ids, "items near vendor price or watched")
+  ns.FlipWatchNext()
 end
 
 -- Called when any scan ends: queue the next pass.
@@ -1665,7 +1600,7 @@ function ns:ToggleFlipWatch(quiet)
   if not quiet then
     ns:Print("Flip watch on: a full scan every 15 minutes, and " ..
       (ns.SweepOn and ns:SweepOn() and "the whole auction house list read about every 20 seconds in between. "
-        or "items near vendor price re-checked in between. ") ..
+        or "nothing in between: this client can't read the whole list. ") ..
       "A chime means a new flip. It pauses when you close the auction house and picks up when you come back.")
   end
   if ns.UpdateWatchButton then ns:UpdateWatchButton() end

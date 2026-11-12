@@ -80,25 +80,6 @@ T.test("Watched: a find at your price counts only the listings under it", functi
   T.runTimers()
 end)
 
-T.test("Watched: the flip watch checks watched items first, on top of the ones it picks", function()
-  local m = market()
-  m[PLAIN] = { m = 60, a = 60, q = 5, t = time() }   -- near its 1s vendor price: picked
-  ns:WatchItem(KEEPSAKE, 500)                        -- no price yet: still checked
-  local ids = ns.FlipWatchCandidates()
-  T.eq(ids[1], KEEPSAKE)
-  local seen = 0
-  for _, id in ipairs(ids) do if id == PLAIN then seen = seen + 1 end end
-  T.eq(seen, 1, "picked as usual")
-  ns:WatchItem(PLAIN, nil)
-  ids = ns.FlipWatchCandidates()
-  seen = 0
-  for _, id in ipairs(ids) do if id == PLAIN then seen = seen + 1 end end
-  T.eq(seen, 1, "watched and picked: checked once")
-  ns:UnwatchItem(KEEPSAKE); ns:UnwatchItem(PLAIN)
-  m[PLAIN] = nil
-  T.runTimers()
-end)
-
 T.test("Watched: finds join Vendor flips, first, marked as watched", function()
   local m = market()
   m[SILK] = { m = 180, a = 180, q = 4, l = "180:4", t = time() }

@@ -21,6 +21,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 - Buy queue: most gear purchases the auction house answers with an error go through anyway (the gold leaves a moment later). The queue now carries on to the next listing as soon as that happens, instead of waiting 2 seconds and searching again, and such a purchase no longer counts as a refusal, so two in a row don't make it give up on a row still listed.
 
+### Removed
+- Watch flips no longer falls back to searching about 120 likely items one by one. Between full scans it always reads the whole auction house list: if a reading fails it tries again a few seconds later (every half minute after three in a row, with full scans carrying on), and while it waits for your own search nothing else is searched. Watched items are found by that reading, about every 20 seconds. The setting Read the whole auction house between full scans is gone with it.
+
 ## [0.22.0] - 2026-11-11
 
 ### Highlights

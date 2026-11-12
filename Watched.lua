@@ -4,8 +4,8 @@ local T = ns.Theme
 ---------------------------------------------------------------------------
 -- Watched items (owner, November 10: Silk Cloth turns into bandages, so buy it up to 2s,
 -- "but I want it actively watched"). Items you pick, each with the most you'd pay. The
--- flip watch checks them every pass, on top of the items it picks itself (Prices.lua),
--- and the Buy queue buys them with the vendor flips, first in the list. Added with the
+-- flip watch looks for them in every reading of the auction house list (Sweep.lua), and
+-- the Buy queue buys them with the vendor flips, first in the list. Added with the
 -- price window's Watch box, or on the Watched items list (Buy queue, Vendor flips).
 --
 -- ns.db.watchItems[itemID] = { max = copper, or nil for "vendor price", t = time added }
@@ -113,14 +113,6 @@ function ns:WatchedFind(id)
   }
 end
 
--- Every watched item, for the flip watch's checks (Prices.lua leaves gear out).
-function ns:WatchedCheckIDs()
-  local ids = {}
-  for id in pairs(data()) do ids[#ids + 1] = id end
-  table.sort(ids)
-  return ids
-end
-
 function ns:WatchedCount()
   local n = 0
   for _ in pairs(data()) do n = n + 1 end
@@ -190,7 +182,7 @@ local function addFromBox(v)
     return
   end
   ns:WatchItem(id, max)
-  ns:Print(("Watching %s, %s. The flip watch checks it every pass."):format(ns.ItemName(id) or "it",
+  ns:Print(("Watching %s, %s. Watch flips looks for it every time it reads the auction house."):format(ns.ItemName(id) or "it",
     max > 0 and ("up to " .. ns.Money(max)) or "at the vendor price"))
   v.add:SetText(""); v.max:SetText("")
   v.pendingID = nil
@@ -326,7 +318,7 @@ local function build(parent)
   info:SetPoint("RIGHT", v, "RIGHT", -12, 0)
   info:SetJustifyH("LEFT")
   info:SetWordWrap(true)
-  info:SetText("Watch flips checks these every pass, on top of the items it picks. Anything at or under Up to joins Vendor flips, first in the list, and chimes. Up to \"vendor\": only when a vendor pays more.")
+  info:SetText("Watch flips looks for these every time it reads the auction house, about every 20 seconds. Anything at or under Up to joins Vendor flips, first in the list, and chimes. Up to \"vendor\": only when a vendor pays more.")
 
   -- Add: shift-click, drag or type an item; the most you'd pay (empty: vendor price).
   v.add = hinted(v, 214, "Shift-click, drag or type an item", "LEFT")
@@ -382,7 +374,7 @@ local function build(parent)
   v.count = T:Text(v, 11, T.dim)
   v.count:SetPoint("BOTTOMLEFT", 12, 12)
 
-  -- Keep Now current while it's open (the flip watch checks these every pass).
+  -- Keep Now current while it's open (the flip watch sees these in every reading).
   local elapsed = 0
   v:SetScript("OnUpdate", function(_, dt)
     elapsed = elapsed + dt
