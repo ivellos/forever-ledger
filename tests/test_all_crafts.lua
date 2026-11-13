@@ -5,14 +5,27 @@ local T = ...
 local ns, S = T.ns, T.S
 local ME = ns.CharKey()
 local CLOTH, THREAD, DYE, SHIRT, GLOVES, POTION, HERB, VIAL, ODD = 97001, 97002, 97003, 97004, 97005, 97006, 97007, 97008, 97009
+local UNLOADED, JUNK, BAR, ORE, IRON = 97012, 97013, 97020, 97021, 97022
+local POISON = 6947   -- Instant Poison: vendors won't buy it (Prices.lua VENDOR_WONT_BUY)
 S.items[SHIRT] = { name = "Test Shirt", sell = 300 }
 S.items[GLOVES] = { name = "Test Gloves", sell = 40 }
 S.items[POTION] = { name = "Test Potion", sell = 150 }
+S.items[JUNK] = { name = "Test Junk", sell = 0 }   -- loaded: the game says no vendor price
+S.items[BAR] = { name = "Test Bar", sell = 600 }
 
 local function price(id, p)
   local key = ns.MarketKey()
   ns.db.prices[key] = ns.db.prices[key] or {}
   ns.db.prices[key][id] = { m = p, a = p, q = 50, t = S.now }
+end
+
+-- The rows that make `out`, by the material bought for them (each recipe its own row).
+local function rows(list, out)
+  local by, n = {}, 0
+  for _, s in ipairs(list) do
+    if s.opt.rec.out == out then by[s.id] = s; n = n + 1 end
+  end
+  return by, n
 end
 
 T.test("All professions: every profession's crafts that sell to a vendor at a profit", function()
@@ -23,6 +36,8 @@ T.test("All professions: every profession's crafts that sell to a vendor at a pr
   ns.db.recipeBook = { Tailoring = {
     [5] = { n = "Test Shirt", out = SHIRT, oq = 1, r = { { CLOTH, 2 }, { THREAD, 1 } } },
     [6] = { n = "Test Gloves", out = GLOVES, oq = 1, r = { { CLOTH, 3 } } },
+    -- A second recipe for the same shirt, not learned by anyone of yours.
+    [7] = { n = "Test Shirt", out = SHIRT, oq = 1, r = { { THREAD, 2 } } },
   } }
   ns.CLASSIC_CRAFTS = {
     { "Alchemy", 50, POTION, 1, 1, 150, HERB .. ":1," .. VIAL .. ":1" },
@@ -33,24 +48,64 @@ T.test("All professions: every profession's crafts that sell to a vendor at a pr
   ns:BuildUsageIndex()
   ns:InvalidateValues(true)
   local list, noPrice = ns:FindAllVendorCrafts()
-  local byOut = {}
-  for _, s in ipairs(list) do byOut[s.opt.rec.out] = s end
-  T.ok(byOut[SHIRT], "a known craft: 300 for 110 of materials")
-  T.eq(byOut[SHIRT].profit, 190)
-  T.eq(byOut[SHIRT].known, true)
-  T.ok(byOut[SHIRT].opt.who:find("Tailoring: Tester", 1, true), byOut[SHIRT].opt.who)
-  T.eq(byOut[GLOVES], nil, "40 for 150 of cloth: no profit")
-  T.ok(byOut[POTION], "a profession nobody of yours has opened: Classic's recipe")
-  T.eq(byOut[POTION].profit, 90)
-  T.eq(byOut[POTION].classic, true)
-  T.ok(byOut[POTION].opt.who:find("Alchemy, none of yours, Classic recipe", 1, true), byOut[POTION].opt.who)
-  T.eq(byOut[97010], nil, "Classic's Tailoring is set aside for the recipe book's")
-  T.eq(byOut[97011], nil)
+  local shirts, nShirts = rows(list, SHIRT)
+  T.eq(nShirts, 2, "two recipes make the shirt: two rows")
+  T.ok(shirts[CLOTH], "a known craft: 300 for 110 of materials")
+  T.eq(shirts[CLOTH].profit, 190)
+  T.eq(shirts[CLOTH].known, true)
+  T.ok(shirts[CLOTH].opt.who:find("Tailoring: Tester", 1, true), shirts[CLOTH].opt.who)
+  T.ok(shirts[THREAD], "the other shirt recipe: 300 for 20 of thread")
+  T.eq(shirts[THREAD].profit, 280)
+  T.eq(shirts[THREAD].known, false, "known by recipe, not by the item it makes")
+  T.ok(shirts[THREAD].opt.who:find("Tailoring, none of yours", 1, true), shirts[THREAD].opt.who)
+  T.eq(select(2, rows(list, GLOVES)), 0, "40 for 150 of cloth: no profit")
+  local potion = rows(list, POTION)[HERB]
+  T.ok(potion, "a profession nobody of yours has opened: Classic's recipe")
+  T.eq(potion.profit, 90)
+  T.eq(potion.classic, true)
+  T.ok(potion.opt.who:find("Alchemy, none of yours, Classic recipe", 1, true), potion.opt.who)
+  T.eq(select(2, rows(list, 97010)), 0, "Classic's Tailoring is set aside for the recipe book's")
+  T.eq(select(2, rows(list, 97011)), 0)
   T.eq(noPrice, 1, "one recipe left out for a material with no price")
-  T.eq(byOut[SHIRT].opt.next.kind, "vendor")
+  T.eq(shirts[CLOTH].opt.next.kind, "vendor")
   ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFTS = realChars, realBook, realClassic
   local key = ns.MarketKey()
   for _, id in ipairs({ CLOTH, THREAD, HERB, VIAL }) do ns.db.prices[key][id] = nil end
   ns:BuildUsageIndex()
+  ns:InvalidateValues(true)
+end)
+
+-- Codex review, November 12: Classic's vendor price brought back items the game says
+-- vendors won't buy, and two recipes for one item (Gold Bar: smelted, or transmuted from
+-- Iron Bars) showed only the first.
+T.test("All professions: the game's no vendor price wins; each recipe has its own row", function()
+  local realChars, realBook, realClassic = ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFTS
+  ns.db.chars, ns.db.recipeBook = {}, {}
+  ns.CLASSIC_CRAFTS = {
+    { "Alchemy", 10, JUNK, 1, 1, 1000, HERB .. ":1" },       -- the game: no vendor price
+    { "Alchemy", 10, POISON, 1, 1, 1000, HERB .. ":1" },     -- a poison vendors refuse
+    { "Alchemy", 10, UNLOADED, 1, 1, 400, HERB .. ":1" },    -- not loaded yet: Classic's price
+    { "Mining", 155, BAR, 1, 1, 600, ORE .. ":1" },
+    { "Alchemy", 150, BAR, 1, 1, 600, IRON .. ":1" },
+    { "Alchemy", 150, BAR, 1, 1, 600, IRON .. ":1" },        -- listed twice: still one row
+  }
+  price(HERB, 10); price(ORE, 250); price(IRON, 10)
+  ns:InvalidateValues(true)
+  local list = ns:FindAllVendorCrafts()
+  T.eq(select(2, rows(list, JUNK)), 0, "a known zero isn't replaced by Classic's price")
+  T.eq(select(2, rows(list, POISON)), 0)
+  local unloaded = rows(list, UNLOADED)[HERB]
+  T.ok(unloaded, "an item the game hasn't loaded yet uses Classic's price")
+  T.eq(unloaded.profit, 390)
+  local bars, nBars = rows(list, BAR)
+  T.eq(nBars, 2, "smelted and transmuted, once each")
+  T.eq(bars[ORE].profit, 350)
+  T.ok(bars[ORE].opt.who:find("Mining", 1, true), bars[ORE].opt.who)
+  T.eq(bars[IRON].profit, 590)
+  T.ok(bars[IRON].opt.who:find("Alchemy", 1, true), bars[IRON].opt.who)
+  ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFTS = realChars, realBook, realClassic
+  local key = ns.MarketKey()
+  for _, id in ipairs({ HERB, ORE, IRON }) do ns.db.prices[key][id] = nil end
+  ns.db.vendorSell[UNLOADED] = nil
   ns:InvalidateValues(true)
 end)
