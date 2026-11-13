@@ -680,12 +680,15 @@ end
 -- A sync partner's prices from today go into history a few milliseconds a frame
 -- (Frank's BugSack, November 12: a partner's full scan, thousands of prices recorded in
 -- one go, "script ran too long" in Core.lua's MergeData). The prices themselves are
--- saved at once; only their history entries wait here.
+-- saved at once; only their history entries wait here. Each hand-over starts the run
+-- again from where it got to, and an older run stops, so one run goes at a time and a
+-- run that never came back can't hold the rest up.
 local HISTORY_MS = 10
-local pendingHistory, pendingAt = {}, 0
+local pendingHistory, pendingAt, run = {}, 0, 0
 local function msNow() return debugprofilestop and debugprofilestop() or GetTime() * 1000 end
 
-local function recordPending()
+local function recordPending(mine)
+  if mine ~= run then return end
   local from = msNow()
   while pendingAt < #pendingHistory do
     pendingAt = pendingAt + 1
@@ -694,17 +697,19 @@ local function recordPending()
     if not ok then ns:Debug("Price history skipped for", e[1], err) end
     if msNow() - from >= HISTORY_MS then break end
   end
-  if pendingAt < #pendingHistory then C_Timer.After(0, recordPending); return end
+  if pendingAt < #pendingHistory then C_Timer.After(0, function() recordPending(mine) end); return end
   pendingHistory, pendingAt = {}, 0
   -- (usual prices and deals read today's history)
   if ns.InvalidateValues then ns:InvalidateValues() end
 end
 
-function ns:QueuePriceHistory(id, cheapest, typical, listed, key)
-  if not cheapest then return end
-  local idle = #pendingHistory == 0
-  pendingHistory[#pendingHistory + 1] = { id, cheapest, typical, listed, key }
-  if idle then C_Timer.After(0, recordPending) end
+-- list: { { id, cheapest, typical, listed, market }, ... }
+function ns:RecordPriceHistoryLater(list)
+  if #list == 0 then return end
+  for _, e in ipairs(list) do pendingHistory[#pendingHistory + 1] = e end
+  run = run + 1
+  local mine = run
+  C_Timer.After(0, function() recordPending(mine) end)
 end
 
 ---------------------------------------------------------------------------

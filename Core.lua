@@ -891,6 +891,7 @@ function ns:MergeData(data, via)
   -- sent, so they can't be filled in. Recorded over the next frames (History.lua): a
   -- full scan's thousands in one go ran too long (Frank's BugSack, November 12).
   local nowDay = ns.LocalDay and ns.LocalDay(time())
+  local later = {}
   for market, items in pairs(data.prices or {}) do
     db.prices[market] = db.prices[market] or {}
     for id, rec in pairs(items) do
@@ -898,12 +899,13 @@ function ns:MergeData(data, via)
       if not mine or (rec.t or 0) > (mine.t or 0) then
         db.prices[market][id] = rec
         nPrices = nPrices + 1
-        if via and nowDay and rec.t and rec.m and not rec.none and ns.LocalDay(rec.t) == nowDay and ns.QueuePriceHistory then
-          ns:QueuePriceHistory(id, rec.m, rec.a, rec.q, market)
+        if via and nowDay and rec.t and rec.m and not rec.none and ns.LocalDay(rec.t) == nowDay then
+          later[#later + 1] = { id, rec.m, rec.a, rec.q, market }
         end
       end
     end
   end
+  if ns.RecordPriceHistoryLater then ns:RecordPriceHistoryLater(later) end
   for id, rec in pairs(data.vendorBuy or {}) do
     local mine = db.vendorBuy[id]
     if not mine or (rec.t or 0) > (mine.t or 0) then db.vendorBuy[id] = rec; nVendor = nVendor + 1 end

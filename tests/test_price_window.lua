@@ -314,6 +314,13 @@ T.test("Price history: a partner's many prices are recorded a few at a time", fu
   ns:MergeData({ prices = { [home] = { [71101] = { m = 90, a = 95, q = 2, t = time() + 1 } } } }, "Partner Name")
   T.runTimers()
   T.eq(ns.db.history[home][71101], ("%d:90:95"):format(d), "today's lower cheapest and the newer typical")
+  -- A run that never comes back (its timer lost) doesn't hold up the next.
+  ns:MergeData({ prices = { [home] = { [71201] = { m = 5, a = 6, q = 1, t = time() } } } }, "Partner Name")
+  for k in pairs(S.timers) do S.timers[k] = nil end
+  ns:MergeData({ prices = { [home] = { [71202] = { m = 7, a = 8, q = 1, t = time() } } } }, "Partner Name")
+  T.runTimers()
+  T.eq(ns.db.history[home][71201], ("%d:5:6"):format(d), "picked up by the next run")
+  T.eq(ns.db.history[home][71202], ("%d:7:8"):format(d))
 end)
 
 T.test("Price window: Add to shopping list puts the item on the list you're on", function()
