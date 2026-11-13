@@ -20,6 +20,7 @@ Deposits.lua
 Values.lua
 Shuffles.lua
 Disenchant.lua
+SellAdvice.lua
 Tooltip.lua
 Theme.lua
 Dashboard.lua

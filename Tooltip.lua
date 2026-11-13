@@ -163,6 +163,17 @@ local function addLines(tt, id, forceFull, copyPrice)
   end
   local full = forceFull or s.tipMode ~= "compact" or IsShiftKeyDown()
   local function on(key) return s[key] ~= false end
+  -- Sell suggestion (SellAdvice.lua): bound and usable read from the game's own lines,
+  -- before ours are added. (Not again when Shift adds the details to a compact tooltip.)
+  local sellBound, sellUsable
+  local sellOn = not forceFull and on("tipSell") and ns.AddSellLines and GetItemCount and (GetItemCount(id) or 0) > 0
+  if sellOn and ns.SellTooltipFlags then sellBound, sellUsable = ns.SellTooltipFlags(tt) end
+  local function sellLines()
+    if sellOn then
+      local ok, err = pcall(ns.AddSellLines, ns, tt, id, sellBound, sellUsable, copyPrice)
+      if not ok then ns:Debug("Sell suggestion skipped for", id, err) end
+    end
+  end
   -- (Shift pressed on a compact tooltip calls this again: don't repeat the history.)
   local had = forceFull and tt == GameTooltip and shownHistory
   local withHistory = not had and on("tipHistory") and IsControlKeyDown()
@@ -216,8 +227,10 @@ local function addLines(tt, id, forceFull, copyPrice)
         tt:AddDoubleLine("Auction price", ns.Money(price), LR, LG, LB, 1, 1, 1)
       end
     elseif not shownCheapest then
+      sellLines()
       return
     end
+    sellLines()
     if withHistory then historyLines(tt, id) end
     tt:AddLine((on("tipHistory") and "Hold Shift for Forever Ledger details, Ctrl for price history"
       or "Hold Shift for Forever Ledger details") .. (on("priceWindow") and (", " .. ns:PriceClickName() .. " for a graph") or ""), 0.5, 0.5, 0.5, true)
@@ -332,6 +345,8 @@ local function addLines(tt, id, forceFull, copyPrice)
       end
     end
   end
+
+  sellLines()
 
   -- Green when the auction price is already at or below it.
   local maxBuy = on("tipBuy") and ns:BuyAtOrBelow(id, true)

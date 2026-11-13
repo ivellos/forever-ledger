@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Sell suggestion in the tooltip of items in your bags: Keep (a quest needs it, a recipe of one of your characters uses it, you watch it, or it's on your list), or Sell: Vendor, Sell: Auction house or Sell: Close call when the two are near, with the reason; disenchanting too when it brings more. Only a suggestion: nothing is sold. Settings, Tooltips, Sell suggestion.
 - `/fl api` lists which of the game's WoW Forever frame art and window templates your client has, for the coming WoW Forever look (the last report is kept in the saved data).
 - Shuffles, Sells to a vendor: an All professions tick box shows every profession's crafts that sell to a vendor for more than their materials cost at today's prices, whoever knows them. Recipes come from your profession windows; for professions none of your characters has opened, from Classic's recipes (marked as such, not yet seen in Forever). Each one's steps say the profession and who of yours knows it.
 

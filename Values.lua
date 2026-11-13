@@ -238,6 +238,18 @@ local function canDisenchant()
 end
 ns.EnchantingSkill = canDisenchant
 
+-- The counted character with the most Enchanting skill: name, skill (nil if none). For the
+-- sell suggestion's "or disenchant (name)" (SellAdvice.lua), with the same characters the
+-- disenchant value counts (Codex review of 3bb2be7).
+function ns:BestEnchanter()
+  local best, name
+  for key, c in pairs(ns.db.chars) do
+    local p = counts(key) and c.profs and c.profs.Enchanting
+    if p and (p.rank or 1) > (best or -1) then best, name = p.rank or 1, c.name end
+  end
+  return name, best
+end
+
 -- What a material costs to buy: the vendor price when a vendor sells it, otherwise
 -- the auction house price.
 local function buyCost(id)

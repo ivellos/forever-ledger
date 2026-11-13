@@ -176,6 +176,8 @@ local PAGES = {
           help = "Fast, Steady, Slow, Rare or No sales seen, once there are 3 hours of scans to judge by (and, in the first day, at least 3 sales)." },
         { key = "tipWorth", label = "Worth to you", kind = "check",
           help = "The best way to use the item (auction house, vendor, disenchanting or crafting it into something) and the next best few." },
+        { key = "tipSell", label = "Sell suggestion", kind = "check",
+          help = "On items in your bags: keep it (a quest needs it, a recipe of yours uses it, you watch it, it's on your list), or sell it to a vendor, at the auction house, or Close call when the two are near, with the reason; disenchanting too when it brings more. Only a suggestion: nothing is sold." },
         -- Which ways count (issue #15, October 22). Only the tooltip and the Characters
         -- tab; shuffles, the Buy queue and shopping lists still use every way.
         { key = "worthAH", label = "  Counts selling on the auction house", kind = "check",
