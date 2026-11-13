@@ -10,7 +10,7 @@ local _, ns = ...
 -- want to flag the items in the tooltip with a suggestion").
 ---------------------------------------------------------------------------
 
--- The middle verdict's name. The owner is choosing it ("Close call" stands in).
+-- The middle verdict's name (Frank, November 12: "For now Close Call works").
 ns.SELL_MIDDLE = "Close call"
 
 -- The auction house "clearly" pays more: at least this many times what a vendor pays,
