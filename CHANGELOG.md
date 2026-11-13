@@ -12,6 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - Clicking Watch flips reads the auction house list at once, instead of waiting out the half minute after your own search (an item's page that's still open is still waited for).
 
+### Fixed
+- Live sync: prices from your other account's full scan no longer cause a "script ran too long" error. Their price history is now saved a little at a time.
+
 ## [0.23.0] - 2026-11-11
 
 ### Highlights

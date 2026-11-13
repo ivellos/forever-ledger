@@ -677,6 +677,36 @@ function ns:RecordPriceHistory(id, cheapest, typical, listed, key)
   hist[id] = dropOld(s, d - KEEP_DAYS, function(day, m, a) addWeek(id, day, m, a, key) end)
 end
 
+-- A sync partner's prices from today go into history a few milliseconds a frame
+-- (Frank's BugSack, November 12: a partner's full scan, thousands of prices recorded in
+-- one go, "script ran too long" in Core.lua's MergeData). The prices themselves are
+-- saved at once; only their history entries wait here.
+local HISTORY_MS = 10
+local pendingHistory, pendingAt = {}, 0
+local function msNow() return debugprofilestop and debugprofilestop() or GetTime() * 1000 end
+
+local function recordPending()
+  local from = msNow()
+  while pendingAt < #pendingHistory do
+    pendingAt = pendingAt + 1
+    local e = pendingHistory[pendingAt]
+    local ok, err = pcall(ns.RecordPriceHistory, ns, e[1], e[2], e[3], e[4], e[5])
+    if not ok then ns:Debug("Price history skipped for", e[1], err) end
+    if msNow() - from >= HISTORY_MS then break end
+  end
+  if pendingAt < #pendingHistory then C_Timer.After(0, recordPending); return end
+  pendingHistory, pendingAt = {}, 0
+  -- (usual prices and deals read today's history)
+  if ns.InvalidateValues then ns:InvalidateValues() end
+end
+
+function ns:QueuePriceHistory(id, cheapest, typical, listed, key)
+  if not cheapest then return end
+  local idle = #pendingHistory == 0
+  pendingHistory[#pendingHistory + 1] = { id, cheapest, typical, listed, key }
+  if idle then C_Timer.After(0, recordPending) end
+end
+
 ---------------------------------------------------------------------------
 -- History catch-up between sync partners (Sync.lua; owner, November 8: on the main
 -- account an alt's graphs had only the days that account was online, while the other

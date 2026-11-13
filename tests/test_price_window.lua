@@ -281,13 +281,39 @@ T.test("Price history: a sync partner's prices from today go into today's histor
     [home] = { [71041] = { m = 90, a = 100, q = 7, t = time() }, [71042] = { m = 50, a = 60, q = 3, t = time() - 2 * DAY } },
     [neutral] = { [71043] = { m = 70, a = 80, q = 2, t = time() } },
   } }, "Partner Name")
+  T.runTimers()
   T.eq(ns.db.history[home][71041], d .. ":90:100")
   T.eq(ns.db.historyQty[home][71041], d .. ":7")
   T.eq(ns.db.history[home][71042], nil, "an older day isn't put on today")
   T.eq(ns.db.history[neutral][71043], d .. ":70:80", "in its own market")
   -- An import (not from a partner) doesn't touch history.
   ns:MergeData({ prices = { [home] = { [71044] = { m = 90, a = 100, q = 7, t = time() } } } })
+  T.runTimers()
   T.eq((ns.db.history[home] or {})[71044], nil)
+end)
+
+-- Frank's BugSack, November 12: a partner's full scan recorded into history in one go
+-- ran too long ("script ran too long", Core.lua MergeData).
+T.test("Price history: a partner's many prices are recorded a few at a time", function()
+  fresh()
+  T.runTimers()
+  local home, d = ns.MarketKey(), ns.LocalDay(time())
+  local items = {}
+  for i = 1, 40 do items[71100 + i] = { m = 100 + i, a = 110 + i, q = 3, t = time() } end
+  local realClock, clock = debugprofilestop, 0
+  debugprofilestop = function() clock = clock + 3; return clock end   -- each look: 3 ms later
+  local _, nPrices = ns:MergeData({ prices = { [home] = items } }, "Partner Name")
+  T.eq(nPrices, 40, "the prices themselves are saved at once")
+  T.eq(ns.db.prices[home][71101].m, 101)
+  T.eq((ns.db.history[home] or {})[71101], nil, "history waits for the next frame")
+  local steps = T.runTimers()
+  debugprofilestop = realClock
+  T.ok(steps > 5, "spread over frames: " .. steps)
+  for i = 1, 40 do T.eq(ns.db.history[home][71100 + i], ("%d:%d:%d"):format(d, 100 + i, 110 + i)) end
+  -- And it starts again for the next one.
+  ns:MergeData({ prices = { [home] = { [71101] = { m = 90, a = 95, q = 2, t = time() + 1 } } } }, "Partner Name")
+  T.runTimers()
+  T.eq(ns.db.history[home][71101], ("%d:90:95"):format(d), "today's lower cheapest and the newer typical")
 end)
 
 T.test("Price window: Add to shopping list puts the item on the list you're on", function()

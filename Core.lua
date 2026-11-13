@@ -888,7 +888,8 @@ function ns:MergeData(data, via)
   -- A partner's prices from today also go into today's price history (owner's
   -- screenshot, November 8: the main account's graph only had the days it scanned
   -- itself, while the auction house character scanned every day). Earlier days aren't
-  -- sent, so they can't be filled in.
+  -- sent, so they can't be filled in. Recorded over the next frames (History.lua): a
+  -- full scan's thousands in one go ran too long (Frank's BugSack, November 12).
   local nowDay = ns.LocalDay and ns.LocalDay(time())
   for market, items in pairs(data.prices or {}) do
     db.prices[market] = db.prices[market] or {}
@@ -897,8 +898,8 @@ function ns:MergeData(data, via)
       if not mine or (rec.t or 0) > (mine.t or 0) then
         db.prices[market][id] = rec
         nPrices = nPrices + 1
-        if via and nowDay and rec.t and rec.m and not rec.none and ns.LocalDay(rec.t) == nowDay and ns.RecordPriceHistory then
-          pcall(ns.RecordPriceHistory, ns, id, rec.m, rec.a, rec.q, market)
+        if via and nowDay and rec.t and rec.m and not rec.none and ns.LocalDay(rec.t) == nowDay and ns.QueuePriceHistory then
+          ns:QueuePriceHistory(id, rec.m, rec.a, rec.q, market)
         end
       end
     end
