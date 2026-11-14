@@ -38,7 +38,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Leveling
 
-- **Sessions and dungeon runs**: in the addon now (a session tracker for gold, loot value and gold per hour; dungeon runs and drops counted as you go). Next: a fuller session summary window, and **chase items**: a watch list of items you're farming (appearances, valuable drops, Forever's new items) with where they drop and "0 of 14 runs".
+- **Dungeon runs**: in the addon now (dungeon runs and drops counted as you go; the session tracker was taken out in November, back if players ask). Next: **chase items**: a watch list of items you're farming (appearances, valuable drops, Forever's new items) with where they drop and "0 of 14 runs".
 - **Leveling to-do list**: reminders that pop up at the right moment, for example "Level 14: time to get your Cozy Sleeping Bag".
 - **Cozy Sleeping Bag**: whether the trip is worth it for your route and pace, and the best time to get it.
 - **Training costs**: what the next levels of class and profession training will cost, so you can save for them.
@@ -57,7 +57,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 
 ## Quality of life
 
-- **Setup your way**: a short first-run setup that asks what you want: everything in one click, or pick the parts you'll use (gold making, shopping lists, crafting, sessions, crates, and more later), a few options for each, your look and tooltips, and what to switch off if you also use Auctionator, TSM or similar. Parts you turn off don't run at all. Run it again any time.
+- **Setup your way**: a short first-run setup that asks what you want: everything in one click, or pick the parts you'll use (gold making, shopping lists, crafting, crates, and more later), a few options for each, your look and tooltips, and what to switch off if you also use Auctionator, TSM or similar. Parts you turn off don't run at all. Run it again any time.
 - **Clearer screens**: a regular pass over every window for wording, layout and "what do I click", led by player feedback. A first-run welcome and "What's new" after each update are in the addon now.
 - **Your characters' bags and bank, and what they're worth**: in the addon since 0.13.0 (Characters tab).
 - **Mail helper**: open all mail in one click (sales logged as it goes), and a warning when one mail carries many stacks.

@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
-- Sell suggestion in the tooltip of items in your bags: Keep (a quest needs it, a recipe of one of your characters uses it, you watch it, or it's on your list), or Sell: Vendor, Sell: Auction house or Sell: Close call when the two are near, with the reason; disenchanting too when it brings more. Only a suggestion: nothing is sold. Settings, Tooltips, Sell suggestion.
+- Sell suggestion in the tooltip of items in your bags: Keep (a quest needs it, a recipe of one of your characters uses it, you watch it, or it's on your list), or Sell: Vendor, Sell: Auction house or Sell: Close call when the two are near, with the reason; disenchanting too when it brings more, as the first line when it brings a quarter more or better. Only a suggestion: nothing is sold. Settings, Tooltips, Sell suggestion.
 - `/fl api` lists which of the game's WoW Forever frame art and window templates your client has, for the coming WoW Forever look (the last report is kept in the saved data).
 - Shuffles, Sells to a vendor: an All professions tick box shows every profession's crafts that sell to a vendor for more than their materials cost at today's prices, whoever knows them. Recipes come from your profession windows; for professions none of your characters has opened, from Classic's recipes (marked as such, not yet seen in Forever). Each one's steps say the profession and who of yours knows it.
 
@@ -19,6 +19,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shopping lists count what's in your bags and bank with the game's current item count. The old one, which they used, may be missing in WoW Forever.
 - Blinding Powder is no longer valued at a vendor or offered as a vendor flip: vendors won't buy it, though the game gives it a vendor price.
 - Recipe book: opening a gathering profession's window (Skinning) could save the recipes of a profession window opened before it under that profession too, so the Recipes tab listed them there and All professions showed them twice. They're no longer saved there, and at login a copy already saved under the wrong profession is removed when it's clear which one it belongs to.
+
+### Removed
+- Sessions: the session tracker, Start a session on the Dashboard (the gold graph takes its room), Ctrl-click on the minimap button, `/fl session`, the Ledger's Sessions sub-tab and the Sessions settings page. Few used them; they can come back if asked for. Your past sessions stay in the saved data, and dungeon runs are still counted (`/fl runs`).
+- Shuffles, Limited supply: shuffles with a material that has fewer than 5 listed now show in Sells on the auction house or Sells to a vendor like the rest, where Runs says how few times you can do them.
 
 ## [0.23.0] - 2026-11-11
 

@@ -328,9 +328,10 @@ end
 
 ---------------------------------------------------------------------------
 -- The tab (redesign, October 4, from the owner-approved mockup): the character
--- dropdown, Start a session and the range on top; four headline tiles (gold now, profit,
--- sales, expenses); the gold graph in a card; Best and biggest and Activity cards; the
--- sessions as a table. Laid out for the fixed window (880 x 620); cards on every theme.
+-- dropdown and the range on top; four headline tiles (gold now, profit, sales,
+-- expenses); the gold graph in a card; Best and biggest and Activity cards at the bottom.
+-- (Sessions, with their button and table, were archived November 13: the graph took their
+-- room.) Laid out for the fixed window (880 x 620); cards on every theme.
 ---------------------------------------------------------------------------
 local function text(parent, size, color, justify)
   local fs = T:Text(parent, size, color)
@@ -343,11 +344,6 @@ end
 local PHRASE = { day = "today", week = "this week", month = "this month", ["3months"] = "in 3 months", year = "this year", all = "all time" }
 local OVER = { day = "the day", week = "the week", month = "the month", ["3months"] = "3 months", year = "the year", all = "all time" }
 
-local SESSION_COLS = {   -- x (left edge), width, justify
-  { "When", 10, 110, "LEFT" }, { "Length", 124, 80, "LEFT" }, { "Gold", 210, 100, "RIGHT" },
-  { "Looted", 320, 100, "RIGHT" }, { "An hour", 430, 100, "RIGHT" },
-}
-
 function ns:BuildDashboard(parent)
   local f = CreateFrame("Frame", nil, parent)
   f:SetAllPoints()
@@ -358,12 +354,6 @@ function ns:BuildDashboard(parent)
     return o
   end)(), function(v) settings().range = v; ns:RefreshDashboard(f) end)
   f.rangeChoice:SetPoint("TOPRIGHT", 0, 0)
-  -- Start or stop a session (Sessions.lua), beside the character dropdown, as the main action.
-  f.sessionBtn = T:Button(f, "Start a session", 120, function()
-    if ns:GeneralSessionRunning() then ns:StopGeneralSession() else ns:StartGeneralSession() end
-    ns:RefreshDashboard(f)
-  end, 22)
-  f.sessionBtn:SetPrimary(true)
 
   -- Headline tiles
   f.tiles = {}
@@ -439,22 +429,6 @@ function ns:BuildDashboard(parent)
   end
   f.bestHead, f.actHead = text(f, 11), text(f, 11)
   f.best, f.act = rows(3), rows(3)
-
-  -- Sessions
-  f.sesHead = text(f, 11)
-  f.sesNote = text(f, 11, T.dim, "RIGHT")
-  -- Every session, in the Ledger's Sessions sub-tab (owner, October 4).
-  f.sesAll = T:Button(f, "See all sessions", 116, function() ns:OpenLedgerTab("sessions") end, 18)
-  f.sesAll:GetFontString():SetFont(T.font, 11, "")
-  f.sesCols = {}
-  for i, c in ipairs(SESSION_COLS) do
-    local fs = text(f, 11, T.dim, c[4])
-    fs:SetText(c[1])
-    f.sesCols[i] = fs
-  end
-  f.sesRows = {}
-  f.sesEmpty = text(f, 12, T.dim)
-  f.sesEmpty:SetText("None yet. Start a session to count what your time is worth.")
   return f
 end
 
@@ -513,7 +487,6 @@ local function charChoice(f)
   if not f.charChoice then
     f.charChoice = T:Dropdown(f, 230, function(v) settings().char = v; ns:RefreshDashboard(f) end)
     f.charChoice:SetPoint("TOPLEFT", 0, 0)
-    f.sessionBtn:SetPoint("LEFT", f.charChoice, "RIGHT", 8, 0)
   end
   if not ns:IsCharChoice(settings().char) then settings().char = "all" end   -- (another realm's, from before)
   f.charChoice:SetOptions(ns:CharacterOptions())
@@ -537,8 +510,6 @@ function ns:RefreshDashboard(f)
   charChoice(f)
   f.charChoice:SetValue(s.char)
   f.rangeChoice:SetValue(s.range)
-  local running = ns.GeneralSessionRunning and ns:GeneralSessionRunning()
-  f.sessionBtn:SetText(running and "Stop the session" or "Start a session")
 
   -- Numbers
   local keys = chosenKeys()
@@ -621,9 +592,11 @@ function ns:RefreshDashboard(f)
     f.fundHit.fund = fund
   end
 
-  -- The graph card
+  -- The graph card, down to the Best and biggest and Activity cards at the bottom.
+  local dBottom = H - 2
+  local dTop = dBottom - 84
   local gTop = tileY + tileH + gap + (fund and (fundH + gap) or 0)
-  local gBottom = gTop + 172 - (fund and (fundH + gap) or 0)
+  local gBottom = dTop - gap
   nextCard(gTop, gBottom, 0, W)
   T:StyleHeading(f.graphHead, "Gold over " .. (OVER[s.range] or "the week"))
   place(f.graphHead, 12, gTop + 9)
@@ -636,8 +609,6 @@ function ns:RefreshDashboard(f)
   drawGraph(f.graph, pts, from, to, s.range)
 
   -- Best and biggest, Activity
-  local dTop = gBottom + gap
-  local dBottom = dTop + 84
   local hw = math.floor((W - gap) / 2)
   local function detail(head, list, x, title, lines)
     nextCard(dTop, dBottom, x, hw)
@@ -663,53 +634,6 @@ function ns:RefreshDashboard(f)
     { "Auction purchases a day", tostring(math.floor(n.nBuys / n.days + 0.5)) },
     { "Sales a day", ns.Money(math.floor(n.sales / n.days)) },
   })
-
-  -- Sessions, as a table
-  local sTop = dBottom + gap
-  local sBottom = H - 2
-  nextCard(sTop, sBottom, 0, W)
-  T:StyleHeading(f.sesHead, "Sessions")
-  place(f.sesHead, 12, sTop + 9)
-  f.sesAll:ClearAllPoints()
-  f.sesAll:SetPoint("TOPRIGHT", f, "TOPLEFT", W - 10, -(sTop + 6))
-  f.sesNote:ClearAllPoints()
-  f.sesNote:SetPoint("RIGHT", f.sesAll, "LEFT", -10, 0)
-  local gs = ns.SessionTotals and ns:SessionTotals()
-  f.sesNote:SetText(gs and ("running: %d min, gold %s"):format(math.floor(gs.secs / 60), signed(gs.gained, true)) or "")
-  local headY = sTop + 28
-  for i, c in ipairs(SESSION_COLS) do place(f.sesCols[i], c[2] + 2, headY, c[3]) end
-  local list = ns.db.sessions
-  local fit = math.max(0, math.floor((sBottom - (headY + 18) - 4) / 18))
-  local shown = 0
-  for i = #list, 1, -1 do
-    if shown >= fit then break end
-    shown = shown + 1
-    local x = list[i]
-    local row = f.sesRows[shown]
-    if not row then
-      row = {}
-      for k, c in ipairs(SESSION_COLS) do row[k] = text(f, 12, nil, c[4]) end
-      f.sesRows[shown] = row
-    end
-    local secs = x.secs or ((x.stop or x.t) - x.t)
-    local mins = math.floor(secs / 60)
-    local gained = (x.earned or 0) - (x.spent or 0)
-    local cells = {
-      dim(date("%b %d %H:%M", x.t)),
-      mins < 1 and "under a minute" or (mins .. " min"),
-      signed(gained, true),
-      x.kind == "general" and ns.Money(x.loot or 0) or dim(x.name or "-"),
-      secs >= 120 and signed(math.floor(gained / secs * 3600), false) or dim("-"),
-    }
-    for k, c in ipairs(SESSION_COLS) do
-      place(row[k], c[2] + 2, headY + 18 * shown, c[3])
-      row[k]:SetText(cells[k])
-      row[k]:Show()
-    end
-  end
-  for i = shown + 1, #f.sesRows do for _, fs in ipairs(f.sesRows[i]) do fs:Hide() end end
-  f.sesEmpty:SetShown(#list == 0)
-  place(f.sesEmpty, 12, headY + 18)
   T:HideCards(f, card + 1)
 end
 

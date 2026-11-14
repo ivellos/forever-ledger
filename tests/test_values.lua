@@ -311,8 +311,8 @@ T.test("A longer chain of crafts stops after a few steps", function()
   T.eq((ns:GetValue(60050)), nil, "9 steps away: too far")
 end)
 
-T.test("Items that bind are worth only their vendor price (loot in sessions)", function()
-  -- 99001 is a bound item (tests/run.lua); Sessions.lua values loot this way.
+T.test("Items that bind are worth only their vendor price (loot)", function()
+  -- 99001 is a bound item (tests/run.lua); Values.lua ns:LootValue values loot this way (dungeon runs).
   price(99001, 5000)
   ns.db.vendorSell[99001] = 30
   ns.db.settings.source = "own"

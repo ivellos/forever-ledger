@@ -87,8 +87,8 @@ T.test("A saved crafting route refreshes caps after reload serialization", funct
       r = { { ID, 2 }, { EXTRA, 1 } } } } } } }
   ns:BuildUsageIndex(); ns:InvalidateValues(true)
   local selected
-  local vendor, ah, thin = ns:FindShuffles()
-  for _, section in ipairs({ vendor, ah, thin }) do
+  local vendor, ah = ns:FindShuffles()
+  for _, section in ipairs({ vendor, ah }) do
     for _, s in ipairs(section) do if s.id == ID and s.opt.kind == "craft" then selected = s end end
   end
   T.ok(selected, "crafting route found")

@@ -316,7 +316,7 @@ function ns:RefreshFlipsIfShown()
     if not main.shuffles then ns:RefreshShuffles(); return end
     main.shuffles.flips = ns:FindVendorFlips()
     main.shuffleInfo:SetText(("%d shuffles, %d vendor flips (%s). Click to search the AH, right-click for details."):format(
-      #main.shuffles.vendor + #main.shuffles.ah + #main.shuffles.oneOff, #main.shuffles.flips, date("%H:%M")))
+      #main.shuffles.vendor + #main.shuffles.ah, #main.shuffles.flips, date("%H:%M")))
     layoutShuffles()
   end)
 end
@@ -436,8 +436,6 @@ local function buildMinimapButton()
 
   mm:SetScript("OnClick", function(_, which)
     if IsShiftKeyDown() then ns:ShowSidePanel("lists")
-    elseif IsControlKeyDown() then
-      if ns:GeneralSessionRunning() then ns:StopGeneralSession() else ns:StartGeneralSession() end
     elseif which == "RightButton" then ns:ToggleUI("shuffles") else ns:ToggleUI() end
   end)
   mm:SetScript("OnDragStart", function(self)
@@ -456,7 +454,6 @@ local function buildMinimapButton()
     GameTooltip:AddLine("Click to open or close.", 1, 1, 1)
     GameTooltip:AddLine("Right-click for shuffles.", 1, 1, 1)
     GameTooltip:AddLine("Shift-click for shopping lists.", 1, 1, 1)
-    GameTooltip:AddLine(ns:GeneralSessionRunning() and "Ctrl-click to stop the session." or "Ctrl-click to start a session.", 1, 1, 1)
     GameTooltip:AddLine("Drag to move. /fl minimap hides it.", 0.7, 0.7, 0.7)
     GameTooltip:Show()
   end)
@@ -485,7 +482,8 @@ local SUBTABS = {
   -- (owner, November 5). If none turn up for a few weeks, the vendor tab may go.
   { key = "ah", label = "Sells on the auction house" },
   { key = "vendor", label = "Sells to a vendor" },
-  { key = "oneOff", label = "Limited supply" },
+  -- (Limited supply, shuffles with a material under 5 listed, was removed November 13:
+  -- Frank never saw one there. They're in the tabs above, with Runs saying how few.)
 }
 local COLUMNS = {
   shuffles = {
@@ -1056,12 +1054,12 @@ end)
 
 function ns:RefreshShuffles()
   if not main then return end
-  local vendor, ah, oneOff, flips = ns:FindShuffles()
+  local vendor, ah, flips = ns:FindShuffles()
 
   -- Debug: name the shuffles that came or went since the last refresh.
   if ns.db.settings.debug then
     local now, before = {}, main.shuffleKeys
-    for _, list in ipairs({ vendor, ah, oneOff, flips }) do
+    for _, list in ipairs({ vendor, ah, flips }) do
       for _, s in ipairs(list) do now[s.key] = ns:ShuffleTitle(s) .. " (" .. ns.Money(s.profit) .. ")" end
     end
     if before then
@@ -1071,11 +1069,11 @@ function ns:RefreshShuffles()
     main.shuffleKeys = now
   end
 
-  main.shuffles = { vendor = vendor, ah = ah, oneOff = oneOff, flips = flips }
+  main.shuffles = { vendor = vendor, ah = ah, flips = flips }
   if allProfs then computeAllProfs() end
   -- Short, so it fits the smallest window (the tabs' own tips say the rest).
   main.shuffleInfo:SetText(("%d shuffles, %d vendor flips (%s). %s"):format(
-    #vendor + #ah + #oneOff, #flips, date("%H:%M"),
+    #vendor + #ah, #flips, date("%H:%M"),
     main.view == "flips" and "Click to search the AH, right-click for details." or "Click a column to sort, a row for details."))
   if main.view == "shuffles" or main.view == "flips" then layoutShuffles() end
 end

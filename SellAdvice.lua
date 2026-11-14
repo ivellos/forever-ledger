@@ -65,10 +65,13 @@ function ns.SellVerdict(f)
       v = { kind = "middle", value = f.ah, reason = more }
     end
   end
-  -- Disenchanting, offered beside the verdict when it brings more.
+  -- Disenchanting, offered beside the verdict when it brings more; when it brings clearly
+  -- more (the same 25% as the auction house over a vendor), it's the suggestion and selling
+  -- the other way (Frank, November 13: "making disenchant the main line when its way better").
   if f.de and f.de > ((v and v.value) or 0) then
     v = v or { kind = "de" }
     v.de, v.deWho = f.de, f.deWho
+    if v.kind ~= "de" and v.value and f.de >= v.value * CLEAR then v.deFirst = true end
   end
   return v
 end
@@ -179,6 +182,8 @@ local COLOR = {
   ah = { 0.5, 0.83, 0.61 }, de = { 0.75, 0.62, 1 },
 }
 local LABEL = { vendor = "Vendor", ah = "Auction house" }
+-- Selling as the other way, under a Disenchant suggestion.
+local ALT = { vendor = "or sell to a vendor", ah = "or sell on the auction house", middle = "or sell (close call)" }
 
 -- The tooltip lines (Tooltip.lua): only for an item you have in your bags.
 function ns:AddSellLines(tt, id, bound, usable, copyPrice)
@@ -190,14 +195,19 @@ function ns:AddSellLines(tt, id, bound, usable, copyPrice)
     tt:AddLine("Keep: " .. v.reason, c[1], c[2], c[3], true)
     return
   end
-  if v.kind ~= "de" then
-    local label = LABEL[v.kind] or ns.SELL_MIDDLE
-    tt:AddDoubleLine("Sell: " .. label .. (v.reason and (" |cff999999(" .. v.reason .. ")|r") or ""),
-      ns.Money(v.value), c[1], c[2], c[3], 1, 1, 1)
-  end
-  if v.de then
+  local reason = v.reason and (" |cff999999(" .. v.reason .. ")|r") or ""
+  local function deLine(text)
     local d = COLOR.de
-    tt:AddDoubleLine((v.kind == "de" and "Disenchant" or "  or disenchant") .. (v.deWho and (" |cff999999(" .. v.deWho .. ")|r") or ""),
+    tt:AddDoubleLine(text .. (v.deWho and (" |cff999999(" .. v.deWho .. ")|r") or ""),
       "about " .. ns.Money(v.de), d[1], d[2], d[3], 1, 1, 1)
   end
+  if v.deFirst then
+    deLine("Disenchant")
+    tt:AddDoubleLine("  " .. (ALT[v.kind] or "or sell") .. reason, ns.Money(v.value), c[1], c[2], c[3], 1, 1, 1)
+    return
+  end
+  if v.kind ~= "de" then
+    tt:AddDoubleLine("Sell: " .. (LABEL[v.kind] or ns.SELL_MIDDLE) .. reason, ns.Money(v.value), c[1], c[2], c[3], 1, 1, 1)
+  end
+  if v.de then deLine(v.kind == "de" and "Disenchant" or "  or disenchant") end
 end

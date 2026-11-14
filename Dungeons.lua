@@ -146,7 +146,7 @@ function ns:PrintRuns()
   end
   for _, e in ipairs(list) do
     local d = e.d
-    -- The best drops by worth (Sessions.lua's loot value).
+    -- The best drops by worth (Values.lua's loot value).
     local drops = {}
     for id, n in pairs(d.drops or {}) do
       drops[#drops + 1] = { id = id, n = n, value = ns.LootValue and ns:LootValue(id) or 0 }

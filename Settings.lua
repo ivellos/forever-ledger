@@ -69,7 +69,7 @@ local PAGES = {
         { sub = "Sync with your other account" },
         { key = "syncMoney", label = "Share gold and sales with your sync partner", kind = "check",
           after = function() if ns.SyncSend then ns:SyncSend(true) end end,
-          help = "Sends your characters' gold, money in and out, Ledger entries and sessions to the character you linked (Settings, Characters), so both accounts' Dashboards and Ledgers show the same. These include your buyers' names, so leave it off if you linked a friend. Unlinking removes what you got from them." },
+          help = "Sends your characters' gold, money in and out, and Ledger entries to the character you linked (Settings, Characters), so both accounts' Dashboards and Ledgers show the same. These include your buyers' names, so leave it off if you linked a friend. Unlinking removes what you got from them." },
         { key = "syncBags", label = "Share bags and bank with your sync partner", kind = "check",
           after = function() if ns.SyncSend then ns:SyncSend(true) end end,
           help = "Sends what your characters carry and keep in the bank to the character you linked (Settings, Characters), so it counts in Have, shopping lists and the Characters tab there. Only for your own second account: off by default. Unlinking removes what you got from them." },
@@ -243,16 +243,6 @@ local PAGES = {
       { sub = "Crates" },
       { key = "crates", label = "Waylaid Crates", kind = "check", after = function() ns:LayoutTabs() end,
         help = "The Crates tab and the \"cheapest fill\" tooltip line." },
-    } },
-
-  { group = "Your gold" },
-  { key = "sessions", title = "Sessions", icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
-    desc = "Counting what your play time earns.",
-    rows = {
-      { sub = "Loot" },
-      { key = "sessionValue", label = "Count loot at", kind = "choice", options = {
-          { "best", "Best of auction and vendor" }, { "vendor", "Vendor only" } },
-        help = "What a session counts each looted item as worth. Auction house prices are after the cut; items that bind when picked up always count at vendor price. Start a session with /fl session start or on the Dashboard." },
     } },
 
   { group = "Other" },

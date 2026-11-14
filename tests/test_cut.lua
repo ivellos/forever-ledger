@@ -1,12 +1,12 @@
 -- The auction house cut (settings.ahCut, percent): Values.lua ns:AHCut and what a
--- looted item is worth (Sessions.lua ns:LootValue: the better of the auction house
--- after the cut and a vendor).
+-- looted item is worth (Values.lua ns:LootValue: the better of the auction house
+-- after the cut and a vendor; dungeon runs rank drops by it).
 local T = ...
 local ns = T.ns
 local ID = 2589
 
 local function setup(ahPrice, vendor)
-  ns.db.settings.source, ns.db.settings.ahCut, ns.db.settings.sessionValue = "own", 5, "best"
+  ns.db.settings.source, ns.db.settings.ahCut = "own", 5
   ns.db.prices[ns.MarketKey()] = ahPrice and { [ID] = { m = ahPrice, t = T.S.now } } or {}
   ns.db.vendorSell[ID] = vendor
 end
@@ -60,10 +60,4 @@ T.test("LootValue: a vendor when it pays more", function()
   T.eq(ns:LootValue(ID), 25, "no auction price")
   setup(nil, nil)
   T.eq(ns:LootValue(ID), 0, "nothing known")
-end)
-
-T.test("LootValue: vendor only when set to", function()
-  setup(1000, 300)
-  ns.db.settings.sessionValue = "vendor"
-  T.eq(ns:LootValue(ID), 300)
 end)

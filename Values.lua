@@ -614,3 +614,14 @@ function ns:WorthOfCopy(best, options, copyPrice)
   table.sort(out, function(a, b) return a.value > b.value end)
   return out[1].value, out
 end
+
+-- What one looted item is worth: the better of the auction house after the cut and a
+-- vendor; items that bind when picked up only a vendor's (they can't be listed). Dungeon
+-- runs (/fl runs) rank their drops by it. (From Sessions.lua, archived November 13.)
+function ns:LootValue(id)
+  local vendor = ns:GetSellPrice(id) or 0
+  if ns.IsClassicBound and ns:IsClassicBound(id) then return vendor end
+  local price = ns:GetPrice(id)
+  local ah = price and ns:AfterCut(math.floor(price)) or 0
+  return math.max(ah, vendor)
+end

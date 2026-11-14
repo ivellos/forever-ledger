@@ -37,7 +37,6 @@ Settings.lua
 UI.lua
 Help.lua
 Welcome.lua
-Sessions.lua
 Dungeons.lua
 Training.lua
 TrainerAdvice.lua

@@ -375,17 +375,6 @@ end)
 ---------------------------------------------------------------------------
 -- Logs with a size limit
 ---------------------------------------------------------------------------
-T.test("Sessions: the last 100 are kept", function()
-  start()
-  ns.db.sessions = {}
-  for i = 1, 100 do ns.db.sessions[i] = { kind = "general", t = i } end
-  ns.db.liveSession = { t = NOW - HOUR, char = ME, money = { vendorSell = 500 }, loot = {} }
-  T.ok(ns:StopGeneralSession(true), "kept")
-  T.eq(#ns.db.sessions, 100)
-  T.eq(ns.db.sessions[1].t, 2, "the oldest went")
-  T.eq(ns.db.sessions[100].earned, 500, "the new one is last")
-end)
-
 T.test("Disenchants: the last 1,000 are kept", function()
   start()
   ns.db.disenchants = {}

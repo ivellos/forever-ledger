@@ -52,6 +52,37 @@ T.test("Sell suggestion: soulbound items, and disenchanting as a suggestion", fu
   local only = V({ bound = true, de = 80 })
   T.eq(only.kind, "de", "no vendor price: just the disenchant suggestion"); T.eq(only.de, 80)
   T.eq(V({ vendor = 100, ah = 150, de = 200 }).de, 200, "beside an auction house verdict too")
+  -- Frank, November 13: disenchanting is the main line when it's clearly better (25% more).
+  T.eq(de.deFirst, true, "120 against a vendor's 50")
+  T.eq(V({ vendor = 100, ah = 150, de = 187 }).deFirst, nil, "under 25% more than the auction house: selling first")
+  T.eq(V({ vendor = 100, ah = 150, de = 188 }).deFirst, true)
+  T.eq(only.deFirst, nil, "nothing else to suggest")
+end)
+
+T.test("Sell suggestion: the Disenchant line first when it's clearly better", function()
+  local realChars = ns.db.chars
+  ns.db.chars = {}
+  ns:BuildUsageIndex()
+  local key = ns.MarketKey()
+  ns.db.prices[key] = ns.db.prices[key] or {}
+  ns.db.prices[key][ITEM] = { m = 1000, a = 1000, q = 50, t = S.now }
+  ns.db.vendorSell[ITEM] = 100
+  ns:InvalidateValues(true)
+  S.bags[ITEM] = 1
+  local realFacts = ns.SellFacts
+  ns.SellFacts = function() return { vendor = 100, ah = 930, de = 2000, deWho = "Tester", usable = true } end
+  local tip, added = {}, {}
+  function tip:AddDoubleLine(l, r) added[#added + 1] = l .. " = " .. r end
+  function tip:AddLine(l) added[#added + 1] = l end
+  ns:AddSellLines(tip, ITEM, false, true)
+  ns.SellFacts = realFacts
+  T.eq(added[1], "Disenchant |cff999999(Tester)|r = about " .. ns.Money(2000))
+  T.eq(added[2], "  or sell on the auction house |cff999999(after the cut and the deposit)|r = " .. ns.Money(930))
+  T.eq(#added, 2)
+  ns.db.prices[key][ITEM], ns.db.vendorSell[ITEM], S.bags[ITEM] = nil, nil, nil
+  ns.db.chars = realChars
+  ns:BuildUsageIndex()
+  ns:InvalidateValues(true)
 end)
 
 T.test("Sell suggestion: why to keep it", function()

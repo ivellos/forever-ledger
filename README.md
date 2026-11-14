@@ -17,7 +17,7 @@
 | <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/deals.png" width="32" height="32" alt=""> | **Spot deals.** Listings well below their usual price, with the resale profit after the cut and how sure the deal is. |
 | <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/lists.png" width="32" height="32" alt=""> | **Shopping lists.** Twink gear to watch for or raid consumables to buy: search the whole list at once, see what you already own, buy with a tick. |
 | <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/crafting.png" width="32" height="32" alt=""> | **Profit from your professions.** Crafts and disenchants ranked by gold an hour, recipes and where to learn them, customers spotted in chat. |
-| <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/gold.png" width="32" height="32" alt=""> | **See where your gold goes.** Gold over time, every sale and purchase in one list, and what each play session earned you. |
+| <img src="https://raw.githubusercontent.com/ivellos/forever-ledger/main/docs/images/features/gold.png" width="32" height="32" alt=""> | **See where your gold goes.** Gold over time, every sale and purchase in one list, and what you trade a day. |
 
 **The addon suggests; you click.** Every craft, purchase and auction is still your own click, as Blizzard requires.
 
@@ -49,11 +49,10 @@
 - **Customer finder and ads:** spots people in chat asking for what your character can do (enchanting, crafted items, Mage water and portals, Warlock summons, lockpicking), with Whisper and Invite buttons, one-click ads for Trade, and a Silence button.
 
 ### Your gold
-- **Dashboard:** gold now, profit, sales and expenses at a glance, gold over time, your best sales and buys, and recent sessions.
+- **Dashboard:** gold now, profit, sales and expenses at a glance, gold over time, your best sales and buys, and how much you trade.
 - **Ledger:** every transaction in one list; select rows to see what they add up to; resale profit per item.
 - **Characters:** every character's bags and bank, per realm and faction, with what it's all worth and the best way to turn each item into gold.
 - **Bag value:** a bag's tooltip shows what one slot costs and the cheapest bag per slot right now.
-- **Sessions:** a small tracker for gold an hour, gold in and out and what you loot, and every session listed in the Ledger.
 - **Dungeon runs:** runs, time, coin and what dropped for you, per dungeon.
 - **Riding fund:** how close you are to riding at 40 and epic riding at 60, mount included.
 - **Leveling tab:** below level 20, ways to make gold while leveling (gathering, cloth, bags, crafts for players), best first and priced from your scans.
@@ -113,7 +112,6 @@ Most things have a button; these are for when you'd rather type. The main ones:
 | `/fl scan` | Full scan if one is allowed, otherwise scan your materials (auction house open) |
 | `/fl watch` | Watch flips: keep scanning while the auction house is open |
 | `/fl queue`, `/fl lists` | The Buy queue, or your shopping lists (lists open anywhere) |
-| `/fl session start`, `/fl session stop` | Start or stop a session |
 | `/fl runs` | Your dungeon runs |
 
 <details>
