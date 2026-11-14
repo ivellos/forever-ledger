@@ -106,8 +106,11 @@ for _, e in ipairs(ESSENCES) do
 end
 
 ---------------------------------------------------------------------------
--- Disenchanting. Average materials per item from the Classic table, which the
--- owner's test (30 item level 12 capes) matched. Greens up to item level 20 only.
+-- Disenchanting: client eligibility from Wago ItemDisenchantLoot, build 1.60.1.70938.
+-- Public model: wow-professions.com/forever/disenchanting-guide and the explicitly
+-- Classic-derived ranges at foreverdb.net/profession/enchanting, read November 14, 2026.
+-- Data from ForeverDB.net. These are estimates, not server loot tables or measured odds.
+-- Source access, differences from 120 local results: tools/FOREVER_DATA_SOURCES.md.
 ---------------------------------------------------------------------------
 local STRANGE_DUST, LESSER_MAGIC, GREATER_MAGIC, SMALL_GLIMMERING = 10940, 10938, 10939, 10978
 local MAT_NAMES = {
@@ -123,6 +126,7 @@ for id, name in pairs({
   [11177] = "Small Radiant Shard", [11178] = "Large Radiant Shard", [16202] = "Lesser Eternal Essence",
   [16203] = "Greater Eternal Essence", [16204] = "Illusion Dust", [14343] = "Small Brilliant Shard",
   [14344] = "Large Brilliant Shard",
+  [20725] = "Nexus Crystal",
 }) do MAT_NAMES[id] = name end
 
 -- Green items. Up to 20 from the owner's capes test; 21-25 matched the owner's first
@@ -133,22 +137,23 @@ for id, name in pairs({
 -- in the owner's disenchant log (five, item levels 22-30, a Dire Wand among them; November
 -- 10), as a player reported on Discord and CraftShuffle Forever 0.2.4 found.
 -- How many drop when that material comes up (Classic's ranges), by average.
-local RANGES = { [1.5] = { 1, 2 }, [2.5] = { 2, 3 }, [3.5] = { 2, 5 }, [5] = { 4, 6 } }
+local RANGES = { [1.5] = { 1, 2 }, [2] = { 1, 3 }, [2.5] = { 2, 3 }, [3.5] = { 2, 5 }, [5] = { 4, 6 } }
 -- odds = { { itemID, chance, low, high }, ... } for tooltips (the Disenchant finder).
 -- weaponEssence: weapons' essence when it isn't armor's. tested: "armor", "weapon" or
 -- "both", checked in Forever.
-local function row(maxLevel, dust, dustAvg, essence, essAvg, shard, weaponEssence, tested)
+local function row(maxLevel, dust, dustAvg, essence, essAvg, shard, weaponEssence, tested, chances)
   local d, e = RANGES[dustAvg] or { dustAvg, dustAvg }, RANGES[essAvg] or { essAvg, essAvg }
   local wess = weaponEssence or essence
+  local c = chances or { 75, 20, 5, 20, 75, 5 }
   return { maxLevel = maxLevel, tested = tested,
-    armor  = { { dust, 0.75 * dustAvg }, { essence, 0.20 * essAvg }, { shard, 0.05 },
-      odds = { { dust, 75, d[1], d[2] }, { essence, 20, e[1], e[2] }, { shard, 5, 1, 1 } } },
-    weapon = { { dust, 0.20 * dustAvg }, { wess, 0.75 * essAvg }, { shard, 0.05 },
-      odds = { { dust, 20, d[1], d[2] }, { wess, 75, e[1], e[2] }, { shard, 5, 1, 1 } } } }
+    armor  = { { dust, c[1] / 100 * dustAvg }, { essence, c[2] / 100 * essAvg }, { shard, c[3] / 100 },
+      odds = { { dust, c[1], d[1], d[2] }, { essence, c[2], e[1], e[2] }, { shard, c[3], 1, 1 } } },
+    weapon = { { dust, c[4] / 100 * dustAvg }, { wess, c[5] / 100 * essAvg }, { shard, c[6] / 100 },
+      odds = { { dust, c[4], d[1], d[2] }, { wess, c[5], e[1], e[2] }, { shard, c[6], 1, 1 } } } }
 end
 local DISENCHANT = {
   { maxLevel = 15,
-    armor  = { { STRANGE_DUST, 1.18 }, { LESSER_MAGIC, 0.31 },
+    armor  = { { STRANGE_DUST, 1.20 }, { LESSER_MAGIC, 0.30 },
       odds = { { STRANGE_DUST, 80, 1, 2 }, { LESSER_MAGIC, 20, 1, 2 } } },
     weapon = { { STRANGE_DUST, 0.30 }, { LESSER_MAGIC, 1.20 },
       odds = { { STRANGE_DUST, 20, 1, 2 }, { LESSER_MAGIC, 80, 1, 2 } } } },
@@ -157,31 +162,33 @@ local DISENCHANT = {
       odds = { { STRANGE_DUST, 75, 2, 3 }, { GREATER_MAGIC, 20, 1, 2 }, { SMALL_GLIMMERING, 5, 1, 1 } } },
     weapon = { { STRANGE_DUST, 0.50 }, { GREATER_MAGIC, 1.125 }, { SMALL_GLIMMERING, 0.05 },
       odds = { { STRANGE_DUST, 20, 2, 3 }, { GREATER_MAGIC, 75, 1, 2 }, { SMALL_GLIMMERING, 5, 1, 1 } } } },
-  row(25, STRANGE_DUST, 5, 10998, 1.5, SMALL_GLIMMERING, GREATER_MAGIC, "both"),   -- Lesser Astral Essence
-  row(30, 11083, 1.5, 11082, 1.5, 11084, GREATER_MAGIC, "weapon"),                 -- Soul Dust, Greater Astral, Large Glimmering
-  row(35, 11083, 3.5, 11134, 1.5, 11138),                   -- Lesser Mystic, Small Glowing Shard
+  row(25, STRANGE_DUST, 5, 10998, 1.5, SMALL_GLIMMERING, GREATER_MAGIC, "both", { 75, 15, 10, 15, 75, 10 }),
+  row(30, 11083, 1.5, 11082, 1.5, 11084, GREATER_MAGIC, "both"),
+  row(35, 11083, 3.5, 11134, 1.5, 11138, nil, "armor"),
   row(40, 11137, 1.5, 11135, 1.5, 11139),                   -- Vision Dust, Greater Mystic, Large Glowing
   row(45, 11137, 3.5, 11174, 1.5, 11177),                   -- Lesser Nether, Small Radiant Shard
   row(50, 11176, 1.5, 11175, 1.5, 11178),                   -- Dream Dust, Greater Nether, Large Radiant
-  row(55, 11176, 3.5, 16202, 1.5, 14343),                   -- Lesser Eternal, Small Brilliant Shard
-  row(60, 16204, 1.5, 16203, 1.5, 14344),                   -- Illusion Dust, Greater Eternal, Large Brilliant
-  row(65, 16204, 3.5, 16203, 2.5, 14344),
+  row(55, 11176, 3.5, 16202, 1.5, 14343, nil, nil, { 75, 20, 5, 22, 75, 3 }),
+  row(60, 16204, 1.5, 16203, 1.5, 14344, nil, nil, { 75, 20, 5, 22, 75, 3 }),
+  row(65, 16204, 3.5, 16203, 2, 14344, nil, nil, { 75, 20, 5, 22, 75, 3 }),
 }
 ns.DISENCHANT_BANDS = {}
 -- Names for each row of the table, used to group shuffles ("Item level 16-20 green armor").
 do
   local low = 1
   for _, band in ipairs(DISENCHANT) do
-    local levels = low == 1 and ("up to " .. band.maxLevel) or (low .. "-" .. band.maxLevel)
+    band.topLevel = band.maxLevel == 65 and 99 or band.maxLevel
+    local levels = low == 1 and ("5-" .. band.maxLevel) or (low .. "-" .. band.topLevel)
     band.armor.label = "Item level " .. levels .. " green armor"
     band.weapon.label = "Item level " .. levels .. " green weapons"
     band.armor.band, band.weapon.band = band.maxLevel, band.maxLevel
     band.armor.kind, band.weapon.kind = "armor", "weapon"
-    -- Enchanting skill needed (Classic: 1 up to level 20, then 25 more per 5 levels).
-    local skill = band.maxLevel <= 20 and 1 or (band.maxLevel - 20) * 5
+    -- Frank confirmed November 14: Enchanting 1 suffices for every eligible item.
+    -- All current ItemDisenchantLoot rows have SkillRequired=0 (no extra gate).
+    local skill = 1
     band.armor.skill, band.weapon.skill = skill, skill
-    -- Tested in Forever: 16-20 armor (owner, 22 items), 21-25 armor (15) and 21-30 weapons
-    -- (5, November 10). The rest is Classic's table.
+    -- Material observations in the owner's 120 results: armor 16-20 (30), 21-25
+    -- (15), 26-30 (22), 31-35 (11); weapons 21-30 (5). Not measured probabilities.
     band.armor.tested = (band.tested == "armor" or band.tested == "both") or nil
     band.weapon.tested = (band.tested == "weapon" or band.tested == "both") or nil
     ns.DISENCHANT_BANDS[#ns.DISENCHANT_BANDS + 1] = { key = band.maxLevel, label = levels,
@@ -194,27 +201,46 @@ local NOT_DISENCHANTABLE = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 -- Crafted wands can't be disenchanted in Forever (owner's test); wands found in the world can.
 local CRAFTED_WANDS = { [247789] = true, [11287] = true, [11288] = true, [11289] = true, [11290] = true }
 
--- True if a captured Enchanting recipe makes this item.
-local function madeByEnchanting(id)
-  for _, c in pairs(ns.db.chars) do
-    local p = c.profs and c.profs.Enchanting
-    for _, rec in pairs(p and p.recipes or {}) do
-      if rec.out == id then return true end
-    end
+-- Rare items below 21 conflict with the public shard rule: three local results gave
+-- essences. Leave those unknown, rather than valuing every early blue as a shard.
+local rare, epic = {}, {}
+epic[40] = { { 11177, 3 }, odds = { { 11177, 100, 2, 4 } } }
+for _, b in ipairs(DISENCHANT) do
+  local shard = b.armor[3] and b.armor[3][1]
+  if b.maxLevel >= 25 then
+    rare[b.maxLevel] = { { shard, 1 }, odds = { { shard, 100, 1, 1 } } }
+  end
+  if b.maxLevel >= 45 then
+    local id, lo, hi = shard, 2, 4
+    if b.maxLevel == 60 then id, lo, hi = 20725, 1, 1
+    elseif b.maxLevel == 65 then id, lo, hi = 20725, 1, 2 end
+    epic[b.maxLevel] = { { id, (lo + hi) / 2 }, odds = { { id, 100, lo, hi } } }
   end
 end
+-- The high-level rare crystal tail is approximate in the guide and incomplete in
+-- the public table. Keep the one-shard model; do not advertise an invented tail.
 
 -- Returns a list of { itemID, average count }, or nil if the item can't be disenchanted
 -- (or isn't covered by the table yet). The list also has .label, .band (highest item
 -- level of its row) and .kind ("armor" or "weapon").
 function ns:DisenchantYield(id)
-  if CRAFTED_WANDS[id] or madeByEnchanting(id) then return end
+  if CRAFTED_WANDS[id] or (ns.FOREVER_NO_DISENCHANT and ns.FOREVER_NO_DISENCHANT[id]) then return end
   local _, _, quality, ilvl, _, _, _, _, equipLoc, _, _, classID = ns.GetItemInfo(id)
-  if quality ~= UNCOMMON or not ilvl or NOT_DISENCHANTABLE[equipLoc] then return end
+  if not quality or quality < UNCOMMON or quality > 4 or not ilvl or ilvl < 5 or ilvl > 99 or NOT_DISENCHANTABLE[equipLoc] then return end
   local kind = (classID == WEAPON and "weapon") or (classID == ARMOR and "armor")
   if not kind then return end
-  for _, band in ipairs(DISENCHANT) do
-    if ilvl <= band.maxLevel then return band[kind] end
+  for bandIndex, band in ipairs(DISENCHANT) do
+    if ilvl <= band.topLevel then
+      if quality == UNCOMMON then return band[kind] end
+      if (quality == 3 and ilvl < 21) or (quality == 4 and ilvl < 40) then return end
+      local model = quality == 3 and rare[band.maxLevel] or epic[band.maxLevel]
+      if not model then return end
+      -- Clone metadata: armor and weapon share outcomes but not their kind/label.
+      local out = { odds = model.odds, skill = 1, band = band.maxLevel, kind = kind,
+        label = ("Item level %s %s %s"):format(ns.DISENCHANT_BANDS[bandIndex].label, quality == 3 and "blue" or "purple", kind == "weapon" and "weapons" or "armor") }
+      for i, m in ipairs(model) do out[i] = m end
+      return out
+    end
   end
 end
 

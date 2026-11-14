@@ -178,13 +178,13 @@ T.test("Nothing known: no value", function()
 end)
 
 T.test("Disenchanting, with an enchanter", function()
-  -- A level 12 green chest: 1.18 Strange Dust and 0.31 Lesser Magic Essence on average.
+  -- A level 12 green chest: 1.20 Strange Dust and 0.30 Lesser Magic Essence on average.
   S.items[60010] = { name = "Green Vest", quality = 2, ilvl = 12, classID = 4, equipLoc = "INVTYPE_CHEST" }
   price(DUST, 1000)
   price(LESSER_MAGIC, 2000)
   me({ Enchanting = { rank = 50 } })
   local v, opts = ns:GetValue(60010)
-  near(v, 1.18 * 950 + 0.31 * 1900, "disenchant value")
+  near(v, 1.20 * 950 + 0.30 * 1900, "disenchant value")
   T.eq(opts[1].kind, "disenchant")
   T.eq(opts[1].label, "Disenchant")
 end)
@@ -201,7 +201,7 @@ T.test("Disenchanting ignores thin markets for the materials", function()
   price(DUST, 1000, 2)   -- only 2 listed
   price(LESSER_MAGIC, 2000)
   me({ Enchanting = { rank = 50 } })
-  near((ns:GetValue(60012)), 0.31 * 1900, "only the essence counts")
+  near((ns:GetValue(60012)), 0.30 * 1900, "only the essence counts")
 end)
 
 -- Owner's disenchant log, November 10 (and a player on Discord): green weapons of item
@@ -237,10 +237,10 @@ T.test("Disenchanting: a spike in a material's price doesn't raise what a disenc
   for i = 1, 5 do days[#days + 1] = ("%d:%d:%d"):format(d - i, 1900, 2000) end
   ns.db.history[key][LESSER_MAGIC] = table.concat(days, "|")
   ns:InvalidateValues(true)
-  near((ns:GetValue(60016)), 1.18 * 950 + 0.31 * 1900, "the essence at its usual 20s, after the cut")
+  near((ns:GetValue(60016)), 1.20 * 950 + 0.30 * 1900, "the essence at its usual 20s, after the cut")
   price(LESSER_MAGIC, 1000)   -- and a drop counts at once
   ns:InvalidateValues(true)
-  near((ns:GetValue(60016)), 1.18 * 950 + 0.31 * 950, "today's 10s")
+  near((ns:GetValue(60016)), 1.20 * 950 + 0.30 * 950, "today's 10s")
   ns.db.history[key][LESSER_MAGIC] = nil
   ns:InvalidateValues(true)
 end)

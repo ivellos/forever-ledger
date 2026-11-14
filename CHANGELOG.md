@@ -12,10 +12,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shuffles, Sells to a vendor: an All professions tick box shows every profession's crafts that sell to a vendor for more than their materials cost at today's prices, whoever knows them. Recipes come from your profession windows; for professions none of your characters has opened, from Classic's recipes (marked as such, not yet seen in Forever). Each one's steps say the profession and who of yours knows it.
 
 ### Changed
+- Disenchant estimates use public ranges and client exclusions, include covered blues and epics, and accept Enchanting 1. Early blues with conflicting observations stay unknown.
 - Recipes tab: when the choices above (Known, a type, a search) hide every recipe of a profession, it says how many are recorded and to choose All, instead of "No recipes match".
 - Clicking Watch flips reads the auction house list at once, instead of waiting out the half minute after your own search (an item's page that's still open is still waited for).
 
 ### Fixed
+- Lowest-level green armor disenchant values now agree with their displayed chances and quantities.
 - Live sync: prices from your other account's full scan no longer cause a "script ran too long" error. Their price history is now saved a little at a time.
 - Shopping lists count what's in your bags and bank with the game's current item count. The old one, which they used, may be missing in WoW Forever.
 - Blinding Powder is no longer valued at a vendor or offered as a vendor flip: vendors won't buy it, though the game gives it a vendor price.
