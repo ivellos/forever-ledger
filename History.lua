@@ -704,7 +704,9 @@ local function recordQueued(e)
   ns:RecordPriceHistory(id, cheapest, typical, listed, market)
 end
 
-local function recordPending(mine)
+-- (each step's time shows in /fl perf as "Sync: price history")
+local recordPending
+recordPending = ns.Timed("Sync: price history", function(mine)
   if mine ~= run then return end
   local from = msNow()
   while pendingAt < #pendingHistory do
@@ -718,7 +720,7 @@ local function recordPending(mine)
   pendingHistory, pendingAt = {}, 0
   -- (usual prices and deals read today's history)
   if ns.InvalidateValues then ns:InvalidateValues() end
-end
+end)
 
 -- list: { { id, cheapest, typical, listed, market, t = when seen, day = local day }, ... }
 function ns:RecordPriceHistoryLater(list)
