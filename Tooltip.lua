@@ -205,6 +205,10 @@ local function addLines(tt, id, forceFull, copyPrice)
     end
   end
 
+  -- The sell suggestion goes first, straight under the game's own lines (Frank, AN4,
+  -- November 13: below Worth to you and its ways he didn't see it).
+  sellLines()
+
   if not full then
     questLines(true)
     -- Today's cheapest too, so a new scan shows at once (CurseForge comment, October 22).
@@ -227,10 +231,8 @@ local function addLines(tt, id, forceFull, copyPrice)
         tt:AddDoubleLine("Auction price", ns.Money(price), LR, LG, LB, 1, 1, 1)
       end
     elseif not shownCheapest then
-      sellLines()
       return
     end
-    sellLines()
     if withHistory then historyLines(tt, id) end
     tt:AddLine((on("tipHistory") and "Hold Shift for Forever Ledger details, Ctrl for price history"
       or "Hold Shift for Forever Ledger details") .. (on("priceWindow") and (", " .. ns:PriceClickName() .. " for a graph") or ""), 0.5, 0.5, 0.5, true)
@@ -345,8 +347,6 @@ local function addLines(tt, id, forceFull, copyPrice)
       end
     end
   end
-
-  sellLines()
 
   -- Green when the auction price is already at or below it.
   local maxBuy = on("tipBuy") and ns:BuyAtOrBelow(id, true)

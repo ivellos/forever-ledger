@@ -323,6 +323,30 @@ T.test("Price history: a partner's many prices are recorded a few at a time", fu
   T.eq(ns.db.history[home][71202], ("%d:7:8"):format(d))
 end)
 
+-- Codex review, November 13: a partner's price waiting for its turn was put into history
+-- after a newer local scan, and one waiting past midnight went on the next day.
+T.test("Price history: a waiting partner price doesn't undo a newer one or change day", function()
+  fresh()
+  T.runTimers()
+  local home, start = ns.MarketKey(), S.now
+  local d = ns.LocalDay(time())
+  ns:MergeData({ prices = { [home] = { [71301] = { m = 100, a = 100, q = 5, t = time() } } } }, "Partner Name")
+  S.now = S.now + 1
+  ns.RecordPrice(71301, { { 200, 30 } }, "scan")   -- your own search, a second later
+  T.runTimers()
+  T.eq(ns.db.prices[home][71301].m, 200)
+  T.eq(ns.db.history[home][71301], ("%d:100:200"):format(d), "the day's low is the partner's, the latest typical yours")
+  -- Waiting past midnight: dropped, not put on the next day.
+  S.now = start
+  local day1 = ns.LocalDay(time())
+  ns:MergeData({ prices = { [home] = { [71302] = { m = 40, a = 50, q = 2, t = time() } } } }, "Partner Name")
+  S.now = start + 86400
+  T.ok(ns.LocalDay(time()) ~= day1)
+  T.runTimers()
+  T.eq((ns.db.history[home] or {})[71302], nil)
+  S.now = start
+end)
+
 T.test("Price window: Add to shopping list puts the item on the list you're on", function()
   fresh()
   local list = ns:QuickAddToShoppingList(71031)

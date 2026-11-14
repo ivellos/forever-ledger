@@ -900,7 +900,7 @@ function ns:MergeData(data, via)
         db.prices[market][id] = rec
         nPrices = nPrices + 1
         if via and nowDay and rec.t and rec.m and not rec.none and ns.LocalDay(rec.t) == nowDay then
-          later[#later + 1] = { id, rec.m, rec.a, rec.q, market }
+          later[#later + 1] = { id, rec.m, rec.a, rec.q, market, t = rec.t, day = nowDay }
         end
       end
     end

@@ -687,13 +687,30 @@ local HISTORY_MS = 10
 local pendingHistory, pendingAt, run = {}, 0, 0
 local function msNow() return debugprofilestop and debugprofilestop() or GetTime() * 1000 end
 
+-- One waiting price: { id, cheapest, typical, listed, market, t = when seen, day }.
+local function recordQueued(e)
+  local id, cheapest, typical, listed, market = e[1], e[2], e[3], e[4], e[5]
+  -- Past midnight it's no longer today's: dropped rather than put on the wrong day
+  -- (Codex review, November 13).
+  if e.day and e.day ~= today() then return end
+  -- A newer price came in while it waited, and is already today's latest in the history:
+  -- this older one can only lower the day's cheapest, not undo the newer typical
+  -- (Codex review, November 13: a local scan's 200c was put back to the partner's 100c).
+  local cur = ns.db.prices[market] and ns.db.prices[market][id]
+  if e.t and cur and cur.t and cur.t > e.t then
+    local lastDay, _, lastTyp = (marketTable("history", market)[id] or ""):match("(%d+):(%d+):(%d+)$")
+    if tonumber(lastDay) == today() then typical = tonumber(lastTyp) end
+  end
+  ns:RecordPriceHistory(id, cheapest, typical, listed, market)
+end
+
 local function recordPending(mine)
   if mine ~= run then return end
   local from = msNow()
   while pendingAt < #pendingHistory do
     pendingAt = pendingAt + 1
     local e = pendingHistory[pendingAt]
-    local ok, err = pcall(ns.RecordPriceHistory, ns, e[1], e[2], e[3], e[4], e[5])
+    local ok, err = pcall(recordQueued, e)
     if not ok then ns:Debug("Price history skipped for", e[1], err) end
     if msNow() - from >= HISTORY_MS then break end
   end
@@ -703,7 +720,7 @@ local function recordPending(mine)
   if ns.InvalidateValues then ns:InvalidateValues() end
 end
 
--- list: { { id, cheapest, typical, listed, market }, ... }
+-- list: { { id, cheapest, typical, listed, market, t = when seen, day = local day }, ... }
 function ns:RecordPriceHistoryLater(list)
   if #list == 0 then return end
   for _, e in ipairs(list) do pendingHistory[#pendingHistory + 1] = e end
