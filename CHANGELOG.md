@@ -16,6 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 - Live sync: prices from your other account's full scan no longer cause a "script ran too long" error. Their price history is now saved a little at a time.
 - Blasting powder (every rank) is no longer valued at a vendor or offered as a vendor flip: vendors won't buy it, though the game gives it a vendor price.
+- Recipe book: opening a gathering profession's window (Skinning) could save the recipes of a profession window opened before it under that profession too, so the Recipes tab listed them there and All professions showed them twice. They're no longer saved there, and copies already saved are removed at login.
 
 ## [0.23.0] - 2026-11-11
 

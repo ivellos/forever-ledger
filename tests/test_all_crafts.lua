@@ -109,3 +109,31 @@ T.test("All professions: the game's no vendor price wins; each recipe has its ow
   ns.db.vendorSell[UNLOADED] = nil
   ns:InvalidateValues(true)
 end)
+
+-- Frank's All professions list (November 13) showed Felblood Soul Bag, Sylvan Shoulders and
+-- Simple Poultice twice: a new character's Skinning window had listed Tailoring, Enchanting,
+-- First Aid and Fishing recipes too, and all of them were saved under Skinning.
+T.test("Recipe book: another profession's leftover recipes aren't saved under this one", function()
+  local realBook, realTS = ns.db.recipeBook, C_TradeSkillUI
+  ns.db.recipeBook = { Tailoring = { [501] = { n = "Shirt" }, [502] = { n = "Gloves" } } }
+  local names = { [501] = "Shirt", [502] = "Gloves", [601] = "Camp Chair" }
+  C_TradeSkillUI = {
+    GetAllRecipeIDs = function() return { 501, 502, 601 } end,
+    GetRecipeInfo = function(id) return { name = names[id] } end,
+    GetRecipeSchematic = function(id) return { outputItemID = 98000 + id, reagentSlotSchematics = {} } end,
+  }
+  ns:CaptureRecipeBook("Skinning")
+  T.eq(ns.db.recipeBook.Skinning[601].n, "Camp Chair", "Skinning's own recipe")
+  T.eq(ns.db.recipeBook.Skinning[501], nil, "Tailoring's stay Tailoring's")
+  T.eq(ns.db.recipeBook.Tailoring[501].n, "Shirt")
+  -- A book an older version mixed up: each recipe stays only in the smaller book.
+  ns.db.recipeBook.Skinning[501], ns.db.recipeBook.Skinning[502] = { n = "Shirt" }, { n = "Gloves" }
+  T.eq(ns:CleanRecipeBook(), 2)
+  T.eq(ns.db.recipeBook.Skinning[501], nil)
+  T.eq(ns.db.recipeBook.Skinning[502], nil)
+  T.eq(ns.db.recipeBook.Skinning[601].n, "Camp Chair")
+  T.eq(ns.db.recipeBook.Tailoring[501].n, "Shirt")
+  T.eq(ns.db.recipeBook.Tailoring[502].n, "Gloves")
+  T.eq(ns:CleanRecipeBook(), 0, "nothing more to do the second time")
+  ns.db.recipeBook, C_TradeSkillUI = realBook, realTS
+end)

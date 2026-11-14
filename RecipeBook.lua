@@ -53,14 +53,25 @@ end
 ---------------------------------------------------------------------------
 -- Every recipe of an open profession
 ---------------------------------------------------------------------------
+-- The game's list for a profession window can still hold the recipes of a window opened
+-- before it (Frank's All professions list, November 13: a new character's Skinning window
+-- listed 768 Tailoring, Enchanting, First Aid and Fishing recipes beside Skinning's own 3,
+-- so they showed twice). A recipe belongs to one profession: one already in another
+-- profession's book isn't added to this one.
 function ns:CaptureRecipeBook(profName)
   local TS = C_TradeSkillUI
   if not (TS and TS.GetAllRecipeIDs and profName) then return end
   local book = ns.db.recipeBook[profName] or {}
   ns.db.recipeBook[profName] = book
+  local other = {}
+  for prof, b in pairs(ns.db.recipeBook) do
+    if prof ~= profName then
+      for id in pairs(b) do other[id] = true end
+    end
+  end
   local added = 0
   for _, id in ipairs(TS.GetAllRecipeIDs() or {}) do
-    if not book[id] then
+    if not book[id] and not other[id] then
       local ok, info = pcall(TS.GetRecipeInfo, id)
       if ok and type(info) == "table" and info.name then
         local rec = ns:ReadRecipe(id, info)
@@ -71,6 +82,34 @@ function ns:CaptureRecipeBook(profName)
   end
   if added > 0 then ns:Debug("Recipe book:", added, "new", profName, "recipes recorded") end
 end
+
+-- Recipes saved under two professions by the mix-up above: each stays only in the smaller
+-- book (the one it was added to wrongly holds a whole other profession's list besides its
+-- own). Nothing is lost: the copy kept is the same recipe. Run at every login (cheap), so
+-- a book mixed up by an older version is put right.
+function ns:CleanRecipeBook()
+  local size, owner, removed = {}, {}, 0
+  for prof, book in pairs(ns.db.recipeBook or {}) do
+    local n = 0
+    for _ in pairs(book) do n = n + 1 end
+    size[prof] = n
+  end
+  local function smaller(a, b) return size[a] < size[b] or (size[a] == size[b] and a < b) end
+  for prof, book in pairs(ns.db.recipeBook or {}) do
+    for id in pairs(book) do
+      local o = owner[id]
+      if not o or smaller(prof, o) then owner[id] = prof end
+    end
+  end
+  for prof, book in pairs(ns.db.recipeBook or {}) do
+    for id in pairs(book) do
+      if owner[id] ~= prof then book[id] = nil; removed = removed + 1 end
+    end
+  end
+  if removed > 0 then ns:Debug("Recipe book:", removed, "recipes saved under two professions put right") end
+  return removed
+end
+ns:OnReady(function() ns:CleanRecipeBook() end)
 
 ---------------------------------------------------------------------------
 -- Vendors: recipes they sell, and where they stand
