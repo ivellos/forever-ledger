@@ -687,17 +687,20 @@ local HISTORY_MS = 10
 local pendingHistory, pendingAt, run = {}, 0, 0
 local function msNow() return debugprofilestop and debugprofilestop() or GetTime() * 1000 end
 
--- One waiting price: { id, cheapest, typical, listed, market, t = when seen, day }.
+-- One waiting price: { id, cheapest, typical, listed, market, rec = the price record it
+-- came with, day }.
 local function recordQueued(e)
   local id, cheapest, typical, listed, market = e[1], e[2], e[3], e[4], e[5]
   -- Past midnight it's no longer today's: dropped rather than put on the wrong day
   -- (Codex review, November 13).
   if e.day and e.day ~= today() then return end
-  -- A newer price came in while it waited, and is already today's latest in the history:
-  -- this older one can only lower the day's cheapest, not undo the newer typical
-  -- (Codex review, November 13: a local scan's 200c was put back to the partner's 100c).
+  -- The price was replaced while it waited (your own search or scan, or a newer price from
+  -- the partner), and the newer one is already today's latest in the history: this older
+  -- one can only lower the day's cheapest, not undo the newer typical (Codex review,
+  -- November 13: a local scan's 200c was put back to the partner's 100c). Checked by which
+  -- record is saved now, not by time: both can be stamped the same second.
   local cur = ns.db.prices[market] and ns.db.prices[market][id]
-  if e.t and cur and cur.t and cur.t > e.t then
+  if e.rec and cur ~= e.rec then
     local lastDay, _, lastTyp = (marketTable("history", market)[id] or ""):match("(%d+):(%d+):(%d+)$")
     if tonumber(lastDay) == today() then typical = tonumber(lastTyp) end
   end
@@ -722,7 +725,7 @@ recordPending = ns.Timed("Sync: price history", function(mine)
   if ns.InvalidateValues then ns:InvalidateValues() end
 end)
 
--- list: { { id, cheapest, typical, listed, market, t = when seen, day = local day }, ... }
+-- list: { { id, cheapest, typical, listed, market, rec = price record, day = local day }, ... }
 function ns:RecordPriceHistoryLater(list)
   if #list == 0 then return end
   for _, e in ipairs(list) do pendingHistory[#pendingHistory + 1] = e end

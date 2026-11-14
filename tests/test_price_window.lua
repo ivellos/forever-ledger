@@ -336,6 +336,20 @@ T.test("Price history: a waiting partner price doesn't undo a newer one or chang
   T.runTimers()
   T.eq(ns.db.prices[home][71301].m, 200)
   T.eq(ns.db.history[home][71301], ("%d:100:200"):format(d), "the day's low is the partner's, the latest typical yours")
+  -- Your own search in the same second (Codex review, November 13): still yours.
+  ns:MergeData({ prices = { [home] = { [71303] = { m = 100, a = 100, q = 5, t = time() } } } }, "Partner Name")
+  ns.RecordPrice(71303, { { 200, 30 } }, "scan")
+  T.runTimers()
+  T.eq(ns.db.history[home][71303], ("%d:100:200"):format(d), "same second: the typical stays yours")
+  -- Two partner prices both waiting: the newer one's typical wins, in order.
+  ns:MergeData({ prices = { [home] = { [71304] = { m = 80, a = 90, q = 5, t = time() } } } }, "Partner Name")
+  ns:MergeData({ prices = { [home] = { [71304] = { m = 120, a = 130, q = 5, t = time() + 1 } } } }, "Partner Name")
+  T.runTimers()
+  T.eq(ns.db.history[home][71304], ("%d:80:130"):format(d), "the newer partner price's typical")
+  -- One that nothing replaced keeps its own typical.
+  ns:MergeData({ prices = { [home] = { [71305] = { m = 60, a = 70, q = 5, t = time() } } } }, "Partner Name")
+  T.runTimers()
+  T.eq(ns.db.history[home][71305], ("%d:60:70"):format(d))
   -- Waiting past midnight: dropped, not put on the next day.
   S.now = start
   local day1 = ns.LocalDay(time())
