@@ -17,7 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Live sync: prices from your other account's full scan no longer cause a "script ran too long" error. Their price history is now saved a little at a time.
 - Shopping lists count what's in your bags and bank with the game's current item count. The old one, which they used, may be missing in WoW Forever.
 - Blinding Powder is no longer valued at a vendor or offered as a vendor flip: vendors won't buy it, though the game gives it a vendor price.
-- Recipe book: opening a gathering profession's window (Skinning) could save the recipes of a profession window opened before it under that profession too, so the Recipes tab listed them there and All professions showed them twice. They're no longer saved there, and copies already saved are removed at login.
+- Recipe book: opening a gathering profession's window (Skinning) could save the recipes of a profession window opened before it under that profession too, so the Recipes tab listed them there and All professions showed them twice. They're no longer saved there, and at login a copy already saved under the wrong profession is removed when it's clear which one it belongs to.
 
 ## [0.23.0] - 2026-11-11
 

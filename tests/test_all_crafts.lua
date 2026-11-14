@@ -29,7 +29,7 @@ local function rows(list, out)
 end
 
 T.test("All professions: every profession's crafts that sell to a vendor at a profit", function()
-  local realChars, realBook, realClassic = ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFTS
+  local realChars, realBook, realClassic = ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFT_LIST
   ns.db.chars = { [ME] = { name = "Tester", realm = ns.RealmName(), faction = "Alliance",
     profs = { Tailoring = { rank = 100, recipes = { [5] = { n = "Test Shirt", out = SHIRT, oq = 1, r = { { CLOTH, 2 }, { THREAD, 1 } } } } } } } }
   -- Tailoring has been opened in game: its recipe book counts, Classic's Tailoring doesn't.
@@ -39,7 +39,7 @@ T.test("All professions: every profession's crafts that sell to a vendor at a pr
     -- A second recipe for the same shirt, not learned by anyone of yours.
     [7] = { n = "Test Shirt", out = SHIRT, oq = 1, r = { { THREAD, 2 } } },
   } }
-  ns.CLASSIC_CRAFTS = {
+  ns.CLASSIC_CRAFT_LIST = {
     { "Alchemy", 50, POTION, 1, 1, 150, HERB .. ":1," .. VIAL .. ":1" },
     { "Tailoring", 1, 97010, 1, 1, 9999, CLOTH .. ":1" },   -- left out: Tailoring is in the recipe book
     { "Alchemy", 60, 97011, 1, 1, 500, ODD .. ":1" },        -- left out: a material with no price
@@ -68,7 +68,7 @@ T.test("All professions: every profession's crafts that sell to a vendor at a pr
   T.eq(select(2, rows(list, 97011)), 0)
   T.eq(noPrice, 1, "one recipe left out for a material with no price")
   T.eq(shirts[CLOTH].opt.next.kind, "vendor")
-  ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFTS = realChars, realBook, realClassic
+  ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFT_LIST = realChars, realBook, realClassic
   local key = ns.MarketKey()
   for _, id in ipairs({ CLOTH, THREAD, HERB, VIAL }) do ns.db.prices[key][id] = nil end
   ns:BuildUsageIndex()
@@ -79,9 +79,9 @@ end)
 -- vendors won't buy, and two recipes for one item (Gold Bar: smelted, or transmuted from
 -- Iron Bars) showed only the first.
 T.test("All professions: the game's no vendor price wins; each recipe has its own row", function()
-  local realChars, realBook, realClassic = ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFTS
+  local realChars, realBook, realClassic = ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFT_LIST
   ns.db.chars, ns.db.recipeBook = {}, {}
-  ns.CLASSIC_CRAFTS = {
+  ns.CLASSIC_CRAFT_LIST = {
     { "Alchemy", 10, JUNK, 1, 1, 1000, HERB .. ":1" },       -- the game: no vendor price
     { "Alchemy", 10, POISON, 1, 1, 1000, HERB .. ":1" },     -- a poison vendors refuse
     { "Alchemy", 10, UNLOADED, 1, 1, 400, HERB .. ":1" },    -- not loaded yet: Classic's price
@@ -103,7 +103,7 @@ T.test("All professions: the game's no vendor price wins; each recipe has its ow
   T.ok(bars[ORE].opt.who:find("Mining", 1, true), bars[ORE].opt.who)
   T.eq(bars[IRON].profit, 590)
   T.ok(bars[IRON].opt.who:find("Alchemy", 1, true), bars[IRON].opt.who)
-  ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFTS = realChars, realBook, realClassic
+  ns.db.chars, ns.db.recipeBook, ns.CLASSIC_CRAFT_LIST = realChars, realBook, realClassic
   local key = ns.MarketKey()
   for _, id in ipairs({ HERB, ORE, IRON }) do ns.db.prices[key][id] = nil end
   ns.db.vendorSell[UNLOADED] = nil
@@ -113,27 +113,120 @@ end)
 -- Frank's All professions list (November 13) showed Felblood Soul Bag, Sylvan Shoulders and
 -- Simple Poultice twice: a new character's Skinning window had listed Tailoring, Enchanting,
 -- First Aid and Fishing recipes too, and all of them were saved under Skinning.
-T.test("Recipe book: another profession's leftover recipes aren't saved under this one", function()
-  local realBook, realTS = ns.db.recipeBook, C_TradeSkillUI
-  ns.db.recipeBook = { Tailoring = { [501] = { n = "Shirt" }, [502] = { n = "Gloves" } } }
-  local names = { [501] = "Shirt", [502] = "Gloves", [601] = "Camp Chair" }
-  C_TradeSkillUI = {
-    GetAllRecipeIDs = function() return { 501, 502, 601 } end,
-    GetRecipeInfo = function(id) return { name = names[id] } end,
+local NAMES = { [501] = "Shirt", [502] = "Gloves", [503] = "Belt", [504] = "Cloak", [601] = "Camp Chair", [701] = "Stew" }
+local function recipeAPI(ids)
+  return {
+    GetAllRecipeIDs = function() return ids end,
+    GetRecipeInfo = function(id) return NAMES[id] and { name = NAMES[id] } end,
     GetRecipeSchematic = function(id) return { outputItemID = 98000 + id, reagentSlotSchematics = {} } end,
   }
+end
+local real = {}
+local function save() real.book, real.ts, real.chars, real.classic = ns.db.recipeBook, C_TradeSkillUI, ns.db.chars, ns.CLASSIC_CRAFT_LIST end
+local function restore() ns.db.recipeBook, C_TradeSkillUI, ns.db.chars, ns.CLASSIC_CRAFT_LIST = real.book, real.ts, real.chars, real.classic end
+
+T.test("Recipe book: another profession's leftover recipes aren't saved under this one", function()
+  save()
+  ns.db.chars, ns.CLASSIC_CRAFT_LIST = {}, nil
+  ns.db.recipeBook = { Tailoring = { [501] = { n = "Shirt" }, [502] = { n = "Gloves" }, [503] = { n = "Belt" } } }
+  C_TradeSkillUI = recipeAPI({ 501, 502, 503, 601 })
   ns:CaptureRecipeBook("Skinning")
   T.eq(ns.db.recipeBook.Skinning[601].n, "Camp Chair", "Skinning's own recipe")
-  T.eq(ns.db.recipeBook.Skinning[501], nil, "Tailoring's stay Tailoring's")
+  T.eq(ns.db.recipeBook.Skinning[501], nil, "Tailoring's whole list was in the window: its recipes stay Tailoring's")
   T.eq(ns.db.recipeBook.Tailoring[501].n, "Shirt")
-  -- A book an older version mixed up: each recipe stays only in the smaller book.
-  ns.db.recipeBook.Skinning[501], ns.db.recipeBook.Skinning[502] = { n = "Shirt" }, { n = "Gloves" }
-  T.eq(ns:CleanRecipeBook(), 2)
+  -- A book an older version mixed up: Skinning holds Tailoring's whole list besides its own.
+  for id = 501, 503 do ns.db.recipeBook.Skinning[id] = { n = NAMES[id] } end
+  local removed, unsure = ns:CleanRecipeBook()
+  T.eq(removed, 3); T.eq(unsure, 0)
   T.eq(ns.db.recipeBook.Skinning[501], nil)
-  T.eq(ns.db.recipeBook.Skinning[502], nil)
   T.eq(ns.db.recipeBook.Skinning[601].n, "Camp Chair")
-  T.eq(ns.db.recipeBook.Tailoring[501].n, "Shirt")
-  T.eq(ns.db.recipeBook.Tailoring[502].n, "Gloves")
-  T.eq(ns:CleanRecipeBook(), 0, "nothing more to do the second time")
-  ns.db.recipeBook, C_TradeSkillUI = realBook, realTS
+  T.eq(ns.db.recipeBook.Tailoring[503].n, "Belt")
+  T.eq((ns:CleanRecipeBook()), 0, "nothing more to do the second time")
+  restore()
+end)
+
+-- Codex review of c4dd71a: the smaller book won, so a stray copy in a small book took the
+-- recipe from the right one, deleting the right one's copy (with its item and materials);
+-- and reopening the right profession couldn't put it back.
+T.test("Recipe book: a recipe in two books moves only on evidence, keeping the fuller copy", function()
+  save()
+  ns.db.chars, ns.CLASSIC_CRAFT_LIST = {}, nil
+  local full = { n = "Shirt", out = 98501, oq = 1, r = { { CLOTH, 2 } } }
+  ns.db.recipeBook = {
+    Tailoring = { [501] = full, [502] = { n = "Gloves" }, [503] = { n = "Belt" }, [504] = { n = "Cloak" } },
+    Skinning = { [601] = { n = "Camp Chair" }, [501] = { n = "Shirt" } },
+  }
+  local removed, unsure = ns:CleanRecipeBook()
+  T.eq(removed, 0, "neither book holds the other's list: nothing says whose it is")
+  T.eq(unsure, 1)
+  T.eq(ns.db.recipeBook.Tailoring[501], full)
+  T.eq(ns.db.recipeBook.Skinning[501].n, "Shirt", "kept in both")
+  C_TradeSkillUI = recipeAPI({ 501, 502, 503, 504 })
+  ns:CaptureRecipeBook("Tailoring")
+  T.eq(ns.db.recipeBook.Tailoring[501], full, "reopening Tailoring keeps it")
+  -- Two stray recipes in a book of their own prove nothing either (under 3).
+  ns.db.recipeBook.Mining = { [502] = { n = "Gloves" }, [503] = { n = "Belt" } }
+  removed, unsure = ns:CleanRecipeBook()
+  T.eq(removed, 0); T.eq(unsure, 3)
+  ns.db.recipeBook.Mining = nil
+  -- A character who knows it under Tailoring settles it. Here Tailoring's copy is the
+  -- thin one: it gets what only Skinning's copy had.
+  ns.db.recipeBook.Tailoring[501] = { n = "Shirt" }
+  ns.db.recipeBook.Skinning[501] = full
+  ns.db.chars = { [ME] = { name = "Tester", profs = { Tailoring = { recipes = { [501] = { n = "Shirt" } } } } } }
+  removed, unsure = ns:CleanRecipeBook()
+  T.eq(removed, 1); T.eq(unsure, 0)
+  T.eq(ns.db.recipeBook.Skinning[501], nil)
+  T.eq(ns.db.recipeBook.Tailoring[501].out, 98501, "the fuller copy's item")
+  T.eq(ns.db.recipeBook.Tailoring[501].r[1][1], CLOTH, "and materials")
+  restore()
+end)
+
+T.test("Recipe book: a recipe lost from its own book comes back when that window opens", function()
+  save()
+  ns.db.chars, ns.CLASSIC_CRAFT_LIST = {}, nil
+  -- Shirt 501 was taken from Tailoring by the old smaller-book cleanup.
+  ns.db.recipeBook = {
+    Tailoring = { [502] = { n = "Gloves" }, [503] = { n = "Belt" }, [504] = { n = "Cloak" } },
+    Skinning = { [601] = { n = "Camp Chair" }, [501] = { n = "Shirt" } },
+  }
+  C_TradeSkillUI = recipeAPI({ 501, 502, 503, 504 })
+  ns:CaptureRecipeBook("Tailoring")
+  T.eq(ns.db.recipeBook.Tailoring[501].out, 98501, "saved under Tailoring again")
+  T.eq(ns.db.recipeBook.Skinning[501].n, "Shirt", "nothing says it isn't Skinning's too: kept")
+  -- With Classic's data for the shirt, it's Tailoring's alone.
+  ns.db.recipeBook.Tailoring[501] = nil
+  ns.CLASSIC_CRAFT_LIST = { { "Tailoring", 1, 98501, 1, 1, 10, "97001:2" }, { "Cooking", 1, 98701, 1, 1, 5, "97007:1" } }
+  ns:CaptureRecipeBook("Tailoring")
+  T.eq(ns.db.recipeBook.Tailoring[501].out, 98501)
+  T.eq(ns.db.recipeBook.Skinning[501], nil, "Classic's data says Tailoring makes it")
+  -- A leftover of a profession with no book yet: Classic's data keeps it out of this one.
+  C_TradeSkillUI = recipeAPI({ 601, 701 })
+  ns:CaptureRecipeBook("Skinning")
+  T.eq(ns.db.recipeBook.Skinning[701], nil, "Cooking makes the stew")
+  restore()
+end)
+
+-- Two data files once both set ns.CLASSIC_CRAFTS (ClassicCrafts.lua's list and ClassicItems.lua's
+-- table by item). The game loads ClassicItems.lua last, so All professions had no Classic
+-- recipes in game; the tests skip ClassicItems.lua, so they read the files' text instead.
+T.test("No two of the addon's files set the same ns name", function()
+  local owner, clash = {}, {}
+  for line in io.lines("ForeverLedger.toc") do
+    local file = line:gsub("\r", "")
+    if file:match("%.lua$") then
+      local seen = {}
+      for l in io.lines(file) do
+        local name, after = l:match("^ns%.([%w_]+)%s*=(.?)")
+        if name and after ~= "=" and not seen[name] then
+          seen[name] = true
+          if owner[name] then clash[#clash + 1] = name .. ": " .. owner[name] .. ", " .. file end
+          owner[name] = file
+        end
+      end
+    end
+  end
+  T.eq(table.concat(clash, "; "), "")
+  T.eq(owner.CLASSIC_CRAFT_LIST, "ClassicCrafts.lua")
+  T.eq(owner.CLASSIC_CRAFTS, "ClassicItems.lua")
 end)

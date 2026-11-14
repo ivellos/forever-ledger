@@ -56,58 +56,195 @@ end
 -- The game's list for a profession window can still hold the recipes of a window opened
 -- before it (Frank's All professions list, November 13: a new character's Skinning window
 -- listed 768 Tailoring, Enchanting, First Aid and Fishing recipes beside Skinning's own 3,
--- so they showed twice). A recipe belongs to one profession: one already in another
--- profession's book isn't added to this one.
+-- so they showed twice). Which profession a recipe belongs to comes from evidence, never
+-- from which book is smaller (Codex review of c4dd71a: the smaller book can be the wrong
+-- one, and its copy can be the less complete one):
+--   - a character of yours knows it under that profession (profiles keep only learned
+--     recipes);
+--   - Classic's data says that profession makes its item (ClassicCrafts.lua, Classic crafts
+--     only; an item two professions make names both);
+--   - one book holds another's whole list besides its own: the recipes they share are the
+--     other's. Only for a list of at least 3 (every profession has its camping recipes),
+--     so a book with one or two stray recipes proves nothing.
+-- When the evidence names one of the professions a recipe is saved under, that book keeps
+-- it, with anything only the other copy had; when it names none or several, every copy
+-- stays.
+local MIN_LIST = 3
+
+-- [recipeID] = { [profession] = true } from every character's learned recipes.
+local function learnedIndex()
+  local idx = {}
+  for _, c in pairs(ns.db.chars or {}) do
+    for prof, p in pairs(c.profs or {}) do
+      for id in pairs(p.recipes or {}) do
+        local t = idx[id]
+        if not t then t = {}; idx[id] = t end
+        t[prof] = true
+      end
+    end
+  end
+  return idx
+end
+
+-- { [profession] = true } that make an item in Classic's data, or nil.
+local makers, makersFrom
+local function classicMakers(out)
+  local list = ns.CLASSIC_CRAFT_LIST
+  if not (out and list) then return nil end
+  if makersFrom ~= list then
+    makers, makersFrom = {}, list
+    for _, c in ipairs(list) do
+      local t = makers[c[3]]
+      if not t then t = {}; makers[c[3]] = t end
+      t[c[1]] = true
+    end
+  end
+  return makers[out]
+end
+
+-- Is every recipe of book a also in b (a table of recipe IDs)?
+local function within(a, b)
+  for id in pairs(a) do
+    if not b[id] then return false end
+  end
+  return true
+end
+
+-- The professions the learned recipes and Classic's data point to (only those in `among`,
+-- if given): each is added to `named`.
+local function nameFromFacts(id, out, among, learned, named)
+  for p in pairs(learned[id] or {}) do
+    if not among or among[p] then named[p] = true end
+  end
+  for p in pairs(classicMakers(out) or {}) do
+    if not among or among[p] then named[p] = true end
+  end
+end
+
+-- The one key of a table, or nil if it has none or several.
+local function onlyKey(t)
+  local k = next(t)
+  if k ~= nil and next(t, k) == nil then return k end
+end
+
 function ns:CaptureRecipeBook(profName)
   local TS = C_TradeSkillUI
   if not (TS and TS.GetAllRecipeIDs and profName) then return end
-  local book = ns.db.recipeBook[profName] or {}
-  ns.db.recipeBook[profName] = book
-  local other = {}
-  for prof, b in pairs(ns.db.recipeBook) do
-    if prof ~= profName then
-      for id in pairs(b) do other[id] = true end
-    end
+  local books = ns.db.recipeBook
+  local book = books[profName] or {}
+  books[profName] = book
+  local ids = TS.GetAllRecipeIDs() or {}
+  local inList = {}
+  for _, id in ipairs(ids) do inList[id] = true end
+  -- Books whose whole list is in this window: their recipes here are leftovers.
+  local leftover = {}
+  for prof, b in pairs(books) do
+    if prof ~= profName and next(b) and within(b, inList) then leftover[prof] = true end
   end
-  local added = 0
-  for _, id in ipairs(TS.GetAllRecipeIDs() or {}) do
-    if not book[id] and not other[id] then
-      local ok, info = pcall(TS.GetRecipeInfo, id)
-      if ok and type(info) == "table" and info.name then
-        local rec = ns:ReadRecipe(id, info)
-        book[id] = { n = rec.n, out = rec.out, oq = rec.oq, r = rec.r }
-        added = added + 1
+  local learned = learnedIndex()
+  local added, shared = 0, false
+  for _, id in ipairs(ids) do
+    if not book[id] then
+      local holders = {}
+      for prof, b in pairs(books) do
+        if prof ~= profName and b[id] then holders[#holders + 1] = prof end
+      end
+      local skip = false
+      for _, prof in ipairs(holders) do
+        if leftover[prof] then skip = true end
+      end
+      local mine = learned[id] and learned[id][profName]   -- worth reading even if a leftover
+      if not skip or mine then
+        local ok, info = pcall(TS.GetRecipeInfo, id)
+        if ok and type(info) == "table" and info.name then
+          local rec = ns:ReadRecipe(id, info)
+          -- The facts outweigh the leftover test when they name one profession: this one,
+          -- it's this book's; another, it isn't.
+          local named = {}
+          nameFromFacts(id, rec.out, nil, learned, named)
+          local only = onlyKey(named)
+          if only == profName then skip = false elseif only then skip = true end
+          if not skip then
+            book[id] = { n = rec.n, out = rec.out, oq = rec.oq, r = rec.r }
+            added = added + 1
+            if #holders > 0 then shared = true end
+          end
+        end
       end
     end
   end
   if added > 0 then ns:Debug("Recipe book:", added, "new", profName, "recipes recorded") end
+  -- Saved under another profession too: the evidence decides where it stays.
+  if shared then ns:CleanRecipeBook() end
 end
 
--- Recipes saved under two professions by the mix-up above: each stays only in the smaller
--- book (the one it was added to wrongly holds a whole other profession's list besides its
--- own). Nothing is lost: the copy kept is the same recipe. Run at every login (cheap), so
--- a book mixed up by an older version is put right.
+-- Recipes saved under more than one profession, by the mix-up above (an older version saved
+-- them all) or added while it couldn't be told: each goes to the profession the evidence
+-- names, with anything only another copy had; the rest stay where they are. Run at every
+-- login (cheap), so a book mixed up by an older version is put right. Returns how many
+-- copies were removed and how many recipes stay in more than one book.
 function ns:CleanRecipeBook()
-  local size, owner, removed = {}, {}, 0
-  for prof, book in pairs(ns.db.recipeBook or {}) do
-    local n = 0
-    for _ in pairs(book) do n = n + 1 end
-    size[prof] = n
-  end
-  local function smaller(a, b) return size[a] < size[b] or (size[a] == size[b] and a < b) end
-  for prof, book in pairs(ns.db.recipeBook or {}) do
+  local books = ns.db.recipeBook or {}
+  local where, shared = {}, false
+  for prof, book in pairs(books) do
     for id in pairs(book) do
-      local o = owner[id]
-      if not o or smaller(prof, o) then owner[id] = prof end
+      local t = where[id]
+      if t then shared = true else t = {}; where[id] = t end
+      t[#t + 1] = prof
     end
   end
-  for prof, book in pairs(ns.db.recipeBook or {}) do
-    for id in pairs(book) do
-      if owner[id] ~= prof then book[id] = nil; removed = removed + 1 end
+  if not shared then return 0, 0 end
+  local learned = learnedIndex()
+  local count, inside = {}, {}
+  local function holdsAll(a, b)    -- b holds a's whole list (worked out before any change)
+    local row = inside[a]
+    if not row then row = {}; inside[a] = row end
+    if row[b] == nil then row[b] = within(books[a], books[b]) end
+    return row[b]
+  end
+  local function size(p)
+    if not count[p] then
+      local n = 0
+      for _ in pairs(books[p]) do n = n + 1 end
+      count[p] = n
+    end
+    return count[p]
+  end
+  -- Decide everything first, then change the books (a removal would change what holds what).
+  local owners, unsure = {}, 0
+  for id, profs in pairs(where) do
+    if #profs > 1 then
+      local among, named = {}, {}
+      for _, p in ipairs(profs) do among[p] = true end
+      for _, p in ipairs(profs) do nameFromFacts(id, type(books[p][id]) == "table" and books[p][id].out, among, learned, named) end
+      for _, a in ipairs(profs) do
+        for _, b in ipairs(profs) do
+          if a ~= b and size(a) >= MIN_LIST and holdsAll(a, b) and not holdsAll(b, a) then named[a] = true end
+        end
+      end
+      local owner = onlyKey(named)
+      if owner then owners[id] = owner else unsure = unsure + 1 end
+    end
+  end
+  local removed = 0
+  for id, owner in pairs(owners) do
+    local keep = books[owner][id]
+    for _, p in ipairs(where[id]) do
+      if p ~= owner then
+        if type(keep) == "table" and type(books[p][id]) == "table" then
+          for k, v in pairs(books[p][id]) do
+            local mine = keep[k]
+            if mine == nil or (type(mine) == "table" and next(mine) == nil) then keep[k] = v end
+          end
+        end
+        books[p][id] = nil
+        removed = removed + 1
+      end
     end
   end
   if removed > 0 then ns:Debug("Recipe book:", removed, "recipes saved under two professions put right") end
-  return removed
+  if unsure > 0 then ns:Debug("Recipe book:", unsure, "recipes saved under two professions kept in both (can't tell whose)") end
+  return removed, unsure
 end
 ns:OnReady(function() ns:CleanRecipeBook() end)
 

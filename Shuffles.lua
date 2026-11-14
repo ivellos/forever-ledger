@@ -276,7 +276,7 @@ function ns:FindAllVendorCrafts()
       recipes[#recipes + 1] = { prof = prof, rid = rid, n = r.n, out = r.out, oq = r.oq or 1, r = r.r }
     end
   end
-  for _, c in ipairs(ns.CLASSIC_CRAFTS or {}) do
+  for _, c in ipairs(ns.CLASSIC_CRAFT_LIST or {}) do
     if not seenProf[c[1]] then
       local mats = {}
       for id, q in c[7]:gmatch("(%d+):(%d+)") do mats[#mats + 1] = { tonumber(id), tonumber(q) } end
