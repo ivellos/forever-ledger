@@ -242,7 +242,8 @@ end
 -- still worth having). Recipes from the recipe book (every recipe of a profession whose
 -- window one of your characters has opened, learned or not); missing recipes from the
 -- versioned Forever client (ForeverCrafts.lua), then Classic's crafts, each marked.
--- Precedence is per recipe/route: a partially captured profession does not hide others.
+-- Precedence is per recipe: a partially captured profession does not hide Forever's
+-- other recipes; Classic's only fills an item no Forever recipe of that profession makes.
 -- Materials at today's prices (the
 -- cheaper of the auction house and a vendor you've seen sell them); a recipe with a
 -- material that has no price is left out and counted. Returns the shuffles (shaped like
@@ -282,13 +283,26 @@ function ns:FindAllVendorCrafts()
     for _, id in ipairs(ids) do parts[#parts + 1] = id .. ":" .. sums[id] end
     return prof .. ":" .. out .. ":" .. table.concat(parts, ",")
   end
+  -- Items a profession makes in Forever (your profession windows, or the game's own data):
+  -- Classic's recipe for one of these is out of date, as Forever's own recipe for it is
+  -- already here. Claude's review of 03378d1: 229 of Classic's 1,117 rows make an item
+  -- that Forever makes from other materials (Minor Mana Potion: Peacebloom, not
+  -- Silverleaf), and showed as a second, wrong "(Classic)" row.
+  local foreverMakes = {}
+  local function makesKey(prof, out) return out and (prof .. ":" .. out) or nil end
   for prof, book in pairs(ns.db.recipeBook or {}) do
     for rid, r in pairs(book) do
       recipes[#recipes + 1] = { prof = prof, rid = rid, n = r.n, out = r.out, oq = r.oq or 1, r = r.r }
       seenRecipe[recipeKey(prof, rid)] = true
       local key = routeKey(prof, r.out, r.r)
       if key then seenRoute[key] = true end
+      local made = makesKey(prof, r.out)
+      if made then foreverMakes[made] = true end
     end
+  end
+  for _, c in ipairs(ns.FOREVER_CRAFTS or {}) do
+    local made = makesKey(c.prof, c.out)
+    if made then foreverMakes[made] = true end
   end
   local capturedRoutes = {}
   for key in pairs(seenRoute) do capturedRoutes[key] = true end
@@ -310,7 +324,7 @@ function ns:FindAllVendorCrafts()
     for id, q in c[7]:gmatch("(%d+):(%d+)") do mats[#mats + 1] = { tonumber(id), tonumber(q) } end
     local key = routeKey(c[1], c[3], mats)
     local classicKey = key and (key .. ":" .. c[4] .. ":" .. c[5])
-    if key and not seenRoute[key] and not seenClassic[classicKey] then
+    if key and not seenRoute[key] and not seenClassic[classicKey] and not foreverMakes[makesKey(c[1], c[3])] then
       recipes[#recipes + 1] = { prof = c[1], out = c[3], oq = (c[4] + c[5]) / 2, sell = c[6], r = mats, classic = true,
         mats = c[7] .. ":" .. c[4] .. ":" .. c[5] }
       seenClassic[classicKey] = true
@@ -356,7 +370,7 @@ function ns:FindAllVendorCrafts()
           rec = { n = name, out = rec.out, oq = rec.oq, r = rec.r }, units = first[2], buys = buys,
           prof = rec.prof,
           who = rec.prof .. (who and (": " .. who) or ", none of yours")
-            .. (rec.classic and ", Classic recipe" or (rec.forever and (", Forever client data (" .. rec.build .. ")") or "")),
+            .. (rec.classic and ", Classic recipe" or (rec.forever and ", Forever game data" or "")),
         }
         local s = build(first[1], o, cost, listed, market, margin, secs)
         -- One row per recipe, not per item made: build's key is the item, which would

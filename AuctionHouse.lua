@@ -421,8 +421,8 @@ local function buildFinder(side)
 
     add("Item level " .. b.label .. " greens", white)
     local armorT, weaponT = b.armor and b.armor.tested, b.weapon and b.weapon.tested
-    add((armorT and weaponT and "Materials observed in Forever; modeled chances") or (armorT and "Armor materials observed; modeled chances")
-      or (weaponT and "Weapon materials observed; modeled chances") or "Public model; unconfirmed in Forever", dim)
+    add((armorT and weaponT and "Seen in Forever; chances estimated") or (armorT and "Armor seen in Forever; chances estimated")
+      or (weaponT and "Weapons seen in Forever; chances estimated") or "Estimated; not yet seen in Forever", dim)
     add("Chance per item", accent, per(function(_, k) return k == "armor" and "Armor" or "Weapons" end), accent)
     -- Every material either kind can give, each with its chance for armor and for weapons
     -- (item level 21-30 weapons give a different essence: Values.lua).

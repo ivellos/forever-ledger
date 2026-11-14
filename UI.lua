@@ -608,7 +608,7 @@ buildTable = function()
   f.allProfs:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:AddLine("All professions", 1, 1, 1)
-    GameTooltip:AddLine("Every profession's crafts that sell to a vendor for more than their materials cost at today's prices, whether or not one of your characters knows them. Recipes from your profession windows come first. Missing recipes come from the Forever client (marked (Forever)), then Classic (marked (Classic)). Public data may include recipes not available in game. Each one's steps say the profession and who of yours knows it. Recipes from is set aside while this is ticked.", nil, nil, nil, true)
+    GameTooltip:AddLine("Every profession's crafts that sell to a vendor for more than their materials cost at today's prices, whether or not one of your characters knows them. Recipes from your profession windows come first. Ones your windows haven't shown come from the game's own data (marked (Forever)), and for an item that has none, Classic's (marked (Classic)). Some may not be learnable in game yet. Each one's steps say the profession and who of yours knows it. Recipes from is set aside while this is ticked.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   f.allProfs:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -978,7 +978,7 @@ layoutShuffles = function()
     if s.forever then foreverRows = foreverRows + 1 end
   end
   f.vendorNote:SetText(everyProf
-    and ("Missing recipes: %d (Forever), %d (Classic). Client data may be unavailable in game. %d left out, a material with no price yet."):format(
+    and ("Not in your profession windows: %d (Forever, the game's data), %d (Classic). %d left out, a material with no price yet."):format(
       foreverRows, classicRows, main.shufflesAll.noPrice or 0)
     or "Blizzard nerfed most vendor shuffles, so this tab may often be empty.")
   f.sf:SetPoint("TOPLEFT", 0, -top)

@@ -22,9 +22,10 @@ end)
 T.test("All professions: captured, Forever, Classic precedence is per recipe, even when the winner is unprofitable", function()
   T.resetDB()
   local oldF, oldC = ns.FOREVER_CRAFTS, ns.CLASSIC_CRAFT_LIST
-  local input, output = 97101, 97102
+  local input, output, classicOnly = 97101, 97102, 97103
   S.items[input] = { name = "Reference material", sell = 0 }
   S.items[output] = { name = "Reference output", sell = 100 }
+  S.items[classicOnly] = { name = "Classic-only output", sell = 100 }
   ns.db.chars = {}
   ns.db.prices[ns.MarketKey()] = { [input] = { m = 10, a = 10, q = 100, t = S.now } }
   ns.db.recipeBook = { Alchemy = { [1] = { n = "Captured", out = output, oq = 1, r = { { input, 2 } } } } }
@@ -35,7 +36,11 @@ T.test("All professions: captured, Forever, Classic precedence is per recipe, ev
   ns.CLASSIC_CRAFT_LIST = {
     { "Alchemy", 1, output, 10, 10, 100, input .. ":1" }, -- superseded public route
     { "Alchemy", 1, output, 10, 10, 100, input .. ":3" }, -- same public route
-    { "Alchemy", 1, output, 1, 1, 100, input .. ":4" }, -- still missing: retain it
+    -- Other materials for an item Forever makes: out of date (Claude's review of 03378d1:
+    -- 229 such rows in the real data), so left out.
+    { "Alchemy", 1, output, 1, 1, 100, input .. ":4" },
+    -- An item no Forever recipe of that profession makes: Classic's fills it.
+    { "Alchemy", 1, classicOnly, 1, 1, 100, input .. ":5" },
   }
   ns:BuildUsageIndex(); ns:InvalidateValues(true)
   local list = ns:FindAllVendorCrafts()
@@ -47,7 +52,8 @@ T.test("All professions: captured, Forever, Classic precedence is per recipe, ev
   T.eq(sources[1], nil, "captured spell ID beats old public version, whose Classic copy stays suppressed")
   T.eq(sources[2].forever, nil); T.eq(sources[2].classic, nil)
   T.eq(sources[3].forever, true); T.eq(sources[3].opt.rec.oq, 2)
-  T.eq(sources[4].classic, true, "a partial book does not hide other routes")
+  T.eq(sources[4], nil, "Classic's other materials for an item Forever makes: out of date")
+  T.eq(sources[5].classic, true, "a partial book does not hide Classic's recipe for another item")
   ns.db.recipeBook.Alchemy[1].r[1][2] = 20
   ns:InvalidateValues(true); list = ns:FindAllVendorCrafts()
   T.eq(#list, 2, "an unprofitable captured recipe cannot revive lower-priority versions")
