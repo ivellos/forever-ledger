@@ -182,7 +182,7 @@ local LABEL = { vendor = "Vendor", ah = "Auction house" }
 
 -- The tooltip lines (Tooltip.lua): only for an item you have in your bags.
 function ns:AddSellLines(tt, id, bound, usable, copyPrice)
-  if not (id and GetItemCount and (GetItemCount(id) or 0) > 0) then return end
+  if not (id and ns.ItemCount(id) > 0) then return end
   local v = ns.SellVerdict(ns:SellFacts(id, bound, usable, copyPrice))
   if not v then return end
   local c = COLOR[v.kind]

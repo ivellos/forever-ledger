@@ -182,8 +182,9 @@ local VENDOR_WONT_BUY = {
   [3775] = true, [3776] = true,                                                                -- Crippling Poison, II
   [5237] = true, [6951] = true, [9186] = true,                                                 -- Mind-numbing Poison to III
   [10918] = true, [10920] = true, [10921] = true, [10922] = true,                              -- Wound Poison to IV
-  -- Blasting powder (Frank, November 13; every Classic rank, as with the poisons):
-  [4357] = true, [4364] = true, [4377] = true, [10505] = true, [15992] = true,                -- Rough, Coarse, Heavy, Solid, Dense
+  -- Blinding Powder, the rogue reagent (Frank, November 13: vendors won't buy it; he first
+  -- wrote "blasting powder" by mistake, which vendors do buy):
+  [5530] = true,
 }
 ns.VENDOR_WONT_BUY = VENDOR_WONT_BUY
 

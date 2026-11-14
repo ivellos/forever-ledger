@@ -166,12 +166,19 @@ local function addLines(tt, id, forceFull, copyPrice)
   -- Sell suggestion (SellAdvice.lua): bound and usable read from the game's own lines,
   -- before ours are added. (Not again when Shift adds the details to a compact tooltip.)
   local sellBound, sellUsable
-  local sellOn = not forceFull and on("tipSell") and ns.AddSellLines and GetItemCount and (GetItemCount(id) or 0) > 0
+  local sellOn = not forceFull and on("tipSell") and ns.AddSellLines and ns.ItemCount(id) > 0
   if sellOn and ns.SellTooltipFlags then sellBound, sellUsable = ns.SellTooltipFlags(tt) end
   local function sellLines()
     if sellOn then
       local ok, err = pcall(ns.AddSellLines, ns, tt, id, sellBound, sellUsable, copyPrice)
-      if not ok then ns:Debug("Sell suggestion skipped for", id, err) end
+      if not ok then
+        ns:Debug("Sell suggestion skipped for", id, err)
+        -- Once a session to BugSack too, so a line that never shows can be found.
+        if not ns.sellErrorShown and geterrorhandler then
+          ns.sellErrorShown = true
+          geterrorhandler()("Sell suggestion: " .. tostring(err))
+        end
+      end
     end
   end
   -- (Shift pressed on a compact tooltip calls this again: don't repeat the history.)

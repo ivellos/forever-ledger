@@ -598,8 +598,7 @@ end
 -- checked as they happen, and opening the mailbox sets it to what's really there.
 -- ns.db.onTheWay[charKey][itemID] = { n = count, base = bags and bank when noted, t = time }
 local function bagsAndBank(id)
-  local n = GetItemCount and GetItemCount(id, true)
-  return n or 0
+  return ns.ItemCount(id, true)
 end
 
 local function wayTable(create)

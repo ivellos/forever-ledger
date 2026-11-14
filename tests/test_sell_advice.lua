@@ -128,6 +128,18 @@ T.test("Sell suggestion: the tooltip line, only for an item you have", function(
   tip, added = fakeTip({})
   ns:AddSellLines(tip, GRAY, false, true)
   T.eq(added[1], "Sell: Vendor = " .. ns.Money(10))
+  -- Forever has C_Item.GetItemCount and not the old global (Frank, AN4, November 13: the
+  -- line never showed).
+  local oldCount, oldItem = GetItemCount, C_Item
+  GetItemCount, C_Item = nil, { GetItemCount = function(id, bank) return (S.bags[id] or 0) + (bank and (S.bank[id] or 0) or 0) end }
+  tip, added = fakeTip({})
+  local ok, err = pcall(ns.AddSellLines, ns, tip, ITEM, false, true)
+  S.bank[ITEM] = 2
+  local withBank = ns.ItemCount(ITEM, true)
+  GetItemCount, C_Item, S.bank[ITEM] = oldCount, oldItem, nil
+  T.ok(ok, err)
+  T.eq(added[1], "Sell: Auction house |cff999999(after the cut and the deposit)|r = " .. ns.Money(930), "with only C_Item.GetItemCount")
+  T.eq(withBank, 5, "bags and bank")
   ns.db.prices[key][ITEM], ns.db.vendorSell[ITEM], ns.db.vendorSell[GRAY] = nil, nil, nil
   S.bags[ITEM], S.bags[GRAY] = nil, nil
   ns.db.chars = realChars

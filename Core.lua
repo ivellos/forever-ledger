@@ -82,6 +82,15 @@ function ns:Debug(...)
   if ns.db and ns.db.settings.debug then print("|cff888888Ledger debug:|r", ...) end
 end
 
+-- How many of an item this character has in its bags (with includeBank, the bank too).
+-- C_Item.GetItemCount first: the old global GetItemCount is one of the item functions
+-- Blizzard moved into C_Item, like GetMerchantItemInfo, which Forever doesn't have. The
+-- sell suggestion called the old one and never showed (Frank, AN4, November 13).
+function ns.ItemCount(id, includeBank)
+  local count = (C_Item and C_Item.GetItemCount) or GetItemCount
+  return id and count and count(id, includeBank and true or false) or 0
+end
+
 function ns.Money(copper)
   if not copper then return "?" end
   copper = math.floor(copper + 0.5)
@@ -975,7 +984,7 @@ function ns:ApiReport()
     "GetProfessions", "GetNumSkillLines",
     "C_AuctionHouse.SendSearchQuery", "C_AuctionHouse.ReplicateItems", "C_AuctionHouse.GetReplicateItemTimeLeft","C_AuctionHouse.GetCommoditySearchResultInfo",
     "C_AuctionHouse.GetItemSearchResultInfo", "C_MerchantFrame.GetItemInfo", "GetMerchantItemInfo",
-    "TooltipDataProcessor.AddTooltipPostCall", "C_Item.GetItemInfo",
+    "TooltipDataProcessor.AddTooltipPostCall", "C_Item.GetItemInfo", "C_Item.GetItemCount", "GetItemCount",
     "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "GetInboxItem", "GetInboxNumItems",
     -- Your auctions (Auctions.lua).
     "C_AuctionHouse.CalculateCommodityDeposit", "C_AuctionHouse.CalculateItemDeposit", "C_AuctionHouse.GetItemKeyInfo",

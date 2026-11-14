@@ -140,6 +140,23 @@ T.test("Rogue poisons have no vendor price, so they're never a vendor flip", fun
   S.items[INSTANT], S.items[WOUND], ns.db.vendorSell[INSTANT] = nil, nil, nil
 end)
 
+-- Frank, November 13: vendors won't buy Blinding Powder. He first wrote blasting powder by
+-- mistake, and that version saved its vendor price as 0; vendors do buy it, so it comes back.
+T.test("Blinding Powder has no vendor price; blasting powder's comes back", function()
+  local BLINDING, ROUGH = 5530, 4357
+  S.items[BLINDING] = { name = "Blinding Powder", sell = 125 }
+  S.items[ROUGH] = { name = "Rough Blasting Powder", sell = 4 }
+  ns.db.vendorSell[BLINDING] = 125
+  T.eq(ns:GetSellPrice(BLINDING), nil)
+  price(BLINDING, 103)
+  T.eq(ns:VendorFlip(BLINDING), nil, "listed at 1s 03c: not a flip")
+  ns.db.vendorSell[ROUGH] = 0
+  T.eq(ns:GetSellPrice(ROUGH), 4, "saved as 0 by the mistake: the game's price again")
+  ns.db.prices[ns.MarketKey()][BLINDING] = nil
+  S.items[BLINDING], S.items[ROUGH] = nil, nil
+  ns.db.vendorSell[BLINDING], ns.db.vendorSell[ROUGH] = nil, nil
+end)
+
 -- Gold audit, November 9: an old price became a shuffle or list limit.
 T.test("A chain isn't worked out from a price past the age limit", function()
   local MAT, OUT = 60101, 60102
