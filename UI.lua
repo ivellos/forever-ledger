@@ -608,7 +608,7 @@ buildTable = function()
   f.allProfs:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:AddLine("All professions", 1, 1, 1)
-    GameTooltip:AddLine("Every profession's crafts that sell to a vendor for more than their materials cost at today's prices, whether or not one of your characters knows them. Recipes come from your profession windows; for professions none of your characters has opened, from Classic (marked (Classic): not yet seen in Forever). Each one's steps say the profession and who of yours knows it. Recipes from is set aside while this is ticked.", nil, nil, nil, true)
+    GameTooltip:AddLine("Every profession's crafts that sell to a vendor for more than their materials cost at today's prices, whether or not one of your characters knows them. Recipes from your profession windows come first. Missing recipes come from the Forever client (marked (Forever)), then Classic (marked (Classic)). Public data may include recipes not available in game. Each one's steps say the profession and who of yours knows it. Recipes from is set aside while this is ticked.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   f.allProfs:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -771,7 +771,7 @@ local function fillRow(r, s, lay, index, width)
   r.name:SetWidth(lay.name.w - 26)
   -- A Classic recipe (All professions) says so on its row, not only in its steps (Frank,
   -- AN6, November 13: he didn't see it).
-  r.name:SetText(ns:ShuffleName(s) .. (s.classic and dim(" (Classic)") or ""))
+  r.name:SetText(ns:ShuffleName(s) .. (s.classic and dim(" (Classic)") or (s.forever and dim(" (Forever)") or "")))
 
   local runs = ns:ShuffleRuns(s)
   local values = {
@@ -972,13 +972,14 @@ layoutShuffles = function()
   f.sf:ClearAllPoints()
   local vendorNote = not flips and subtab == "vendor"
   f.vendorNote:SetShown(vendorNote)
-  local classicRows = 0
+  local classicRows, foreverRows = 0, 0
   for _, s in ipairs(everyProf and main.shufflesAll.list or {}) do
     if s.classic then classicRows = classicRows + 1 end
+    if s.forever then foreverRows = foreverRows + 1 end
   end
   f.vendorNote:SetText(everyProf
-    and ("(Classic): Classic's recipe, for a profession none of yours has opened (%d here). %d left out, a material with no price yet."):format(
-      classicRows, main.shufflesAll.noPrice or 0)
+    and ("Missing recipes: %d (Forever), %d (Classic). Client data may be unavailable in game. %d left out, a material with no price yet."):format(
+      foreverRows, classicRows, main.shufflesAll.noPrice or 0)
     or "Blizzard nerfed most vendor shuffles, so this tab may often be empty.")
   f.sf:SetPoint("TOPLEFT", 0, -top)
   f.sf:SetPoint("BOTTOMRIGHT", 0, vendorNote and 22 or 0)

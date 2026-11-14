@@ -1,0 +1,61 @@
+{
+  "build": "1.60.1.70938",
+  "date": "2026-11-14",
+  "source": "https://wago.tools",
+  "tables": {
+    "SkillLine": {
+      "url": "https://wago.tools/db2/SkillLine/csv?version=1.60.1.70938",
+      "sha256": "f3867d43ab42d1f5278e6e5028d0151bc06e4ef8e5cbd790a20df6ee57aa654d",
+      "bytes": 14266
+    },
+    "SkillLineAbility": {
+      "url": "https://wago.tools/db2/SkillLineAbility/csv?version=1.60.1.70938",
+      "sha256": "6696abd03ef90ad250a12ac23778616c292c46f6a0082130fbe187c96ead0aa0",
+      "bytes": 407525
+    },
+    "SpellName": {
+      "url": "https://wago.tools/db2/SpellName/csv?version=1.60.1.70938",
+      "sha256": "bd8dc963dd691c69aff531464636e7b5a944efeedb773895e7b2c4a0fb7c38b4",
+      "bytes": 851160
+    },
+    "SpellEffect": {
+      "url": "https://wago.tools/db2/SpellEffect/csv?version=1.60.1.70938",
+      "sha256": "f419db3f95ef93b2cf052d9c3996ec355df60846f1fa24c671822aacfa8f59a3",
+      "bytes": 3925743
+    },
+    "SpellReagents": {
+      "url": "https://wago.tools/db2/SpellReagents/csv?version=1.60.1.70938",
+      "sha256": "be6e987755f7097348eb072073ae3175b3d56016f43f90615a081d33d6affff6",
+      "bytes": 291447
+    },
+    "ItemSparse": {
+      "url": "https://wago.tools/db2/ItemSparse/csv?version=1.60.1.70938",
+      "sha256": "fdc65396e8a1103ea5f552ea59aaebc0e73ba572612a3412c50e636b54c90b41",
+      "bytes": 5345571
+    },
+    "ItemDisenchantLoot": {
+      "url": "https://wago.tools/db2/ItemDisenchantLoot/csv?version=1.60.1.70938",
+      "sha256": "e9e6bbd7c7e0fcbfca109455a89453eeb7ea4a4b823b1473d2dab4ec58219163",
+      "bytes": 1197
+    }
+  },
+  "counts": {
+    "Alchemy": 181,
+    "Blacksmithing": 419,
+    "Cooking": 130,
+    "Enchanting": 60,
+    "Engineering": 238,
+    "First Aid": 32,
+    "Fishing": 3,
+    "Herbalism": 3,
+    "Leatherworking": 482,
+    "Mining": 17,
+    "Skinning": 3,
+    "Tailoring": 405
+  },
+  "omitted": {
+    "no single create-item effect": 355,
+    "missing name, output or fixed item reagents": 330,
+    "variable output": 7
+  }
+}

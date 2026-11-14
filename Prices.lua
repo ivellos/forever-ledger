@@ -76,7 +76,7 @@ function ns.ItemName(id)
   end
   -- Items the game hasn't loaded (or doesn't have yet, like flasks above the beta's
   -- level cap): the original Classic name (ClassicItems.lua).
-  return (ns.CLASSIC_ITEMS and ns.CLASSIC_ITEMS[id]) or ("item " .. id)
+  return (ns.FOREVER_ITEM_NAMES and ns.FOREVER_ITEM_NAMES[id]) or (ns.CLASSIC_ITEMS and ns.CLASSIC_ITEMS[id]) or ("item " .. id)
 end
 
 ns:On("GET_ITEM_INFO_RECEIVED", function(id, success)

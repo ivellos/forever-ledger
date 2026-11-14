@@ -240,8 +240,10 @@ end
 -- whoever knows them (owner, November 12: "show all possible crafts that could provide a
 -- profit crafting and selling to a vendor", to see whether the Sells to a vendor tab is
 -- still worth having). Recipes from the recipe book (every recipe of a profession whose
--- window one of your characters has opened, learned or not); for the other professions,
--- Classic's crafts (ClassicCrafts.lua), marked as such. Materials at today's prices (the
+-- window one of your characters has opened, learned or not); missing recipes from the
+-- versioned Forever client (ForeverCrafts.lua), then Classic's crafts, each marked.
+-- Precedence is per recipe/route: a partially captured profession does not hide others.
+-- Materials at today's prices (the
 -- cheaper of the auction house and a vendor you've seen sell them); a recipe with a
 -- material that has no price is left out and counted. Returns the shuffles (shaped like
 -- FindShuffles' vendor list) and how many recipes were left out for a missing price.
@@ -266,18 +268,52 @@ function ns:FindAllVendorCrafts()
       end
     end
   end
-  local recipes, seenProf = {}, {}
+  local recipes, seenRecipe, seenRoute = {}, {}, {}
+  local function recipeKey(prof, rid) return prof .. ":" .. tostring(rid) end
+  local function routeKey(prof, out, mats)
+    if not out or not mats or #mats == 0 then return nil end
+    local sums, ids = {}, {}
+    for _, m in ipairs(mats) do
+      if not sums[m[1]] then ids[#ids + 1] = m[1] end
+      sums[m[1]] = (sums[m[1]] or 0) + m[2]
+    end
+    table.sort(ids)
+    local parts = {}
+    for _, id in ipairs(ids) do parts[#parts + 1] = id .. ":" .. sums[id] end
+    return prof .. ":" .. out .. ":" .. table.concat(parts, ",")
+  end
   for prof, book in pairs(ns.db.recipeBook or {}) do
-    seenProf[prof] = true
     for rid, r in pairs(book) do
       recipes[#recipes + 1] = { prof = prof, rid = rid, n = r.n, out = r.out, oq = r.oq or 1, r = r.r }
+      seenRecipe[recipeKey(prof, rid)] = true
+      local key = routeKey(prof, r.out, r.r)
+      if key then seenRoute[key] = true end
     end
   end
+  local capturedRoutes = {}
+  for key in pairs(seenRoute) do capturedRoutes[key] = true end
+  for _, c in ipairs(ns.FOREVER_CRAFTS or {}) do
+    local key = routeKey(c.prof, c.out, c.r)
+    if not seenRecipe[recipeKey(c.prof, c.id)] and not (key and capturedRoutes[key]) then
+      recipes[#recipes + 1] = { prof = c.prof, rid = c.id, n = c.n, out = c.out,
+        oq = (c.low + c.high) / 2, sell = c.sell, r = c.r,
+        forever = true, source = c.source, build = c.build }
+      seenRecipe[recipeKey(c.prof, c.id)] = true
+    end
+    -- Even if a captured version makes this route obsolete or unprofitable, do not
+    -- revive it from Classic just because the higher-priority row makes no list entry.
+    if key then seenRoute[key] = true end
+  end
+  local seenClassic = {}
   for _, c in ipairs(ns.CLASSIC_CRAFT_LIST or {}) do
-    if not seenProf[c[1]] then
-      local mats = {}
-      for id, q in c[7]:gmatch("(%d+):(%d+)") do mats[#mats + 1] = { tonumber(id), tonumber(q) } end
-      recipes[#recipes + 1] = { prof = c[1], out = c[3], oq = (c[4] + c[5]) / 2, sell = c[6], r = mats, classic = true, mats = c[7] }
+    local mats = {}
+    for id, q in c[7]:gmatch("(%d+):(%d+)") do mats[#mats + 1] = { tonumber(id), tonumber(q) } end
+    local key = routeKey(c[1], c[3], mats)
+    local classicKey = key and (key .. ":" .. c[4] .. ":" .. c[5])
+    if key and not seenRoute[key] and not seenClassic[classicKey] then
+      recipes[#recipes + 1] = { prof = c[1], out = c[3], oq = (c[4] + c[5]) / 2, sell = c[6], r = mats, classic = true,
+        mats = c[7] .. ":" .. c[4] .. ":" .. c[5] }
+      seenClassic[classicKey] = true
     end
   end
 
@@ -319,7 +355,8 @@ function ns:FindAllVendorCrafts()
           next = { kind = "vendor", value = sell, id = rec.out },
           rec = { n = name, out = rec.out, oq = rec.oq, r = rec.r }, units = first[2], buys = buys,
           prof = rec.prof,
-          who = rec.prof .. (who and (": " .. who) or ", none of yours") .. (rec.classic and ", Classic recipe" or ""),
+          who = rec.prof .. (who and (": " .. who) or ", none of yours")
+            .. (rec.classic and ", Classic recipe" or (rec.forever and (", Forever client data (" .. rec.build .. ")") or "")),
         }
         local s = build(first[1], o, cost, listed, market, margin, secs)
         -- One row per recipe, not per item made: build's key is the item, which would
@@ -328,7 +365,7 @@ function ns:FindAllVendorCrafts()
         if s then s.key = s.key .. ":" .. rec.prof .. ":" .. (rec.rid or rec.mats or "") end
         if s and not seen[s.key] then
           seen[s.key] = true
-          s.prof, s.classic, s.known = rec.prof, rec.classic, who ~= nil
+          s.prof, s.classic, s.forever, s.known = rec.prof, rec.classic, rec.forever, who ~= nil
           list[#list + 1] = s
         end
       end

@@ -29,6 +29,7 @@ Deals.lua
 Crates.lua
 ClassicRecipes.lua
 ClassicCrafts.lua
+ForeverCrafts.lua
 ClassicItems.lua
 QuestItems.lua
 RecipesTab.lua

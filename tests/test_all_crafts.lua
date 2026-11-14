@@ -64,7 +64,7 @@ T.test("All professions: every profession's crafts that sell to a vendor at a pr
   T.eq(potion.profit, 90)
   T.eq(potion.classic, true)
   T.ok(potion.opt.who:find("Alchemy, none of yours, Classic recipe", 1, true), potion.opt.who)
-  T.eq(select(2, rows(list, 97010)), 0, "Classic's Tailoring is set aside for the recipe book's")
+  T.eq(select(2, rows(list, 97010)), 1, "Classic fills a route missing from the partial Tailoring book")
   T.eq(select(2, rows(list, 97011)), 0)
   T.eq(noPrice, 1, "one recipe left out for a material with no price")
   T.eq(shirts[CLOTH].opt.next.kind, "vendor")
