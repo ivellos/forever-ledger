@@ -65,7 +65,8 @@ end
 --     only; an item two professions make names both);
 --   - one book holds another's whole list besides its own: the recipes they share are the
 --     other's. Only for a list of at least 3 (every profession has its camping recipes),
---     so a book with one or two stray recipes proves nothing.
+--     so a book with one or two stray recipes proves nothing. Used only when the first
+--     two say nothing.
 -- When the evidence names one of the professions a recipe is saved under, that book keeps
 -- it, with anything only the other copy had; when it names none or several, every copy
 -- stays.
@@ -136,40 +137,52 @@ function ns:CaptureRecipeBook(profName)
   local ids = TS.GetAllRecipeIDs() or {}
   local inList = {}
   for _, id in ipairs(ids) do inList[id] = true end
-  -- Books whose whole list is in this window: their recipes here are leftovers.
+  -- Books whose whole list (3 or more, as in the cleanup below: one or two stray recipes
+  -- prove nothing) is in this window: their recipes here are leftovers.
   local leftover = {}
   for prof, b in pairs(books) do
-    if prof ~= profName and next(b) and within(b, inList) then leftover[prof] = true end
+    if prof ~= profName and next(b) and within(b, inList) then
+      local n = 0
+      for _ in pairs(b) do n = n + 1 end
+      if n >= MIN_LIST then leftover[prof] = true end
+    end
   end
   local learned = learnedIndex()
   local added, shared = 0, false
   for _, id in ipairs(ids) do
     if not book[id] then
-      local holders = {}
+      local holders, skip, out = {}, false, nil
       for prof, b in pairs(books) do
-        if prof ~= profName and b[id] then holders[#holders + 1] = prof end
+        if prof ~= profName and b[id] then
+          holders[#holders + 1] = prof
+          if leftover[prof] then skip = true end
+          if type(b[id]) == "table" and b[id].out then out = b[id].out end
+        end
       end
-      local skip = false
-      for _, prof in ipairs(holders) do
-        if leftover[prof] then skip = true end
-      end
-      local mine = learned[id] and learned[id][profName]   -- worth reading even if a leftover
-      if not skip or mine then
+      -- The facts outweigh the leftover test when they name one profession: this one, it's
+      -- this book's; another, it isn't. The item it makes comes from a saved copy, or from
+      -- reading the recipe when no copy has it (Codex review of b7c7eb2: a leftover was
+      -- skipped before Classic's data could say it was this profession's).
+      local rec
+      if not skip or not out then
         local ok, info = pcall(TS.GetRecipeInfo, id)
         if ok and type(info) == "table" and info.name then
-          local rec = ns:ReadRecipe(id, info)
-          -- The facts outweigh the leftover test when they name one profession: this one,
-          -- it's this book's; another, it isn't.
-          local named = {}
-          nameFromFacts(id, rec.out, nil, learned, named)
-          local only = onlyKey(named)
-          if only == profName then skip = false elseif only then skip = true end
-          if not skip then
-            book[id] = { n = rec.n, out = rec.out, oq = rec.oq, r = rec.r }
-            added = added + 1
-            if #holders > 0 then shared = true end
-          end
+          rec = ns:ReadRecipe(id, info)
+          out = out or rec.out
         end
+      end
+      local named = {}
+      nameFromFacts(id, out, nil, learned, named)
+      local only = onlyKey(named)
+      if only == profName then skip = false elseif only then skip = true end
+      if not skip and not rec then
+        local ok, info = pcall(TS.GetRecipeInfo, id)
+        if ok and type(info) == "table" and info.name then rec = ns:ReadRecipe(id, info) end
+      end
+      if not skip and rec then
+        book[id] = { n = rec.n, out = rec.out, oq = rec.oq, r = rec.r }
+        added = added + 1
+        if #holders > 0 then shared = true end
       end
     end
   end
@@ -217,9 +230,13 @@ function ns:CleanRecipeBook()
       local among, named = {}, {}
       for _, p in ipairs(profs) do among[p] = true end
       for _, p in ipairs(profs) do nameFromFacts(id, type(books[p][id]) == "table" and books[p][id].out, among, learned, named) end
-      for _, a in ipairs(profs) do
-        for _, b in ipairs(profs) do
-          if a ~= b and size(a) >= MIN_LIST and holdsAll(a, b) and not holdsAll(b, a) then named[a] = true end
+      -- The facts first (as when a window opens); which book holds which only when they
+      -- say nothing.
+      if not next(named) then
+        for _, a in ipairs(profs) do
+          for _, b in ipairs(profs) do
+            if a ~= b and size(a) >= MIN_LIST and holdsAll(a, b) and not holdsAll(b, a) then named[a] = true end
+          end
         end
       end
       local owner = onlyKey(named)

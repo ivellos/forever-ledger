@@ -207,6 +207,38 @@ T.test("Recipe book: a recipe lost from its own book comes back when that window
   restore()
 end)
 
+-- Codex review of b7c7eb2: a stray book wholly inside the window counted as leftovers, so
+-- the recipe was skipped before Classic's data could say it was this profession's.
+T.test("Recipe book: a stray book's one recipe is no leftover; the facts outrank which book holds which", function()
+  save()
+  ns.db.chars, ns.CLASSIC_CRAFT_LIST = {}, { { "Tailoring", 1, 98501, 1, 1, 10, "97001:2" } }
+  ns.db.recipeBook = {
+    Tailoring = { [502] = { n = "Gloves" }, [503] = { n = "Belt" }, [504] = { n = "Cloak" } },
+    Skinning = { [501] = { n = "Shirt" } },
+  }
+  C_TradeSkillUI = recipeAPI({ 501, 502, 503, 504 })
+  ns:CaptureRecipeBook("Tailoring")
+  T.eq(ns.db.recipeBook.Tailoring[501] and ns.db.recipeBook.Tailoring[501].out, 98501, "back in Tailoring")
+  T.eq(ns.db.recipeBook.Skinning[501], nil, "Classic's data says Tailoring makes it")
+  -- With nothing to say whose it is, it's still saved here, and kept in both.
+  ns.CLASSIC_CRAFT_LIST = nil
+  ns.db.recipeBook.Tailoring[501], ns.db.recipeBook.Skinning[501] = nil, { n = "Shirt" }
+  ns:CaptureRecipeBook("Tailoring")
+  T.ok(ns.db.recipeBook.Tailoring[501], "saved under Tailoring")
+  T.ok(ns.db.recipeBook.Skinning[501], "and not taken from Skinning")
+  -- A book holding only some of Tailoring's recipes holds nothing of its own; going by
+  -- which book holds which, they'd be its. Classic's data says Tailoring: it wins.
+  ns.CLASSIC_CRAFT_LIST = { { "Tailoring", 1, 98502, 1, 1, 10, "97001:2" }, { "Tailoring", 1, 98503, 1, 1, 10, "97001:2" }, { "Tailoring", 1, 98504, 1, 1, 10, "97001:2" } }
+  ns.db.recipeBook = {
+    Tailoring = { [501] = { n = "Shirt" }, [502] = { n = "Gloves", out = 98502 }, [503] = { n = "Belt", out = 98503 }, [504] = { n = "Cloak", out = 98504 } },
+    Skinning = { [502] = { n = "Gloves" }, [503] = { n = "Belt" }, [504] = { n = "Cloak" } },
+  }
+  local removed, unsure = ns:CleanRecipeBook()
+  T.eq(removed, 3); T.eq(unsure, 0)
+  T.eq(next(ns.db.recipeBook.Skinning), nil, "nothing left under Skinning")
+  restore()
+end)
+
 -- Two data files once both set ns.CLASSIC_CRAFTS (ClassicCrafts.lua's list and ClassicItems.lua's
 -- table by item). The game loads ClassicItems.lua last, so All professions had no Classic
 -- recipes in game; the tests skip ClassicItems.lua, so they read the files' text instead.
