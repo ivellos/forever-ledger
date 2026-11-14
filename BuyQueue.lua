@@ -1693,18 +1693,18 @@ local function laneRow(L, i)
   r:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetItemByID(self.entry.id)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(reasonLine(self.entry), T.accent[1], T.accent[2], T.accent[3], true)
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddLine(reasonLine(self.entry), T.accent[1], T.accent[2], T.accent[3], true)
     if self.entry.waiting then
-      GameTooltip:AddLine("Waiting: none listed at or under your price at the last search. Raise Up to on the list, or click Search all on the list again later.", 1, 0.82, 0, true)
+      ns:TooltipAddLine("Waiting: none listed at or under your price at the last search. Raise Up to on the list, or click Search all on the list again later.", 1, 0.82, 0, true)
     end
     if self.entry.stale then
-      GameTooltip:AddLine(("Last seen %d minutes ago, so it may be gone. Buying it (or the flip watch) checks it again."):format(
+      ns:TooltipAddLine(("Last seen %d minutes ago, so it may be gone. Buying it (or the flip watch) checks it again."):format(
         math.floor(self.entry.age / 60)), 0.8, 0.8, 0.8, true)
     end
     local e = self.entry
     if e.reason == "flip" and e.affordN and e.n and e.affordN < e.n and e.affordN > 0 then
-      GameTooltip:AddLine(("You can afford %d of the %d cheap ones with %s%s, so the profit shown is for those. All %d would make %s."):format(
+      ns:TooltipAddLine(("You can afford %d of the %d cheap ones with %s%s, so the profit shown is for those. All %d would make %s."):format(
         e.affordN, e.n, money(spendable()), spendable() < GetMoney() and " left to spend" or "", e.n, money(e.profit or 0)), 1, 0.82, 0, true)
     end
     local poor = cantAfford(self.entry)
@@ -1713,9 +1713,9 @@ local function laneRow(L, i)
       local text = (by == "gold" and ("You can't afford it yet: the cheapest is %s and you have %s. It's skipped until you do."):format(money(poor), money(GetMoney())))
         or (by == "limit" and ("Over your limit: the cheapest is %s and %s is left of your Spend at most for this visit."):format(money(poor), money(visitLeft())))
         or ("Over your limit: the cheapest is %s and buying it would take you below the %s you keep (Settings, Auction house)."):format(money(poor), money(ns.db.settings.keepGold or 0))
-      GameTooltip:AddLine(text, 0.93, 0.52, 0.59, true)
+      ns:TooltipAddLine(text, 0.93, 0.52, 0.59, true)
     end
-    GameTooltip:AddLine("Click to buy this one next. Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
+    ns:TooltipAddLine("Click to buy this one next. Right-click to skip it until you reload.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1888,11 +1888,11 @@ local function buildQueueView(parent)
     b:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       if self.value == "flips" then
-        GameTooltip:AddLine("Vendor flips", 1, 1, 1)
-        GameTooltip:AddLine("Things listed for less than a vendor pays, found by scans. Buy them, sell them to a vendor.", nil, nil, nil, true)
+        ns:TooltipAddLine("Vendor flips", 1, 1, 1)
+        ns:TooltipAddLine("Things listed for less than a vendor pays, found by scans. Buy them, sell them to a vendor.", nil, nil, nil, true)
       else
-        GameTooltip:AddLine("Shopping lists", 1, 1, 1)
-        GameTooltip:AddLine("Items from your shopping lists ticked \"Buy from this list in the Buy queue\", at or under your price.", nil, nil, nil, true)
+        ns:TooltipAddLine("Shopping lists", 1, 1, 1)
+        ns:TooltipAddLine("Items from your shopping lists ticked \"Buy from this list in the Buy queue\", at or under your price.", nil, nil, nil, true)
       end
       GameTooltip:Show()
     end)
@@ -1907,8 +1907,8 @@ local function buildQueueView(parent)
   wheel:SetHitRectInsets(0, -(wheel.label:GetStringWidth() + 8), 0, 0)
   wheel:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine("Scroll to buy", 1, 1, 1)
-    GameTooltip:AddLine("Each tick of the mouse wheel, up or down, buys the next item: anywhere over Vendor flips (drag the bar on the right to scroll its list), or over the top strip of Shopping lists. A stack of materials is confirmed in the same tick (unless Confirm stacks with a second click is ticked in Settings, Auction house). It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
+    ns:TooltipAddLine("Scroll to buy", 1, 1, 1)
+    ns:TooltipAddLine("Each tick of the mouse wheel, up or down, buys the next item: anywhere over Vendor flips (drag the bar on the right to scroll its list), or over the top strip of Shopping lists. A stack of materials is confirmed in the same tick (unless Confirm stacks with a second click is ticked in Settings, Auction house). It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1919,8 +1919,8 @@ local function buildQueueView(parent)
   v.watched:SetPoint("LEFT", v.viewChoice, "RIGHT", 10, 0)
   v.watched:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-    GameTooltip:AddLine("Watched items", 1, 1, 1)
-    GameTooltip:AddLine("Items you always want checked, each with the most you'd pay. Watch flips looks for them about every 20 seconds, and they're bought here, first in the list. Add one here or with Watch in its price window.", nil, nil, nil, true)
+    ns:TooltipAddLine("Watched items", 1, 1, 1)
+    ns:TooltipAddLine("Items you always want checked, each with the most you'd pay. Watch flips looks for them about every 20 seconds, and they're bought here, first in the list. Add one here or with Watch in its price window.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   v.watched:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1937,8 +1937,8 @@ local function buildQueueView(parent)
   local function tip(b, title, text)
     b:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:AddLine(title, 1, 1, 1)
-      GameTooltip:AddLine(text, nil, nil, nil, true)
+      ns:TooltipAddLine(title, 1, 1, 1)
+      ns:TooltipAddLine(text, nil, nil, nil, true)
       GameTooltip:Show()
     end)
     b:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1951,11 +1951,11 @@ local function buildQueueView(parent)
   v.watchBtn:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     if view() == "lists" then
-      GameTooltip:AddLine("Search my lists", 1, 1, 1)
-      GameTooltip:AddLine("Checks the auction house for everything on your lists ticked \"Buy from this list in the Buy queue\" (and the materials you're short of), one item at a time. What's at or under your price shows up here.", nil, nil, nil, true)
+      ns:TooltipAddLine("Search my lists", 1, 1, 1)
+      ns:TooltipAddLine("Checks the auction house for everything on your lists ticked \"Buy from this list in the Buy queue\" (and the materials you're short of), one item at a time. What's at or under your price shows up here.", nil, nil, nil, true)
     else
-      GameTooltip:AddLine("Watch flips", 1, 1, 1)
-      GameTooltip:AddLine("Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes), and the whole auction house list read about every 20 seconds in between. New flips chime and join the queue as soon as the part of the list they're in arrives. Click again to stop.", nil, nil, nil, true)
+      ns:TooltipAddLine("Watch flips", 1, 1, 1)
+      ns:TooltipAddLine("Keeps looking for flips while the auction house stays open: a full scan whenever the game allows one (about every 15 minutes), and the whole auction house list read about every 20 seconds in between. New flips chime and join the queue as soon as the part of the list they're in arrives. Click again to stop.", nil, nil, nil, true)
     end
     GameTooltip:Show()
   end)
@@ -1982,11 +1982,11 @@ local function buildQueueView(parent)
   v.totalsHit:SetScript("OnEnter", function(self)
     if Q.bought == 0 then return end
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Bought this visit", 1, 1, 1)
-    GameTooltip:AddDoubleLine("Spent", money(Q.spent), 0.7, 0.7, 0.7, 1, 1, 1)
+    ns:TooltipAddLine("Bought this visit", 1, 1, 1)
+    ns:TooltipAddDoubleLine("Spent", money(Q.spent), 0.7, 0.7, 0.7, 1, 1, 1)
     if Q.vendorValue then
-      GameTooltip:AddDoubleLine("A vendor pays", money(Q.vendorValue), 0.7, 0.7, 0.7, 1, 1, 1)
-      GameTooltip:AddLine("Profit: what a vendor pays for what you bought, less what it cost. Items a vendor won't buy are left out.", 0.8, 0.8, 0.8, true)
+      ns:TooltipAddDoubleLine("A vendor pays", money(Q.vendorValue), 0.7, 0.7, 0.7, 1, 1, 1)
+      ns:TooltipAddLine("Profit: what a vendor pays for what you bought, less what it cost. Items a vendor won't buy are left out.", 0.8, 0.8, 0.8, true)
     end
     GameTooltip:Show()
   end)
@@ -2032,13 +2032,13 @@ local function buildQueueView(parent)
   v.limitLeft:SetJustifyH("RIGHT")
   local function limitTip(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Spend at most, this visit", 1, 1, 1)
-    GameTooltip:AddLine("The most the Buy queue spends while the auction house is open. It starts again each time you open it. Leave it at no limit to spend freely. Type 50 for 50g, or 2g 50s.", nil, nil, nil, true)
+    ns:TooltipAddLine("Spend at most, this visit", 1, 1, 1)
+    ns:TooltipAddLine("The most the Buy queue spends while the auction house is open. It starts again each time you open it. Leave it at no limit to spend freely. Type 50 for 50g, or 2g 50s.", nil, nil, nil, true)
     if S().limit then
-      GameTooltip:AddLine(("Spent %s of %s so far."):format(money(Q.spent), money(S().limit)), 0.2, 0.85, 0.75, true)
+      ns:TooltipAddLine(("Spent %s of %s so far."):format(money(Q.spent), money(S().limit)), 0.2, 0.85, 0.75, true)
     end
     local keep = ns.db.settings.keepGold or 0
-    GameTooltip:AddLine(keep > 0 and ("It also always leaves you %s (Settings, Auction house)."):format(money(keep))
+    ns:TooltipAddLine(keep > 0 and ("It also always leaves you %s (Settings, Auction house)."):format(money(keep))
       or "To always keep some gold back, for repairs or a mount: Settings, Auction house.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end
@@ -2205,8 +2205,8 @@ refreshQueue = function()
   -- The scan status (a scan's progress, the watch's countdown) when there is one.
   v.status:SetText(ns.statusText or "")
   local profit = Q.vendorValue and (Q.vendorValue - Q.vendorCost)
-  v.totals:SetText(Q.bought > 0 and ("Bought %d for %s%s"):format(Q.bought, money(Q.spent),
-      profit and (", profit %s"):format(profit >= 0 and ("|cff7fd39c" .. money(profit) .. "|r") or ("|cffee8597-" .. money(-profit) .. "|r")) or "")
+  v.totals:SetText(Q.bought > 0 and ns.LocalizeText("Bought %d for %s%s"):format(Q.bought, money(Q.spent),
+      profit and ns.LocalizeText(", profit %s"):format(profit >= 0 and ("|cff7fd39c" .. money(profit) .. "|r") or ("|cffee8597-" .. money(-profit) .. "|r")) or "")
     or ("%d to buy"):format(total))
   -- What's left of this visit's limit, or the gold you keep when there's no limit.
   local left, keep = visitLeft(), ns.db.settings.keepGold or 0
@@ -2527,13 +2527,13 @@ local function buildListsView(parent)
     -- The two choices apart, each under its own heading (owner's test, October 3: one
     -- block of text hid the second option).
     local A = T.accent
-    GameTooltip:AddLine("Buy from this list in the Buy queue", 1, 1, 1)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Ticked", A[1], A[2], A[3])
-    GameTooltip:AddLine("Set Want and Up to for each item, and the Buy queue buys them for you.", 0.9, 0.9, 0.9, true)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Not ticked", A[1], A[2], A[3])
-    GameTooltip:AddLine("The list shows what's on the auction house; Search all checks it all at once. You buy by hand.", 0.9, 0.9, 0.9, true)
+    ns:TooltipAddLine("Buy from this list in the Buy queue", 1, 1, 1)
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddLine("Ticked", A[1], A[2], A[3])
+    ns:TooltipAddLine("Set Want and Up to for each item, and the Buy queue buys them for you.", 0.9, 0.9, 0.9, true)
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddLine("Not ticked", A[1], A[2], A[3])
+    ns:TooltipAddLine("The list shows what's on the auction house; Search all checks it all at once. You buy by hand.", 0.9, 0.9, 0.9, true)
     GameTooltip:Show()
   end)
   v.on:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2552,8 +2552,8 @@ local function buildListsView(parent)
   v.allowanceSuffix:SetPoint("LEFT", v.allowance, "RIGHT", 6, 0)
   v.allowance:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Usual-price allowance", 1, 1, 1)
-    GameTooltip:AddLine("For items added by hand. Each list starts at 10%; choose 0, 5, 10, 25 or another percentage. Applied when you switch buying on or click Buy again. Typed prices and shuffle caps stay as they are.", nil, nil, nil, true)
+    ns:TooltipAddLine("Usual-price allowance", 1, 1, 1)
+    ns:TooltipAddLine("For items added by hand. Each list starts at 10%; choose 0, 5, 10, 25 or another percentage. Applied when you switch buying on or click Buy again. Typed prices and shuffle caps stay as they are.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   v.allowance:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2568,8 +2568,8 @@ local function buildListsView(parent)
   v.any:SetHitRectInsets(0, -(v.any.label:GetStringWidth() + 8), 0, 0)
   v.any:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Any price", 1, 1, 1)
-    GameTooltip:AddLine("For lists where you just need the items, like raid prep: prices are ignored and the Buy queue buys the cheapest ones until it has bought the number you want (1 if no number is set). It never pays more than 3 times an item's usual price, so a joke listing can't slip in. Type any in one item's price for just that item.", nil, nil, nil, true)
+    ns:TooltipAddLine("Any price", 1, 1, 1)
+    ns:TooltipAddLine("For lists where you just need the items, like raid prep: prices are ignored and the Buy queue buys the cheapest ones until it has bought the number you want (1 if no number is set). It never pays more than 3 times an item's usual price, so a joke listing can't slip in. Type any in one item's price for just that item.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   v.any:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2685,11 +2685,11 @@ local function buildListsView(parent)
   haveTip:EnableMouse(true)
   haveTip:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Have", 1, 1, 1)
+    ns:TooltipAddLine("Have", 1, 1, 1)
     if not ns:IsSearchList(currentList()) then
-      GameTooltip:AddLine("Bought for this list, then in brackets what you own: 3 (20) is 3 bought, 20 owned.", 0.9, 0.9, 0.9, true)
+      ns:TooltipAddLine("Bought for this list, then in brackets what you own: 3 (20) is 3 bought, 20 owned.", 0.9, 0.9, 0.9, true)
     end
-    GameTooltip:AddLine("What you own counts this character's bags, bank and purchases still in the mail, and your characters on this ruleset and faction. Hover a number to see where.", 0.7, 0.7, 0.7, true)
+    ns:TooltipAddLine("What you own counts this character's bags, bank and purchases still in the mail, and your characters on this ruleset and faction. Hover a number to see where.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end)
   haveTip:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2751,8 +2751,8 @@ local function buildListsView(parent)
   v.again = again
   again:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Buy again", 1, 1, 1)
-    GameTooltip:AddLine("An item is done once its Want has been bought, and stays done, so the queue doesn't keep buying it. Click this to start the list over (next raid): the bought counts go back to 0 and the queue buys every Want again. Check Have first if you still have some.", nil, nil, nil, true)
+    ns:TooltipAddLine("Buy again", 1, 1, 1)
+    ns:TooltipAddLine("An item is done once its Want has been bought, and stays done, so the queue doesn't keep buying it. Click this to start the list over (next raid): the bought counts go back to 0 and the queue buys every Want again. Check Have first if you still have some.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   again:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2829,8 +2829,8 @@ local function listRow(i)
     local found = r.kind == "item" and r.entry.found
     local want = r.kind == "item" and r.entry.suffix and ns:VersionLabel(r.entry.suffix)
     if found and found.versions and #found.versions > 0 then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(("On the auction house at the last Search all (%s):"):format(ns.Age(found.t)), T.accent[1], T.accent[2], T.accent[3])
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine(("On the auction house at the last Search all (%s):"):format(ns.Age(found.t)), T.accent[1], T.accent[2], T.accent[3])
       -- A list that wants one version: that one first, in green (or "none listed"),
       -- then the others greyed and fewer of them (owner's test, October 3).
       local mine, others = {}, {}
@@ -2839,52 +2839,52 @@ local function listRow(i)
         else others[#others + 1] = ver end
       end
       local function line(ver, r1, g1, b1)
-        GameTooltip:AddDoubleLine(ver.name or "a version still loading", ("%d listed, from %s"):format(ver.qty or 0,
+        ns:TooltipAddDoubleLine(ver.name or "a version still loading", ("%d listed, from %s"):format(ver.qty or 0,
           ver.min and ns.Money(ver.min) or "?"), r1, g1, b1, r1, g1, b1)
       end
       if want then
-        if #mine == 0 then GameTooltip:AddLine(("%s: none listed"):format(ns:ListEntryName(r.entry)), 0.93, 0.52, 0.59) end
+        if #mine == 0 then ns:TooltipAddLine(("%s: none listed"):format(ns:ListEntryName(r.entry)), 0.93, 0.52, 0.59) end
         for _, ver in ipairs(mine) do line(ver, 0.5, 0.83, 0.61) end
-        if #others > 0 then GameTooltip:AddLine("Other versions:", 0.6, 0.6, 0.6) end
+        if #others > 0 then ns:TooltipAddLine("Other versions:", 0.6, 0.6, 0.6) end
       end
       local limit = want and 6 or 12
       for k, ver in ipairs(others) do
-        if k > limit then GameTooltip:AddLine(("and %d more"):format(#others - limit), 0.6, 0.6, 0.6); break end
+        if k > limit then ns:TooltipAddLine(("and %d more"):format(#others - limit), 0.6, 0.6, 0.6); break end
         if want then line(ver, 0.6, 0.6, 0.6) else line(ver, 0.9, 0.9, 0.9) end
       end
     elseif found then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(("None listed at the last Search all (%s)."):format(ns.Age(found.t)), 0.7, 0.7, 0.7)
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine(("None listed at the last Search all (%s)."):format(ns.Age(found.t)), 0.7, 0.7, 0.7)
     end
     if want then
-      GameTooltip:AddLine(("This list wants only the \"%s\" version; Listed and Cheapest count just that one."):format(want), 0.7, 0.7, 0.7, true)
+      ns:TooltipAddLine(("This list wants only the \"%s\" version; Listed and Cheapest count just that one."):format(want), 0.7, 0.7, 0.7, true)
     end
     -- Buy lists: buying the ones you're short of against crafting them.
     local list = currentList()
     local cob = r.kind == "item" and list and not ns:IsSearchList(list) and ns.CraftOrBuy and ns:CraftOrBuy(list, r.entry)
     if cob then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(("Craft or buy, for the %d still to get:"):format(cob.short), T.accent[1], T.accent[2], T.accent[3])
-      GameTooltip:AddDoubleLine("Buy them", cob.buy and ("about " .. ns.Money(cob.buy)) or "none listed", 0.9, 0.9, 0.9, 1, 1, 1)
-      GameTooltip:AddDoubleLine(("Craft them (%d %s)"):format(cob.crafts, cob.crafts == 1 and "craft" or "crafts"),
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine(("Craft or buy, for the %d still to get:"):format(cob.short), T.accent[1], T.accent[2], T.accent[3])
+      ns:TooltipAddDoubleLine("Buy them", cob.buy and ("about " .. ns.Money(cob.buy)) or "none listed", 0.9, 0.9, 0.9, 1, 1, 1)
+      ns:TooltipAddDoubleLine(("Craft them (%d %s)"):format(cob.crafts, cob.crafts == 1 and "craft" or "crafts"),
         cob.craft and (cob.craft == 0 and "you have the materials" or ("about " .. ns.Money(cob.craft) .. " in materials"))
         or "materials not priced", 0.9, 0.9, 0.9, 1, 1, 1)
       if cob.buy and cob.craft and cob.buy ~= cob.craft then
         local craftWins = cob.craft < cob.buy
-        GameTooltip:AddLine(("%s is cheaper by %s.%s"):format(craftWins and "Crafting" or "Buying",
+        ns:TooltipAddLine(("%s is cheaper by %s.%s"):format(craftWins and "Crafting" or "Buying",
           ns.Money(math.abs(cob.buy - cob.craft)),
           (craftWins ~= (r.entry.mode == "craft")) and (" Switch it to " .. (craftWins and "Craft" or "Buy") .. " with the button.") or ""),
           0.5, 0.83, 0.61, true)
       end
     end
-    GameTooltip:AddLine("Click to search for it on the auction house.", 0.6, 0.6, 0.6)
+    ns:TooltipAddLine("Click to search for it on the auction house.", 0.6, 0.6, 0.6)
     if r.kind == "item" and r.entry.mode == "craft" then
       local recipe = ns:RecipeFor(id)
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine(recipe and ("Crafted with %s%s."):format(recipe.prof or "a profession", recipe.who and (" (" .. recipe.who .. ")") or "")
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine(recipe and ("Crafted with %s%s."):format(recipe.prof or "a profession", recipe.who and (" (" .. recipe.who .. ")") or "")
         or "No recipe known for it yet.", T.accent[1], T.accent[2], T.accent[3], true)
       if recipe and recipe.classic then
-        GameTooltip:AddLine(("Original Classic recipe (skill %d, makes %g): Forever may differ. Open the profession window on a character who knows it to use theirs."):format(
+        ns:TooltipAddLine(("Original Classic recipe (skill %d, makes %g): Forever may differ. Open the profession window on a character who knows it to use theirs."):format(
           recipe.skill or 0, recipe.oq or 1), 0.7, 0.7, 0.7, true)
       end
     end
@@ -2910,8 +2910,8 @@ local function listRow(i)
   r.mode:SetPoint("LEFT", C.get, 0)
   r.mode:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Buy or craft", 1, 1, 1)
-    GameTooltip:AddLine("Buy: get it on the auction house, up to the price you set. Craft: make it instead; the materials you're short of are listed below and go in the buy queue.", nil, nil, nil, true)
+    ns:TooltipAddLine("Buy or craft", 1, 1, 1)
+    ns:TooltipAddLine("Buy: get it on the auction house, up to the price you set. Craft: make it instead; the materials you're short of are listed below and go in the buy queue.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   r.mode:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2952,7 +2952,7 @@ local function listRow(i)
     if not list then return end
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     local value = self.value or 0
-    GameTooltip:AddLine("Up to: " .. (value == -1 and "any" or value == 0 and "off" or ns.Money(value)), 1, 1, 1)
+    ns:TooltipAddLine("Up to: " .. (value == -1 and "any" or value == 0 and "off" or ns.Money(value)), 1, 1, 1)
     local text
     if r.kind == "item" then text = ns:ListPriceSourceText(list, r.entry)
     elseif r.kind == "mat" then
@@ -2961,10 +2961,10 @@ local function listRow(i)
     end
     -- Who set it, as its own gold line (owner, October 6: "Set by you" blended in).
     local mine = (r.kind == "item" and r.entry.src == "you") or (r.kind == "mat" and list.matMax and list.matMax[r.mat.id] ~= nil)
-    GameTooltip:AddLine(mine and "Set by you" or "Automatic", 1, 0.82, 0)
-    if text then GameTooltip:AddLine((text:gsub("^Set by you%. ", "")), 0.8, 0.8, 0.8, true) end
-    if not mine then GameTooltip:AddLine("Type a price to set your own.", 0.6, 0.6, 0.6, true)
-    elseif r.kind == "mat" then GameTooltip:AddLine("Right-click: back to the automatic price.", 0.6, 0.6, 0.6, true) end
+    ns:TooltipAddLine(mine and "Set by you" or "Automatic", 1, 0.82, 0)
+    if text then ns:TooltipAddLine((text:gsub("^Set by you%. ", "")), 0.8, 0.8, 0.8, true) end
+    if not mine then ns:TooltipAddLine("Type a price to set your own.", 0.6, 0.6, 0.6, true)
+    elseif r.kind == "mat" then ns:TooltipAddLine("Right-click: back to the automatic price.", 0.6, 0.6, 0.6, true) end
     GameTooltip:Show()
   end)
   r.max:SetWidth(66)
@@ -3010,11 +3010,11 @@ local function listRow(i)
   end)
   r.qty:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Want", 1, 1, 1)
-    GameTooltip:AddLine("How many to buy. Empty is one. Type any to keep buying it whenever it's at or under Up to; it's never marked done. (With Up to any, it buys one: any of both would buy every listing.)", 0.85, 0.85, 0.85, true)
+    ns:TooltipAddLine("Want", 1, 1, 1)
+    ns:TooltipAddLine("How many to buy. Empty is one. Type any to keep buying it whenever it's at or under Up to; it's never marked done. (With Up to any, it buys one: any of both would buy every listing.)", 0.85, 0.85, 0.85, true)
     -- In red (owner, October 22: any bought as many as he could afford).
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Careful: any buys every listing at or under Up to, as many as you can afford. With Up to set too high it can spend all your gold. Set Spend at most in the Buy queue to cap it.", 1, 0.3, 0.3, true)
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddLine("Careful: any buys every listing at or under Up to, as many as you can afford. With Up to set too high it can spend all your gold. Set Spend at most in the Buy queue to cap it.", 1, 0.3, 0.3, true)
     GameTooltip:Show()
   end)
   r.qty:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -3040,29 +3040,29 @@ local function listRow(i)
     local mail = ns:InTheMail(id)
     local A = T.accent
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine(ns.ItemName(id), 1, 1, 1)
+    ns:TooltipAddLine(ns.ItemName(id), 1, 1, 1)
     local list = currentList()
     if list and not ns:IsSearchList(list) then
       local bought = (r.kind == "item" and (r.entry.bought or 0)) or (r.kind == "mat" and r.mat.bought) or 0
-      GameTooltip:AddDoubleLine("Bought for this list", tostring(bought), A[1], A[2], A[3], 1, 1, 1)
-      GameTooltip:AddLine(" ")
+      ns:TooltipAddDoubleLine("Bought for this list", tostring(bought), A[1], A[2], A[3], 1, 1, 1)
+      ns:TooltipAddLine(" ")
     end
-    GameTooltip:AddLine("You have", A[1], A[2], A[3])
-    GameTooltip:AddDoubleLine("  Bags", tostring(bags), 0.8, 0.8, 0.8, 1, 1, 1)
-    GameTooltip:AddDoubleLine("  Bank", tostring(bank), 0.8, 0.8, 0.8, 1, 1, 1)
-    if mail > 0 then GameTooltip:AddDoubleLine("  In the mail", tostring(mail), 0.8, 0.8, 0.8, 1, 1, 1) end
+    ns:TooltipAddLine("You have", A[1], A[2], A[3])
+    ns:TooltipAddDoubleLine("  Bags", tostring(bags), 0.8, 0.8, 0.8, 1, 1, 1)
+    ns:TooltipAddDoubleLine("  Bank", tostring(bank), 0.8, 0.8, 0.8, 1, 1, 1)
+    if mail > 0 then ns:TooltipAddDoubleLine("  In the mail", tostring(mail), 0.8, 0.8, 0.8, 1, 1, 1) end
     local names = {}
     for name in pairs(byAlt) do names[#names + 1] = name end
     table.sort(names)
-    for _, name in ipairs(names) do GameTooltip:AddDoubleLine("  " .. name, tostring(byAlt[name]), 0.8, 0.8, 0.8, 1, 1, 1) end
-    GameTooltip:AddDoubleLine("  All together", tostring(bags + bank + mail + alts), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddLine(" ")
+    for _, name in ipairs(names) do ns:TooltipAddDoubleLine("  " .. name, tostring(byAlt[name]), 0.8, 0.8, 0.8, 1, 1, 1) end
+    ns:TooltipAddDoubleLine("  All together", tostring(bags + bank + mail + alts), 1, 1, 1, 1, 1, 1)
+    ns:TooltipAddLine(" ")
     if list and list.countHave then
-      GameTooltip:AddLine("Crate lists count what you have towards Want.", 0.6, 0.6, 0.6, true)
+      ns:TooltipAddLine("Crate lists count what you have towards Want.", 0.6, 0.6, 0.6, true)
     elseif list and not ns:IsSearchList(list) then
-      GameTooltip:AddLine("Want is how many to buy, whatever you have.", 0.6, 0.6, 0.6, true)
+      ns:TooltipAddLine("Want is how many to buy, whatever you have.", 0.6, 0.6, 0.6, true)
     end
-    GameTooltip:AddLine(alts == 0 and "Other characters: on this ruleset and faction, none have any."
+    ns:TooltipAddLine(alts == 0 and "Other characters: on this ruleset and faction, none have any."
       or "Other characters: on this ruleset and faction, as of their last login.", 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
   end)

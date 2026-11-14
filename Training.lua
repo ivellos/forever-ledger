@@ -1,4 +1,5 @@
 local _, ns = ...
+local print = ns.LocalizedPrint
 
 ---------------------------------------------------------------------------
 -- Training (owner, October 5): groundwork for "skip spell ranks you don't use" at the

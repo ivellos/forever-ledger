@@ -484,8 +484,8 @@ local function rowTooltip(r)
   end
   if session then
     -- A session: where its gold came from and what it looted best.
-    local function line(a, b, r, g, bl) GameTooltip:AddDoubleLine(a, b, 0.7, 0.7, 0.7, r or 1, g or 1, bl or 1) end
-    GameTooltip:AddLine(("%s, %s"):format(rec.item, date("%b %d %H:%M", rec.t or 0)), 1, 1, 1)
+    local function line(a, b, r, g, bl) ns:TooltipAddDoubleLine(a, b, 0.7, 0.7, 0.7, r or 1, g or 1, bl or 1) end
+    ns:TooltipAddLine(("%s, %s"):format(rec.item, date("%b %d %H:%M", rec.t or 0)), 1, 1, 1)
     line("Length", show(rec, "length"))
     local function gold(v, r, g, bl) if (v or 0) > 0 then return ns.Money(v), r, g, bl end return ns.Money(0), 0.6, 0.6, 0.6 end
     if session.earned then line("Gold in", gold(session.earned, 0.5, 0.83, 0.61)) end
@@ -497,8 +497,8 @@ local function rowTooltip(r)
     for src, v in pairs(session.money or {}) do if v ~= 0 then by[#by + 1] = { src, v } end end
     table.sort(by, function(a, b) return math.abs(a[2]) > math.abs(b[2]) end)
     if #by > 0 then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine("Gold by where it came from", 1, 0.82, 0)
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine("Gold by where it came from", 1, 0.82, 0)
       for k = 1, math.min(6, #by) do
         local v = by[k][2]
         line("  " .. ((ns.MONEY_LABELS and ns.MONEY_LABELS[by[k][1]]) or by[k][1]), (v > 0 and "+" or "-") .. ns.Money(math.abs(v)),
@@ -506,25 +506,25 @@ local function rowTooltip(r)
       end
     end
     if session.top and #session.top > 0 then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine("Best loot", 1, 0.82, 0)
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine("Best loot", 1, 0.82, 0)
       for _, it in ipairs(session.top) do
         line(("  %d x %s"):format(it[2] or 1, nameOf(it[1])), it[3] and ns.Money(it[3]) or "")
       end
     end
     if #by == 0 and not (session.top and #session.top > 0) then
-      GameTooltip:AddLine(" ")
-      GameTooltip:AddLine((session.money or session.top) and "Nothing earned, spent or looted in it."
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddLine((session.money or session.top) and "Nothing earned, spent or looted in it."
         or "No breakdown saved for this session (older ones kept only totals).", 0.6, 0.6, 0.6, true)
     end
     if rec.char then line("Character", charName(rec.char)) end
-    GameTooltip:AddLine("Click to select; Shift-click or drag for several to total them.", 0.5, 0.5, 0.5, true)
+    ns:TooltipAddLine("Click to select; Shift-click or drag for several to total them.", 0.5, 0.5, 0.5, true)
     GameTooltip:Show()
     return
   end
-  if rec.id then GameTooltip:SetItemByID(rec.id); GameTooltip:AddLine(" ")
-  else GameTooltip:AddLine(rec.item ~= "" and rec.item or (rec.kind or "?"), 1, 1, 1) end
-  local function line(a, b) if b then GameTooltip:AddDoubleLine(a, b, 0.7, 0.7, 0.7, 1, 1, 1) end end
+  if rec.id then GameTooltip:SetItemByID(rec.id); ns:TooltipAddLine(" ")
+  else ns:TooltipAddLine(rec.item ~= "" and rec.item or (rec.kind or "?"), 1, 1, 1) end
+  local function line(a, b) if b then ns:TooltipAddDoubleLine(a, b, 0.7, 0.7, 0.7, 1, 1, 1) end end
   line("When", date((rec.month and "%B %Y, month total") or (rec.day and "%b %d, day total") or "%b %d %H:%M", rec.t or 0))
   line("Type", rec.kind)
   if rec.qty and rec.each then line("Quantity", ("%d x %s"):format(rec.qty, ns.Money(math.floor(rec.each + 0.5)))) end
@@ -532,7 +532,7 @@ local function rowTooltip(r)
   if rec.profit then line("Profit", show(rec, "profit")) end
   line("Buyer", rec.who)
   if rec.char then line("Character", charName(rec.char)) end
-  GameTooltip:AddLine("Click to select; Shift-click or drag for several, Ctrl-click to add one. Right-click clears.", 0.5, 0.5, 0.5, true)
+  ns:TooltipAddLine("Click to select; Shift-click or drag for several, Ctrl-click to add one. Right-click clears.", 0.5, 0.5, 0.5, true)
   GameTooltip:Show()
 end
 

@@ -7,7 +7,10 @@
 ## X-Curse-Project-ID: 1720193
 ## X-Wago-ID: qGYBBzNg
 
+Locale.lua
+Locales\zhCN.lua
 Core.lua
+LocaleHooks.lua
 Prices.lua
 Sweep.lua
 Quiet.lua

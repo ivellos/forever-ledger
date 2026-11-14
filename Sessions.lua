@@ -1,4 +1,5 @@
 local _, ns = ...
+local print = ns.LocalizedPrint
 local T = ns.Theme
 
 ---------------------------------------------------------------------------
@@ -201,9 +202,9 @@ local function buildTracker()
     local st = ns:SessionTotals()
     if not st then return end
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-    GameTooltip:AddLine("Session", 1, 1, 1)
-    GameTooltip:AddDoubleLine("Gold in", ns.Money(st.earned), 0.8, 0.8, 0.8, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Gold out", ns.Money(st.spent), 0.8, 0.8, 0.8, 1, 1, 1)
+    ns:TooltipAddLine("Session", 1, 1, 1)
+    ns:TooltipAddDoubleLine("Gold in", ns.Money(st.earned), 0.8, 0.8, 0.8, 1, 1, 1)
+    ns:TooltipAddDoubleLine("Gold out", ns.Money(st.spent), 0.8, 0.8, 0.8, 1, 1, 1)
     -- Where it came from and went (owner's test, October 3: "+1g 84s, I don't think
     -- that's right"): auction sales, vendor, mail, loot..., biggest first.
     local by = {}
@@ -211,16 +212,16 @@ local function buildTracker()
     table.sort(by, function(a, b) return math.abs(a[2]) > math.abs(b[2]) end)
     for _, x in ipairs(by) do
       local label = (ns.MONEY_LABELS and ns.MONEY_LABELS[x[1]]) or x[1]
-      GameTooltip:AddDoubleLine("  " .. label, (x[2] < 0 and "|cffee8597-|r" or "|cff7fd39c+|r") .. ns.Money(math.abs(x[2])),
+      ns:TooltipAddDoubleLine("  " .. label, (x[2] < 0 and "|cffee8597-|r" or "|cff7fd39c+|r") .. ns.Money(math.abs(x[2])),
         0.7, 0.7, 0.7, 1, 1, 1)
     end
-    GameTooltip:AddDoubleLine("Looted, worth about", ns.Money(st.loot), 0.8, 0.8, 0.8, 1, 1, 1)
+    ns:TooltipAddDoubleLine("Looted, worth about", ns.Money(st.loot), 0.8, 0.8, 0.8, 1, 1, 1)
     for k = 1, math.min(5, #st.items) do
       local it = st.items[k]
-      GameTooltip:AddDoubleLine(("  %d x %s"):format(it.n, ns.ItemName(it.id) or "?"), ns.Money(it.value), 0.7, 0.7, 0.7, 1, 1, 1)
+      ns:TooltipAddDoubleLine(("  %d x %s"):format(it.n, ns.ItemName(it.id) or "?"), ns.Money(it.value), 0.7, 0.7, 0.7, 1, 1, 1)
     end
-    GameTooltip:AddLine("Loot counts at the better of the auction house (after the cut) and a vendor; Settings can make it vendor only.", 0.6, 0.6, 0.6, true)
-    GameTooltip:AddLine(ns.db.settings.sessionSmall and "Drag to move. Right-click for the full view; Stop is there."
+    ns:TooltipAddLine("Loot counts at the better of the auction house (after the cut) and a vendor; Settings can make it vendor only.", 0.6, 0.6, 0.6, true)
+    ns:TooltipAddLine(ns.db.settings.sessionSmall and "Drag to move. Right-click for the full view; Stop is there."
       or "Drag to move. Right-click to fold it to one line.", 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
   end)

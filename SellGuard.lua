@@ -55,7 +55,7 @@ local function evaluate(g)
     return
   end
   -- Two short lines, centred under Post (owner, October 3: "centered and clean").
-  g.text:SetText(("|cffff7070Vendor pays: %s%s|r"):format(ns.Money(vendor), qty > 1 and (" for %d"):format(qty) or ""))
+  g.text:SetText(ns.LocalizeText("|cffff7070Vendor pays: %s%s|r"):format(ns.Money(vendor), qty > 1 and ns.LocalizeText(" for %d"):format(qty) or ""))
   g.text2:SetText(("Auction house: %s after the %d%% cut"):format(ns.Money(net), math.floor(ns:AHCut() * 100 + 0.5)))
   local lock = ns.db.settings.sellGuard ~= false and not unlocked[g.key]
   g.anyway:SetShown(lock)
@@ -221,8 +221,8 @@ local function helper(frame, name)
   for _, b in ipairs({ h.under_b, h.usual_b }) do
     b:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:AddLine(self == h.under_b and "Just under the cheapest" or "Your usual price", 1, 1, 1)
-      GameTooltip:AddLine(self == h.under_b and "Fills the price box with 1 copper under the cheapest listing from your last scan. You still click Post."
+      ns:TooltipAddLine(self == h.under_b and "Just under the cheapest" or "Your usual price", 1, 1, 1)
+      ns:TooltipAddLine(self == h.under_b and "Fills the price box with 1 copper under the cheapest listing from your last scan. You still click Post."
         or "Fills the price box with the usual price from your scans this month. You still click Post.", nil, nil, nil, true)
       GameTooltip:Show()
     end)

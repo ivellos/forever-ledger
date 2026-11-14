@@ -256,23 +256,23 @@ local function navButton(i)
   b:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     if self.key == "all" then
-      GameTooltip:AddLine("All characters: " .. groupLabel(state.group), 1, 1, 1)
+      ns:TooltipAddLine("All characters: " .. groupLabel(state.group), 1, 1, 1)
       for _, k in ipairs(charOrder()) do
         local w = worthOf(k)
-        GameTooltip:AddDoubleLine(whoName(k), (ns.MoneyPlain(goldOf(k) or 0)) .. dim("  items ") .. ns.MoneyPlain(w or 0), 0.8, 0.8, 0.8, 1, 1, 1)
+        ns:TooltipAddDoubleLine(whoName(k), (ns.MoneyPlain(goldOf(k) or 0)) .. dim("  items ") .. ns.MoneyPlain(w or 0), 0.8, 0.8, 0.8, 1, 1, 1)
       end
     else
       local c = ns.db.chars[self.key]
-      GameTooltip:AddLine(whoName(self.key), 1, 1, 1)
-      GameTooltip:AddDoubleLine("Gold", ns.MoneyPlain(goldOf(self.key) or 0), 0.8, 0.8, 0.8, 1, 1, 1)
+      ns:TooltipAddLine(whoName(self.key), 1, 1, 1)
+      ns:TooltipAddDoubleLine("Gold", ns.MoneyPlain(goldOf(self.key) or 0), 0.8, 0.8, 0.8, 1, 1, 1)
       local w, bags, bank, inv = worthOf(self.key)
       if w then
-        GameTooltip:AddDoubleLine("Bags worth", ns.MoneyPlain(bags), 0.8, 0.8, 0.8, 1, 1, 1)
-        GameTooltip:AddDoubleLine("Bank worth", inv.bankT and ns.MoneyPlain(bank) or dim("not seen yet"), 0.8, 0.8, 0.8, 1, 1, 1)
+        ns:TooltipAddDoubleLine("Bags worth", ns.MoneyPlain(bags), 0.8, 0.8, 0.8, 1, 1, 1)
+        ns:TooltipAddDoubleLine("Bank worth", inv.bankT and ns.MoneyPlain(bank) or dim("not seen yet"), 0.8, 0.8, 0.8, 1, 1, 1)
       else
-        GameTooltip:AddLine("Bags not saved yet: log in on it once.", 0.6, 0.6, 0.6, true)
+        ns:TooltipAddLine("Bags not saved yet: log in on it once.", 0.6, 0.6, 0.6, true)
       end
-      if c and c.realm then GameTooltip:AddLine(groupLabel(realmOf(c) .. "|" .. factionOf(c)), 0.6, 0.6, 0.6) end
+      if c and c.realm then ns:TooltipAddLine(groupLabel(realmOf(c) .. "|" .. factionOf(c)), 0.6, 0.6, 0.6) end
     end
     GameTooltip:Show()
   end)
@@ -302,12 +302,12 @@ local function getRow(i)
     if not e then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetItemByID(e.id)
-    GameTooltip:AddLine(" ")
-    if e.howFull then GameTooltip:AddLine("Best way: " .. e.howFull, 1, 0.82, 0) end
+    ns:TooltipAddLine(" ")
+    if e.howFull then ns:TooltipAddLine("Best way: " .. e.howFull, 1, 0.82, 0) end
     local names = {}
     for who in pairs(e.who) do names[#names + 1] = who end
     table.sort(names)
-    for _, who in ipairs(names) do GameTooltip:AddDoubleLine(who, tostring(e.who[who]), 0.8, 0.8, 0.8, 1, 1, 1) end
+    for _, who in ipairs(names) do ns:TooltipAddDoubleLine(who, tostring(e.who[who]), 0.8, 0.8, 0.8, 1, 1, 1) end
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -328,9 +328,9 @@ local function getHead(i)
   h:SetScript("OnEnter", function(self)
     if not self.tip then return end
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine(self.label, 1, 1, 1)
-    GameTooltip:AddLine(self.tip, nil, nil, nil, true)
-    GameTooltip:AddLine("Click to sort.", 0.6, 0.6, 0.6)
+    ns:TooltipAddLine(self.label, 1, 1, 1)
+    ns:TooltipAddLine(self.tip, nil, nil, nil, true)
+    ns:TooltipAddLine("Click to sort.", 0.6, 0.6, 0.6)
     GameTooltip:Show()
   end)
   h:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -350,8 +350,8 @@ function ns:BuildCharacters(parent)
   f.group:SetPoint("TOPLEFT", 0, 0)
   f.group:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine("Realm and faction", 1, 1, 1)
-    GameTooltip:AddLine("Whose characters to show and add up. Only characters on the same realm and faction share an auction house and can mail each other.", nil, nil, nil, true)
+    ns:TooltipAddLine("Realm and faction", 1, 1, 1)
+    ns:TooltipAddLine("Whose characters to show and add up. Only characters on the same realm and faction share an auction house and can mail each other.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   f.group:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -431,15 +431,15 @@ function ns:BuildCharacters(parent)
   f.sumHit:EnableMouse(true)
   f.sumHit:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("What it's worth", 1, 1, 1)
-    GameTooltip:AddLine("Everything in the list above, each at its Each price. Search and the Bags / Bank buttons change it.", nil, nil, nil, true)
+    ns:TooltipAddLine("What it's worth", 1, 1, 1)
+    ns:TooltipAddLine("Everything in the list above, each at its Each price. Search and the Bags / Bank buttons change it.", nil, nil, nil, true)
     if state.char == "all" then
-      GameTooltip:AddLine(" ")
+      ns:TooltipAddLine(" ")
       for _, k in ipairs(charOrder()) do
         local w = worthOf(k)
-        GameTooltip:AddDoubleLine(whoName(k), w and ns.MoneyPlain(w) or dim("not saved yet"), 0.8, 0.8, 0.8, 1, 1, 1)
+        ns:TooltipAddDoubleLine(whoName(k), w and ns.MoneyPlain(w) or dim("not saved yet"), 0.8, 0.8, 0.8, 1, 1, 1)
       end
-      GameTooltip:AddLine("(bags and bank, before any search)", 0.6, 0.6, 0.6)
+      ns:TooltipAddLine("(bags and bank, before any search)", 0.6, 0.6, 0.6)
     end
     GameTooltip:Show()
   end)

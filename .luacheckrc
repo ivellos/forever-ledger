@@ -32,7 +32,7 @@ read_globals = {
   "Ambiguate", "ChatFrame_AddMessageEventFilter", "ChatFrame_SendTell", "ClearCursor",
   "ClearOverrideBindings", "CreateFrame", "date", "debugprofilestop", "debugstack", "geterrorhandler",
   "GetCoinTextureString", "GetCurrentKeyBoardFocus", "GetCursorInfo", "GetCursorPosition",
-  "GetCVar", "GetFileIDFromPath", "GetMoney", "GetMouseFoci", "GetMouseFocus",
+  "GetCVar", "GetLocale", "GetFileIDFromPath", "GetMoney", "GetMouseFoci", "GetMouseFocus",
   "GetNormalizedRealmName", "GetRealmID", "GetRealmName", "GetRealZoneText",
   "GetMinimapZoneText", "GetScreenWidth", "GetSubZoneText", "GetTime", "GetUnitName",
   "GetZoneText", "HandleModifiedItemClick", "HideUIPanel", "hooksecurefunc", "InCombatLockdown",

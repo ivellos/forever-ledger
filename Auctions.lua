@@ -510,8 +510,8 @@ local function getRow(i)
   r.cancel:GetFontString():SetFont(T.font, 11, "")
   r.cancel:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:AddLine("Cancel this auction", 1, 1, 1)
-    GameTooltip:AddLine("Click twice: the items come back by mail and the deposit is lost. Cancel next undercut at the bottom does them one after another.", nil, nil, nil, true)
+    ns:TooltipAddLine("Cancel this auction", 1, 1, 1)
+    ns:TooltipAddLine("Click twice: the items come back by mail and the deposit is lost. Cancel next undercut at the bottom does them one after another.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   r.cancel:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -520,17 +520,17 @@ local function getRow(i)
     if not e then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     if e.link then GameTooltip:SetHyperlink(e.link) else GameTooltip:SetItemByID(e.id) end
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddDoubleLine("Yours", e.each and (ns.Money(e.each) .. " each") or "?", 0.7, 0.7, 0.7, 1, 1, 1)
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddDoubleLine("Yours", e.each and (ns.Money(e.each) .. " each") or "?", 0.7, 0.7, 0.7, 1, 1, 1)
     if e.sold then
-      GameTooltip:AddDoubleLine("You get", ns.Money(proceeds(e)), 0.7, 0.7, 0.7, 0.5, 0.83, 0.61)
-      GameTooltip:AddLine(e.dep and ("The sale after the cut, plus your %s deposit back."):format(ns.Money(e.dep))
+      ns:TooltipAddDoubleLine("You get", ns.Money(proceeds(e)), 0.7, 0.7, 0.7, 0.5, 0.83, 0.61)
+      ns:TooltipAddLine(e.dep and ("The sale after the cut, plus your %s deposit back."):format(ns.Money(e.dep))
         or "The sale after the cut (plus the deposit, if it was posted before this was counted).", 0.6, 0.6, 0.6, true)
-      GameTooltip:AddDoubleLine("Gold", mailText(e), 0.7, 0.7, 0.7, 1, 1, 1)
+      ns:TooltipAddDoubleLine("Gold", mailText(e), 0.7, 0.7, 0.7, 1, 1, 1)
     else
       local _, rec = cheapestNow(e)
-      if rec and rec.t then GameTooltip:AddDoubleLine("Prices checked", ns.Age(rec.t), 0.7, 0.7, 0.7, 1, 1, 1) end
-      if e.left then GameTooltip:AddDoubleLine("Time left (when read)", shortLeft(e.left), 0.7, 0.7, 0.7, 1, 1, 1) end
+      if rec and rec.t then ns:TooltipAddDoubleLine("Prices checked", ns.Age(rec.t), 0.7, 0.7, 0.7, 1, 1, 1) end
+      if e.left then ns:TooltipAddDoubleLine("Time left (when read)", shortLeft(e.left), 0.7, 0.7, 0.7, 1, 1, 1) end
     end
     GameTooltip:Show()
   end)
@@ -651,8 +651,8 @@ refresh = function()
   if box and box.money and box.money > 0 then gold[#gold + 1] = ("In your mailbox: |cff7fd39c%s|r (%s)"):format(ns.MoneyPlain(box.money), ns.Age(box.t)) end
   frame.gold:SetText(table.concat(gold, "   "))
   if cancelState == "asking" then
-    frame.info:SetText(("|cffffd100Cancel %d undercut %s and lose %s?|r Click again."):format(
-      #todo, #todo == 1 and "auction" or "auctions", #todo == 1 and "its deposit" or "their deposits"))
+    frame.info:SetText(ns.LocalizeText("|cffffd100Cancel %d undercut %s and lose %s?|r Click again."):format(
+      #todo, ns.LocalizeText(#todo == 1 and "auction" or "auctions"), ns.LocalizeText(#todo == 1 and "its deposit" or "their deposits")))
   elseif #todo > 0 then
     local e = todo[1]
     frame.info:SetText(("Next: %s x%d, yours %s, cheapest %s.%s"):format(ns.ItemName(e.id), e.q or 1, ns.MoneyPlain(e.each), ns.MoneyPlain(undercutBy(e)),
@@ -723,8 +723,8 @@ function ns:YourAuctionsFrame(side)
   frame.check:SetPoint("BOTTOMLEFT", 10, 8)
   frame.check:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Check prices", 1, 1, 1)
-    GameTooltip:AddLine("Looks up everything you have listed on the auction house now, one item at a time, and marks the ones that have been undercut. Full scans and the flip watch check them too.", nil, nil, nil, true)
+    ns:TooltipAddLine("Check prices", 1, 1, 1)
+    ns:TooltipAddLine("Looks up everything you have listed on the auction house now, one item at a time, and marks the ones that have been undercut. Full scans and the flip watch check them too.", nil, nil, nil, true)
     GameTooltip:Show()
   end)
   frame.check:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -750,15 +750,15 @@ function ns:YourAuctionsFrame(side)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     -- Short lines under headings (owner's test, October 4: one block was hard to read).
     local A = T.accent
-    GameTooltip:AddLine("Cancel next undercut", 1, 1, 1)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("How it works", A[1], A[2], A[3])
-    GameTooltip:AddLine("First click asks to confirm. After that, each click cancels one.", 0.9, 0.9, 0.9, true)
-    GameTooltip:AddLine("The line above says which one is next.", 0.9, 0.9, 0.9, true)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("What happens", A[1], A[2], A[3])
-    GameTooltip:AddLine("The items come back by mail. Each loses its deposit.", 0.9, 0.9, 0.9, true)
-    GameTooltip:AddLine("Repost them just under the cheapest.", 0.9, 0.9, 0.9, true)
+    ns:TooltipAddLine("Cancel next undercut", 1, 1, 1)
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddLine("How it works", A[1], A[2], A[3])
+    ns:TooltipAddLine("First click asks to confirm. After that, each click cancels one.", 0.9, 0.9, 0.9, true)
+    ns:TooltipAddLine("The line above says which one is next.", 0.9, 0.9, 0.9, true)
+    ns:TooltipAddLine(" ")
+    ns:TooltipAddLine("What happens", A[1], A[2], A[3])
+    ns:TooltipAddLine("The items come back by mail. Each loses its deposit.", 0.9, 0.9, 0.9, true)
+    ns:TooltipAddLine("Repost them just under the cheapest.", 0.9, 0.9, 0.9, true)
     GameTooltip:Show()
   end)
   frame.cancelNext:HookScript("OnLeave", function() GameTooltip:Hide() end)

@@ -302,7 +302,7 @@ local function drawGraph(g, pts, from, to, rangeKey)
     local label = nextLabel()
     label:ClearAllPoints()
     label:SetPoint("TOP", g, "BOTTOMLEFT", PAD_LEFT + plotW * i / 3, PAD_BOTTOM - 4)
-    label:SetText(date(fmt, t))
+    label:SetText(ns.LocalizeText(date(fmt, t)))
   end
 
   doneCols(); doneLines(); doneLabels(); doneGrid()
@@ -321,8 +321,8 @@ local function hoverGraph(g)
   g.marker:SetHeight(plot.h)
   g.marker:Show()
   GameTooltip:SetOwner(g, "ANCHOR_CURSOR")
-  GameTooltip:AddLine(date("%b %d %H:%M", p.t), 1, 1, 1)
-  GameTooltip:AddLine(p.v and ns.Money(p.v) or "No record yet", 0.85, 0.85, 0.85)
+  ns:TooltipAddLine(date("%b %d %H:%M", p.t), 1, 1, 1)
+  ns:TooltipAddLine(p.v and ns.Money(p.v) or "No record yet", 0.85, 0.85, 0.85)
   GameTooltip:Show()
 end
 
@@ -386,8 +386,8 @@ function ns:BuildDashboard(parent)
   f.fundHide:GetFontString():SetFont(T.font, 11, "")
   f.fundHide:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Hide the riding fund on this character", 1, 1, 1)
-    GameTooltip:AddLine("Other characters keep it. /fl fund shows it here again; Settings, Global settings, Modules turns it off everywhere.", 0.8, 0.8, 0.8, true)
+    ns:TooltipAddLine("Hide the riding fund on this character", 1, 1, 1)
+    ns:TooltipAddLine("Other characters keep it. /fl fund shows it here again; Settings, Global settings, Modules turns it off everywhere.", 0.8, 0.8, 0.8, true)
     GameTooltip:Show()
   end)
   f.fundHide:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -397,16 +397,16 @@ function ns:BuildDashboard(parent)
     local r = self.fund
     if not r then return end
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-    GameTooltip:AddLine(r.name, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Training", ns.Money(r.training) .. (r.seen and "" or " |cff999999(not seen at a trainer yet)|r"), 0.7, 0.7, 0.7, 1, 1, 1)
-    GameTooltip:AddDoubleLine("A mount", "about " .. ns.Money(r.mount), 0.7, 0.7, 0.7, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Together", ns.Money(r.cost), 0.7, 0.7, 0.7, 1, 1, 1)
-    GameTooltip:AddDoubleLine("From level", tostring(r.level), 0.7, 0.7, 0.7, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Gold now (the characters above)", ns.Money(r.gold), 0.7, 0.7, 0.7, 1, 1, 1)
+    ns:TooltipAddLine(r.name, 1, 1, 1)
+    ns:TooltipAddDoubleLine("Training", ns.Money(r.training) .. (r.seen and "" or " |cff999999(not seen at a trainer yet)|r"), 0.7, 0.7, 0.7, 1, 1, 1)
+    ns:TooltipAddDoubleLine("A mount", "about " .. ns.Money(r.mount), 0.7, 0.7, 0.7, 1, 1, 1)
+    ns:TooltipAddDoubleLine("Together", ns.Money(r.cost), 0.7, 0.7, 0.7, 1, 1, 1)
+    ns:TooltipAddDoubleLine("From level", tostring(r.level), 0.7, 0.7, 0.7, 1, 1, 1)
+    ns:TooltipAddDoubleLine("Gold now (the characters above)", ns.Money(r.gold), 0.7, 0.7, 0.7, 1, 1, 1)
     if r.perDay and r.perDay > 0 then
-      GameTooltip:AddDoubleLine("Your pace", ns.Money(math.floor(r.perDay)) .. " a day", 0.7, 0.7, 0.7, 1, 1, 1)
+      ns:TooltipAddDoubleLine("Your pace", ns.LocalizeText("%s a day"):format(ns.Money(math.floor(r.perDay))), 0.7, 0.7, 0.7, 1, 1, 1)
     end
-    GameTooltip:AddLine("Goes away once this character knows it. Settings, Global settings, Modules turns it off everywhere; Hide here on this character.", 0.6, 0.6, 0.6, true)
+    ns:TooltipAddLine("Goes away once this character knows it. Settings, Global settings, Modules turns it off everywhere; Hide here on this character.", 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
   end)
   f.fundHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -496,7 +496,7 @@ function ns:CharacterOptions()
   table.sort(own, byName)
   table.sort(other, byName)
   local opts = { { value = "all", label = ("All %s characters"):format(mine) } }
-  if ns.db.chars[me] then opts[#opts + 1] = { value = me, label = "  " .. name(me) .. " |cff888888(this one)|r" } end
+  if ns.db.chars[me] then opts[#opts + 1] = { value = me, label = "  " .. name(me) .. " |cff888888" .. ns.LocalizeText("(this one)") .. "|r" } end
   for _, k in ipairs(own) do opts[#opts + 1] = { value = k, label = "  " .. name(k) } end
   if #other > 0 then
     opts[#opts + 1] = { heading = true, label = "" }
@@ -569,9 +569,9 @@ function ns:RefreshDashboard(f)
   local tw = math.floor((W - 3 * gap) / 4)
   local tiles = {
     { "Gold now", last and ns.Money(last) or dim("no record yet"), first and last and (signed(last - first, true) .. " " .. phrase) or "" },
-    { "Profit " .. phrase, signed(n.profit, true), money(math.floor(n.profit / n.days)) .. " a day" },
-    { "Sales", ns.Money(n.sales), n.topSold and ("top: " .. n.topSold) or "" },
-    { "Expenses", ns.Money(n.expenses), n.topBought and ("top: " .. n.topBought) or "" },
+    { ns.LocalizeText("Profit %s"):format(ns.LocalizeText(phrase)), signed(n.profit, true), ns.LocalizeText("%s a day"):format(money(math.floor(n.profit / n.days))) },
+    { "Sales", ns.Money(n.sales), n.topSold and ns.LocalizeText("top: %s"):format(n.topSold) or "" },
+    { "Expenses", ns.Money(n.expenses), n.topBought and ns.LocalizeText("top: %s"):format(n.topBought) or "" },
   }
   for i, t in ipairs(f.tiles) do
     local x = (i - 1) * (tw + gap)
@@ -625,7 +625,7 @@ function ns:RefreshDashboard(f)
   local gTop = tileY + tileH + gap + (fund and (fundH + gap) or 0)
   local gBottom = gTop + 172 - (fund and (fundH + gap) or 0)
   nextCard(gTop, gBottom, 0, W)
-  T:StyleHeading(f.graphHead, "Gold over " .. (OVER[s.range] or "the week"))
+  T:StyleHeading(f.graphHead, ns.LocalizeText("Gold over %s"):format(ns.LocalizeText(OVER[s.range] or "the week")))
   place(f.graphHead, 12, gTop + 9)
   f.graphNote:ClearAllPoints()
   f.graphNote:SetPoint("TOPRIGHT", f, "TOPLEFT", W - 12, -(gTop + 9))

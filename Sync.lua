@@ -1,4 +1,5 @@
 local _, ns = ...
+local print = ns.LocalizedPrint
 
 ---------------------------------------------------------------------------
 -- Live sync between two clients (for example a main and an auction house character
@@ -431,7 +432,7 @@ end)
 -- Paired characters are often one that plays and one that waits at the auction house, so
 -- pairing offers quiet mode (owner, November 5). Settings has it too.
 local function offerQuiet()
-  if not ns.db.settings.quietWatch and StaticPopup_Show then StaticPopup_Show("FOREVER_LEDGER_BANK_CHAR") end
+  if not ns.db.settings.quietWatch and StaticPopup_Show then ns:ShowPopup("FOREVER_LEDGER_BANK_CHAR") end
 end
 
 -- Gold and sales go only if you say the other character is yours: they name your buyers.
@@ -491,7 +492,7 @@ function ns:SyncCommand(args)
     hello(false)
     if not ns.db.settings.syncMoney and StaticPopup_Show then
       askedFor = name
-      StaticPopup_Show("FOREVER_LEDGER_SHARE_BOOKS")
+      ns:ShowPopup("FOREVER_LEDGER_SHARE_BOOKS")
     else
       offerQuiet()
     end
