@@ -944,8 +944,23 @@ function ns:RefreshRecipes()
   local n = trainers and trainerRows(width, lay) or (current and recipeRows(current, width, lay) or 0)
   for i = n + 1, #rows do rows[i]:Hide() end
   f.empty:SetShown(n == 0)
-  f.empty:SetText(trainers and "No trainers seen yet. Open a profession trainer's window." or
-    "No recipes match. Open this profession's window once to record its recipes.")
+  -- Recipes recorded but all hidden by the choices above: say so (Frank, AN6, November 13:
+  -- Skinning looked empty on Known, as none of his characters knows its 3 recipes).
+  local total = 0
+  for _ in pairs((not trainers and current and ns.db.recipeBook[current]) or {}) do total = total + 1 end
+  local why = {}
+  if s.view == "known" then why[#why + 1] = "Known only" elseif s.view == "unknown" then why[#why + 1] = "Not known only" end
+  if s.type ~= "all" and TYPES[s.type] then why[#why + 1] = TYPES[s.type].label end
+  local match = f.search:GetText() or ""
+  if match ~= "" then why[#why + 1] = ('search "%s"'):format(match) end
+  if trainers then
+    f.empty:SetText("No trainers seen yet. Open a profession trainer's window.")
+  elseif total > 0 then
+    f.empty:SetText(("%s has %d recipe%s recorded, but none match what's chosen above (%s). Choose All to see them."):format(
+      current, total, total == 1 and "" or "s", table.concat(why, ", ")))
+  else
+    f.empty:SetText("No recipes yet. Open this profession's window once to record its recipes.")
+  end
   f.content:SetHeight(math.max(n * ROW, 30))
   f.sf.UpdateScrollBar()
 end
