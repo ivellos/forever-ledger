@@ -128,8 +128,11 @@ local function translatePattern(text, depth, markupOnly)
       end
       if valid then
         local index=0
-        return (row.text:gsub(spec,function()
+        -- %.0s drops its value, as string.format does: a language with its own plural
+        -- forms leaves out the English plural word or suffix the code fills in.
+        return (row.text:gsub(spec,function(found)
           index=index+1
+          if found=="%.0s" then return "" end
           if row.kinds[index]=="s" or row.kinds[index]=="q" then return localize(captures[index],depth+1) end
           return captures[index]
         end):gsub("%%%%","%%"))

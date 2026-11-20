@@ -377,6 +377,17 @@ T.test("Localization: another language registers without business-code changes",
   T.eq(ns.LocalizeText("Buy"), "changed")
 end)
 
+T.test("Localization: %.0s drops an English plural word from formatted text too", function()
+  local previous = GetLocale
+  GetLocale = function() return "ruRU" end
+  local ns = {}
+  assert(loadfile("Locale.lua"))("ForeverLedger", ns)
+  GetLocale = previous
+  ns.RegisterLocale("ruRU", { strings = { ["Searching %d %s from %s."] = "Search %d entries%.0s in %s." } })
+  T.eq(ns.LocalizeText("Searching 3 items from Mats."), "Search 3 entries in Mats.", "already formatted")
+  T.eq(ns.LocalizeText("Searching %d %s from %s."):format(1, "item", "Mats"), "Search 1 entries in Mats.", "formatted after")
+end)
+
 T.test("Localization: the Chinese data file returns immediately on other clients", function()
   local previous = GetLocale
   for _, locale in ipairs({ "enUS", "ruRU" }) do
