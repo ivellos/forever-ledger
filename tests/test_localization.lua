@@ -388,6 +388,32 @@ T.test("Localization: %.0s drops an English plural word from formatted text too"
   T.eq(ns.LocalizeText("Searching %d %s from %s."):format(1, "item", "Mats"), "Search 1 entries in Mats.", "formatted after")
 end)
 
+T.test("Localization: the Russian data file registers only on its client and keeps every placeholder", function()
+  local previous = GetLocale
+  GetLocale = function() return "enUS" end
+  local calls = 0
+  assert(loadfile("Locales/ruRU.lua"))("ForeverLedger", { RegisterLocale = function() calls = calls + 1 end })
+  T.eq(calls, 0, "not registered on an English client")
+  GetLocale = function() return "ruRU" end
+  local ns = {}
+  assert(loadfile("Locale.lua"))("ForeverLedger", ns)
+  assert(loadfile("Locales/ruRU.lua"))("ForeverLedger", ns)
+  GetLocale = previous
+  T.eq(ns.LocalizeText("Buy"), "Купить")
+  local spec = "%%[%-%+#0]*%d*%.?%d*[cdiouxXeEfgGqs]"
+  local function places(text)
+    local out = {}
+    for found in text:gsub("%%%%", ""):gmatch(spec) do out[#out + 1] = found:sub(-1) end
+    return table.concat(out)
+  end
+  local bad = {}
+  for english, russian in pairs(ns.GetLocaleData().strings) do
+    if places(english) ~= places(russian) then bad[#bad + 1] = english end
+  end
+  table.sort(bad)
+  T.eq(table.concat(bad, " | "), "", "entries whose placeholders differ")
+end)
+
 T.test("Localization: the Chinese data file returns immediately on other clients", function()
   local previous = GetLocale
   for _, locale in ipairs({ "enUS", "ruRU" }) do

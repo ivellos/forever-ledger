@@ -9,6 +9,7 @@
 
 Locale.lua
 Locales\zhCN.lua
+Locales\ruRU.lua
 Core.lua
 LocaleHooks.lua
 Prices.lua
