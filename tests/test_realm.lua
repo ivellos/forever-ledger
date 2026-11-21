@@ -125,3 +125,35 @@ T.test("Hidden event text: hidden message skipped and counted, other hidden argu
   T.eq(got[2], nil)
   T.eq(ns.secretSkipped.FL_TEST_SECRET, 1)
 end)
+
+T.test("Blank realm: the character's last realm stands in and what was filed without one joins it", function()
+  local db, realGetRealm = ns.db, GetRealmName
+  local me = ns.FullName()
+  db.chars[me .. "-Testrealm"] = { name = me, realm = "Testrealm", updated = 100, profs = {}, questsDone = {} }
+  db.chars[me .. "-"] = { name = me, realm = "", updated = 200, level = 24, profs = {}, questsDone = {} }
+  db.prices["Testrealm|Alliance"] = { [96101] = { m = 50, t = 100 }, [96102] = { m = 70, t = 300 } }
+  db.prices["|Alliance"] = { [96101] = { m = 40, t = 200 }, [96102] = { m = 90, t = 150 }, [96103] = { m = 5, t = 200 } }
+  db.myAuctions = db.myAuctions or {}
+  db.myAuctions[me .. "-"] = { t = 200, list = { { a = 7, id = 96101, q = 1, each = 40 } } }
+  db.myAuctions[me .. "-Testrealm"] = { t = 100, list = {} }
+  db.vendorBuy = db.vendorBuy or {}
+  db.vendorBuy[96104] = { c = me .. "-", src = "merchant" }
+  GetRealmName = function() return "" end
+  ns.JoinBlankRealm()
+  T.eq(ns.RealmName(), "Testrealm", "the last named realm")
+  T.eq(ns.CharKey(), me .. "-Testrealm")
+  T.eq(ns.MarketKey(), "Testrealm|Alliance")
+  T.eq(db.chars[me .. "-"], nil)
+  T.eq(db.chars[me .. "-Testrealm"].level, 24, "the newer character record")
+  T.eq(db.chars[me .. "-Testrealm"].realm, "Testrealm")
+  T.eq(db.prices["|Alliance"], nil)
+  T.eq(db.prices["Testrealm|Alliance"][96101].m, 40, "the newer price")
+  T.eq(db.prices["Testrealm|Alliance"][96102].m, 70, "the newer price kept")
+  T.eq(db.prices["Testrealm|Alliance"][96103].m, 5, "a price only the blank one had")
+  T.eq(db.myAuctions[me .. "-"], nil)
+  T.eq(db.myAuctions[me .. "-Testrealm"].list[1].a, 7, "the newer auctions list")
+  T.eq(db.vendorBuy[96104].c, me .. "-Testrealm")
+  GetRealmName = realGetRealm
+  T.eq(ns.RealmName(), "Testrealm", "the game's name when it gives one")
+  db.chars[me .. "-Testrealm"], db.prices["Testrealm|Alliance"], db.myAuctions[me .. "-Testrealm"], db.vendorBuy[96104] = nil, nil, nil, nil
+end)

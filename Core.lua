@@ -257,9 +257,27 @@ end
 -- both), so saved data is filed under what's left: "PvE". Also turns
 -- "Name-CAMWOW US2 Realm 3 PvE" into "Name-PvE".
 function ns.PlainRealm(s) return (s:gsub("CAMWOW%s+%S+%s+Realm%s+%d+%s+", "")) end
-function ns.RealmName()
+local knownRealm
+local function lastRealm()
+  if knownRealm or not (ns.db and ns.db.chars) then return knownRealm end
+  local name, newest = ns.FullName(), -1
+  for _, c in pairs(ns.db.chars) do
+    if c.name == name and type(c.realm) == "string" and c.realm ~= "" and (c.updated or 0) > newest then
+      knownRealm, newest = c.realm, c.updated or 0
+    end
+  end
+  return knownRealm
+end
+
+local function gameRealm()
   local realm = GetRealmName and GetRealmName()
   return realm and ns.PlainRealm(realm)
+end
+
+function ns.RealmName()
+  local realm = gameRealm()
+  if realm == "" then return lastRealm() or realm end
+  return realm
 end
 
 -- Two records for the same place under different server names. A price history is dated
@@ -413,24 +431,51 @@ ns.CombineVersions = combineVersions   -- (tests)
 
 -- Puts every key and value in saved or received data under the plain realm.
 -- kind: inside a table with its own way of combining (OWN_MERGE).
-function ns.PlainRealmData(t, kind)
+function ns.PlainRealmData(t, kind, plain)
+  plain = plain or ns.PlainRealm
   local renames
   for k, v in pairs(t) do
-    if type(v) == "table" then ns.PlainRealmData(v, kind or OWN_MERGE[k])
-    elseif type(v) == "string" and v:find("CAMWOW", 1, true) then t[k] = ns.PlainRealm(v) end
-    if type(k) == "string" and k:find("CAMWOW", 1, true) then
+    if type(v) == "table" then ns.PlainRealmData(v, kind or OWN_MERGE[k], plain)
+    elseif type(v) == "string" and plain(v) ~= v then t[k] = plain(v) end
+    if type(k) == "string" and plain(k) ~= k then
       renames = renames or {}
       renames[#renames + 1] = k
     end
   end
   for _, k in ipairs(renames or {}) do
-    local v, new = t[k], ns.PlainRealm(k)
+    local v, new = t[k], plain(k)
     t[k] = nil
     if t[new] == nil then t[new] = v
     elseif type(t[new]) == "table" and type(v) == "table" then
       t[new] = kind and combineVersions(t[new], v, kind) or combineRecord(t[new], v)
     end
   end
+end
+
+local FACTIONS = { Horde = true, Alliance = true, Neutral = true }
+
+function ns.JoinBlankRealm()
+  local realm = lastRealm()
+  if gameRealm() ~= "" or not realm then return end
+  local db, blank = ns.db, ns.FullName() .. "-"
+  local found = false
+  for _, t in pairs(db) do
+    if type(t) == "table" and (t[blank] ~= nil or t[blank .. " (neutral)"] ~= nil) then found = true end
+  end
+  for faction in pairs(FACTIONS) do
+    if db.prices and db.prices["|" .. faction] ~= nil then found = true end
+  end
+  if not found then return end
+  local full = blank .. realm
+  ns.PlainRealmData(db, nil, function(s)
+    if s == blank then return full end
+    if s == blank .. " (neutral)" then return full .. " (neutral)" end
+    local faction = s:match("^|(%a+)$")
+    if faction and FACTIONS[faction] then return realm .. s end
+    return s
+  end)
+  local c = db.chars and db.chars[full]
+  if c and c.realm == "" then c.realm = realm end
 end
 
 function ns.CharKey()
@@ -1015,6 +1060,7 @@ ns:On("ADDON_LOADED", function(name)
   end
   copyDefaults(DEFAULTS, ForeverLedgerDB)
   ns.db = ForeverLedgerDB
+  ns.JoinBlankRealm()
   ns:ApplyCharSettings()
   if ns.Theme and ns.Theme.Apply then ns.Theme:Apply() end   -- the look, before any of our frames exist
   for _, fn in ipairs(ns.readyCallbacks) do
