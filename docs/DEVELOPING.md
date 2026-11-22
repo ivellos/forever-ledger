@@ -29,6 +29,7 @@ The first path is where the game looks for addons. The second is where GitHub De
 | `Professions.lua` | Character profiles and recipe capture |
 | `Tooltip.lua` | Extra lines on item tooltips |
 | `UI.lua` | The ledger window and text windows |
+| `Locales/` | One file per language. Russian (`ruRU.lua`) is the reference for counted nouns and other grammar English doesn't need |
 | `API.lua` | `ForeverLedgerAPI`: prices for other addons |
 
 ## Prices for other addons
@@ -47,4 +48,4 @@ The first path is where the game looks for addons. The second is where GitHub De
 
 ## Text in other languages
 
-Player text is written in English in the code and shown through the shared helpers (`T:Font`, `T:Button`, `ns:TooltipAddLine`, `ns:Print`), which translate it on clients with a language file in `Locales\`. Read game text by ID (item, spell, quest, map, skill line, channel), never by its English name; where the game has no ID, keep the English check as a fallback and let a language file add its own words. How to add or update a language: [TRANSLATING.md](TRANSLATING.md).
+Player text is written in English in the code and shown through the shared helpers (`T:Font`, `T:Button`, `ns:TooltipAddLine`, `ns:Print`), which translate it on clients with a language file in `Locales\`. Read game text by ID (item, spell, quest, map, skill line, channel), never by its English name; where the game has no ID, keep the English check as a fallback and let a language file add its own words. How to add or update a language: [TRANSLATING.md](TRANSLATING.md). `tests/test_localization.lua` loads each language file and checks its placeholders; `lua5.1 tools/locale-report.lua <code>` lists what a language still misses.
