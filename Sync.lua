@@ -369,7 +369,7 @@ local function handle(payload, sender)
     ns:Debug(("Sync: received one day of price history from %s, %d items changed."):format(sender, n))
     historyGot = historyGot or { days = 0, items = 0 }
     if n > 0 then historyGot.days, historyGot.items = historyGot.days + 1, historyGot.items + n end
-    if n > 0 and ns.InvalidateValues then ns:InvalidateValues() end
+    if n > 0 and not ns.InvalidateItem and ns.InvalidateValues then ns:InvalidateValues() end   -- (else each item, History.lua)
     if payload.left == 0 then
       if historyGot.days > 0 then
         ns:Print(("Sync: filled in %d %s of price history from %s."):format(historyGot.days, historyGot.days == 1 and "day" or "days", partner()))

@@ -237,3 +237,134 @@ T.test("Item details: one ask per item until the game answers; an item it doesn'
   T.eq(ns.GetItemInfo(GONE), "Never", "a later yes clears the no")
   S.items[ID], S.items[GONE] = nil, nil
 end)
+
+-- Codex review, November 21: a recipe's output with a saved vendor price was listed as a
+-- flip before its details arrived; when they came (bind on pickup), nothing told the
+-- Recipes tab's kept list. An answer for an item asked about without success counts as a
+-- change to its values; one nobody was waiting for doesn't.
+T.test("Item details: an awaited answer changes the item's values, an unasked one doesn't", function()
+  local S = T.S
+  local ID, OTHER = 97903, 97904
+  S.items[ID] = nil
+  T.eq(ns.GetItemInfo(ID), nil, "not loaded yet")
+  S.items[ID] = { name = "Bound Robe" }
+  local before = ns.ValuesChanges()
+  T.fire("GET_ITEM_INFO_RECEIVED", ID, true)
+  T.ok(ns.ValuesChanges() > before, "the awaited item's values changed")
+  before = ns.ValuesChanges()
+  T.fire("GET_ITEM_INFO_RECEIVED", OTHER, true)
+  T.eq(ns.ValuesChanges(), before, "nobody was waiting for this one")
+  S.items[ID] = nil
+end)
+
+-- Frank's nineteenth /fl perf, November 22: each vendor visit threw every value away (all
+-- worked out again 30 seconds later). Only a new or changed price changes values now.
+T.test("A vendor visit changes values only for a new or changed price", function()
+  local S = T.S
+  local ID = 97910
+  local real = { GetMerchantNumItems, GetMerchantItemInfo, C_MerchantFrame }
+  local price = 50
+  local ok, err = pcall(function()
+    C_MerchantFrame = nil
+    GetMerchantNumItems = function() return 1 end
+    GetMerchantItemInfo = function() return "Test Thread", nil, price, 1, -1, nil, nil, false end
+    S.merchant[1] = ID
+    local before = ns.ValuesChanges()
+    T.fire("MERCHANT_SHOW"); T.runTimers()
+    T.eq(ns.db.vendorBuy[ID] and ns.db.vendorBuy[ID].p, 50)
+    T.ok(ns.ValuesChanges() > before, "a new price")
+    before = ns.ValuesChanges()
+    T.fire("MERCHANT_SHOW"); T.runTimers()
+    T.eq(ns.ValuesChanges(), before, "the same price again: no values change")
+    price = 60
+    T.fire("MERCHANT_SHOW"); T.runTimers()
+    T.ok(ns.ValuesChanges() > before, "a changed price")
+  end)
+  GetMerchantNumItems, GetMerchantItemInfo, C_MerchantFrame = real[1], real[2], real[3]
+  S.merchant[1] = nil
+  ns.db.vendorBuy[ID] = nil
+  T.runTimers()
+  assert(ok, err)
+end)
+
+-- /fl perf detail: work timed by kind, only while switched on.
+T.test("Timing by kind of work: only while switched on", function()
+  local ID = 97911
+  T.S.items[ID] = { name = "Detail Robe", sell = 500 }
+  ns:InvalidateValues(true)
+  ns.perfDetailOn, ns.perfDetail = false, {}
+  ns:Options(ID)
+  T.eq(next(ns.perfDetail), nil, "off: nothing timed")
+  ns:InvalidateValues(true)
+  ns.perfDetailOn = true
+  local ok, err = pcall(ns.Options, ns, ID)
+  ns.perfDetailOn = false
+  assert(ok, err)
+  local p = ns.perfDetail["Values: an item's ways to sell worked out"]
+  T.ok(p and p.n == 1, "the outermost item once")
+  T.ok(#ns.DetailLines() >= 1)
+  ns.perfDetail = {}
+  T.S.items[ID] = nil
+end)
+
+-- Frank's twenty-first /fl perf, November 22: a 259 ms freeze in which 902 item details
+-- arrived, all asked for at once by Gold making's list. Items the game hasn't loaded are
+-- asked for 20 a frame now; until then they read as not loaded, as before.
+T.test("Item details: items not loaded are asked for a few each frame", function()
+  local S = T.S
+  local realC = C_Item
+  local sent = {}
+  local ok, err = pcall(function()
+    C_Item = {
+      IsItemDataCachedByID = function(id) return id < 97950 end,
+      RequestLoadItemDataByID = function(id) sent[#sent + 1] = id end,
+    }
+    S.items[97940] = { name = "Loaded Thing" }
+    T.eq(ns.GetItemInfo(97940), "Loaded Thing", "a loaded item reads at once")
+    for id = 97951, 98000 do S.items[id] = { name = "Late " .. id } end
+    for id = 97951, 98000 do T.eq(ns.GetItemInfo(id), nil) end
+    T.eq(#sent, 0, "nothing asked for while reading")
+    T.eq(ns._itemRequestsTest.send(), true); T.eq(#sent, 20, "20 the first frame")
+    T.eq(ns._itemRequestsTest.send(), true); T.eq(#sent, 40)
+    T.eq(ns._itemRequestsTest.send(), false); T.eq(#sent, 50, "the rest, then done")
+    T.eq(ns.GetItemInfo(97951), nil, "still waiting for its answer: not asked again")
+    T.eq(ns._itemRequestsTest.send(), false); T.eq(#sent, 50)
+    T.fire("GET_ITEM_INFO_RECEIVED", 97951, true)
+    T.eq(ns.GetItemInfo(97951), "Late 97951", "read once its answer came")
+  end)
+  C_Item = realC
+  for id = 97940, 98000 do S.items[id] = nil end
+  assert(ok, err)
+end)
+
+-- /fl perf detail counts every full clearing of values and who asked (Frank's twenty-first
+-- /fl perf: values kept 15 minutes were still all worked out again within 3).
+T.test("Timing by kind of work: full clearings of values are counted, with who asked", function()
+  ns.perfDetailOn, ns.perfDetail = true, {}
+  local ok, err = pcall(function() ns:InvalidateValues(true) end)
+  ns.perfDetailOn = false
+  assert(ok, err)
+  local found
+  for label, p in pairs(ns.perfDetail) do
+    if label:find("Values: all thrown away at once, asked by", 1, true) then found = p.n end
+  end
+  T.eq(found, 1)
+  local line = ns.DetailLines()[1]
+  T.ok(line and not line:find("ms total", 1, true), "a count prints as a count: " .. tostring(line))
+  ns.perfDetail = {}
+end)
+
+-- Codex review, November 22: with no way to ask the game for an item, one it says isn't
+-- loaded is read directly, as before.
+T.test("Item details: read directly when the game can't be asked for them", function()
+  local S = T.S
+  local realC = C_Item
+  local ok, err = pcall(function()
+    C_Item = { IsItemDataCachedByID = function() return false end }
+    S.items[98990] = { name = "Direct Read" }   -- (outside the IDs the test above asked about)
+    T.eq(ns.GetItemInfo(98990), "Direct Read")
+  end)
+  C_Item = realC
+  S.items[98990] = nil
+  assert(ok, err)
+end)

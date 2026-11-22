@@ -1037,7 +1037,14 @@ function ns:MergeHistoryDay(market, day, packed)
     if not (step and m) then break end
     id = id + step
     a, q = tonumber(a, 36) or m, tonumber(q, 36)
-    if mergeDay(hist, id, day, m, a, market) then n = n + 1 end
+    if mergeDay(hist, id, day, m, a, market) then
+      n = n + 1
+      -- Its usual price may move: that item's values and what leads to it, not every value
+      -- (each synced day threw them all away: Frank's twentieth /fl perf, November 22).
+      -- (The market looked at now, after any pause: Booty Bay's can open meanwhile. Codex
+      -- review, November 22.)
+      if ns.InvalidateItem and market == ns.MarketKey() then ns:InvalidateItem(id) end
+    end
     if q and day > d - COUNT_DAYS then mergeListed(qty, id, day, q) end
   end
   return n
@@ -1252,31 +1259,63 @@ end
 -- falling item's usual price a hundredfold): the last DAILY_DAYS days one by one, older
 -- days as one point per week, merged with the saved weeks.
 -- Returns daily { { day, cheapest, typical } } and weekly { { week, cheapest, typical } }.
-local function pricingPoints(id)
-  local d = today()
-  local daily, weeks, order = {}, {}, {}
-  local function addToWeek(w, m, a, n)
-    local p = weeks[w]
-    if not p then p = { m = m, sum = 0, n = 0 }; weeks[w] = p; order[#order + 1] = w end
-    p.m, p.sum, p.n = math.min(p.m, m), p.sum + a * n, p.n + n
+-- Read into arrays kept between calls, with no table made per day or week: after a reload
+-- every item's history is read once for the values, thousands of items, and the tables
+-- were most of Gold making's 86 MB of leftovers (Frank's eighteenth /fl perf, November 22).
+-- Filled by readPoints: daily dD/dM/dA (1..nD, oldest first), weekly wW/wM/wA (1..nW,
+-- by week). Only valid until the next call; nothing in between may call it.
+local dD, dM, dA, wW, wM, wA = {}, {}, {}, {}, {}, {}
+local slot, sW, sM, sSum, sN, sOrd = {}, {}, {}, {}, {}, {}
+local nSlots, nOrd = 0, 0
+local function addToWeek(w, m, a, n)
+  local i = slot[w]
+  if not i then
+    nSlots = nSlots + 1; i = nSlots; slot[w] = i
+    sW[i], sM[i], sSum[i], sN[i] = w, m, 0, 0
   end
+  if m < sM[i] then sM[i] = m end
+  sSum[i], sN[i] = sSum[i] + a * n, sN[i] + n
+end
+local function byWeek(x, y) return sW[x] < sW[y] end
+local function readPoints(id)
+  local d = today()
+  for w in pairs(slot) do slot[w] = nil end
+  nSlots = 0
   for w, m, a, n in (marketTable("historyWeekly")[id] or ""):gmatch("(%d+):(%d+):(%d+):(%d+)") do
     addToWeek(tonumber(w), tonumber(m), tonumber(a), math.max(tonumber(n), 1))
   end
+  local nD = 0
   for day, m, a in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
     day, m, a = tonumber(day), tonumber(m), tonumber(a)
-    if day > d - DAILY_DAYS then daily[#daily + 1] = { day, m, a }
+    if day > d - DAILY_DAYS then nD = nD + 1; dD[nD], dM[nD], dA[nD] = day, m, a
     else addToWeek(math.floor(day / 7), m, a, 1) end
   end
-  table.sort(order)
-  local weekly = {}
-  for i, w in ipairs(order) do
-    local p = weeks[w]
-    weekly[i] = { w, p.m, math.floor(p.sum / p.n + 0.5) }
+  -- (table.sort goes by the array's length: the slots past this call's are cleared.)
+  for i = 1, nSlots do sOrd[i] = i end
+  for i = nSlots + 1, nOrd do sOrd[i] = nil end
+  nOrd = nSlots
+  table.sort(sOrd, byWeek)
+  for j = 1, nSlots do
+    local i = sOrd[j]
+    wW[j], wM[j], wA[j] = sW[i], sM[i], math.floor(sSum[i] / sN[i] + 0.5)
   end
+  return nD, nSlots
+end
+-- The same as lists of tables (the tooltip, tests).
+local function pricingPoints(id)
+  local nD, nW = readPoints(id)
+  local daily, weekly = {}, {}
+  for i = 1, nD do daily[i] = { dD[i], dM[i], dA[i] } end
+  for i = 1, nW do weekly[i] = { wW[i], wM[i], wA[i] } end
   return daily, weekly
 end
 ns.PricingPoints = pricingPoints   -- (tests)
+-- A list kept between calls, as long as n (for table.sort and median), reused.
+local function scratch(t, n)
+  for i = n + 1, #t do t[i] = nil end
+  return t
+end
+local usualPoints, statsTyp, statsLow, statsListed = {}, {}, {}, {}
 
 ---------------------------------------------------------------------------
 -- Price values for the redesign (November 15). Opt-in: existing UsualPrice and
@@ -1385,17 +1424,17 @@ function ns:UsualPrice(id, window)
   local d = today()
   local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
   from = historyStart(id, from)
-  local points = {}
-  local daily, weekly = pricingPoints(id)
-  for _, p in ipairs(daily) do
-    if p[1] < d and p[1] >= from then points[#points + 1] = p[3] end
+  local points, n = usualPoints, 0
+  local nD, nW = readPoints(id)
+  for i = 1, nD do
+    if dD[i] < d and dD[i] >= from then n = n + 1; points[n] = dA[i] end
   end
-  for _, p in ipairs(weekly) do
-    if (p[1] + 1) * 7 > from then points[#points + 1] = p[3] end
+  for i = 1, nW do
+    if (wW[i] + 1) * 7 > from then n = n + 1; points[n] = wA[i] end
   end
-  if #points == 0 then return nil, 0 end
-  table.sort(points)
-  return points[math.floor((#points + 1) / 2)], #points
+  if n == 0 then return nil, 0 end
+  table.sort(scratch(points, n))
+  return points[math.floor((n + 1) / 2)], n
 end
 
 -- Sell speed (Prices.lua compares full scans): units gone between scans, the minutes
@@ -1586,29 +1625,31 @@ function ns:PriceStats(id, window)
   local d = today()
   local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
   from = historyStart(id, from)
-  local typ, low, first, days = {}, {}, nil, 0
-  local daily, weekly = pricingPoints(id)
-  for _, p in ipairs(daily) do
-    local day, m, a = p[1], p[2], p[3]
+  -- (Lists kept between calls: see readPoints.)
+  local typ, low, first, days, n = statsTyp, statsLow, nil, 0, 0
+  local nD, nW = readPoints(id)
+  for i = 1, nD do
+    local day = dD[i]
     if day < d and day >= from then
-      typ[#typ + 1], low[#low + 1] = a, m
+      n = n + 1; typ[n], low[n] = dA[i], dM[i]
       first, days = first or day, days + 1
     end
   end
-  for _, p in ipairs(weekly) do
-    local w, m, a = p[1], p[2], p[3]
+  for i = 1, nW do
+    local w = wW[i]
     if (w + 1) * 7 > from then
-      typ[#typ + 1], low[#low + 1] = a, m
+      n = n + 1; typ[n], low[n] = wA[i], wM[i]
       first = math.min(first or w * 7, w * 7)
     end
   end
-  if #typ == 0 then return nil end
-  local listed = {}
+  if n == 0 then return nil end
+  scratch(typ, n); scratch(low, n)
+  local listed, nl = statsListed, 0
   for day, q in (marketTable("historyQty")[id] or ""):gmatch("(%d+):(%d+)") do
     day = tonumber(day)
-    if day < d and day >= from then listed[#listed + 1] = tonumber(q) end
+    if day < d and day >= from then nl = nl + 1; listed[nl] = tonumber(q) end
   end
-  local n = #typ
+  scratch(listed, nl)
   local usual = median(typ)   -- sorts typ
   return {
     usual = usual, low = median(low), points = n, days = days, firstDay = first,
@@ -1669,18 +1710,23 @@ local function pastEntry(id)
 end
 do
   local usualPrice, priceStats = ns.UsualPrice, ns.PriceStats
+  local LABEL = "Price history: usual prices and stats read"   -- (/fl perf detail)
   function ns:UsualPrice(id, window)
+    local t, kb = ns.DetailStart()
     local c = pastEntry(id)
     local key = window or "all"
     local hit = c.usual[key]
     if not hit then hit = { usualPrice(self, id, window) }; c.usual[key] = hit end
+    if t then ns.DetailStop(LABEL, t, kb) end
     return hit[1], hit[2]
   end
   function ns:PriceStats(id, window)
+    local t, kb = ns.DetailStart()
     local c = pastEntry(id)
     local key = window or "all"
     local hit = c.stats[key]
     if hit == nil then hit = priceStats(self, id, window) or false; c.stats[key] = hit end
+    if t then ns.DetailStop(LABEL, t, kb) end
     return hit or nil
   end
 end

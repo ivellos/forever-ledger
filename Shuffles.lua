@@ -218,7 +218,9 @@ function ns:FindShuffles()
           local section = ahShare(o) >= 0.5 and "ah" or "vendor"
           if not done[section] then
             done[section] = true
+            local t, kb = ns.DetailStart()   -- (/fl perf detail)
             local s = build(id, o, cost, listed, market, margin, secs)
+            if t then ns.DetailStop("Shuffles: one built from an item's best way", t, kb) end
             if s and not seen[s.key] then
               seen[s.key] = true
               -- Buying and selling straight to a vendor is a vendor flip, not a shuffle.
@@ -1065,7 +1067,9 @@ function ns:FindDeals(maxAge)
           deals[#deals + 1] = { kind = "vendor", id = id, price = price, worth = sell, listed = n or rec.q }
         end
       end
+      local t, kb = ns.DetailStart()   -- (/fl perf detail)
       local d = usualDeal(id, rec)
+      if t then ns.DetailStop("Deals: an item judged against its usual price", t, kb) end
       if d then deals[#deals + 1] = d end
     end
   end

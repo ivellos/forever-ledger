@@ -181,3 +181,24 @@ T.test("Craft plan: gives frames back only when asked, with the same answer", fu
   assert(ok, err)
   T.eq(asked, wantTotal, "the same total")
 end)
+
+-- Frank's seventeenth /fl perf, November 22: the Writs view's costs left 187 MB for the game
+-- to clear, about 1.3 MB per order, from copying the plan for every craft tried out. Tries
+-- now run on the plan itself and are put back, so a big plan leaves little behind, with
+-- the same answer as the big plan above.
+T.test("Craft plan: trying crafts out leaves little memory behind", function()
+  local bolts, cloth = {}, {}
+  for i = 1, 40 do bolts[i] = { 40 + i, 50 }; cloth[i] = { 12 + i, 200 } end
+  local src = sources({
+    [BOLT] = { ladder = bolts, recipe = { makes = 1, mats = { { RUNE, 3 } } } },
+    [RUNE] = { ladder = cloth },
+  })
+  collectgarbage("collect")
+  collectgarbage("stop")
+  local before = collectgarbage("count")
+  local total = ns.CraftPlan({ [BOLT] = 400 }, src)
+  local kb = collectgarbage("count") - before
+  collectgarbage("restart")
+  T.eq(total, 16900, "the same answer")
+  T.ok(kb < 200, ("%.0f KB left behind for 400 bolts"):format(kb))
+end)

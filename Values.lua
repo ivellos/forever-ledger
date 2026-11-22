@@ -317,7 +317,12 @@ end
 -- Best options are cached per item and chain depth. When prices or recipes change the
 -- cache is cleared at most every 2 seconds, so a scan saving prices doesn't make every
 -- tooltip recalculate everything. Settings changes clear it straight away (now = true).
--- It's also cleared at least once a minute.
+-- It's also cleared every VALUES_KEEP seconds, for what changes with time alone (a price
+-- getting too old to use, a new day's usual prices). 15 minutes, from 5: a changed item
+-- refreshes its own values and what leads to it (InvalidateItem), and every clearing made
+-- the next Gold making list or tooltips work out thousands of values again (Frank's
+-- nineteenth /fl perf, November 22: 86 MB of leftovers a list). Prices go stale in hours.
+local VALUES_KEEP = 900
 local cache, cacheTime, dirty = {}, 0, false
 local listCache = {}    -- itemID = full options list at depth 0 (tooltips, finder)
 -- Counts each time every value is thrown away (Gold making checks whether that happened
@@ -331,6 +336,11 @@ local changes = 0
 function ns.ValuesChanges() return changes end
 function ns:InvalidateValues(now)
   changes = changes + 1
+  -- (/fl perf detail: who asked. Frank's twenty-first /fl perf, November 22: values kept 15
+  -- minutes were still all worked out again within 3.)
+  if ns.perfDetailOn and ns.DetailCount then
+    ns.DetailCount((now and "Values: all thrown away at once, asked by %s" or "Values: all marked out of date, asked by %s"):format(ns.DetailCaller()))
+  end
   if now then
     cache, listCache, cacheTime, dirty = {}, {}, GetTime(), false; thrownAway = thrownAway + 1
     usedBy, changed, anyChanged = {}, {}, false
@@ -360,16 +370,18 @@ local function dropUsers()
   for id in pairs(changed) do n = n + 1; todo[n] = id end
   changed, anyChanged = {}, false
   local seen = {}
+  local dropped = n
   while n > 0 do
     local id = todo[n]; todo[n] = nil; n = n - 1
     local u = usedBy[id]
     if u then
       usedBy[id] = nil
       for user in pairs(u) do
-        if not seen[user] then seen[user] = true; dropItem(user); n = n + 1; todo[n] = user end
+        if not seen[user] then seen[user] = true; dropItem(user); n = n + 1; todo[n] = user; dropped = dropped + 1 end
       end
     end
   end
+  if ns.DetailCount then ns.DetailCount("Values: items worked out again after a change (with what leads to them)", dropped) end
 end
 
 local best
@@ -526,7 +538,10 @@ do
   options = function(id, depth)
     local before, outer = ns.ahledgerUses or 0, building
     building = id
+    local t, kb
+    if not outer then t, kb = ns.DetailStart() end   -- (/fl perf detail: the outermost item only)
     local list = raw(id, depth)
+    if t then ns.DetailStop("Values: an item's ways to sell worked out", t, kb) end
     building = outer
     if (ns.ahledgerUses or 0) ~= before then
       list.ahl = true
@@ -556,7 +571,8 @@ local function freshCache()
   -- halfway, and items arriving keep the cache dirty: Frank's /fl perf, November 21. Its
   -- next look picks the changes up. Only full resets count for its redo.)
   if ns.InSlices and ns.InSlices() then return end
-  if (dirty and age > 30) or age > 300 then
+  if (dirty and age > 30) or age > VALUES_KEEP then
+    if ns.DetailCount then ns.DetailCount(dirty and "Values: all thrown away (marked out of date)" or "Values: all thrown away (15 minutes on)") end
     cache, listCache, cacheTime, dirty = {}, {}, GetTime(), false
     usedBy, changed, anyChanged = {}, {}, false
     if ns.PerfNote then ns.PerfNote("Values thrown away (count only)", 0) end

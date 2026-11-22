@@ -29,8 +29,9 @@ ns:OnReady(function()
     if not ns.db.vendorBuy[id] then ns.db.vendorBuy[id] = { p = p, t = 0, src = "default" } end
   end
   -- Ask the game for vendor items' names now, so lists show names instead of "item 2321".
-  if C_Item and C_Item.RequestLoadItemDataByID then
-    for id in pairs(ns.db.vendorBuy) do pcall(C_Item.RequestLoadItemDataByID, id) end
+  -- (In turn, a few each frame: ns.RequestItem, below.)
+  for id in pairs(ns.db.vendorBuy) do
+    if not (ns.db.itemNames and ns.db.itemNames[id]) then ns.RequestItem(id) end
   end
 end)
 
@@ -51,6 +52,52 @@ local rawGetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 -- and one the game says it doesn't have isn't asked about again this session.
 local ASK_AGAIN = 60
 local askedAt, noSuchItem = {}, {}
+
+-- Items the game hasn't loaded are asked for a few each frame. Asked all at once (Gold
+-- making's list reads thousands), the answers came back together and the game took them
+-- in within one frame (Frank's twenty-first /fl perf, November 22: a 259 ms freeze in which
+-- 902 item details arrived; Crates.lua had the same, November 19). Until its answer comes
+-- an item reads as not loaded, as it did when reading it sent the request.
+local REQUESTS_PER_FRAME = 20
+local queue, queued, qHead, qTail = {}, {}, 1, 0
+local function sendRequests()
+  local n = 0
+  while qHead <= qTail and n < REQUESTS_PER_FRAME do
+    local id = queue[qHead]
+    queue[qHead], qHead = nil, qHead + 1
+    queued[id] = nil
+    pcall(C_Item.RequestLoadItemDataByID, id)
+    n = n + 1
+  end
+  if qHead > qTail then qHead, qTail = 1, 0; return false end
+  return true   -- (more to send next frame)
+end
+local pump = CreateFrame and CreateFrame("Frame")
+if pump then
+  pump:Hide()
+  pump:SetScript("OnUpdate", function(self) if not sendRequests() then self:Hide() end end)
+end
+function ns.RequestItem(id)
+  if not (id and C_Item and C_Item.RequestLoadItemDataByID) or queued[id] then return end
+  if not pump then pcall(C_Item.RequestLoadItemDataByID, id); return end
+  queued[id] = true
+  qTail = qTail + 1
+  queue[qTail] = id
+  pump:Show()
+end
+ns._itemRequestsTest = { send = sendRequests, waiting = function() return qTail - qHead + 1 end }   -- (tests)
+
+-- Whether the game has the item loaded (reading one it hasn't sends a request at once).
+-- An item whose answer came is read directly after that, whatever this says.
+local arrived = {}
+local function notLoaded(id)
+  local cached = C_Item and C_Item.IsItemDataCachedByID
+  -- (Without a way to ask, it's read directly as before: Codex review, November 22.)
+  if not cached or not C_Item.RequestLoadItemDataByID or arrived[id] then return false end
+  local ok, yes = pcall(cached, id)
+  return ok and yes == false
+end
+
 local function getItemInfo(id)
   if not id or not rawGetItemInfo then return end
   local hit = infoCache[id]
@@ -58,10 +105,24 @@ local function getItemInfo(id)
   if noSuchItem[id] then return end
   local now = GetTime()
   if askedAt[id] and now - askedAt[id] < ASK_AGAIN then return end
+  if notLoaded(id) then
+    askedAt[id] = now
+    ns.RequestItem(id)
+    return
+  end
   local function keep(...)
     if (...) ~= nil then infoCache[id] = { n = select("#", ...), ... }; askedAt[id] = nil
     else askedAt[id] = now end
     return ...
+  end
+  local t, kb
+  if ns.DetailStart then t, kb = ns.DetailStart() end   -- (both values: `a and f()` keeps one)
+  if t then
+    local function measured(...)
+      ns.DetailStop("Item details: the game asked", t, kb)
+      return ...
+    end
+    return measured(keep(rawGetItemInfo(id)))
   end
   return keep(rawGetItemInfo(id))
 end
@@ -69,9 +130,15 @@ ns.GetItemInfo = getItemInfo
 -- (Registered before the handlers below, which read the item as it arrives.)
 ns:On("GET_ITEM_INFO_RECEIVED", function(id, success)
   if not id then return end
+  local missed = askedAt[id] or noSuchItem[id]
   askedAt[id] = nil
+  if success then arrived[id] = true end
   -- (A later yes clears an earlier no: Codex review, November 21.)
   if success == false then noSuchItem[id] = true elseif success then noSuchItem[id] = nil end
+  -- Something was worked out without this item's details (whether it binds, its vendor
+  -- price): its values go, so lists kept until their inputs change (the Recipes tab) see
+  -- it, even when its vendor price was saved already (Codex review, November 21).
+  if success and missed and ns.InvalidateItem then ns:InvalidateItem(id) end
 end)
 
 -- Item names, remembered in saved data once the game has given them. The game keeps
@@ -90,7 +157,7 @@ function ns.ItemName(id)
   end
   if not ns.nameWanted[id] then
     ns.nameWanted[id] = true
-    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+    ns.RequestItem(id)
   end
   -- Items the game hasn't loaded (or doesn't have yet, like flasks above the beta's
   -- level cap): the original Classic name (ClassicItems.lua).
@@ -113,7 +180,7 @@ function ns:RememberItem(id)
     if ns.InvalidateItem then ns:InvalidateItem(id) end
   elseif not waiting[id] then
     waiting[id] = true
-    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+    ns.RequestItem(id)
   end
 end
 
@@ -206,7 +273,16 @@ local VENDOR_WONT_BUY = {
 }
 ns.VENDOR_WONT_BUY = VENDOR_WONT_BUY
 
+local sellPrice
 function ns:GetSellPrice(id)
+  local t, kb
+  if ns.DetailStart then t, kb = ns.DetailStart() end   -- (both values: `a and f()` keeps one)
+  if not t then return sellPrice(id) end
+  local p = sellPrice(id)
+  ns.DetailStop("Vendor prices: read (can vendors buy it?)", t, kb)
+  return p
+end
+sellPrice = function(id)
   if VENDOR_WONT_BUY[id] then
     if (ns.db.vendorSell[id] or 0) > 0 then ns.db.vendorSell[id] = 0 end
     return nil
@@ -269,8 +345,13 @@ local function captureMerchant()
       -- Per item. Under a copper each (ammo: 1c for 5) it keeps the fraction, which
       -- rounded to 0c before (known issue, fixed October 6); n = the stack it's sold in.
       local each = price / math.max(qty or 1, 1)
+      local was = ns.db.vendorBuy[id]
+      local p = each < 1 and math.floor(each * 10000 + 0.5) / 10000 or math.floor(each + 0.5)
+      -- Only a new or changed price changes values: that item and what leads to it, not every
+      -- value (each vendor visit threw them all away: Frank's nineteenth /fl perf).
+      if ns.InvalidateItem and not (was and was.p == p) then ns:InvalidateItem(id) end
       ns.db.vendorBuy[id] = {
-        p = each < 1 and math.floor(each * 10000 + 0.5) / 10000 or math.floor(each + 0.5),
+        p = p,
         n = (qty and qty > 1) and qty or nil,
         t = time(),
         src = "merchant",
@@ -282,7 +363,7 @@ local function captureMerchant()
       got = got + 1
     end
   end
-  if got > 0 and ns.InvalidateValues then ns:InvalidateValues() end
+  if got > 0 and not ns.InvalidateItem and ns.InvalidateValues then ns:InvalidateValues() end
   if got > 0 and ns.SyncSoon then ns:SyncSoon() end
   ns:Debug("Vendor prices captured:", got)
 end

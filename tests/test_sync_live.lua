@@ -437,3 +437,53 @@ T.test("Price history: days from the partner are merged, then reported once", fu
 end)
 
 ns.db.settings.syncPartner = nil
+
+-- Frank's twentieth /fl perf, November 22: each synced day of price history threw every
+-- value away. Now only the items whose history changed in this market are refreshed.
+T.test("Price history: a synced day refreshes only its own items' values, in this market", function()
+  local A = ns.MarketKey()
+  local today = ns.LocalDay(time())
+  local d2 = today - 2
+  ns.db.history[A] = { [72201] = ("%d:100:150"):format(d2) }
+  local packed = ns:PackHistoryDay(A, d2)
+  local realItem, realAll = ns.InvalidateItem, ns.InvalidateValues
+  local items, all = {}, 0
+  ns.InvalidateItem = function(_, id) items[#items + 1] = id end
+  ns.InvalidateValues = function() all = all + 1 end
+  local ok, err = pcall(function()
+    ns.db.history[A] = {}
+    T.eq(ns:MergeHistoryDay(A, d2, packed), 1)
+    T.eq(#items, 1); T.eq(items[1], 72201, "the item whose history changed")
+    T.eq(all, 0, "not every value")
+    items = {}
+    ns.db.history["Elsewhere|Alliance"] = {}
+    T.eq(ns:MergeHistoryDay("Elsewhere|Alliance", d2, packed), 1)
+    T.eq(#items, 0, "another market's history: no values here change")
+  end)
+  ns.InvalidateItem, ns.InvalidateValues = realItem, realAll
+  assert(ok, err)
+end)
+
+-- Codex review, November 22: a merge for another market that becomes this one partway
+-- (Booty Bay's auction house opened while it was taken in over several frames) refreshes
+-- the items it changes from then on.
+T.test("Price history: the market is checked for each changed item, not once at the start", function()
+  local B = "Elsewhere|Alliance"
+  local today = ns.LocalDay(time())
+  local d2 = today - 2
+  ns.db.history[B] = { [72301] = ("%d:100:150"):format(d2), [72302] = ("%d:200:250"):format(d2) }
+  local packed = ns:PackHistoryDay(B, d2)
+  local realItem, realKey = ns.InvalidateItem, ns.MarketKey
+  local items, calls = {}, 0
+  ns.InvalidateItem = function(_, id) items[#items + 1] = id end
+  local here = realKey()
+  ns.MarketKey = function() calls = calls + 1; if calls <= 1 then return here end return B end
+  local ok, err = pcall(function()
+    ns.db.history[B] = {}
+    T.eq(ns:MergeHistoryDay(B, d2, packed), 2)
+  end)
+  ns.InvalidateItem, ns.MarketKey = realItem, realKey
+  assert(ok, err)
+  T.eq(#items, 1, "only the item merged after the market became this one")
+  T.eq(items[1], 72302)
+end)

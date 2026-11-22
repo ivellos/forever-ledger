@@ -169,7 +169,7 @@ ns.HELP = {
     { "/fl pair, /fl unpair", "Link or unlink your other account." },
     { "/fl sync", "Sync status." },
     { "/fl welcome, /fl new", "The welcome card; what's new in this version." },
-    { "/fl perf, /fl probe", "What takes time, and any freezes (a frame of a quarter second or more): how long, how much of it was Forever Ledger and which part, the item a tooltip showed, and which other addons the game names. /fl perf reset starts over. /fl probe: game checks." },
+    { "/fl perf, /fl probe", "What takes time, and any freezes (a frame of a quarter second or more): how long, how much of it was Forever Ledger and which part, the item a tooltip showed, and which other addons the game names. /fl perf reset starts over; /fl perf detail adds time by kind of work, for this session. /fl probe: game checks." },
   } },
 }
 
