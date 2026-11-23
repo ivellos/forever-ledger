@@ -87,6 +87,15 @@ T.test("A damaged copy is worth what the game says a vendor pays for it", functi
   T.eq((ns:WorthOfCopy(2102, opts, nil)), 2102, "the game didn't say")
 end)
 
+T.test("A disenchant material not loaded yet shows its saved name", function()
+  local saved = ns.db.itemNames[11083]
+  ns.db.itemNames[11083] = "Пыль духа"
+  T.eq(ns:DisenchantMaterialName(11083), "Пыль духа")
+  ns.db.itemNames[11083] = nil
+  T.eq(ns:DisenchantMaterialName(11083), "Soul Dust", "the built-in name without one")
+  ns.db.itemNames[11083] = saved
+end)
+
 T.test("The sell price line in the game's tooltip data", function()
   local real = rawget(_G, "Enum")
   rawset(_G, "Enum", { TooltipDataLineType = { SellPrice = 11 } })
