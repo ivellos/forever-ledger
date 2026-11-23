@@ -34,6 +34,21 @@ T.test("Crates: the filled crate is known by item number, each quality", functio
   T.ok(not ns.SEALED_CRATE_IDS[248682], "an empty crate isn't a filled one")
 end)
 
+T.test("Crates: what a turn-in pays depends on the crate", function()
+  local saved = { [248682] = ns.db.crates[248682], [248703] = ns.db.crates[248703] }
+  ns.db.crates[248682] = { name = "Waylaid Crate: Apprentice Herbs", bundles = { { { qty = 20, name = "Peacebloom" } } } }
+  ns.db.crates[248703] = { name = "Waylaid Crate: Apprentice Ingots", bundles = { { { qty = 20, name = "Copper Bar" } } } }
+  local ok, err = pcall(function()
+    local herbs, ingots = ns:CrateReport(248682), ns:CrateReport(248703)
+    T.eq(herbs.favor, 5)
+    T.eq(herbs.pay, 250)
+    T.eq(ingots.favor, 10)
+    T.eq(ingots.pay, 500)
+  end)
+  for id, v in pairs(saved) do ns.db.crates[id] = v end
+  if not ok then error(err, 0) end
+end)
+
 T.test("Crates: a bundle's item found by name without loading every priced item", function()
   -- (Frank's AN30, November 19: 6,304 item loads in 14 seconds and a 650 ms freeze on a
   -- crate hover, from looking up every priced item's name.)
