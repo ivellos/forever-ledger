@@ -5,15 +5,15 @@ local T = ns.Theme
 -- Waylaid Crates: fill one with any bundle from its list (read from the crate's
 -- tooltip), turn it in for Merchant's Favor. This works out the cheapest bundle at
 -- today's prices, the total with the crate's own price, and gold per Favor.
--- Every turn-in pays the same (TURN_IN_FAVOR, TURN_IN_PAY).
 ---------------------------------------------------------------------------
 local FAVOR = 3402
 local PREFIX = "Waylaid Crate"
--- What a turn-in pays: every filled crate becomes a Sealed Apprentice Crate, which pays
--- 5s and 10 Merchant's Favor whatever the crate's tier or quality (owner's turn-ins,
--- beta, October 3). The first turn-in is a one-time quest with more; not counted.
+-- What a sealed crate pays: 5s and 10 Merchant's Favor, but 2s 50c and 5 for an apprentice
+-- crate of gathered goods (herbs, ore, textiles, curiosities). The first turn-in is a
+-- one-time quest with more; not counted.
 local TURN_IN_FAVOR = 10
 local TURN_IN_PAY = 500
+local GATHERED_APPRENTICE = { [248682] = true, [248683] = true, [248684] = true, [248685] = true }
 
 local function dim(t) return "|cff888888" .. t .. "|r" end
 local function money(v) return v and ns.Money(math.floor(v + 0.5)) or dim("?") end
@@ -336,6 +336,7 @@ function ns:CrateReport(id)
   r.owned = bagCount(id) > 0
   r.cratePrice = (not r.owned) and rec and not rec.none and rec.m or nil
   r.favor, r.pay = TURN_IN_FAVOR, TURN_IN_PAY
+  if GATHERED_APPRENTICE[id] then r.favor, r.pay = TURN_IN_FAVOR / 2, TURN_IN_PAY / 2 end
   if r.cheapest then
     r.total = r.cheapest.cost + (r.cratePrice or 0)
     -- What it really costs once the turn-in's money is back. Below zero, the crate is
@@ -619,7 +620,7 @@ function ns:RefreshCrates()
   end)
 
   local favor = ns.db.favor[ns.CharKey()]
-  f.info:SetText(("Cheapest way to fill each Waylaid Crate at your last scan's prices, best Favor per gold first. After your first turn-in (a one-time quest), every crate pays 5s and 10 Merchant's Favor; Net cost takes the 5s off, and shows green if a crate somehow pays for itself. You have %s Merchant's Favor on this character.%s Click a crate for every bundle."):format(
+  f.info:SetText(("Cheapest way to fill each Waylaid Crate at your last scan's prices, best Favor per gold first. After your first turn-in (a one-time quest), a crate pays 5s and 10 Merchant's Favor, an apprentice crate of gathered goods (herbs, ore, textiles, curiosities) half that; Net cost takes the money off, and shows green if a crate somehow pays for itself. You have %s Merchant's Favor on this character.%s Click a crate for every bundle."):format(
     favor and tostring(favor) or "?", unread > 0 and (" %d crates still loading."):format(unread) or ""))
 
   f.content:SetWidth(width)
