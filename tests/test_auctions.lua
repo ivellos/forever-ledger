@@ -340,9 +340,9 @@ end)
 -- Deposits
 ---------------------------------------------------------------------------
 -- Posting: the hooked game function, with the item it posts.
-local function post(id)
+local function post(id, q)
   C_Item = { GetItemID = function(loc) return loc.id end }
-  C_AuctionHouse.PostItem({ id = id }, 1, 1, 100)
+  C_AuctionHouse.PostItem({ id = id }, 1, q or 1, 100)
   C_Item = nil
 end
 
@@ -385,13 +385,90 @@ T.test("Deposit: the sale's gold counts it", function()
   S.items[70034] = { name = "Deposit Vial" }
   S.money = 100000
   read({})
-  post(70034)
+  post(70034, 10)
   S.money = 99960
   T.fire("PLAYER_MONEY")
   read({ auction(34, 70034, 8, 10) })
   T.fire("AUCTION_HOUSE_SHOW")
   local said = chat(function() read({ auction(34, 70034, 8, 10, nil, true) }) end)
   T.eq(count(said, "About " .. ns.Money(76 + 40)), 1, table.concat(said, " / "))
+end)
+
+T.test("Deposit: a post split over several auctions gives each its share", function()
+  fresh()
+  S.money = 100000
+  read({})
+  post(70040, 60)
+  S.money = 100000 - 2700
+  T.fire("PLAYER_MONEY")
+  read({ auction(40, 70040, 1775, 29, 8 * HOUR), auction(41, 70040, 1775, 31, 8 * HOUR) })
+  T.eq(entry(40).dep, 1305)
+  T.eq(entry(41).dep, 1395)
+end)
+
+T.test("Sold parts of one auction: told once, each with its share of the deposit", function()
+  fresh()
+  S.items[70041] = { name = "Cured Heavy Hide" }
+  read({ auction(42, 70041, 1775, 29, 8 * HOUR) })
+  entry(42).du = 45
+  T.fire("AUCTION_HOUSE_SHOW")
+  S.now = NOW + 7 * HOUR
+  local parts = { auction(42, 70041, 1775, 12, HOUR, true), auction(42, 70041, 1775, 16, HOUR, true),
+    auction(42, 70041, 1775, 1, HOUR) }
+  local said = chat(function() read(parts) end)
+  T.eq(count(said, "Sold since"), 1, table.concat(said, " / "))
+  T.eq(count(said, "Cured Heavy Hide x12, Cured Heavy Hide x16."), 1, table.concat(said, " / "))
+  -- 28 at 17s 75c less the 5% cut, plus 28 x 45c of deposit back.
+  T.eq(count(said, "About " .. ns.Money(48475)), 1, table.concat(said, " / "))
+  S.now = NOW + 7 * HOUR + 60
+  read(parts)
+  T.fire("AUCTION_HOUSE_CLOSED")
+  T.fire("AUCTION_HOUSE_SHOW")
+  S.now = NOW + 7 * HOUR + 600
+  said = chat(function() read(parts) end)
+  T.eq(count(said, "Sold since"), 0, "not again on the next visit")
+  local sold = 0
+  for _, e in ipairs(mine().list) do
+    if e.sold then sold = sold + 1; T.eq(e.soldAt, NOW + 7 * HOUR, "first seen sold") end
+  end
+  T.eq(sold, 2)
+end)
+
+T.test("Sold parts of one auction: the smaller stack left isn't counted again", function()
+  fresh()
+  S.items[70042] = { name = "Strange Dust" }
+  read({ auction(43, 70042, 100, 10) })
+  T.fire("AUCTION_HOUSE_SHOW")
+  local said = chat(function() read({ auction(43, 70042, 100, 4, nil, true), auction(43, 70042, 100, 6) }) end)
+  T.eq(count(said, "Strange Dust x4."), 1, table.concat(said, " / "))
+end)
+
+T.test("Sold parts of one auction: a stack that went down first isn't counted again by its sold row", function()
+  fresh()
+  S.items[70044] = { name = "Late Row" }
+  read({ auction(45, 70044, 100, 10) })
+  T.fire("AUCTION_HOUSE_SHOW")
+  local said = chat(function() read({ auction(45, 70044, 100, 6) }) end)
+  T.eq(count(said, "Late Row x4"), 1, table.concat(said, " / "))
+  T.fire("AUCTION_HOUSE_CLOSED")
+  T.fire("AUCTION_HOUSE_SHOW")
+  said = chat(function() read({ auction(45, 70044, 100, 4, nil, true), auction(45, 70044, 100, 6) }) end)
+  T.eq(count(said, "Sold since"), 0, table.concat(said, " / "))
+end)
+
+T.test("Sold parts of one auction: all of it sold isn't also taken as gone", function()
+  fresh()
+  S.items[70043] = { name = "Whole Lot" }
+  read({ auction(44, 70043, 100, 5, 2 * DAY) })
+  T.fire("AUCTION_HOUSE_SHOW")
+  S.now = NOW + HOUR
+  local said = chat(function()
+    read({ auction(44, 70043, 100, 5, nil, true) })
+    S.now = NOW + HOUR + 20
+    read({ auction(44, 70043, 100, 5, nil, true) })
+  end)
+  T.eq(count(said, "Whole Lot x5"), 1, table.concat(said, " / "))
+  T.eq(#mine().list, 1)
 end)
 
 ---------------------------------------------------------------------------
