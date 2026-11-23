@@ -148,8 +148,8 @@ local function altClickRow(row)
   end)
 end
 
--- Watch one page: "commodity" or "item" buy pages (one item, with a line above the
--- list on a commodity page and on the item box on an item page), or "browse" (search
+-- Watch one page: "commodity" or "item" buy pages (one item, with a line under the Buy
+-- button on a commodity page and on the item box on an item page), or "browse" (search
 -- results, each row a different item).
 local function watch(page, kind)
   if not page or page.flWatcher then return end
@@ -177,12 +177,16 @@ local function watch(page, kind)
     end)
   end
   local onItem = kind == "item" and display
-  w.note = T:Text(onItem or page, 12, T.accent, "OVERLAY")
-  if onItem then
+  w.note = T:Text(commodity and page.BuyDisplay or onItem or page, 12, T.accent, "OVERLAY")
+  if commodity then
+    -- The buy panel leaves 120 free under its Buy button.
+    w.note:SetPoint("TOPLEFT", page.BuyDisplay, "BOTTOMLEFT", 15, 100)
+    w.note:SetPoint("TOPRIGHT", page.BuyDisplay, "BOTTOMRIGHT", -16, 100)
+    w.note:SetJustifyH("LEFT")
+  elseif onItem then
     w.note:SetPoint("BOTTOMRIGHT", display, "BOTTOMRIGHT", -12, 8)
   elseif list then
-    -- Commodity pages have "N Available" just above the list, so go above that line.
-    w.note:SetPoint("BOTTOMLEFT", list, "TOPLEFT", 4, commodity and 40 or 6)
+    w.note:SetPoint("BOTTOMLEFT", list, "TOPLEFT", 4, 6)
   else
     w.note:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
   end
