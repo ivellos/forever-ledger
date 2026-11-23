@@ -87,6 +87,28 @@ T.test("A damaged copy is worth what the game says a vendor pays for it", functi
   T.eq((ns:WorthOfCopy(2102, opts, nil)), 2102, "the game didn't say")
 end)
 
+T.test("A bound copy is worth only what this character can do with it", function()
+  local realYield = ns.DisenchantYield
+  ns.DisenchantYield = function() return { skill = 1 } end
+  local ok, err = pcall(function()
+    local opts = { { kind = "ah", value = 3665 }, { kind = "craft", value = 3000, who = "Alt" },
+      { kind = "vendor", value = 2357 }, { kind = "disenchant", value = 867 } }
+    me({})
+    local best, out = ns:WorthOfBoundCopy(3665, opts, 60010)
+    T.eq(best, 2357, "a vendor")
+    T.eq(#out, 1, "no auction house, alt's craft or disenchant")
+    T.eq(#opts, 4, "the shared list isn't touched")
+    me({ Enchanting = { rank = 50 } })
+    best, out = ns:WorthOfBoundCopy(3665, opts, 60010)
+    T.eq(best, 2357)
+    T.eq(out[2].kind, "disenchant", "this character's own disenchant stays")
+    local _, same = ns:WorthOfBoundCopy(2357, { opts[3], opts[4] }, 60010)
+    T.eq(#same, 2, "nothing to leave out")
+  end)
+  ns.DisenchantYield = realYield
+  if not ok then error(err, 0) end
+end)
+
 T.test("The sell price line in the game's tooltip data", function()
   local real = rawget(_G, "Enum")
   rawset(_G, "Enum", { TooltipDataLineType = { SellPrice = 11 } })

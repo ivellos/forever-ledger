@@ -240,6 +240,8 @@ local function addLines(tt, id, forceFull, copyPrice)
   local sellBound, sellUsable
   local sellOn = not forceFull and on("tipSell") and ns.AddSellLines and ns.ItemCount(id) > 0
   if sellOn and ns.SellTooltipFlags then sellBound, sellUsable = ns.SellTooltipFlags(tt) end
+  local copyBound = sellBound
+  if copyBound == nil and ns.SellTooltipFlags then copyBound = (ns.SellTooltipFlags(tt)) end
   local function sellLines()
     if sellOn then
       local ok, err = pcall(ns.AddSellLines, ns, tt, id, sellBound, sellUsable, copyPrice)
@@ -309,6 +311,7 @@ local function addLines(tt, id, forceFull, copyPrice)
     end
     local best, options = ns:GetValue(id, true)
     best, options = ns:WorthOfCopy(best, options, copyPrice)
+    if copyBound then best, options = ns:WorthOfBoundCopy(best, options, id) end
     lap("worth to you")
     if best then
       local how = options and options[1] and options[1].label
@@ -437,6 +440,7 @@ local function addLines(tt, id, forceFull, copyPrice)
 
   local best, options = ns:GetValue(id, true)
   best, options = ns:WorthOfCopy(best, options, copyPrice)
+  if copyBound then best, options = ns:WorthOfBoundCopy(best, options, id) end
   lap("worth to you")
   if best and on("tipWorth") then
     ns:AddTooltipDoubleLine(tt, "Worth to you", ns.Money(best), LR, LG, LB, 1, 1, 1)
