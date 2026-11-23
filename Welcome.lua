@@ -286,7 +286,7 @@ local function buildNews()
   local W
   newsShade, news, W = overlay(body)
   local w = ns.WHATS_NEW
-  local y = header(news, "What's new in " .. w.version,
+  local y = header(news, ns.LocalizeText("What's new in ") .. w.version,
     "The highlights of this version. Every change is in the changelog on CurseForge and Wago.")
   -- Big changes first, then the rest: new, changed, fixed.
   local rest = { new = {}, change = {}, fix = {} }
@@ -317,7 +317,10 @@ end
 function ns:ShowWhatsNew()
   local w = ns.WHATS_NEW
   ns:Print(("What's new in %s:"):format(w.version))
-  for _, line in ipairs(w.lines) do print("  - " .. lineText(line)) end
+  for _, line in ipairs(w.lines) do
+    local name, text = split(line)
+    print("  - " .. ns.LocalizeText(name) .. (text ~= "" and (": " .. ns.LocalizeText(text)) or ""))
+  end
   print("  The Help tab explains everything; What's new there (or /fl new) shows this again.")
 end
 
