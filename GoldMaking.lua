@@ -592,16 +592,18 @@ local function drawList()
     h.fs:SetText(h.label .. mark)
   end
 
+  -- Translated part by part: the joined line matches no translation.
+  local L = ns.LocalizeText
   local parts = {}
-  if working then parts[#parts + 1] = "Working out the list..." end
+  if working then parts[#parts + 1] = L("Working out the list") end
   if workedAt then
     local last = ns.db.lastFullScan
-    parts[#parts + 1] = ("Worked out %s%s"):format(date("%H:%M", workedAt),
-      last and (", full scan %s"):format(ns.Age(last)) or "")
+    parts[#parts + 1] = L("Worked out %s%s"):format(date("%H:%M", workedAt),
+      last and L(", full scan %s"):format(L(ns.Age(last))) or "")
   end
-  if #shown > MAX_ROWS then parts[#parts + 1] = ("The best %d of %d shown"):format(MAX_ROWS, #shown) end
+  if #shown > MAX_ROWS then parts[#parts + 1] = L("The best %d of %d shown"):format(MAX_ROWS, #shown) end
   if noPrice > 0 and not g.mine then
-    parts[#parts + 1] = ("%d left out: a material has no price"):format(noPrice)
+    parts[#parts + 1] = L("%d left out: a material has no price"):format(noPrice)
   end
   if workedAHledger then parts[#parts + 1] = ns.AHLEDGER_CREDIT end   -- (its terms: credit where its prices show)
   f.status:SetText(table.concat(parts, ". ") .. (#parts > 0 and "." or ""))

@@ -631,3 +631,20 @@ T.test("Localization: shopping list, saved filter and group dialogs are shown tr
   StaticPopupDialogs, StaticPopup_Show = realDialogs, realShow
   if not ok then error(err, 0) end
 end)
+
+T.test("Localization: What's new in chat translates each line's name and text apart, as its window does", function()
+  local words = { Coins = "Монеты", ["money shows coins."] = "деньги монетами." }
+  local out = {}
+  local ns = {
+    Theme = {},
+    LocalizedPrint = function(...) out[#out + 1] = table.concat({ ... }, " ") end,
+    LocalizeText = function(text) return words[text] or text end,
+    OnReady = function() end,
+  }
+  function ns:Print(text) out[#out + 1] = text end
+  assert(loadfile("Welcome.lua"))("ForeverLedger", ns)
+  ns.WHATS_NEW = { version = "1.0", lines = { { "Coins: money shows coins." }, { "No name here" } } }
+  ns:ShowWhatsNew()
+  T.eq(out[2], "  - Монеты: деньги монетами.")
+  T.eq(out[3], "  - No name here")
+end)
