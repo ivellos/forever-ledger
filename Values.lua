@@ -247,7 +247,7 @@ function ns:DisenchantYield(id)
 end
 
 function ns:DisenchantMaterialName(id)
-  return ns.GetItemInfo(id) or MAT_NAMES[id] or ("item " .. id)
+  return ns.GetItemInfo(id) or (ns.db and ns.db.itemNames and ns.db.itemNames[id]) or MAT_NAMES[id] or ("item " .. id)
 end
 
 -- Characters unticked in the Shuffles tab don't count for recipes or disenchanting.
