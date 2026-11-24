@@ -141,8 +141,8 @@ do
     for c in text:gmatch("[%z\1-\127\194-\244][\128-\191]*") do out[#out + 1] = c end
     return out
   end
-  local lower = letters("абвгдеежзийклмнопрстуфхцчшщъыьэюя")
-  for i, c in ipairs(letters("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ")) do LOWER[c] = lower[i] end
+  local lower = letters("абвгдеежзийклмнопрстуфхцчшщъыьэюяàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþœ")
+  for i, c in ipairs(letters("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞŒ")) do LOWER[c] = lower[i] end
   LOWER["ё"] = "е"
 end
 local function lowerLetters(word)
