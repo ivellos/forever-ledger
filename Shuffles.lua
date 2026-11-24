@@ -188,6 +188,18 @@ function ns:VendorFlip(id)
   }
 end
 
+-- A recipe turns up once for each of its materials, and its shuffle is kept from one of
+-- them. Runs and the buying limit are counted from the first material, the others only at
+-- today's cheapest price, so the one to keep costs most to buy on the auction house; a
+-- material a vendor sells comes last. Whether shuffle a goes before b.
+local function leads(a, b)
+  local x, y = a.buys[1], b.buys[1]
+  local xv, yv = ns:GetVendorBuyPrice(x.id), ns:GetVendorBuyPrice(y.id)
+  local xSold, ySold = xv ~= nil and xv <= x.price, yv ~= nil and yv <= y.price
+  if xSold ~= ySold then return ySold end
+  return x.price * x.qty > y.price * y.qty
+end
+
 -- Returns three lists: shuffles that end with vendor sales and ones that end with auction
 -- house sales (best profit per hour first), and vendor flips (buy on the auction house,
 -- sell straight to a vendor). A shuffle whose material has under 5 listed used to go in a
@@ -221,11 +233,8 @@ function ns:FindShuffles()
             local t, kb = ns.DetailStart()   -- (/fl perf detail)
             local s = build(id, o, cost, listed, market, margin, secs)
             if t then ns.DetailStop("Shuffles: one built from an item's best way", t, kb) end
-            if s and not seen[s.key] then
-              seen[s.key] = true
-              -- Buying and selling straight to a vendor is a vendor flip, not a shuffle.
-              local list = section == "ah" and ah or vendor
-              list[#list + 1] = s
+            if s and (not seen[s.key] or leads(s, seen[s.key].s)) then
+              seen[s.key] = { s = s, section = section }
             end
           end
           if done.ah and done.vendor then break end
@@ -234,6 +243,11 @@ function ns:FindShuffles()
     end
   end
 
+  -- Buying and selling straight to a vendor is a vendor flip, not a shuffle.
+  for _, e in pairs(seen) do
+    local list = e.section == "ah" and ah or vendor
+    list[#list + 1] = e.s
+  end
   local function byHour(a, b) return a.perHour > b.perHour end
   vendor, ah = groupDisenchants(vendor), groupDisenchants(ah)
   table.sort(vendor, byHour)

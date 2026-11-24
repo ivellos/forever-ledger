@@ -101,6 +101,35 @@ T.test("A saved crafting route refreshes caps after reload serialization", funct
   ns.db.chars[ns.CharKey()].profs = {}; ns:BuildUsageIndex(); ns:BuyListAgain(saved)
   T.eq(saved.items[1].max, 0, "unavailable recipe does not silently change route")
 end)
+T.test("A recipe's shuffle starts from the material that costs most on the auction house", function()
+  local function first()
+    ns:BuildUsageIndex(); ns:InvalidateValues(true)
+    local found, n
+    local vendor, ah = ns:FindShuffles()
+    for _, section in ipairs({ vendor, ah }) do
+      for _, s in ipairs(section) do
+        if s.opt.kind == "craft" and s.opt.rec.out == OUT then found, n = s, (n or 0) + 1 end
+      end
+    end
+    T.eq(n, 1, "the recipe is listed once")
+    return found
+  end
+  fresh(); price(ID, 10); price(EXTRA, 300)
+  ns.db.vendorSell[OUT] = 2000
+  ns.db.chars[ns.CharKey()] = { name = "Tester", realm = "Testrealm", faction = "Alliance",
+    profs = { Tailoring = { rank = 300, recipes = { [9876] = { n = "Test robe", out = OUT, oq = 1,
+      r = { { ID, 2 }, { EXTRA, 1 } } } } } } }
+  local s = first()
+  T.eq(s.id, EXTRA, "one at 300, not two at 10")
+  T.eq(s.maxBuy, (2000 - 20) * 0.9, "the limit is its own")
+  ns.db.prices[ns.MarketKey()][EXTRA].l = "300:40,2500:100"
+  T.eq(ns:ShuffleRuns(s), 40, "Runs counts it up to that limit")
+  price(ID, 200); price(EXTRA, 300)
+  T.eq(first().id, ID, "two at 200 cost more than one at 300")
+  ns.db.vendorBuy[ID] = { p = 200 }
+  T.eq(first().id, EXTRA, "a material a vendor sells for no more comes last")
+  ns.db.vendorBuy[ID] = nil
+end)
 T.test("Buy again takes the lower freshly valued cap across two routes", function()
   local l = fresh()
   local a, b = shuffle(2400, "A"), shuffle(1800, "B")
