@@ -34,6 +34,48 @@ T.test("Crates: the filled crate is known by item number, each quality", functio
   T.ok(not ns.SEALED_CRATE_IDS[248682], "an empty crate isn't a filled one")
 end)
 
+T.test("Crates: a bundle's item found by its words in another language", function()
+  local names = { [990311] = "Льняная ткань", [990312] = "Медный слиток", [990313] = "Медная руда",
+    [990314] = "Горсть медных болтов", [990315] = "Мироцвет", [990316] = "Тонкая кожа", [990317] = "Кожа",
+    [990318] = "Ёлочная игрушка", [990319] = "Пучок", [990320] = "Странная пыль" }
+  for id, n in pairs(names) do ns.db.itemNames[id] = n end
+  local ok, err = pcall(function()
+    ns.CrateNamesReset()
+    T.eq(ns.CrateIdForName("кусков льняной ткани"), 990311, "a counting word and other endings")
+    T.eq(ns.CrateIdForName("медных слитков"), 990312, "not the ore with the same first word")
+    T.eq(ns.CrateIdForName("кусков медной руды"), 990313)
+    T.eq(ns.CrateIdForName("горстей медных болтов"), 990314, "the counting word in the item's own name")
+    T.eq(ns.CrateIdForName("кусков тонкой кожи"), 990316, "the name with more words wins")
+    T.eq(ns.CrateIdForName("елочных игрушек"), 990318, "е and ё alike")
+    T.eq(ns.CrateIdForName("пучков мироцвета"), nil, "two one-word names: none rather than a guess")
+    T.eq(ns.CrateIdForName("порций странной пыли"), 990320)
+    T.eq(ns.CrateIdForName("кусков шёлка"), nil, "nothing like it")
+  end)
+  for id in pairs(names) do ns.db.itemNames[id] = nil end
+  ns.CrateNamesReset()
+  if not ok then error(err, 0) end
+end)
+
+T.test("Crates: a bundle's item found past a preposition and a capital with an accent", function()
+  local names = { [990401] = "Polvo de alma", [990402] = "Esencia astral superior", [990403] = "Esencia astral inferior",
+    [990404] = "Fragmento resplandeciente pequeño", [990405] = "Fragmento resplandeciente grande",
+    [990406] = "Ámbar dorado", [990407] = "Lingote de cobre", [990408] = "Öl des Feuers" }
+  for id, n in pairs(names) do ns.db.itemNames[id] = n end
+  local ok, err = pcall(function()
+    ns.CrateNamesReset()
+    T.eq(ns.CrateIdForName("de polvo de alma"), 990401, "the Spanish preposition before the name")
+    T.eq(ns.CrateIdForName("de esencia astral superior"), 990402, "not the lesser one")
+    T.eq(ns.CrateIdForName("de fragmento resplandeciente pequeño"), 990404)
+    T.eq(ns.CrateIdForName("de fragmento resplandeciente grande"), 990405)
+    T.eq(ns.CrateIdForName("lingotes de cobre"), 990407, "a plural")
+    T.eq(ns.CrateIdForName("de ámbar dorado"), 990406, "Á and á alike")
+    T.eq(ns.CrateIdForName("öl des feuers"), 990408, "Ö and ö alike")
+  end)
+  for id in pairs(names) do ns.db.itemNames[id] = nil end
+  ns.CrateNamesReset()
+  if not ok then error(err, 0) end
+end)
+
 T.test("Crates: a bundle's item found by name without loading every priced item", function()
   -- (Frank's AN30, November 19: 6,304 item loads in 14 seconds and a 650 ms freeze on a
   -- crate hover, from looking up every priced item's name.)

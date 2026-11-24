@@ -156,6 +156,84 @@ local function loadedName(id)
   local ok, yes = pcall(cached, id)
   if ok and yes then return (ns.GetItemInfo(id)) end
 end
+-- Other languages count a crate's items in their own words ("40 кусков льняной ткани" for
+-- Льняная ткань): an item matches when each word of its name, its ending aside, starts a
+-- word of the bundle part. The item with the most words wins; a tie finds none.
+local LOWER = {}
+do
+  local function letters(text)
+    local out = {}
+    for c in text:gmatch("[%z\1-\127\194-\244][\128-\191]*") do out[#out + 1] = c end
+    return out
+  end
+  local lower = letters("абвгдеежзийклмнопрстуфхцчшщъыьэюяàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþœ")
+  for i, c in ipairs(letters("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞŒ")) do LOWER[c] = lower[i] end
+  LOWER["ё"] = "е"
+end
+local function lowerLetters(word)
+  local out = {}
+  for c in word:gmatch("[%z\1-\127\194-\244][\128-\191]*") do out[#out + 1] = LOWER[c] or c:lower() end
+  return out
+end
+local function words(text)
+  local out = {}
+  for w in text:gmatch("[%a\128-\255]+") do out[#out + 1] = lowerLetters(w) end
+  return out
+end
+local function startsWith(word, stem)
+  for i = 1, #stem do if word[i] ~= stem[i] then return false end end
+  return true
+end
+local function nameMatches(itemWords, partWords)
+  for _, w in ipairs(itemWords) do
+    local stem = { unpack(w, 1, math.min(#w, math.max(3, #w - 2))) }
+    local found = false
+    for _, pw in ipairs(partWords) do
+      if startsWith(pw, stem) then found = true; break end
+    end
+    if not found then return false end
+  end
+  return true
+end
+local fuzzy, byStart, byStartOf = {}, {}, nil
+-- Names filed by their first letters, so a part is checked only against names that could match.
+local function fileNames(index)
+  byStart, byStartOf, fuzzy = {}, index, {}
+  for itemName, id in pairs(index) do
+    local first = itemName:match("[%a\128-\255]+")
+    if first then
+      local start = first:match("^[%z\1-\127\194-\244][\128-\191]*[%z\1-\127\194-\244]?[\128-\191]*[%z\1-\127\194-\244]?[\128-\191]*")
+      local key = table.concat(lowerLetters(start))
+      byStart[key] = byStart[key] or {}
+      table.insert(byStart[key], { id = id, name = itemName })
+    end
+  end
+end
+local function idForWords(name, index)
+  if byStartOf ~= index then fileNames(index) end
+  if fuzzy[name] ~= nil then return fuzzy[name] or nil end
+  local partWords = words(name)
+  local best, bestWords, tie
+  local seen = {}
+  for _, pw in ipairs(partWords) do
+    for n = 1, math.min(3, #pw) do
+      local key = table.concat(pw, "", 1, n)
+      if not seen[key] then
+        seen[key] = true
+        for _, item in ipairs(byStart[key] or {}) do
+          item.words = item.words or words(item.name)
+          local itemWords = item.words
+          if #itemWords <= #partWords and nameMatches(itemWords, partWords) then
+            if not best or #itemWords > bestWords then best, bestWords, tie = item.id, #itemWords, false
+            elseif #itemWords == bestWords and item.id ~= best then tie = true end
+          end
+        end
+      end
+    end
+  end
+  fuzzy[name] = (best and not tie) and best or false
+  return fuzzy[name] or nil
+end
 local function idForName(name)
   if not name then return end
   if nameIndex[name] then return nameIndex[name] end
@@ -172,10 +250,10 @@ local function idForName(name)
       end
     end
   end
-  return nameIndex[name]
+  return nameIndex[name] or idForWords(name, nameIndex)
 end
 ns.CrateIdForName = idForName
-function ns.CrateNamesReset() nameIndexTime = -math.huge end   -- (tests)
+function ns.CrateNamesReset() nameIndexTime = -math.huge; fuzzy, byStartOf = {}, nil end   -- (tests)
 
 -- What buying qty of an item costs: from a vendor, or across the cheapest auction
 -- listings (the price ladder saved by scans). nil if unknown or not enough listed.
