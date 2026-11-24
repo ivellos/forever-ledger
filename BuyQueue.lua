@@ -314,7 +314,7 @@ local function finishTarget(note, wakeIn, gone)
     if wakeIn then C_Timer.After(wakeIn, function() Q.built = 0; rebuildNow() end) end
     local list = Q.lanes[e.lane] or {}
     for i, x in ipairs(list) do if x == e then table.remove(list, i); break end end
-    Q.note = ns.ItemName(e.id) .. ": " .. note
+    Q.note = ns.LocalizeText("%s: %s"):format(ns.ItemName(e.id), ns.LocalizeText(note))
     ns:Debug("Buy queue:", ns.ItemName(e.id), "-", note)
     -- A row you clicked that has nothing to buy: say so in chat too (owner's test,
     -- October 5: clicking a crate seemed to do nothing; the note was only in the panel).
@@ -3426,8 +3426,8 @@ local function estimateText(list)
     if m.buy > 0 and (not m.vendor or m.vendorAH) then add(m.id, m.buy) end
   end
   if total <= 0 then return "" end
-  return ("About %s to buy the rest%s. "):format(ns.Money(total),
-    unknown > 0 and (" (%d not priced)"):format(unknown) or "")
+  return ns.LocalizeText(("About %s to buy the rest%s. "):format(ns.Money(total),
+    unknown > 0 and (" (%d not priced)"):format(unknown) or ""))
 end
 
 local function showRow(r, kind)

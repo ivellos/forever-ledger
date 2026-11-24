@@ -794,9 +794,9 @@ function ns:RefreshPriceWindow()
   place(f.weekHead, sx + 12, gTop + 10)
   local wk = s.week
   local weekLines = {}
-  if wk.sold.n > 0 then weekLines[#weekLines + 1] = { "Sold " .. count(wk.sold.n), ns.Money(wk.sold.a) } end
-  if wk.bought.n > 0 then weekLines[#weekLines + 1] = { "Bought " .. count(wk.bought.n), ns.Money(wk.bought.a) } end
-  if wk.vendorSold.n > 0 then weekLines[#weekLines + 1] = { "To vendors " .. count(wk.vendorSold.n), ns.Money(wk.vendorSold.a) } end
+  if wk.sold.n > 0 then weekLines[#weekLines + 1] = { ns.LocalizeText("Sold ") .. count(wk.sold.n), ns.Money(wk.sold.a) } end
+  if wk.bought.n > 0 then weekLines[#weekLines + 1] = { ns.LocalizeText("Bought ") .. count(wk.bought.n), ns.Money(wk.bought.a) } end
+  if wk.vendorSold.n > 0 then weekLines[#weekLines + 1] = { ns.LocalizeText("To vendors ") .. count(wk.vendorSold.n), ns.Money(wk.vendorSold.a) } end
   if #weekLines == 0 then weekLines[1] = { dim("Nothing bought or sold"), "" } end
   for i, r in ipairs(f.weekRows) do
     local line = weekLines[i]

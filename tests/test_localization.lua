@@ -631,3 +631,20 @@ T.test("Localization: shopping list, saved filter and group dialogs are shown tr
   StaticPopupDialogs, StaticPopup_Show = realDialogs, realShow
   if not ok then error(err, 0) end
 end)
+T.test("Localization: words are translated before a count or an item's name joins them", function()
+  local ns = loadLocale("ruRU")
+  T.eq(ns.LocalizeText("Bought ") .. "616", "Куплено 616", "the price window's week")
+  T.eq(ns.LocalizeText("To vendors ") .. "3", "Торговцам 3")
+  local function note(l) return l.LocalizeText("%s: %s"):format("Heavy Hide", l.LocalizeText("bought every one at 15s or less.")) end
+  T.eq(note(ns), "Heavy Hide: куплено всё по 15s или дешевле.", "a Buy queue note")
+  local zh = loadLocale("zhCN")
+  T.eq(note(zh), zh.LocalizeText("Heavy Hide: bought every one at 15s or less."), "the Chinese note as it was")
+  T.eq(zh.LocalizeText("Bought ") .. "616", "买入616")
+  T.eq(ns.LocalizeText("About 1g 67s to buy the rest. ") .. "0 из 1", "На остальное — около 1g 67s. 0 из 1", "a list's estimate")
+  local price, queue = source("PriceWindow.lua"), source("BuyQueue.lua")
+  T.ok(price:find('ns.LocalizeText("Sold ") .. count(wk.sold.n)', 1, true))
+  T.ok(price:find('ns.LocalizeText("Bought ") .. count(wk.bought.n)', 1, true))
+  T.ok(price:find('ns.LocalizeText("To vendors ") .. count(wk.vendorSold.n)', 1, true))
+  T.ok(queue:find('Q.note = ns.LocalizeText("%s: %s"):format(ns.ItemName(e.id), ns.LocalizeText(note))', 1, true))
+  T.ok(queue:find('return ns.LocalizeText(("About %s to buy the rest%s. "):format(', 1, true))
+end)
