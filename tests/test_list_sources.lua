@@ -113,6 +113,27 @@ T.test("Buy again takes the lower freshly valued cap across two routes", functio
   ns.RefreshShuffleShoppingSource = real
   assert(ok, err); T.eq(l.items[1].max, 1700)
 end)
+T.test("Buy again keeps a route's cap while its material costs more than that", function()
+  local l = fresh(); price(ID, 10); price(EXTRA, 5)
+  ns.db.vendorSell[OUT] = 100
+  ns.db.chars[ns.CharKey()] = { name = "Tester", realm = "Testrealm", faction = "Alliance",
+    profs = { Tailoring = { rank = 300, recipes = { [9876] = { n = "Test robe", out = OUT, oq = 1,
+      r = { { ID, 2 }, { EXTRA, 1 } } } } } } }
+  ns:BuildUsageIndex(); ns:InvalidateValues(true)
+  local selected
+  local vendor, ah = ns:FindShuffles()
+  for _, section in ipairs({ vendor, ah }) do
+    for _, s in ipairs(section) do if s.id == ID and s.opt.kind == "craft" then selected = s end end
+  end
+  T.ok(selected, "crafting route found")
+  ns:ShuffleToShoppingList(selected, l, 1)
+  local cap = math.floor((100 - 5) / 2 * 0.9)
+  T.eq(l.items[1].max, cap)
+  price(ID, 60)
+  ns:BuyListAgain(l)
+  T.eq(l.items[1].max, cap, "dearer than the cap today: the cap stays, and the list waits")
+  T.eq(l.items[2].max, 5, "the other material's cost")
+end)
 T.test("Source hover text distinguishes player, usual and named shuffle limits", function()
   local l = fresh(); local e = ns:AddToShoppingList(l, ID)
   T.ok(ns:ListPriceSourceText(l, e):find("10%", 1, true))

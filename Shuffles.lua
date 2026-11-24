@@ -631,12 +631,11 @@ function ns:RefreshShuffleShoppingSource(source)
         s = { id = source.id, units = 1, opt = o, maxBuy = ns:VendorFlipLimit(o.value),
           buys = { { id = source.id, qty = 1 } } }
       else
-        local cost, listed = buyInfo(source.id, ns.db.prices[ns.MarketKey()] or {})
-        if cost then
-          -- build checks the same costs and safety margin as the displayed shuffle.
-          s = build(source.id, o, cost, listed, ns.db.prices[ns.MarketKey()] or {},
-            (ns.db.settings.margin or 10) / 100, ns.db.settings.actionSeconds or 3)
-        end
+        -- Built as if the item were free: its cap is what the route is worth less the
+        -- margin, whatever it costs today. One too dear to buy now keeps its limit, so
+        -- the list buys it again once it's cheaper.
+        s = build(source.id, o, 0, nil, ns.db.prices[ns.MarketKey()] or {},
+          (ns.db.settings.margin or 10) / 100, ns.db.settings.actionSeconds or 3)
       end
       local caps = {}
       for _, b in ipairs(s and ns:ShuffleShoppingItems(s, 1) or {}) do caps[b.id] = b.max end
