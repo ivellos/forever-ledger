@@ -25,6 +25,31 @@ local CRATE_IDS = {}
 for id = 248682, 248713 do if id ~= 248700 and id ~= 248701 then CRATE_IDS[id] = true end end
 ns.CRATE_IDS = CRATE_IDS
 
+-- Each crate's level and kind, by item number (from the English names, November 23), for the
+-- Crates tab's filters (Frank, November 23). Earthly and Flowering herbs are both Herbs.
+local CRATE_LEVELS = { "Apprentice", "Journeyman", "Expert", "Artisan" }
+local CRATE_KINDS = { "Herbs", "Ore", "Ingots", "Textiles", "Fabrics", "Parts", "Curiosities" }
+local CRATE_KIND = {
+  [248682] = { 1, "Herbs" }, [248683] = { 1, "Ore" }, [248684] = { 1, "Textiles" }, [248685] = { 1, "Curiosities" },
+  [248686] = { 2, "Herbs" }, [248687] = { 2, "Ore" }, [248688] = { 2, "Textiles" }, [248689] = { 2, "Curiosities" },
+  [248690] = { 3, "Herbs" }, [248691] = { 3, "Herbs" }, [248692] = { 3, "Ore" }, [248693] = { 3, "Textiles" }, [248694] = { 3, "Curiosities" },
+  [248695] = { 4, "Herbs" }, [248696] = { 4, "Herbs" }, [248697] = { 4, "Ore" }, [248698] = { 4, "Textiles" }, [248699] = { 4, "Curiosities" },
+  [248702] = { 1, "Fabrics" }, [248703] = { 1, "Ingots" }, [248704] = { 1, "Parts" },
+  [248705] = { 2, "Fabrics" }, [248706] = { 2, "Ingots" }, [248707] = { 2, "Parts" },
+  [248708] = { 3, "Fabrics" }, [248709] = { 3, "Ingots" }, [248710] = { 3, "Parts" },
+  [248711] = { 4, "Fabrics" }, [248712] = { 4, "Ingots" }, [248713] = { 4, "Parts" },
+}
+-- A crate's level (1-4) and kind; a crate added later is read from its English name.
+local function crateKind(id, name)
+  local k = CRATE_KIND[id]
+  if k then return k[1], k[2] end
+  local level, kind
+  for i, l in ipairs(CRATE_LEVELS) do if name and name:find(l, 1, true) then level = i end end
+  for _, x in ipairs(CRATE_KINDS) do if name and name:find(x, 1, true) then kind = x end end
+  return level, kind
+end
+ns.CrateKind = crateKind
+
 -- id: the item number (any language); name: the English name, for a crate added later.
 local function isCrate(id, name)
   if id and CRATE_IDS[id] then return true end
@@ -334,6 +359,10 @@ function ns:CrateReport(id)
   end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   r.owned = bagCount(id) > 0
+  -- How many of this crate you have: bags, bank and your other characters (their last visit).
+  local cb, cbank, calts, cby = ns:ItemLocations(id)
+  r.have, r.haveBags, r.haveBank, r.haveAlts, r.haveBy = cb + cbank + calts, cb, cbank, calts, cby
+  r.tier, r.kind = crateKind(id, info.name)
   r.cratePrice = (not r.owned) and rec and not rec.none and rec.m or nil
   r.favor, r.pay = TURN_IN_FAVOR, TURN_IN_PAY
   if r.cheapest then
@@ -389,7 +418,9 @@ local function crateCounts()
 end
 
 local function favorNow()
-  local ok, info = pcall(C_CurrencyInfo.GetCurrencyInfo, FAVOR)
+  local get = C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo   -- (guarded: pcall can't catch the look-up)
+  if not get then return nil end
+  local ok, info = pcall(get, FAVOR)
   return ok and info and info.quantity or nil
 end
 
@@ -462,6 +493,7 @@ local rows, details = {}, {}
 local openID
 local COLS = {
   { key = "name", label = "Crate" },
+  { key = "have", label = "Have", w = 40 },
   { key = "level", label = "Level", w = 44 },
   { key = "fill", label = "Cheapest fill", w = 150 },
   { key = "fillCost", label = "Fill cost", w = 74 },
@@ -470,11 +502,40 @@ local COLS = {
   { key = "perFavor", label = "Per Favor", w = 80 },
 }
 
+-- The filters (Frank, November 23): level, kind, and only the crates you have.
+local function S()
+  local s = ns.db.settings
+  s.crateTab = type(s.crateTab) == "table" and s.crateTab or {}
+  local c = s.crateTab
+  c.level = c.level or "all"
+  c.kind = c.kind or "all"
+  return c
+end
+
 function ns:BuildCrates(parent)
   f = CreateFrame("Frame", nil, parent)
   f:SetAllPoints()
+  local lopts = { { value = "all", label = "All" } }
+  for i, l in ipairs(CRATE_LEVELS) do lopts[#lopts + 1] = { value = i, label = l } end
+  f.level = T:Choice(f, lopts, function(v) S().level = v; ns:RefreshCrates() end)
+  f.level:SetPoint("TOPLEFT", 2, -2)
+  f.kind = T:Dropdown(f, 130, function(v) S().kind = v; ns:RefreshCrates() end)
+  f.kind:SetPoint("LEFT", f.level, "RIGHT", 12, 0)
+  local kopts = { { value = "all", label = "Any kind" } }
+  for _, k in ipairs(CRATE_KINDS) do kopts[#kopts + 1] = { value = k, label = k } end
+  f.kind:SetOptions(kopts)
+  f.mine = T:Check(f, function(self) S().mine = self:GetChecked() or nil; ns:RefreshCrates() end)
+  f.mine:SetPoint("LEFT", f.kind, "RIGHT", 14, 0)
+  f.mine.label:SetText("Only ones I have")
+  f.mine:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    ns:TooltipAddLine("Only the crates you have", 1, 1, 1)
+    ns:TooltipAddLine("In your bags, your bank or on your other characters (as of their last visit).", 0.8, 0.8, 0.8, true)
+    GameTooltip:Show()
+  end)
+  f.mine:HookScript("OnLeave", function() GameTooltip:Hide() end)
   f.info = T:Text(f, 12, T.dim)
-  f.info:SetPoint("TOPLEFT", 2, -2)
+  f.info:SetPoint("TOPLEFT", f.level, "BOTTOMLEFT", 0, -6)
   f.info:SetPoint("RIGHT", f, "RIGHT", -2, 0)
   f.info:SetJustifyH("LEFT")
   -- The headings sit under the text however many lines it takes (with the themes' fonts
@@ -530,6 +591,14 @@ local function getRow(i)
   r:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     GameTooltip:SetItemByID(self.id)
+    local x = self.report
+    if x and x.have and x.have > 0 then
+      ns:TooltipAddLine(" ")
+      ns:TooltipAddDoubleLine("You have", tostring(x.have), 0.7, 0.7, 0.7, 1, 1, 1)
+      if x.haveBags > 0 then ns:TooltipAddDoubleLine("  In your bags", tostring(x.haveBags), 0.7, 0.7, 0.7, 1, 1, 1) end
+      if x.haveBank > 0 then ns:TooltipAddDoubleLine("  In your bank", tostring(x.haveBank), 0.7, 0.7, 0.7, 1, 1, 1) end
+      for name, n in pairs(x.haveBy or {}) do ns:TooltipAddDoubleLine("  " .. name, tostring(n), 0.7, 0.7, 0.7, 1, 1, 1) end
+    end
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -605,10 +674,17 @@ function ns:RefreshCrates()
     h:SetText(c.label .. (c.key == "perFavor" and " ^" or ""))
   end
 
-  local reports, unread = {}, 0
+  local s = S()
+  f.level:SetValue(s.level)
+  f.kind:SetValue(s.kind)
+  f.mine:SetChecked(s.mine and true or false)
+  local reports, unread, hidden = {}, 0, 0
   for _, id in ipairs(ns:KnownCrates()) do
     local r = ns:CrateReport(id)
-    if r then reports[#reports + 1] = r else unread = unread + 1 end
+    if not r then unread = unread + 1
+    elseif (s.level == "all" or r.tier == s.level) and (s.kind == "all" or r.kind == s.kind) and (not s.mine or r.have > 0) then
+      reports[#reports + 1] = r
+    else hidden = hidden + 1 end
   end
   table.sort(reports, function(a, b)
     if (a.sortKey ~= nil) ~= (b.sortKey ~= nil) then return a.sortKey ~= nil end
@@ -635,8 +711,10 @@ function ns:RefreshCrates()
     row.icon:SetPoint("LEFT", row, "LEFT", lay.name.x, 0)
     local parts = {}
     for _, p in ipairs(r.cheapest and r.cheapest.parts or {}) do parts[#parts + 1] = p.qty .. " " .. p.name end
+    row.report = r
     local values = {
-      name = shortName(r.name) .. (r.owned and dim("  in bags") or ""),
+      name = shortName(r.name),
+      have = r.have > 0 and (T:AccentCode() .. r.have .. "|r") or dim("-"),
       level = r.level and tostring(r.level) or "",
       fill = #parts > 0 and table.concat(parts, " + ") .. (r.cheapest.have and dim(" (have)") or "") or dim("no prices yet"),
       fillCost = r.cheapest and money(r.cheapest.cost) or dim("?"),
@@ -690,6 +768,8 @@ function ns:RefreshCrates()
   end
   for i = n + 1, #rows do rows[i]:Hide() end
   for i = nd + 1, #details do details[i]:Hide() end
+  f.empty:SetText(hidden > 0 and ("No crate matches these filters (%d hidden by them)."):format(hidden)
+    or "No Waylaid Crates seen yet. Run a full scan, or put a crate in your bags.")
   f.empty:SetShown(n == 0)
   f.content:SetHeight(math.max(y, 30))
   f.sf.UpdateScrollBar()

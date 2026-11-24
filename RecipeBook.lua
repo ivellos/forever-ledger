@@ -25,9 +25,10 @@ local function recipeNameFromItem(itemName)
 end
 
 local function npcInfo(unit)
-  local guid = UnitGUID(unit)
+  local guid = ns.Readable(UnitGUID(unit))
   local npcID = guid and tonumber(guid:match("^%a+%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
   local first, last = UnitName(unit)
+  first, last = ns.Readable(first), ns.Readable(last)
   local name = (first and last and last ~= "") and (first .. " " .. last) or first
   return npcID, name
 end
@@ -501,9 +502,9 @@ ns:On("LOOT_OPENED", function()
     local itemName = id and ns.GetItemInfo(id)
     local recipe = recipeNameFromItem(itemName)
     if recipe then
-      local guid = GetLootSourceInfo and GetLootSourceInfo(i)
+      local guid = ns.Readable(GetLootSourceInfo and GetLootSourceInfo(i))
       local npcID = guid and tonumber(guid:match("^Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
-      local mob = (UnitExists("target") and UnitIsDead("target")) and (UnitName("target")) or nil
+      local mob = (UnitExists("target") and UnitIsDead("target")) and ns.Readable((UnitName("target"))) or nil
       local mapID, x, y, zone = here()
       addSource(recipe, { kind = "drop", npc = mob, npcID = npcID or mob, mapID = mapID, x = x, y = y, zone = zone, item = id })
       ns:Debug("Recipe book: recipe drop", itemName, "from", mob or npcID or "?", "in", zone or "?")

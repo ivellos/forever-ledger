@@ -13,7 +13,8 @@ local SEND_GAP = 0.3         -- seconds between messages, about 800 characters a
 local THROTTLE_WAIT = 1.5    -- seconds to wait when the game says we're sending too fast
 local PRICE_HOURS = 48       -- only prices this recent are sent
 local DEBOUNCE = 5           -- seconds to wait after a change before sending
-local BOOKS_WAIT = 60        -- gold and sales changes go at most this often
+local BOOKS_WAIT = 60        -- gold changes go at most this often
+local BOOKS_TRADE_WAIT = 5   -- a sale, purchase or vendor trade goes this soon (the partner's open Ledger)
 local BOOKS_OVERLAP = 300    -- each send repeats this many seconds (recent entries can change)
 local BOOKS_FULL_DAYS = 20   -- away longer: send everything (older entries become monthly totals)
 local BOOKS_REPLY_WAIT = 60  -- seconds after the last message before sending them again
@@ -30,12 +31,14 @@ local test                   -- running /fl sync test
 local ping                   -- running /fl sync ping: { name, ok, failed }
 local counter = 0
 local booksChanged = true    -- anything new for the partner's Dashboard and Ledger
-local booksWaiting = false
+local booksWaiting = false   -- (when the books are due to go, or false)
+local tradePending = false   -- (a trade logged since the books last went: they go soon)
 local partnerBooks = false   -- the partner's version takes them (said in its hello)
 local booksSent              -- books on their way: { to = cursor, waitUntil = GetTime(), tries }
 local askedFor               -- who the question about gold and sales was about
 local catchUp                -- price history days on their way: { days = { { day, markets } }, i }
 local historyGot             -- days of price history received in this catch-up: { days, items }
+local lastBooksIn            -- the last books received, for /fl sync books: { t, chars, entries, to, merged }
 
 -- In Forever, UnitName's second value is the last name ("Iveilos", "Veren"), not a server.
 local function me()
@@ -74,15 +77,22 @@ end
 ---------------------------------------------------------------------------
 -- Sending: split into chunks, send at a steady pace, back off if throttled
 ---------------------------------------------------------------------------
+-- Pieces of urgent messages (the books: trades the partner's open Ledger is waiting for) go
+-- at the front, in their own order: behind bags, characters and prices they waited minutes
+-- (Frank, November 22: vendor sales on the alt "took quite a while" to show). A message's
+-- pieces are put back together by its id, so pieces of two messages can interleave.
+local front = 0   -- (urgent pieces at the front of the queue)
 local function pump()
-  if #queue == 0 then sending = false; return end
+  if #queue == 0 then sending = false; front = 0; return end
   sending = true
   local m = table.remove(queue, 1)
+  if m.urgent then front = front - 1 end
   local ok, result = pcall(C_ChatInfo.SendAddonMessage, PREFIX, m.text, "WHISPER", m.to)
   lastSentTo = GetTime()
   local sent = ok and (result == nil or result == true or result == 0)
   if not sent then
     table.insert(queue, 1, m)
+    if m.urgent then front = front + 1 end
     ns:Debug("Sync: throttled, waiting", ok and tostring(result) or tostring(result))
     C_Timer.After(THROTTLE_WAIT, pump)
     return
@@ -91,7 +101,7 @@ local function pump()
   C_Timer.After(SEND_GAP, pump)
 end
 
-local function send(payload, to)
+local function send(payload, to, urgent)
   if not to then return 0 end
   to = fullName(to)
   counter = counter + 1
@@ -99,7 +109,14 @@ local function send(payload, to)
   local text = ns.Serialize(payload)
   local n = math.ceil(#text / CHUNK)
   for i = 1, n do
-    queue[#queue + 1] = { to = to, text = ("%s:%d:%d:"):format(id, i, n) .. text:sub((i - 1) * CHUNK + 1, i * CHUNK) }
+    local piece = { to = to, text = ("%s:%d:%d:"):format(id, i, n) .. text:sub((i - 1) * CHUNK + 1, i * CHUNK) }
+    if urgent then
+      piece.urgent = true
+      front = front + 1
+      table.insert(queue, front, piece)
+    else
+      queue[#queue + 1] = piece
+    end
   end
   if not sending then pump() end
   return n
@@ -122,6 +139,7 @@ end
 local function failed()
   local unsent = #queue > 0
   queue = {}
+  front = 0
   sending = false
   if unsent and partner() then
     local st = state()
@@ -221,11 +239,11 @@ function ns:SyncSend(full)
   if nWho + nData == 0 and not books then return end
   local n = nWho > 0 and send(who, to) or 0
   if books then
-    n = n + send({ k = "d", books = books }, to)
+    n = n + send({ k = "d", books = books }, to, true)   -- (ahead of bags and prices)
     local wait = (#queue * SEND_GAP) + BOOKS_REPLY_WAIT
     local these = { to = now, waitUntil = GetTime() + wait, tries = (booksSent and booksSent.tries or 0) + 1 }
     booksSent = these
-    booksChanged = false
+    booksChanged, tradePending = false, false
     if these.tries < BOOKS_TRIES then
       C_Timer.After(wait + 1, function()
         if booksSent == these then ns:SyncSend(false) end
@@ -247,12 +265,19 @@ function ns:SyncSoon()
   soon = C_Timer.NewTimer(DEBOUNCE, function() soon = nil; ns:SyncSend(false) end)
 end
 
--- Gold changed or a sale was logged (History.lua).
-function ns:BooksChanged()
+-- Gold changed, or (trade) a sale, purchase or vendor trade was logged (History.lua). Gold
+-- alone goes within a minute; a trade within seconds, so the partner's open Ledger shows it
+-- (Frank, November 22: "Solid minute no update ... after making some sales to a vendor on alt").
+function ns:BooksChanged(trade)
   booksChanged = true
-  if booksWaiting or not partner() or not partnerOnline then return end
-  booksWaiting = true
-  C_Timer.After(BOOKS_WAIT, function()
+  if trade then tradePending = true end
+  if not partner() or not partnerOnline then return end
+  local wait = tradePending and BOOKS_TRADE_WAIT or BOOKS_WAIT
+  local due = GetTime() + wait
+  if booksWaiting and booksWaiting <= due then return end   -- (due as soon already)
+  booksWaiting = due
+  C_Timer.After(wait, function()
+    if booksWaiting ~= due then return end   -- (a sooner one took its place)
     booksWaiting = false
     ns:SyncSend(false)
   end)
@@ -379,11 +404,18 @@ local function handle(payload, sender)
     end
   elseif payload.k == "d" then
     partnerOnline = true
+    if type(payload.books) == "table" then   -- (for /fl sync books)
+      local chars, entries = 0, 0
+      for _ in pairs(payload.books.chars or {}) do chars = chars + 1 end
+      for _, log in ipairs({ "sales", "purchases", "vendorLog" }) do entries = entries + #(payload.books[log] or {}) end
+      lastBooksIn = { t = time(), chars = chars, entries = entries, to = payload.books.to }
+    end
     -- Tagged with the partner's name, so /fl unpair can take it out again.
     local c, p, v, b, m = ns:MergeData(payload, partner())
+    if lastBooksIn and payload.books and lastBooksIn.to == payload.books.to then lastBooksIn.merged = m end
     ns:Debug(("Sync: received %d characters, %d with bags, %d prices, %d vendor prices, %d sets of books from %s."):format(c, b, p, v, m, sender))
     if c + p + v + b + m > 0 then ns:RefreshUI() end
-    if type(payload.books) == "table" and payload.books.to then send({ k = "a", books = payload.books.to }, partner()) end
+    if type(payload.books) == "table" and payload.books.to then send({ k = "a", books = payload.books.to }, partner(), true) end   -- (urgent: the next books wait for it)
   elseif payload.k == "a" then
     -- The partner has the books up to here.
     if booksSent and payload.books == booksSent.to then
@@ -435,16 +467,29 @@ ns:On("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
   if not id or not i or not n then return end
   local key = name .. id
   local r = incoming[key]
-  if not r then r = { parts = {}, n = n, got = 0 }; incoming[key] = r end
+  if not r then r = { parts = {}, n = n, got = 0, from = name }; incoming[key] = r end
   -- Timed from the last piece, not the first: a big send takes minutes (Codex review,
-  -- November 5: 1,500 sales take almost 4, and were thrown away after 2).
-  r.t = GetTime()
+  -- November 5: 1,500 sales take almost 4, and were thrown away after 2). Any piece from
+  -- the same partner counts: urgent books can go ahead of a message already half sent
+  -- (Codex review of 9b4bc1d: 2,500 purchases kept a prices message waiting over 2 minutes).
+  local now = GetTime()
+  for _, other in pairs(incoming) do
+    if other.from == name then other.t = now end
+  end
   if not r.parts[i] then r.parts[i] = chunk; r.got = r.got + 1 end
   if r.got < r.n then return end
   incoming[key] = nil
   local data, err = ns.Deserialize(table.concat(r.parts))
   if not data then ns:Debug("Sync: couldn't read a message from", name, err); return end
-  inbox[#inbox + 1] = { data, name }
+  -- The books and their replies are taken in first: the partner's trades for an open Ledger
+  -- (Frank, November 22: about 30 seconds behind bags and prices being taken in).
+  if type(data) == "table" and (data.k == "a" or (data.k == "d" and data.books)) then
+    local at = 1
+    while inbox[at] and inbox[at].first do at = at + 1 end   -- (behind ones put first already)
+    table.insert(inbox, at, { data, name, first = true })
+  else
+    inbox[#inbox + 1] = { data, name }
+  end
   nextMessage()
 end)
 
@@ -509,6 +554,7 @@ local function endLink()
   local shared = s.syncMoney or s.syncBags
   s.syncMoney, s.syncBags = false, false
   queue, sending, booksSent, booksChanged, partnerBooks, partnerOnline = {}, false, nil, true, false, false
+  front = 0   -- (Codex review of 9b4bc1d: a new link inherited the old queue's urgent count)
   askedFor, catchUp, historyGot = nil, nil, nil
   stopIncoming()
   return shared
@@ -583,6 +629,32 @@ function ns:SyncCommand(args)
     end
     ns:Print(("Sync ping: sending one hidden message to %s, in two forms, 3 seconds apart."):format(name))
     try(1)
+  elseif cmd == "books" then
+    -- Where the Dashboard and Ledger's books are on their way (Frank, November 22: vendor sales
+    -- on one account never showed on the other's open Ledger). English: a diagnostic.
+    local now, st = time(), partner() and state() or {}
+    local function ago(t) return t and t > 0 and ("%ds ago"):format(now - t) or "never" end
+    ns:Print("Sync books:")
+    print(("  Partner %s, %s; their version takes books: %s; sharing gold and sales: %s"):format(tostring(partner()),
+      partnerOnline and "online" or "not online", tostring(partnerBooks), tostring(ns.db.settings.syncMoney)))
+    print(("  Sending: arrived up to %s; on their way: %s; new since: %s; trade waiting: %s; due in: %s; queue %d (urgent %d)"):format(
+      ago(st.booksTo), booksSent and ("tries %d, sent %s"):format(booksSent.tries or 0, ago(booksSent.to)) or "no",
+      tostring(booksChanged), tostring(tradePending), booksWaiting and ("%.0fs"):format(booksWaiting - GetTime()) or "-", #queue, front))
+    local b = lastBooksIn
+    print(("  Last received: %s, %s characters, %s entries, %s taken in"):format(b and ago(b.t) or "never",
+      b and b.chars or 0, b and b.entries or 0, b and tostring(b.merged) or "-"))
+    local latest = {}
+    for _, log in ipairs({ "sales", "purchases", "vendorLog" }) do
+      for _, e in ipairs(ns.db[log] or {}) do
+        if e.c and (e.t or 0) > (latest[e.c] or 0) then latest[e.c] = e.t end
+      end
+    end
+    for key, t in pairs(latest) do
+      if now - t < 86400 then
+        print(("  %s: newest trade %s, %s"):format(key, ago(t), ns:IsOwnChar(key) and "this account"
+          or ("from " .. tostring((ns.db.booksFrom or {})[key]))))
+      end
+    end
   elseif cmd == "whoami" then
     local n1, r1 = UnitName("player")
     local fn, fr = UnitFullName and UnitFullName("player")
@@ -601,7 +673,7 @@ function ns:SyncCommand(args)
     local p = partner()
     ns:Print(p and ("Paired with %s, %s. %d messages waiting to send."):format(p, partnerOnline and "online" or "not seen online yet", #queue)
       or "Not paired. Use /fl pair Charactername on both characters.")
-    print("  /fl pair Name, /fl unpair, /fl sync now (send everything), /fl sync ping Name (check whispers reach someone online)")
+    print("  /fl pair Name, /fl unpair, /fl sync now (send everything), /fl sync books (where the gold and sales are), /fl sync ping Name (check whispers reach someone online)")
   end
 end
 

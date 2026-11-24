@@ -430,8 +430,9 @@ local trade
 
 local function tradeName()
   local first, last = UnitName("NPC")
+  first, last = ns.Readable(first), ns.Readable(last)
   return (first and last and last ~= "" and (first .. " " .. last)) or first
-    or (TradeFrameRecipientNameText and TradeFrameRecipientNameText:GetText())
+    or ns.Readable(TradeFrameRecipientNameText and TradeFrameRecipientNameText:GetText())
 end
 
 -- Everything on both sides of the trade window right now.

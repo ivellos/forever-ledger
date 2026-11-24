@@ -272,3 +272,13 @@ T.test("Empty realm name: one ruleset, its side's prices go back", function()
   T.eq(db.prices["PvE|Alliance"][2589].m, 123)
   T.eq(db.prices["|Alliance"], nil)
 end)
+
+T.test("Hidden unit text: Readable gives nil for a hidden value, the string otherwise", function()
+  issecretvalue = function(v) return v == "Creature-0-1-2-3-4-5" end
+  T.eq(ns.Readable("Creature-0-1-2-3-4-5"), nil)
+  T.eq(ns.Readable("Creature-0-1-2-3-4-6"), "Creature-0-1-2-3-4-6")
+  T.eq(ns.Readable(nil), nil)
+  T.eq(ns.Readable(12), nil)
+  issecretvalue = nil
+  T.eq(ns.Readable("Creature-0-1-2-3-4-5"), "Creature-0-1-2-3-4-5")
+end)

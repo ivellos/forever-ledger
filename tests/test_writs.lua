@@ -63,6 +63,50 @@ T.test("Writs: yours from the bags, and onto the Writs shopping list", function(
   ns.db.inventory[ns.CharKey()] = nil
 end)
 
+T.test("Writs: an order whose writ you don't have puts the writ on the list too", function()
+  -- (Frank, November 23: the writs had to be searched for separately.)
+  ns.db.inventory = ns.db.inventory or {}
+  ns.db.inventory[ns.CharKey()] = { bags = {}, bank = {} }
+  local key = ns.MarketKey()
+  ns.db.prices[key] = ns.db.prices[key] or {}
+  ns.db.prices[key][3385] = { m = 500, a = 500, q = 5, l = "500:5", t = S.now }
+  local mana = ns:WritFor(264013)
+  local list = ns:WritsToShoppingList({ mana })
+  local got = {}
+  for _, it in ipairs(list.items) do got[it.id] = it end
+  T.ok(got[3385], "the item")
+  T.ok(got[264013], "and its writ")
+  T.eq(got[264013] and got[264013].qty, 1)
+  T.eq(got[264013] and got[264013].src, "usual", "up to the usual price")
+  -- Once you have the writ, listing again leaves it off.
+  ns.db.inventory[ns.CharKey()].bags[264013] = 1
+  ns:WritsToShoppingList({ mana })
+  got = {}
+  for _, it in ipairs(list.items) do got[it.id] = it end
+  T.eq(got[264013], nil)
+  ns.db.inventory[ns.CharKey()] = nil
+end)
+
+T.test("Writs: zones without the guides' question mark, each once", function()
+  local zones, seen = ns.WritZones(), {}
+  for _, z in ipairs(zones) do
+    T.ok(not z:find("?", 1, true), z)
+    T.ok(not seen[z], "once: " .. z); seen[z] = true
+  end
+  T.ok(seen["Felwood"] and seen["Wetlands"])
+  T.eq(ns.WritZoneOf({ zone = "Feralas?" }), "Feralas")
+  T.eq(ns.WritZoneOf({}), nil)
+end)
+
+T.test("Crates: level and kind by item number, or from a later crate's name", function()
+  local l, k = ns.CrateKind(248709)
+  T.eq(l, 3); T.eq(k, "Ingots")
+  l, k = ns.CrateKind(248691)
+  T.eq(l, 3); T.eq(k, "Herbs", "Flowering herbs are Herbs")
+  l, k = ns.CrateKind(999999, "Waylaid Crate: Journeyman Parts")
+  T.eq(l, 2); T.eq(k, "Parts")
+end)
+
 T.test("Writs: a sealed writ's average is worked out in the background, then kept", function()
   -- (Frank's AN30, November 17: all of a tier's orders at once froze a hover for half a second.)
   local key = ns.MarketKey()

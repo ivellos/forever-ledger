@@ -37,7 +37,7 @@
 - **Gear versions:** "of the Eagle" and "of the Whale" are priced separately, each with its own price graph.
 
 ### Buying
-- **Buy queue:** flips, watched items and shopping list items on Forever Ledger's own Buy tab in the auction house window, best profit you can afford first; click Buy or scroll over it to buy the next one, a stack of materials in one tick.
+- **Buy queue:** flips, watched items and shopping list items on Forever Ledger's own Buy tab in the auction house window, best profit you can afford first (or the best return on what you spend, with Profit %); click Buy or scroll over it to buy the next one, a stack of materials in one tick.
 - **Spend at most:** cap what the queue spends each auction house visit, or always keep some gold back for repairs.
 - **Shopping lists:** Search all checks the whole list at once (even one version, "of the Monkey"); Have shows what you own across your characters; tick to buy (type any in Want to keep buying whatever is under your price) from it with how many you want and the most you'll pay; craft or buy, whichever is cheaper. Add a shuffle's materials in one click; each price limit says where it came from. Share a list as text.
 ### Selling
@@ -64,10 +64,10 @@
 
 ### Getting around
 - **Welcome and Help:** a short guide the first time, Help by topic with common questions, and search boxes for Settings and Help.
-- **Your look:** three themes (FL Clean, FL Bronze, FL Gilded), your accent color (or EllesmereUI's), and a Size from 75% to 150%.
+- **Your look:** three themes (FL Clean, FL Bronze, FL Gilded), your accent color (or EllesmereUI's), a Size from 75% to 150%, and money in the game's own gold, silver and copper coins (or colored letters).
 - **Your language:** text in Simplified Chinese and Russian so far, with more languages welcome ([how to translate](https://github.com/ivellos/forever-ledger/blob/main/docs/TRANSLATING.md)), and every part that reads the game works on clients in any language.
 - **Settings profiles:** characters can share a set of settings or each have their own; export a profile for a friend.
-- **Works with AHledger, Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI.
+- **Works with AHledger, Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI. Other addons can read your scanned prices too ([for addon authors](https://github.com/ivellos/forever-ledger/blob/main/docs/DEVELOPING.md)).
 - **Two accounts?** Live sync shares prices, price history and recipes between them while both are online, and your gold, sales, bags and bank if you like. Remove characters you no longer have in Settings.
 - **Update notice:** hear from your guild or group when a newer version is out.
 

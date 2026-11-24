@@ -55,7 +55,7 @@ local DEFAULTS = {
   watchItems = {},   -- [itemID] = { max = copper or nil for the vendor price, t = added }: watched items (Watched.lua)
   groups = { user = {}, added = {}, removed = {}, rules = {}, saved = {}, nextId = 1 }, -- groups and rules, account-wide (Groups.lua: shapes there)
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, dealChat = true, sellGuard = true, watchResume = true, stackTwoClicks = false, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, postUndercut = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
-    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, ahTabs = true, dashboard = {}, ledger = {}, goldMaking = {}, writs = {}, quickDE = true, quickDEKey = "ctrlalt", deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
+    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, ahTabs = true, dashboard = {}, ledger = {}, goldMaking = {}, writs = {}, crateTab = {}, quickDE = true, quickDEKey = "ctrlalt", deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
     svcCrafting = true, svcFood = true, svcPortal = true, svcSummon = true, svcLockpick = true,
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
     -- wheel: on from the start (owner, October 22: the fresh-install test found it hard to
@@ -284,6 +284,14 @@ function ns.PlainRealm(s) return (s:gsub("CAMWOW%s+%S+%s+Realm%s+%d+%s+", "")) e
 -- realm, so an empty one hid every price and sell speed and started a second record of the
 -- character (a CurseForge comment and a Discord report the same day). The last good name is
 -- kept per character (charRealm) and used whenever the game's is empty or hidden.
+-- A string the addon may read: nil for a hidden (secret) value or anything not a string.
+-- Since November 23 an NPC's GUID can be hidden (Frank's BugSack: RecipeBook.lua matching
+-- a trainer's GUID, 29 times), so read unit GUIDs and names through this.
+function ns.Readable(s)
+  if (issecretvalue and issecretvalue(s)) or type(s) ~= "string" then return nil end
+  return s
+end
+
 local function readRealm()
   if not GetRealmName then return end
   local ok, realm = pcall(GetRealmName)
@@ -647,6 +655,20 @@ function ns.CharKey()
     end
   end
   return key
+end
+
+-- A single character picked while playing another one: the character you're on now, once
+-- you switch (a player on Discord, November 22: "When Im changing to alts, and open Forever
+-- Ledger ... could you make it by default to chose profile from that char? ... it is
+-- remembering last selected"). All, the realm and a faction stay as picked; a character
+-- picked on purpose stays until the next switch. The Dashboard and the Ledger.
+function ns.OwnCharChoice(s)
+  local me = ns.CharKey()
+  if s.charOn == me then return end
+  local c = s.char
+  local group = c == nil or c == "all" or c == "realm" or (type(c) == "string" and c:match("^faction:") ~= nil)
+  if not group and c ~= me then s.char = me end
+  s.charOn = me
 end
 
 -- Is a saved character on the same ruleset (realm name) and faction as the one you're
@@ -1695,7 +1717,7 @@ function ns:ApiReport()
     "ItemLocation.CreateFromBagAndSlot",
     "C_AuctionHouse.QueryOwnedAuctions", "C_AuctionHouse.GetNumOwnedAuctions", "C_AuctionHouse.GetOwnedAuctionInfo",
     "C_AuctionHouse.CancelAuction", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
-    "BuyMerchantItem", "GetMerchantItemID", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
+    "BuyMerchantItem", "GetMerchantItemID", "GetNumBuybackItems", "GetBuybackItemInfo", "GetBuybackItemLink", "BuybackItem", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
     "C_TradeSkillUI.CraftRecipe", "C_TradeSkillUI.OpenTradeSkill", "LOOT_ITEM_CREATED_SELF",
     "GetNumLootItems", "GetLootSlotInfo", "GetLootSlotLink", "GetLootSourceInfo", "C_Container.GetContainerNumSlots",
     "GetNumTrainerServices", "GetTrainerServiceInfo", "GetTrainerServiceSkillReq", "GetTrainerServiceCost",

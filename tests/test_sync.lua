@@ -259,3 +259,27 @@ T.test("A partner's character with the same professions doesn't rebuild the reci
   ns.db.chars["Crafty Bastiane-Testrealm"] = nil
   if not ok then error(err, 0) end
 end)
+
+-- Frank, November 22: taking in the partner's books "felt like a slight hiccup": all of each
+-- log was sorted again for a few new entries. They go into their place now, in time order.
+T.test("Books: a few new entries from the partner go into their place in time order", function()
+  local me = ns.CharKey()
+  local real = ns.db.purchases
+  local ok, err = pcall(function()
+    ns.db.purchases = {}
+    for i = 1, 1000 do ns.db.purchases[i] = { t = 1000 + i * 10, c = me, id = 1, q = 1, a = 1 } end
+    ns:MergeBooks({ from = 5000, chars = { [PARTNER] = {} }, purchases = {
+      { t = 5005, c = PARTNER, id = 2, q = 1, a = 1 },
+      { t = 9999, c = PARTNER, id = 3, q = 1, a = 1 },
+      { t = 20000, c = PARTNER, id = 4, q = 1, a = 1 },
+    } }, "Partner")
+    local list = ns.db.purchases
+    T.eq(#list, 1003)
+    local inOrder = true
+    for i = 2, #list do if (list[i].t or 0) < (list[i - 1].t or 0) then inOrder = false end end
+    T.ok(inOrder, "still in time order")
+    T.eq(list[#list].id, 4, "the newest at the end")
+  end)
+  ns.db.purchases = real
+  assert(ok, err)
+end)

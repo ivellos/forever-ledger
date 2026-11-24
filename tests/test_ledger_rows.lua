@@ -78,7 +78,8 @@ T.test("Ledger rows: kept between builds, and grouping never changes a kept row"
     local both = ns.LedgerRecords("all", 0, all, "")
     local buy
     for _, r in ipairs(both) do if r.kind == "Auction purchase" then buy = r end end
-    T.eq(buy and buy.amount, -250, "All: money out")
+    T.eq(buy and L.amountOf(buy), -250, "All: money out (worked out where shown)")
+    T.eq(buy and buy.amount, nil, "not written on the kept row")
     local after = ns.LedgerRecords("purchases", 0, all, "")
     T.eq(after[1].amount, nil, "Purchases: the All tab's sign isn't on its row")
     -- A changed entry (a vendor trade merged into it) gets a new row.
@@ -113,11 +114,83 @@ T.test("Ledger rows: a group of trades is reused between builds, and rebuilt whe
     ns.LedgerRecords("all", 0, all, "")
     local c = ns.LedgerRecords("purchases", 0, all, "")
     T.ok(c[1] == a[1], "still the same after the All tab")
-    T.eq(c[1].amount, nil, "the All tab's sign went on a copy")
+    T.eq(c[1].amount, nil, "the All tab's sign isn't written on it")
     ns.db.purchases[3].q, ns.db.purchases[3].a = 3, 150
     local d = ns.LedgerRecords("purchases", 0, all, "")
     T.eq(d[1].qty, 5, "a trade in it changed: worked out again"); T.eq(d[1].total, 250)
   end)
   ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths = saved[1], saved[2], saved[3], saved[4]
+  assert(ok, err)
+end)
+
+-- Frank's twenty-third /fl perf, November 22: the All tab copied every kept row to sign it,
+-- 88 MB in 7 builds. Its rows are the kept rows now, the same objects as in Purchases.
+T.test("Ledger rows: the All tab shows the kept rows themselves, signed where shown", function()
+  local T0 = time() - 3600
+  local saved = { ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths }
+  local ok, err = pcall(function()
+    ns.db.vendorLog, ns.db.ledgerMonths = {}, {}
+    ns.db.sales = { { t = T0, c = "All Tester-Testrealm", n = "All Test Ore", q = 1, a = 300 } }
+    ns.db.purchases = { { t = T0 + 100, c = "All Tester-Testrealm", id = 97821, q = 1, a = 70 } }
+    local all = function() return true end
+    local buys = ns.LedgerRecords("purchases", 0, all, "")
+    local rows = ns.LedgerRecords("all", 0, all, "")
+    local sale, buy
+    for _, r in ipairs(rows) do
+      if r.kind == "Auction sale" then sale = r elseif r.kind == "Auction purchase" then buy = r end
+    end
+    T.ok(buy == buys[1], "the same row as the Purchases tab's")
+    T.eq(L.amountOf(sale), 300); T.eq(L.amountOf(buy), -70)
+  end)
+  ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths = saved[1], saved[2], saved[3], saved[4]
+  assert(ok, err)
+end)
+
+-- Frank, November 22: "can the ledger update while im on the page as the other account or
+-- the account im on does things without causing major lag?" A trade logged here refreshes
+-- an open Ledger a second later, once for a burst; a closed one isn't touched.
+T.test("Ledger: a trade logged here refreshes it while it's open, once for a burst", function()
+  if not L.frame() then ns:BuildLedger(S.dummy()) end
+  local F = L.frame()
+  local realVisible, realRefresh = F.IsVisible, ns.RefreshLedger
+  local refreshes = 0
+  local ok, err = pcall(function()
+    ns.RefreshLedger = function() refreshes = refreshes + 1 end
+    F.IsVisible = function() return true end
+    ns:LedgerChanged(); ns:LedgerChanged(); ns:LedgerChanged()
+    T.eq(refreshes, 0, "not at once")
+    T.runTimers()
+    T.eq(refreshes, 1, "once, a second later")
+    F.IsVisible = function() return false end
+    ns:LedgerChanged()
+    T.runTimers()
+    T.eq(refreshes, 1, "closed: nothing")
+  end)
+  F.IsVisible, ns.RefreshLedger = realVisible, realRefresh
+  T.runTimers()
+  assert(ok, err)
+end)
+
+-- Frank's screenshot, November 22: the other account's day totals (mail sent, deposits back)
+-- sat at the top of the day, above that morning's trades, as they were dated noon. They're
+-- dated to the very start of their day now: the same date, below the day's own times.
+T.test("Ledger: a day total sits at the start of its day, below that morning's entries", function()
+  local saved = { ns.db.money, ns.db.otherLog, ns.db.otherLogSince, ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths }
+  local ok, err = pcall(function()
+    ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths = {}, {}, {}, {}
+    local morning = time({ year = 2026, month = 11, day = 22, hour = 8, min = 30 })
+    local partner = "Day Tester-Testrealm"
+    ns.db.money = { [partner] = { [ns.LocalDay(morning)] = { mailOut = 1080 } } }
+    ns.db.otherLog = { { t = morning, c = ME, s = "quest", a = 250 } }
+    ns.db.otherLogSince = { [ME] = morning - 86400 * 2 }
+    local rows = ns.LedgerRecords("other", 0, function() return true end, "")
+    local total, quest
+    for _, r in ipairs(rows) do if r.day then total = r elseif r.kind then quest = r end end
+    T.ok(total and quest, "both rows")
+    T.ok(total.t < quest.t, "the day total is dated before that morning's quest")
+    T.eq(date("%Y-%m-%d", total.t), date("%Y-%m-%d", morning), "on the same day")
+  end)
+  ns.db.money, ns.db.otherLog, ns.db.otherLogSince = saved[1], saved[2], saved[3]
+  ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths = saved[4], saved[5], saved[6], saved[7]
   assert(ok, err)
 end)

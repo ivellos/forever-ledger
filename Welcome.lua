@@ -173,11 +173,15 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.28.1",
+  version = "0.29.0",
   lines = {
-    { "Your prices are back: since the game changes on November 21 the game can give an empty realm name in some zones, which hid prices, sell speeds and Worth to you from tooltips. Forever Ledger now remembers each character's realm, and anything saved meanwhile moves back where it belongs. Nothing was lost.", fix = true },
-    { "Sessions: a Reset popup left open can no longer clear a newer session.", fix = true },
-    { "Price window: credits AHledger when its prices are used there.", fix = true },
+    { "No more freezes: Gold making, the Ledger, the Recipes tab and Writs open and refresh without holding up the game, and Live watch and sync with your other account leave far less memory for the game to clear.", major = true },
+    { "Russian: the addon's text in Russian, with the right word forms for numbers (thanks to zergzorg)." },
+    { "Coins: money shows the game's own gold, silver and copper coins, as in your bags (thanks to vulpeep). Settings, Appearance switches back to colored letters." },
+    { "Profit %: sort Vendor flips by the best return on what you spend (thanks to yippp)." },
+    { "Sync in seconds: your other account's sales and purchases reach your Ledger within seconds instead of up to a minute.", change = true },
+    { "Vendor sales with bag addons: sales made with a bag addon's buttons or a Sell junk button are logged by item, not only as the day's gold.", fix = true },
+    { "Your auctions: one you cancel, or one missing from the game's answer for a moment, no longer counts as sold (thanks to vulpeep).", fix = true },
   },
 }
 

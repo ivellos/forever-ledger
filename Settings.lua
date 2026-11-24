@@ -1126,6 +1126,13 @@ function ns:BuildSettings(parent)
   f.noMatch = T:Text(content, 12, T.dim)
   f.noMatch:SetPoint("TOPLEFT", 12, -12)
   f.noMatch:SetText("No setting matches that. Try another word, like price, sound or tooltip.")
+  -- Some things have no setting (the language follows the game's): Help may know
+  -- (Frank's AN26, November 22: searched Settings for the language).
+  f.noMatchHelp = T:Button(content, "Search Help", 110, function()
+    if ns.SearchHelp and f.search then ns:SearchHelp(f.search:GetText()) end
+  end)
+  f.noMatchHelp:SetPoint("TOPLEFT", f.noMatch, "BOTTOMLEFT", 0, -10)
+  f.noMatchHelp:Hide()
 
   -- Each page's tabs, and a box of rows for each tab.
   for _, p in ipairs(PAGES) do
@@ -1283,6 +1290,7 @@ function ns:RefreshSettings()
   end
 
   f.noMatch:SetShown(q ~= nil and y == 0)
+  f.noMatchHelp:SetShown(q ~= nil and y == 0)
   f.content:SetHeight(math.max(y, 100))
   for _, r in ipairs(f.controls) do
     if r.control:IsShown() then

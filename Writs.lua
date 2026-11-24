@@ -198,6 +198,19 @@ for i, w in ipairs(LIST) do
   byItem[e.item] = e
 end
 ns.WRITS = WRITS
+
+-- An order's zone without the guides' "?" (not confirmed), or nil; and every zone, sorted.
+local function zoneOf(e) return e.zone and (e.zone:gsub("%?$", "")) or nil end
+ns.WritZoneOf = zoneOf
+function ns.WritZones()
+  local seen, out = {}, {}
+  for _, e in ipairs(WRITS) do
+    local z = zoneOf(e)
+    if z and not seen[z] then seen[z] = true; out[#out + 1] = z end
+  end
+  table.sort(out)
+  return out
+end
 local SEALED = {}
 for _, t in pairs(TIERS) do SEALED[t.sealed] = t end
 
@@ -445,6 +458,18 @@ function ns:WritsToShoppingList(add)
       added = added + 1
     end
   end
+  -- The writ itself for each order you don't have one of (Frank, November 23: they had to
+  -- be bought separately), up to its usual price, as any list item without a price of yours.
+  local yours = ns:YourWrits()
+  local writs = 0
+  for item in pairs(list.writOrders) do
+    local e = byItem[item]
+    if e and e.writ and not yours[e] then
+      ns:AddToShoppingList(list, e.writ, nil, 1)
+      list.writItems[e.writ] = true
+      writs = writs + 1
+    end
+  end
   for item in pairs(need) do
     local x = p and p[item]
     if x and x.owned >= need[item] then ready = ready + 1 end
@@ -452,8 +477,9 @@ function ns:WritsToShoppingList(add)
   if ns.RefreshListsView then ns:RefreshListsView() end
   local orders = 0
   for _ in pairs(list.writOrders) do orders = orders + 1 end
-  ns:Print(("Shopping list \"%s\": %d %s for %d %s, each up to the highest price the plan paid.%s Tick Buy from this list in the Buy queue (/fl lists)."):format(
+  ns:Print(("Shopping list \"%s\": %d %s for %d %s, each up to the highest price the plan paid.%s%s Tick Buy from this list in the Buy queue (/fl lists)."):format(
     LIST_NAME, added, added == 1 and "item" or "items", orders, orders == 1 and "order" or "orders",
+    writs > 0 and (" Also %d %s you don't have yet, up to the usual price."):format(writs, writs == 1 and "writ" or "writs") or "",
     ready > 0 and (" You already have the item for %d."):format(ready) or ""))
   return list
 end
@@ -514,6 +540,7 @@ local function S()
   local w = s.writs
   w.tier = w.tier or "all"
   w.prof = w.prof or "all"
+  w.zone = w.zone or "all"
   w.sort = w.sort or { key = "perRep" }
   if w.sort.key == "tier" then w.sort.key = "rep" end   -- (the Tier column went, November 19)
   return w
@@ -534,11 +561,18 @@ function ns:BuildWrits(parent)
   local popts = { { value = "all", label = "Any profession" } }
   for _, p in ipairs({ "Alchemy", "Blacksmithing", "Engineering", "Leatherworking", "Tailoring" }) do popts[#popts + 1] = { value = p, label = p } end
   f.prof:SetOptions(popts)
+  -- The zone the customer is in (Frank, November 23), to do the orders of one zone together.
+  f.zone = T:Dropdown(f, 170, function(v) S().zone = v; ns:RefreshWrits() end)
+  f.zone:SetPoint("LEFT", f.prof, "RIGHT", 10, 0)
+  local zopts = { { value = "all", label = "Any zone" } }
+  for _, z in ipairs(ns.WritZones()) do zopts[#zopts + 1] = { value = z, label = z } end
+  zopts[#zopts + 1] = { value = "?", label = "Zone not known yet" }
+  f.zone:SetOptions(zopts)
   f.info = T:Text(f, 11, T.dim)
   f.info:SetPoint("TOPLEFT", f.tier, "BOTTOMLEFT", 0, -6)
   f.info:SetPoint("RIGHT", f, "RIGHT", -2, 0)
   f.info:SetJustifyH("LEFT")
-  f.info:SetText("Orders to deliver for reputation and a coin pouch, each once a day. Cheapest: buy or make it at your last scan's prices. Per rep: that less the pouch, per point; green + means the pouch pays you that much. Hover an order for the zone and how to get it; click it to search the auction house.")
+  f.info:SetText("Orders to deliver for reputation and a coin pouch, each once a day. Cheapest: buy or make the item at your last scan's prices. Per rep: that less the pouch, per point (green +: the pouch pays you that much). Click an order to search the auction house for its item, right-click for the writ itself.")
   f.header = CreateFrame("Frame", nil, f)
   f.header:SetPoint("TOP", f.info, "BOTTOM", 0, -6)
   f.header:SetPoint("LEFT", f, "LEFT", 0, 0)
@@ -600,7 +634,7 @@ local function rowTooltip(self)
   elseif not c then
     ns:TooltipAddLine("No price for it or its materials yet: run a full scan.", 0.6, 0.6, 0.6, true)
   end
-  ns:TooltipAddLine("Click to search the auction house for it.", 0.5, 0.5, 0.5, true)
+  ns:TooltipAddLine("Click to search the auction house for the item, right-click for the writ.", 0.5, 0.5, 0.5, true)
   GameTooltip:Show()
 end
 
@@ -632,8 +666,16 @@ local function getRow(i)
     GameTooltip:Show()
   end)
   r.add:HookScript("OnLeave", function() GameTooltip:Hide() end)
-  r:SetScript("OnClick", function(self)
-    if self.entry and not ns:SearchAuctionHouse(self.entry.item) then
+  -- Click: the item. Right-click: the writ itself (Frank, November 23: the writs had to be
+  -- searched for separately).
+  r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  r:SetScript("OnClick", function(self, button)
+    local e = self.entry
+    if not e then return end
+    if button == "RightButton" then
+      if not e.writ then ns:Print("This writ's item number isn't known yet, so it can't be searched for.") return end
+      if not ns:SearchAuctionHouse(e.writ) then ns:Print("Open the auction house, then right-click an order to search for its writ.") end
+    elseif not ns:SearchAuctionHouse(e.item) then
       ns:Print("Open the auction house, then click an order to search for its item.")
     end
   end)
@@ -651,6 +693,7 @@ function ns:RefreshWrits()
   local s = S()
   f.tier:SetValue(s.tier)
   f.prof:SetValue(s.prof)
+  f.zone:SetValue(s.zone)
   local width = f:GetWidth() - 12
   local lay = layout(width)
   local sort = s.sort
@@ -684,7 +727,8 @@ function ns:RefreshWrits()
   local list, priced = {}, 0
   local yours, sealed = ns:YourWrits()
   for _, e in ipairs(WRITS) do
-    if (s.tier == "all" or e.tier == s.tier or (s.tier == "mine" and yours[e])) and (s.prof == "all" or e.prof == s.prof) then
+    if (s.tier == "all" or e.tier == s.tier or (s.tier == "mine" and yours[e])) and (s.prof == "all" or e.prof == s.prof)
+      and (s.zone == "all" or (s.zone == "?" and not zoneOf(e)) or zoneOf(e) == s.zone) then
       local c = knownCost(e)   -- (nil until worked out: refreshCosts, above)
       if c then priced = priced + 1 end
       local writPrice = e.writ and ns:GetPrice(e.writ)

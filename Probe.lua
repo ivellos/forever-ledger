@@ -170,6 +170,7 @@ if C_GossipInfo and hooksecurefunc then
 end
 ns:On("GOSSIP_SHOW", function()
   local first, last = UnitName("npc")
+  first, last = ns.Readable(first), ns.Readable(last)
   if first then lastNPC = (last and last ~= "") and (first .. " " .. last) or first end
   local ok, options = pcall(C_GossipInfo.GetOptions)
   pageOptions = ok and type(options) == "table" and options or {}
@@ -247,8 +248,9 @@ local function readTrade()
   t.theirMoney = GetTargetTradeMoney and GetTargetTradeMoney() or 0
   -- Forever names are "First Last"; UnitName's second value is the last name.
   local first, last = UnitName("NPC")
+  first, last = ns.Readable(first), ns.Readable(last)
   t.partner = (first and last and last ~= "" and (first .. " " .. last)) or first
-    or (TradeFrameRecipientNameText and TradeFrameRecipientNameText:GetText())
+    or ns.Readable(TradeFrameRecipientNameText and TradeFrameRecipientNameText:GetText())
   return t
 end
 
@@ -280,7 +282,7 @@ ns:On("MERCHANT_SHOW", function()
       local info = C_MerchantFrame and C_MerchantFrame.GetItemInfo and C_MerchantFrame.GetItemInfo(i)
       if info and info.hasExtendedCost and GetMerchantItemCostInfo then
         if shown == 0 then
-          ns:Print(("Probe: this vendor (%s) sells for currencies:"):format(tostring(UnitName("NPC"))))
+          ns:Print(("Probe: this vendor (%s) sells for currencies:"):format(tostring(ns.Readable((UnitName("NPC"))))))
           armed.merchant = false
         end
         shown = shown + 1
