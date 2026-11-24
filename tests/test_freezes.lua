@@ -71,6 +71,11 @@ T.test("Freeze watch: leftovers made, and memory cleared in a freeze", function(
   ns.perf = saved
   ns.db.freezeLog = { { t = 1, ms = 600, ours = 2, slow = {}, clearedMB = 95 } }
   T.ok(table.concat(ns.FreezeLines(8), "\n"):find("cleared 95 MB of leftover memory", 1, true))
+  -- (Frank's twentieth /fl perf: item details arriving, and memory made, in the frozen frame.)
+  ns.db.freezeLog = { { t = 1, ms = 290, ours = 18, slow = {}, items = 340, grewMB = 6 } }
+  local text = table.concat(ns.FreezeLines(8), "\n")
+  T.ok(text:find("340 item details arrived from the game in it", 1, true), text)
+  T.ok(text:find("memory grew 6 MB in it", 1, true), text)
   ns.db.freezeLog = nil
 end)
 
@@ -234,4 +239,153 @@ T.test("Slices: a hello's count of price history days gives frames back", functi
   T.eq(whole and whole[d - 1], 150)
   T.eq(result and result[market] and result[market][d - 2], 150, "the same counts")
   T.eq(result and result[market] and result[market][d - 1], 150)
+end)
+
+-- Frank's twentieth /fl perf, November 22: sizing every saved table hit the game's time
+-- limit ("script ran too long"). A sample of each level now, the rest estimated.
+T.test("Perf report: saved data sized from a sample, the big part still named", function()
+  local big = {}
+  for i = 1, 300 do
+    local inner = {}
+    for j = 1, 300 do inner[j] = { j, "some text here" } end
+    big[i] = inner
+  end
+  ns.db.testBigData = big
+  local lines, realPrint = {}, print
+  print = function(...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
+    lines[#lines + 1] = table.concat(parts, " ")
+  end
+  local ok, err = pcall(ns.PrintPerf, ns)
+  print = realPrint
+  ns.db.testBigData = nil
+  assert(ok, err)
+  local sizes
+  for _, l in ipairs(lines) do if l:find("Biggest saved data", 1, true) then sizes = l end end
+  T.ok(sizes and sizes:find("testBigData", 1, true), sizes or "no sizes line")
+  local kb = sizes and tonumber(sizes:match("testBigData (%d+) KB"))
+  -- (300 x 300 entries of about 46 bytes: roughly 4 MB, estimated from the sample.)
+  T.ok(kb and kb > 2000 and kb < 8000, tostring(kb))
+end)
+
+-- Frank's twentieth /fl perf, November 22: the recipe index was rebuilt at every loading
+-- screen and threw every value away, so Gold making worked out all of them again.
+T.test("Recipe index: rebuilt, and values thrown away, only when what it's made from changed", function()
+  local key = "Index Tester-Testrealm"
+  ns.db.chars[key] = { name = "Index Tester", profs = { Tailoring = { rank = 100,
+    recipes = { [97501] = { n = "Test Bolt", out = 97502, r = { { 97503, 2 } } } } } } }
+  ns:BuildUsageIndex()
+  local realAll, all = ns.InvalidateValues, 0
+  ns.InvalidateValues = function() all = all + 1 end
+  local ok, err = pcall(function()
+    ns:BuildUsageIndex()
+    T.eq(all, 0, "nothing changed: kept")
+    ns.db.chars[key].profs.Tailoring.recipes[97501].r[1][2] = 3
+    ns:BuildUsageIndex()
+    T.eq(all, 1, "a material count changed")
+    ns.db.chars[key].profs.Tailoring.rank = 125
+    ns:BuildUsageIndex()
+    T.eq(all, 2, "a rank changed (Enchanting's sets disenchanting)")
+    T.ok(ns.recipesByReagent[97503], "the index has the recipe's material")
+  end)
+  ns.InvalidateValues = realAll
+  ns.db.chars[key] = nil
+  ns:BuildUsageIndex()
+  assert(ok, err)
+end)
+
+-- Codex review, November 22: the walk's limit has to stop every loop, and a part cut short
+-- says so ("at least"), rather than reading as complete or 0 KB.
+T.test("Perf report: a part too big to look through is cut short and says so", function()
+  local flat = {}
+  for i = 1, 120000 do flat[i] = i end
+  ns.db.testFlatData = flat
+  local lines, realPrint = {}, print
+  print = function(...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
+    lines[#lines + 1] = table.concat(parts, " ")
+  end
+  local ok, err = pcall(ns.PrintPerf, ns)
+  print = realPrint
+  ns.db.testFlatData = nil
+  assert(ok, err)
+  local sizes
+  for _, l in ipairs(lines) do if l:find("Biggest saved data", 1, true) then sizes = l end end
+  T.ok(sizes and (sizes:find("testFlatData at least", 1, true) or sizes:find("not measured", 1, true)), sizes or "no sizes line")
+end)
+
+-- Codex review, November 22: two recipes swapping their material counts left the old index
+-- (the fingerprint added each field on its own).
+T.test("Recipe index: two recipes swapping their counts is a change", function()
+  local key = "Swap Tester-Testrealm"
+  ns.db.chars[key] = { name = "Swap Tester", profs = { Tailoring = { rank = 100, recipes = {
+    [97601] = { n = "Swap X", out = 97611, r = { { 97620, 2 } } },
+    [97602] = { n = "Swap Y", out = 97612, r = { { 97620, 3 } } },
+  } } } }
+  ns:BuildUsageIndex()
+  local realAll, all = ns.InvalidateValues, 0
+  ns.InvalidateValues = function() all = all + 1 end
+  local ok, err = pcall(function()
+    local recs = ns.db.chars[key].profs.Tailoring.recipes
+    recs[97601] = { n = "Swap X", out = 97611, r = { { 97620, 3 } } }
+    recs[97602] = { n = "Swap Y", out = 97612, r = { { 97620, 2 } } }
+    ns:BuildUsageIndex()
+    T.eq(all, 1, "rebuilt")
+    local x
+    for _, use in ipairs(ns.recipesByReagent[97620] or {}) do if use.recipeID == 97601 then x = use.rec end end
+    T.eq(x and x.r[1][2], 3, "the index has the new rows")
+    recs[97601].n = "Swap Z"   -- (a name of the same length)
+    ns:BuildUsageIndex()
+    T.eq(all, 2, "a renamed recipe too")
+  end)
+  ns.InvalidateValues = realAll
+  ns.db.chars[key] = nil
+  ns:BuildUsageIndex()
+  assert(ok, err)
+end)
+
+-- Codex review, November 22: two real Blacksmithing recipes (Volcanic Hammer, Girdle of the
+-- Dawn) with corrected counts gave the same added-up fingerprint. Each recipe is compared on
+-- its own now, so no pair of changes can cancel out.
+T.test("Recipe index: paired corrections in two recipes are a change", function()
+  local key = "Pair Tester-Testrealm"
+  local function rows(hammer, girdle)
+    return {
+      [16984] = { n = "Volcanic Hammer", out = 12792, r = { { 12359, 30 }, { 7077, 4 }, { 7910, 4 }, { 8170, hammer } } },
+      [23632] = { n = "Girdle of the Dawn", out = 19051, r = { { 12359, 8 }, { 6037, 6 }, { 12811, girdle } } },
+    }
+  end
+  ns.db.chars[key] = { name = "Pair Tester", profs = { Blacksmithing = { rank = 265, recipes = rows(4, 2) } } }
+  ns:BuildUsageIndex()
+  local realAll, all = ns.InvalidateValues, 0
+  ns.InvalidateValues = function() all = all + 1 end
+  local ok, err = pcall(function()
+    ns.db.chars[key].profs.Blacksmithing.recipes = rows(5, 1)
+    ns:BuildUsageIndex()
+    T.eq(all, 1, "Codex's pair: rebuilt")
+    -- Many pairs of opposite changes, each pair in two recipes.
+    local recs = {}
+    for i = 1, 200 do recs[97700 + i] = { n = "Pair " .. i, out = 96700 + i, r = { { 96000 + i % 7, 3 + i % 5 } } } end
+    ns.db.chars[key].profs.Blacksmithing.recipes = recs
+    ns:BuildUsageIndex()
+    local missed = 0
+    for i = 1, 199, 2 do
+      local before = all
+      local a, b = recs[97700 + i].r[1], recs[97700 + i + 1].r[1]
+      a[2], b[2] = a[2] + 1, b[2] - 1
+      ns:BuildUsageIndex()
+      if all == before then missed = missed + 1 end
+    end
+    T.eq(missed, 0, "every pair of opposite changes rebuilt")
+    ns:BuildUsageIndex()
+    local before = all
+    ns:BuildUsageIndex()
+    T.eq(all, before, "and nothing changed: kept")
+  end)
+  ns.InvalidateValues = realAll
+  ns.db.chars[key] = nil
+  ns:BuildUsageIndex()
+  assert(ok, err)
 end)

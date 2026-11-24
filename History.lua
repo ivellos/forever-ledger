@@ -22,9 +22,16 @@ ns.LEDGER_LOG_DAYS = LOG_DAYS   -- (Ledger.lua: how far back other money has its
 local OTHER_LOGGED = { ahFee = true, ahDepositBack = true, repair = true, mailIn = true, mailOut = true,
   tradeIn = true, tradeOut = true, loot = true, quest = true, training = true, flight = true,
   otherIn = true, otherOut = true }
+-- Counts every write to the Ledger's logs, a new entry or one changed (a trade merged into
+-- the one before it, the partner's books, a fold into months), for the Ledger's kept list:
+-- the count of entries and the last one's time don't change when a trade merges (Codex
+-- review, November 22: a second vendor purchase in the same second left the old total showing).
+ns.ledgerRev = ns.ledgerRev or 0
+local function bumpLedger() ns.ledgerRev = ns.ledgerRev + 1 end
 local OTHER_MERGE_SECONDS = 300
 local function logOther(source, amount, who, now)   -- (also ns.LogOtherMoney, for the tests)
   if not OTHER_LOGGED[source] or amount <= 0 then return end
+  bumpLedger()
   local list = ns.db.otherLog
   local last = list[#list]
   -- Not across midnight: merged into tomorrow, a day's money would be counted on both days
@@ -175,6 +182,7 @@ local function foldEntry(e, kind, index)
 end
 
 local function foldLedger()
+  bumpLedger()
   local months = ns.db.ledgerMonths
   local index = {}
   for _, m in ipairs(months) do index[monthKey(m)] = m end
@@ -339,6 +347,7 @@ local function sourceFor(delta)
 end
 
 local function addLog(list, entry)
+  bumpLedger()
   -- Vendor trades of the same item within a minute are one entry: selling 20 of
   -- something one by one made 20 (owner's log, October 3).
   local last = list[#list]
@@ -432,6 +441,7 @@ end
 -- sender may have folded old days together (Codex review, November 5). via = the partner,
 -- remembered in booksFrom so /fl unpair can take these out again.
 function ns:MergeBooks(b, via)
+  bumpLedger()
   local theirs, n = {}, 0
   local from = b.from or 0
   local firstDay = ns.LocalDay(from)
@@ -453,28 +463,284 @@ function ns:MergeBooks(b, via)
       for day, src in pairs(c.money or {}) do money[day] = src end
     end
   end
+  -- A few new entries each go into their place (the log is in time order); sorting all of it
+  -- each time, thousands of purchases, took 20 ms in one frame when the partner's books came
+  -- (Frank, November 22: "felt like a slight hiccup"). Many (a first or long-away send): sorted.
   local function replace(list, new)
     filterLog(list, function(e) return not (theirs[e.c] and bookTime(e) >= from) end)
-    for _, e in ipairs(new) do
-      if theirs[e.c] then list[#list + 1] = e end
+    local adding = 0
+    for _, e in ipairs(new) do if theirs[e.c] then adding = adding + 1 end end
+    if adding > 200 then
+      for _, e in ipairs(new) do
+        if theirs[e.c] then list[#list + 1] = e end
+      end
+      table.sort(list, function(x, y) return (x.t or 0) < (y.t or 0) end)
+      return
     end
-    table.sort(list, function(x, y) return (x.t or 0) < (y.t or 0) end)
+    for _, e in ipairs(new) do
+      if theirs[e.c] then
+        local t, lo, hi = e.t or 0, 1, #list + 1
+        while lo < hi do
+          local mid = math.floor((lo + hi) / 2)
+          if (list[mid].t or 0) <= t then lo = mid + 1 else hi = mid end
+        end
+        table.insert(list, lo, e)
+      end
+    end
   end
   for _, name in ipairs(BOOK_LOGS) do
     ns.db[name] = ns.db[name] or {}
     if b[name] then replace(ns.db[name], b[name]) end
   end
   if b.months then replace(ns.db.ledgerMonths, b.months) end
+  bumpLedger()
   return n
 end
 
 -- /fl unpair: what came from a partner goes.
 function ns:DropBooks(key)
+  bumpLedger()
   ns.db.gold[key], ns.db.money[key] = nil, nil
   local function notTheirs(e) return e.c ~= key end
   for _, name in ipairs(BOOK_LOGS) do filterLog(ns.db[name] or {}, notTheirs) end
   filterLog(ns.db.ledgerMonths, notTheirs)
 end
+
+-- Vendor sales that no bag click explained (a bag addon's own buttons, a Sell junk button):
+-- the item is read from the vendor's buyback list, where each sale lands (Frank, November
+-- 22: right-clicked sales on his bank account were never logged, only the gold's day total).
+-- The list can change before the gold arrives or after it (Frank, November 22: the fix
+-- below first noted a new entry as seen when the list changed with no gold waiting, so a
+-- sale whose list came first was never logged). So each new entry waits a few seconds in
+-- recent, for its gold or for the bag click's log that explains it.
+local buybackSeen = {}   -- [link:price:qty] = how many of these were on the list already
+local recent = {}        -- new on the list: { b = entry, at = GetTime() }
+local explained = {}     -- sold with a bag click and logged: { id, qty, a = gold, at }
+local unexplained = {}   -- vendor gold with nothing logged: { at = GetTime(), amount, t, who }
+local UNEXPLAINED_SECONDS = 5
+local function buybackEntry(i)
+  local okInfo, _, _, price, qty = pcall(GetBuybackItemInfo, i)
+  local okLink, link = pcall(GetBuybackItemLink, i)
+  local id = okLink and type(link) == "string" and tonumber(link:match("item:(%d+)"))
+  if okInfo and id and type(price) == "number" and price > 0 then
+    qty = tonumber(qty) or 1
+    return { id = id, price = price, qty = qty, slot = i, sig = ("%s:%d:%d"):format(link, price, qty) }
+  end
+end
+local function buybackNow()
+  local out = {}
+  if not (GetNumBuybackItems and GetBuybackItemInfo and GetBuybackItemLink) then return out end
+  local ok, n = pcall(GetNumBuybackItems)
+  for i = 1, (ok and tonumber(n) or 0) do
+    out[#out + 1] = buybackEntry(i)
+  end
+  return out
+end
+local function countSigs(list)
+  local seen = {}
+  for _, b in ipairs(list) do seen[b.sig] = (seen[b.sig] or 0) + 1 end
+  return seen
+end
+local lastList = {}      -- the list as last read, in order
+local shifts = {}        -- a full list in a new order: { options = { {entries}, ... }, at }
+local function noteBuyback()
+  lastList = buybackNow()
+  buybackSeen = countSigs(lastList)
+end
+-- What came onto the list since it was last noted.
+local function newBuyback(list)
+  local left, out = {}, {}
+  for k, v in pairs(buybackSeen) do left[k] = v end
+  for _, b in ipairs(list) do
+    if (left[b.sig] or 0) > 0 then left[b.sig] = left[b.sig] - 1 else out[#out + 1] = b end
+  end
+  return out
+end
+-- What a buyback entry paid: its price is for the stack (or, if the game gives it each, times
+-- the count), whichever is the gold that came.
+local function paid(b, want)
+  if b.price == want then return want end
+  if b.price * b.qty == want then return want end
+end
+-- A full list (12) whose entries are the same but in a new order: sales pushed their twins
+-- off one end and came on at the other. Each way the old list fits shifted by k gives the
+-- k entries that came on; the gold says which (Codex review, November 22: guessing from
+-- an unchanged list named items that weren't sold). An unchanged list proves nothing.
+local BUYBACK_SLOTS = 12
+local function shiftOptions(old, list)
+  local n = #list
+  local same = true
+  for i = 1, n do if old[i].sig ~= list[i].sig then same = false; break end end
+  if same then return end
+  local options = {}
+  for k = 1, n - 1 do
+    local atEnd, atStart = true, true
+    for i = 1, n - k do
+      if old[i + k].sig ~= list[i].sig then atEnd = false end
+      if old[i].sig ~= list[i + k].sig then atStart = false end
+    end
+    if atEnd then
+      local o = {}
+      for i = n - k + 1, n do o[#o + 1] = list[i] end
+      options[#options + 1] = o
+    end
+    if atStart then
+      local o = {}
+      for i = 1, k do o[#o + 1] = list[i] end
+      options[#options + 1] = o
+    end
+  end
+  return #options > 0 and options or nil
+end
+local function optionPays(o, want)
+  if #o == 1 then return paid(o[1], want) ~= nil end
+  local sum = 0
+  for _, b in ipairs(o) do sum = sum + b.price end
+  return sum == want
+end
+-- A bag click's sale is its item and count for the gold it paid: another copy of the item
+-- sold for other gold isn't it (Codex review, November 22: damaged copies pay less). When
+-- the gold that came isn't what the item sells for (a buyback in the same gold change took
+-- some off), either could be its entry's, so both match it: its own entry mustn't be left
+-- for another sale's gold (Codex review, November 22).
+local function isSale(b, e)
+  if b.id ~= e.id or (e.qty and b.qty ~= e.qty) then return false end
+  if not e.a then return true end
+  return paid(b, e.a) ~= nil or (e.expect ~= nil and paid(b, e.expect) ~= nil)
+end
+-- New entries move into recent (each once); old ones, and ones a bag click's log explains,
+-- leave it. The list as it is now is noted, so an entry that left and comes back is new.
+local function scanBuyback()
+  local now, list = GetTime(), buybackNow()
+  local fresh = newBuyback(list)
+  if #fresh == 0 and #list >= BUYBACK_SLOTS and #list == #lastList then
+    local options = shiftOptions(lastList, list)
+    if options then shifts[#shifts + 1] = { options = options, at = now } end
+  end
+  lastList, buybackSeen = list, countSigs(list)
+  for _, b in ipairs(fresh) do
+    recent[#recent + 1] = { b = b, at = now }
+    ns:Debug("New on the buyback list:", b.qty, "x", b.id, "for", ns.Money(b.price))
+  end
+  for _, l in ipairs({ recent, explained, unexplained, shifts }) do
+    for i = #l, 1, -1 do
+      if now - l[i].at > UNEXPLAINED_SECONDS then
+        if l == unexplained then
+          ns:Debug("Vendor gold", ns.Money(l[i].amount), "not found on the buyback list: kept as the day's gold only")
+        end
+        table.remove(l, i)
+      end
+    end
+  end
+  for i = #explained, 1, -1 do
+    local e = explained[i]
+    local done = false
+    for j = #recent, 1, -1 do
+      local b = recent[j].b
+      if isSale(b, e) then
+        table.remove(recent, j); table.remove(explained, i); done = true
+        break
+      end
+    end
+    -- A bag click's sale can also come on as a full list's new order: it's among the entries
+    -- that came on, so the ways without it go and it leaves the rest (Codex review, November
+    -- 22: its shift was left for a later sale's gold to take).
+    for s = #shifts, 1, -1 do
+      if done then break end
+      local kept = {}
+      for _, o in ipairs(shifts[s].options) do
+        for k, b in ipairs(o) do
+          if isSale(b, e) then
+            local rest = {}
+            for m, other in ipairs(o) do if m ~= k then rest[#rest + 1] = other end end
+            kept[#kept + 1] = rest
+            break
+          end
+        end
+      end
+      if #kept > 0 then
+        table.remove(explained, i); done = true
+        local left = {}
+        for _, o in ipairs(kept) do if #o > 0 then left[#left + 1] = o end end
+        -- (an empty way: that sale was all that came on, so the new order is explained)
+        if #left < #kept then table.remove(shifts, s) else shifts[s].options = left end
+      end
+    end
+  end
+end
+local function logBuyback(u, b, amount)
+  addLog(ns.db.vendorLog, { t = u.t, c = u.who, id = b.id, q = b.qty, a = amount, s = "sell" })
+  if ns.SessionSold then ns:SessionSold(b.id, b.qty) end
+  ns:Debug("Vendor sold (from the buyback list)", b.qty, "x", b.id, "for", ns.Money(amount))
+end
+local function tryBuyback()
+  local logged = false
+  scanBuyback()
+  local i = 1
+  while unexplained[i] do
+    local u, take, used = unexplained[i], nil, nil
+    for k = #recent, 1, -1 do   -- (newest first)
+      if paid(recent[k].b, u.amount) then take, used = { { b = recent[k].b, a = u.amount } }, { k }; break end
+    end
+    if not take and #recent >= 2 then   -- several sold in one gold change
+      local sum = 0
+      for _, r in ipairs(recent) do sum = sum + r.b.price end
+      if sum == u.amount then
+        take, used = {}, {}
+        for k, r in ipairs(recent) do take[#take + 1] = { b = r.b, a = r.b.price }; used[#used + 1] = k end
+      end
+    end
+    if not take then   -- a full list's new order: only when exactly one way fits the gold
+      for s = 1, #shifts do
+        local fit, count = nil, 0
+        for _, o in ipairs(shifts[s].options) do
+          if optionPays(o, u.amount) then fit, count = o, count + 1 end
+        end
+        if count == 1 then
+          take, used = {}, {}
+          for _, b in ipairs(fit) do take[#take + 1] = { b = b, a = #fit == 1 and u.amount or b.price } end
+          table.remove(shifts, s)
+          break
+        end
+      end
+    end
+    if take then
+      table.remove(unexplained, i)
+      for k = #used, 1, -1 do table.remove(recent, used[k]) end
+      for _, x in ipairs(take) do logBuyback(u, x.b, x.a) end
+      logged = true
+    else
+      i = i + 1
+    end
+  end
+  if logged then
+    if ns.LedgerChanged then ns:LedgerChanged() end
+    if ns.BooksChanged then ns:BooksChanged(true) end
+  end
+end
+ns:On("MERCHANT_SHOW", function() unexplained, recent, explained, shifts = {}, {}, {}, {}; noteBuyback() end)
+ns:On("MERCHANT_UPDATE", function() tryBuyback() end)
+-- Buying a sale back: a bag click's sale of that item whose entry was never read mustn't
+-- take the entry of a later sale of the same item; other sales keep theirs (Codex reviews,
+-- November 22). Which item it was comes from the list as last read, before the click: once
+-- the call is made, the game may already have taken the entry off and moved the rest up
+-- (Codex review, November 22). The list is read at every MERCHANT_UPDATE, which is also
+-- when the vendor window shows it, so what was clicked is on it; only if it isn't, the
+-- slot as it is now.
+ns:OnReady(function()
+  if not BuybackItem then return end
+  hooksecurefunc("BuybackItem", function(index)   -- (buybackEntry's calls are pcalls)
+    local b
+    for _, e in ipairs(lastList) do
+      if e.slot == index then b = e; break end
+    end
+    b = b or buybackEntry(index)
+    if not b then return end
+    for i = #explained, 1, -1 do
+      if isSale(b, explained[i]) then table.remove(explained, i); return end
+    end
+  end)
+end)
 
 local function onMoney()
   local now = GetMoney()
@@ -503,16 +769,26 @@ local function onMoney()
   if ns.SessionMoney then ns:SessionMoney(source, delta) end
 
   local now, who = time(), ns.CharKey()
+  local logged = false   -- (a trade logged: the partner gets it within seconds, Sync.lua)
+  local vendorLogged = false
   for _, h in ipairs(hints) do
     local amount = (#hints > 1 and h.amount) or math.abs(delta)
     if h.log == "sale" then
       local d = (h.deposit and h.deposit > 0 and h.deposit < amount) and h.deposit or nil
       addLog(ns.db.sales, { t = now, c = who, n = h.item, a = amount - (d or 0), dep = d, cut = h.cut, q = h.qty, b = h.buyer })
+      logged = true
       -- Looted in a running session: it counts as this gold now, not as loot too (Sessions.lua).
       if ns.SessionSold then ns:SessionSold(h.item, h.qty, h.arrived) end
       ns:Debug("Sale", h.qty or "?", "x", h.item or "?", "to", h.buyer or "?", "for", ns.Money(amount))
     elseif h.log == "vendor" then
       addLog(ns.db.vendorLog, { t = now, c = who, id = h.item, q = h.qty, a = amount, s = h.source == "vendorSell" and "sell" or "buy" })
+      logged = true
+      if h.source == "vendorSell" then
+        vendorLogged = true
+        -- (its buyback entry isn't new gold; expect: what the item sells for, if that isn't the gold)
+        local expect = h.amount ~= amount and h.amount or nil
+        explained[#explained + 1] = { id = h.item, qty = h.qty, a = amount, expect = expect, at = GetTime() }
+      end
       if h.source == "vendorSell" and ns.SessionSold then ns:SessionSold(h.item, h.qty) end
       ns:Debug("Vendor", h.source == "vendorSell" and "sold" or "bought", h.qty or "?", "x", h.item or "?", "for", ns.Money(amount))
     end
@@ -529,6 +805,7 @@ local function onMoney()
       -- Non-commodity purchases (gear) are always one item.
       local id = (h and h.item) or lastShownItem
       addLog(ns.db.purchases, { t = now, c = who, id = id, q = (h and h.qty) or 1, a = amount })
+      logged = true
       -- It comes by mail: shopping lists count it as had until it's taken (ShoppingLists.lua).
       if ns.NoteBoughtToMail then ns:NoteBoughtToMail(id, (h and h.qty) or 1) end
       -- Gear: the addon doesn't save prices from gear pages (one page shows one stat
@@ -542,6 +819,24 @@ local function onMoney()
     end
   end
   ns:Debug("Money", source, delta > 0 and "+" or "-", ns.Money(math.abs(delta)))
+  if ns.LedgerChanged then ns:LedgerChanged() end   -- (an open Ledger shows it: Ledger.lua)
+  -- Gold at a vendor counts as a trade even with no entry to log: the Sell junk button or
+  -- another addon sells without a bag click, and the partner's Ledger then waited for the
+  -- gold's minute (Frank, November 22: sold to a vendor, "over a minute and nothing").
+  if source == "vendorSell" or source == "vendorBuy" then logged = true end
+  if source == "vendorSell" and delta > 0 then
+    if not vendorLogged then
+      unexplained[#unexplained + 1] = { at = GetTime(), amount = delta, t = now, who = who }
+    end
+    tryBuyback()
+    if #unexplained > 0 then   -- (the list may update a moment later)
+      C_Timer.After(0.5, function() tryBuyback() end)
+      C_Timer.After(1.5, function() tryBuyback() end)
+      C_Timer.After(3, function() tryBuyback() end)
+      C_Timer.After(UNEXPLAINED_SECONDS + 0.5, function() tryBuyback() end)   -- (says if it was never found)
+    end
+  end
+  if logged and ns.BooksChanged then ns:BooksChanged(true) end
 end
 
 -- Windows that decide where money came from.
@@ -630,6 +925,7 @@ local function sellHint(bag, slot)
   local each = ns:GetSellPrice(info.itemID)
   hint({ source = "vendorSell", item = info.itemID, qty = count, amount = each and each > 0 and each * count or nil, log = "vendor" })
 end
+ns._historyTest = { sellHint = sellHint }
 
 ns:OnReady(function()
   hook(_G, "BuyMerchantItem", buyHint)
@@ -1037,7 +1333,14 @@ function ns:MergeHistoryDay(market, day, packed)
     if not (step and m) then break end
     id = id + step
     a, q = tonumber(a, 36) or m, tonumber(q, 36)
-    if mergeDay(hist, id, day, m, a, market) then n = n + 1 end
+    if mergeDay(hist, id, day, m, a, market) then
+      n = n + 1
+      -- Its usual price may move: that item's values and what leads to it, not every value
+      -- (each synced day threw them all away: Frank's twentieth /fl perf, November 22).
+      -- (The market looked at now, after any pause: Booty Bay's can open meanwhile. Codex
+      -- review, November 22.)
+      if ns.InvalidateItem and market == ns.MarketKey() then ns:InvalidateItem(id) end
+    end
     if q and day > d - COUNT_DAYS then mergeListed(qty, id, day, q) end
   end
   return n
@@ -1252,31 +1555,63 @@ end
 -- falling item's usual price a hundredfold): the last DAILY_DAYS days one by one, older
 -- days as one point per week, merged with the saved weeks.
 -- Returns daily { { day, cheapest, typical } } and weekly { { week, cheapest, typical } }.
-local function pricingPoints(id)
-  local d = today()
-  local daily, weeks, order = {}, {}, {}
-  local function addToWeek(w, m, a, n)
-    local p = weeks[w]
-    if not p then p = { m = m, sum = 0, n = 0 }; weeks[w] = p; order[#order + 1] = w end
-    p.m, p.sum, p.n = math.min(p.m, m), p.sum + a * n, p.n + n
+-- Read into arrays kept between calls, with no table made per day or week: after a reload
+-- every item's history is read once for the values, thousands of items, and the tables
+-- were most of Gold making's 86 MB of leftovers (Frank's eighteenth /fl perf, November 22).
+-- Filled by readPoints: daily dD/dM/dA (1..nD, oldest first), weekly wW/wM/wA (1..nW,
+-- by week). Only valid until the next call; nothing in between may call it.
+local dD, dM, dA, wW, wM, wA = {}, {}, {}, {}, {}, {}
+local slot, sW, sM, sSum, sN, sOrd = {}, {}, {}, {}, {}, {}
+local nSlots, nOrd = 0, 0
+local function addToWeek(w, m, a, n)
+  local i = slot[w]
+  if not i then
+    nSlots = nSlots + 1; i = nSlots; slot[w] = i
+    sW[i], sM[i], sSum[i], sN[i] = w, m, 0, 0
   end
+  if m < sM[i] then sM[i] = m end
+  sSum[i], sN[i] = sSum[i] + a * n, sN[i] + n
+end
+local function byWeek(x, y) return sW[x] < sW[y] end
+local function readPoints(id)
+  local d = today()
+  for w in pairs(slot) do slot[w] = nil end
+  nSlots = 0
   for w, m, a, n in (marketTable("historyWeekly")[id] or ""):gmatch("(%d+):(%d+):(%d+):(%d+)") do
     addToWeek(tonumber(w), tonumber(m), tonumber(a), math.max(tonumber(n), 1))
   end
+  local nD = 0
   for day, m, a in (marketTable("history")[id] or ""):gmatch("(%d+):(%d+):(%d+)") do
     day, m, a = tonumber(day), tonumber(m), tonumber(a)
-    if day > d - DAILY_DAYS then daily[#daily + 1] = { day, m, a }
+    if day > d - DAILY_DAYS then nD = nD + 1; dD[nD], dM[nD], dA[nD] = day, m, a
     else addToWeek(math.floor(day / 7), m, a, 1) end
   end
-  table.sort(order)
-  local weekly = {}
-  for i, w in ipairs(order) do
-    local p = weeks[w]
-    weekly[i] = { w, p.m, math.floor(p.sum / p.n + 0.5) }
+  -- (table.sort goes by the array's length: the slots past this call's are cleared.)
+  for i = 1, nSlots do sOrd[i] = i end
+  for i = nSlots + 1, nOrd do sOrd[i] = nil end
+  nOrd = nSlots
+  table.sort(sOrd, byWeek)
+  for j = 1, nSlots do
+    local i = sOrd[j]
+    wW[j], wM[j], wA[j] = sW[i], sM[i], math.floor(sSum[i] / sN[i] + 0.5)
   end
+  return nD, nSlots
+end
+-- The same as lists of tables (the tooltip, tests).
+local function pricingPoints(id)
+  local nD, nW = readPoints(id)
+  local daily, weekly = {}, {}
+  for i = 1, nD do daily[i] = { dD[i], dM[i], dA[i] } end
+  for i = 1, nW do weekly[i] = { wW[i], wM[i], wA[i] } end
   return daily, weekly
 end
 ns.PricingPoints = pricingPoints   -- (tests)
+-- A list kept between calls, as long as n (for table.sort and median), reused.
+local function scratch(t, n)
+  for i = n + 1, #t do t[i] = nil end
+  return t
+end
+local usualPoints, statsTyp, statsLow, statsListed = {}, {}, {}, {}
 
 ---------------------------------------------------------------------------
 -- Price values for the redesign (November 15). Opt-in: existing UsualPrice and
@@ -1385,17 +1720,17 @@ function ns:UsualPrice(id, window)
   local d = today()
   local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
   from = historyStart(id, from)
-  local points = {}
-  local daily, weekly = pricingPoints(id)
-  for _, p in ipairs(daily) do
-    if p[1] < d and p[1] >= from then points[#points + 1] = p[3] end
+  local points, n = usualPoints, 0
+  local nD, nW = readPoints(id)
+  for i = 1, nD do
+    if dD[i] < d and dD[i] >= from then n = n + 1; points[n] = dA[i] end
   end
-  for _, p in ipairs(weekly) do
-    if (p[1] + 1) * 7 > from then points[#points + 1] = p[3] end
+  for i = 1, nW do
+    if (wW[i] + 1) * 7 > from then n = n + 1; points[n] = wA[i] end
   end
-  if #points == 0 then return nil, 0 end
-  table.sort(points)
-  return points[math.floor((#points + 1) / 2)], #points
+  if n == 0 then return nil, 0 end
+  table.sort(scratch(points, n))
+  return points[math.floor((n + 1) / 2)], n
 end
 
 -- Sell speed (Prices.lua compares full scans): units gone between scans, the minutes
@@ -1586,29 +1921,31 @@ function ns:PriceStats(id, window)
   local d = today()
   local from = d - (ns.PRICE_WINDOWS[window or "all"] or math.huge)
   from = historyStart(id, from)
-  local typ, low, first, days = {}, {}, nil, 0
-  local daily, weekly = pricingPoints(id)
-  for _, p in ipairs(daily) do
-    local day, m, a = p[1], p[2], p[3]
+  -- (Lists kept between calls: see readPoints.)
+  local typ, low, first, days, n = statsTyp, statsLow, nil, 0, 0
+  local nD, nW = readPoints(id)
+  for i = 1, nD do
+    local day = dD[i]
     if day < d and day >= from then
-      typ[#typ + 1], low[#low + 1] = a, m
+      n = n + 1; typ[n], low[n] = dA[i], dM[i]
       first, days = first or day, days + 1
     end
   end
-  for _, p in ipairs(weekly) do
-    local w, m, a = p[1], p[2], p[3]
+  for i = 1, nW do
+    local w = wW[i]
     if (w + 1) * 7 > from then
-      typ[#typ + 1], low[#low + 1] = a, m
+      n = n + 1; typ[n], low[n] = wA[i], wM[i]
       first = math.min(first or w * 7, w * 7)
     end
   end
-  if #typ == 0 then return nil end
-  local listed = {}
+  if n == 0 then return nil end
+  scratch(typ, n); scratch(low, n)
+  local listed, nl = statsListed, 0
   for day, q in (marketTable("historyQty")[id] or ""):gmatch("(%d+):(%d+)") do
     day = tonumber(day)
-    if day < d and day >= from then listed[#listed + 1] = tonumber(q) end
+    if day < d and day >= from then nl = nl + 1; listed[nl] = tonumber(q) end
   end
-  local n = #typ
+  scratch(listed, nl)
   local usual = median(typ)   -- sorts typ
   return {
     usual = usual, low = median(low), points = n, days = days, firstDay = first,
@@ -1669,18 +2006,23 @@ local function pastEntry(id)
 end
 do
   local usualPrice, priceStats = ns.UsualPrice, ns.PriceStats
+  local LABEL = "Price history: usual prices and stats read"   -- (/fl perf detail)
   function ns:UsualPrice(id, window)
+    local t, kb = ns.DetailStart()
     local c = pastEntry(id)
     local key = window or "all"
     local hit = c.usual[key]
     if not hit then hit = { usualPrice(self, id, window) }; c.usual[key] = hit end
+    if t then ns.DetailStop(LABEL, t, kb) end
     return hit[1], hit[2]
   end
   function ns:PriceStats(id, window)
+    local t, kb = ns.DetailStart()
     local c = pastEntry(id)
     local key = window or "all"
     local hit = c.stats[key]
     if hit == nil then hit = priceStats(self, id, window) or false; c.stats[key] = hit end
+    if t then ns.DetailStop(LABEL, t, kb) end
     return hit or nil
   end
 end

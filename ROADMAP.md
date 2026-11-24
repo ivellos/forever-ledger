@@ -9,7 +9,7 @@ What's already in the addon is in the [changelog](CHANGELOG.md). Download: [Rele
 ## Being tested now
 
 - **Gold making, one list**: in the addon since 0.27.0: every way to make gold the addon finds in one tab (crafts that sell, conversions, vendor flips, deals, disenchanting, Booty Bay), with filters you can save, and for a craft the cheapest way to get its materials for the number you'll make: the few cheap listings bought, the rest made from their own materials where that's cheaper, nothing counted twice. Replaces the Shuffles and Deals tabs.
-- **Your language**: in the addon since 0.28.0: text in Simplified Chinese, Russian next (more languages welcome), and everything that reads the game works on clients in any language.
+- **Your language**: in the addon since 0.28.0: text in Simplified Chinese, and Russian since 0.29.0 (more languages welcome), and everything that reads the game works on clients in any language.
 - **Arcane Salvager**: measuring how much it really improves disenchanting (nothing official says), then a plan for using it well: saving up greens and disenchanting them in 15-minute Salvager windows when the extra materials are worth more than the Salvager costs.
 - **Neutral auction houses**: in the addon since 0.15.0 (Booty Bay prices kept as their own market, the 15% cut in the math, and a Booty Bay view, now a button on Gold making). Next: items only one faction can buy, to sell to the other side.
 - **Where recipes come from**: original Classic vendor, drop and trainer locations are shown as "(Classic)" until players confirm them in Forever.

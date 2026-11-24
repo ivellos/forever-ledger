@@ -334,3 +334,21 @@ T.test("The data import refuses a profile", function()
   T.ok(msg:find("Settings, Profiles", 1, true), msg)
   T.eq(ns.db.profiles.Raid, nil)
 end)
+
+-- A player on Discord, November 22: switching to an alt, the Dashboard and Ledger still
+-- showed the character picked last. A single other character switches to the one you're
+-- on; All, the realm and a faction stay; a pick made on this character stays.
+T.test("Character choice: a single character picked elsewhere becomes this one", function()
+  local me = ns.CharKey()
+  local s = { char = "Somebody Else-Testrealm", charOn = "Somebody Else-Testrealm" }
+  ns.OwnCharChoice(s)
+  T.eq(s.char, me, "switched to this character")
+  s.char = "Somebody Else-Testrealm"   -- (picked here, on purpose)
+  ns.OwnCharChoice(s)
+  T.eq(s.char, "Somebody Else-Testrealm", "a pick made on this character stays")
+  for _, group in ipairs({ "all", "realm", "faction:Horde" }) do
+    local g = { char = group, charOn = "Somebody Else-Testrealm" }
+    ns.OwnCharChoice(g)
+    T.eq(g.char, group, group .. " stays")
+  end
+end)

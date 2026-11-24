@@ -55,7 +55,7 @@ local DEFAULTS = {
   watchItems = {},   -- [itemID] = { max = copper or nil for the vendor price, t = added }: watched items (Watched.lua)
   groups = { user = {}, added = {}, removed = {}, rules = {}, saved = {}, nextId = 1 }, -- groups and rules, account-wide (Groups.lua: shapes there)
   settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, dealChat = true, sellGuard = true, watchResume = true, stackTwoClicks = false, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, postUndercut = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
-    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, ahTabs = true, dashboard = {}, ledger = {}, goldMaking = {}, writs = {}, quickDE = true, quickDEKey = "ctrlalt", deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
+    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, ahTabs = true, dashboard = {}, ledger = {}, goldMaking = {}, writs = {}, crateTab = {}, quickDE = true, quickDEKey = "ctrlalt", deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
     svcCrafting = true, svcFood = true, svcPortal = true, svcSummon = true, svcLockpick = true,
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
     -- wheel: on from the start (owner, October 22: the fresh-install test found it hard to
@@ -284,6 +284,14 @@ function ns.PlainRealm(s) return (s:gsub("CAMWOW%s+%S+%s+Realm%s+%d+%s+", "")) e
 -- realm, so an empty one hid every price and sell speed and started a second record of the
 -- character (a CurseForge comment and a Discord report the same day). The last good name is
 -- kept per character (charRealm) and used whenever the game's is empty or hidden.
+-- A string the addon may read: nil for a hidden (secret) value or anything not a string.
+-- Since November 23 an NPC's GUID can be hidden (Frank's BugSack: RecipeBook.lua matching
+-- a trainer's GUID, 29 times), so read unit GUIDs and names through this.
+function ns.Readable(s)
+  if (issecretvalue and issecretvalue(s)) or type(s) ~= "string" then return nil end
+  return s
+end
+
 local function readRealm()
   if not GetRealmName then return end
   local ok, realm = pcall(GetRealmName)
@@ -649,6 +657,20 @@ function ns.CharKey()
   return key
 end
 
+-- A single character picked while playing another one: the character you're on now, once
+-- you switch (a player on Discord, November 22: "When Im changing to alts, and open Forever
+-- Ledger ... could you make it by default to chose profile from that char? ... it is
+-- remembering last selected"). All, the realm and a faction stay as picked; a character
+-- picked on purpose stays until the next switch. The Dashboard and the Ledger.
+function ns.OwnCharChoice(s)
+  local me = ns.CharKey()
+  if s.charOn == me then return end
+  local c = s.char
+  local group = c == nil or c == "all" or c == "realm" or (type(c) == "string" and c:match("^faction:") ~= nil)
+  if not group and c ~= me then s.char = me end
+  s.charOn = me
+end
+
 -- Is a saved character on the same ruleset (realm name) and faction as the one you're
 -- playing: one who could mail you items or craft for you (owner, October 3: other
 -- rulesets' characters counted in Have, recipes and values). True when either side
@@ -819,6 +841,46 @@ local depth = 0
 -- 19: 148 MB before clearing against 44 MB in use, and freezes with almost none of our time).
 local function memKB() return collectgarbage("count") end
 ns.MemKB = memKB
+-- /fl perf detail: where a long run's time and leftovers go, by kind of work, across every
+-- run and tooltip (Frank's nineteenth /fl perf, November 22: Gold making's list still left
+-- 86 MB, and which work makes it can't be told from its parts). Off unless switched on,
+-- for this session; measured where the work starts (DetailStart, DetailStop).
+ns.perfDetailOn, ns.perfDetail = false, {}
+function ns.DetailStart()
+  if ns.perfDetailOn then return clock(), collectgarbage("count") end
+end
+function ns.DetailStop(label, t, kb)
+  if not t then return end
+  local p = ns.perfDetail[label]
+  if not p then p = { n = 0, ms = 0, kb = 0 }; ns.perfDetail[label] = p end
+  p.n, p.ms = p.n + 1, p.ms + (clock() - t)
+  local grew = collectgarbage("count") - kb
+  if grew > 0 then p.kb = p.kb + grew end
+end
+-- A count only (no time): how often something happened, for /fl perf detail.
+function ns.DetailCount(label, n)
+  if not ns.perfDetailOn then return end
+  local p = ns.perfDetail[label]
+  if not p then p = { n = 0, ms = 0, kb = 0 }; ns.perfDetail[label] = p end
+  p.n = p.n + (n or 1)
+end
+-- Where the code that called the caller of this is ("Values.lua:342"), for those counts.
+function ns.DetailCaller()
+  local s = debugstack and debugstack(3, 1, 0) or ""
+  return s:match("([%w_]+%.lua:%d+)") or "?"
+end
+function ns.DetailLines()
+  local list = {}
+  for label, p in pairs(ns.perfDetail) do list[#list + 1] = { label = label, p = p } end
+  table.sort(list, function(a, b) return a.p.kb > b.p.kb end)
+  local out = {}
+  for i, e in ipairs(list) do
+    if e.p.ms == 0 and e.p.kb == 0 then out[i] = ("%s: %d"):format(e.label, e.p.n)   -- (a count: DetailCount)
+    else out[i] = ("%s: %d times, %d ms total, %.1f MB of leftovers"):format(e.label, e.p.n, e.p.ms, e.p.kb / 1024) end
+  end
+  return out
+end
+
 local function note(label, ms, sub, kb)
   sub = sub or depth > 0
   local p = ns.perf[label]
@@ -905,6 +967,7 @@ function ns.NoteFrame(elapsed, ours, top, topMs, tipItem, others, part, partMs)
   return e
 end
 
+local frameItems = 0   -- (item details that arrived since the last frame: GET_ITEM_INFO_RECEIVED)
 local overBase, overOld   -- (each addon's count of frames over 100 ms: a second ago at most, and the one before)
 local watch = CreateFrame("Frame")
 local lastTick   -- (our own clock at the last OnUpdate)
@@ -929,6 +992,11 @@ watch:SetScript("OnUpdate", function(_, elapsed)
     end
     local e = ns.NoteFrame(elapsed, frameOurs, frameTop, frameTopMs, tip or frameTipItem, profilerTop("LastTime", 3), framePart, framePartMs)
     if e and cleared >= 1024 then e.clearedMB = math.floor(cleared / 1024 + 0.5) end
+    -- Item details the game sent in it, and memory made in it (Frank's twentieth /fl perf,
+    -- November 22: freezes of 250-290 ms while Gold making's list was worked out, Forever
+    -- Ledger 18 ms of them, no addon over 100 ms: the game loading items asked about?).
+    if e and frameItems > 0 then e.items = frameItems end
+    if e and cleared <= -1024 then e.grewMB = math.floor(-cleared / 1024 + 0.5) end
     -- Which addons had a frame over 100 ms in it: their counts a second later against the
     -- counts kept every second before it (the per-frame times read now aren't the frozen
     -- frame's: Frank's AN30, November 17, every addon showed 15 ms or less).
@@ -944,6 +1012,7 @@ watch:SetScript("OnUpdate", function(_, elapsed)
   end
   frameOurs, frameTop, frameTopMs = 0, nil, 0
   framePart, framePartMs, frameTipItem = nil, 0, nil
+  frameItems = 0
   depth = 0   -- (a timed task that stopped with an error left it raised)
 end)
 -- Every second: each addon's count of frames over 100 ms, for the freeze above.
@@ -955,7 +1024,9 @@ end
 watch:RegisterEvent("LOADING_SCREEN_ENABLED")
 watch:RegisterEvent("LOADING_SCREEN_DISABLED")
 watch:RegisterEvent("PLAYER_LEAVING_WORLD")
+watch:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 watch:SetScript("OnEvent", function(_, event)
+  if event == "GET_ITEM_INFO_RECEIVED" then frameItems = frameItems + 1; return end
   loadingSeq = loadingSeq + 1
   if event == "LOADING_SCREEN_DISABLED" then
     -- (A few seconds more: the first frames after a loading screen are slow for everyone.
@@ -1084,6 +1155,8 @@ function ns.FreezeLines(n)
         parts[#parts + 1] = "; slowest addons: " .. table.concat(e.addons, ", ")
       end
       if e.clearedMB then parts[#parts + 1] = ("; |cffffd100the game cleared %d MB of leftover memory in it|r"):format(e.clearedMB) end
+      if e.grewMB then parts[#parts + 1] = ("; addons' memory grew %d MB in it"):format(e.grewMB) end
+      if e.items then parts[#parts + 1] = ("; %d item details arrived from the game in it"):format(e.items) end
       if e.item then parts[#parts + 1] = "; tooltip on " .. (ns.ItemName(e.item) or ("item " .. e.item)) end
       lines[#lines + 1] = "    " .. table.concat(parts, " ")
     end
@@ -1101,7 +1174,7 @@ end
 
 function ns:PrintPerf(reset)
   if reset then
-    ns.perf, ns.perfSince = {}, GetTime()
+    ns.perf, ns.perfSince, ns.perfDetail = {}, GetTime(), {}
     if ns.db then ns.db.freezeLog = nil end
     print(ns.PREFIX, "Timing and freezes reset. Play until it happens again, then /fl perf.")
     return
@@ -1110,6 +1183,12 @@ function ns:PrintPerf(reset)
   for _, line in ipairs(ns.PerfLines(12)) do print("  " .. line) end
   local left = ns.LeftoverLine(4)
   if left then print("  " .. left) end
+  if ns.perfDetailOn then
+    print("  By kind of work (/fl perf detail; one can be inside another):")
+    local lines = ns.DetailLines()
+    if #lines == 0 then print("    none yet") end
+    for _, line in ipairs(lines) do print("    " .. line) end
+  end
   for _, line in ipairs(ns.FreezeLines(8)) do print(line) end
   -- Memory and loading, to see whether the data files (ClassicItems.lua) cost much.
   local update = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or UpdateAddOnMemoryUsage
@@ -1127,30 +1206,50 @@ function ns:PrintPerf(reset)
     end
   end
   -- The biggest parts of the saved data, roughly (entries, and KB of text where it's text).
+  -- A sample of each level's tables, the rest estimated from it, and a limit on the whole
+  -- walk: walking all of it hit the game's time limit for one script (Frank's twentieth
+  -- /fl perf, November 22: "script ran too long").
+  -- (Every loop stops at the limit, and a part cut short or never reached says so: Codex
+  -- review, November 22: the limit only stopped going deeper, and later parts read 0 KB.)
+  local SAMPLE, LIMIT, visits = 24, 100000, 0
   local function measure(t, depth)
-    local n, bytes = 0, 0
+    local n, bytes, tables, sampled, sampledBytes, cut = 0, 0, 0, 0, 0, false
     for k, v in pairs(t) do
+      if visits >= LIMIT then cut = true; break end
       n = n + 1
+      visits = visits + 1
       if type(k) == "string" then bytes = bytes + #k end
       if type(v) == "string" then bytes = bytes + #v
       elseif type(v) == "table" and depth > 0 then
-        local n2, b2 = measure(v, depth - 1)
-        bytes = bytes + b2 + n2 * 16
+        tables = tables + 1
+        if sampled < SAMPLE then
+          sampled = sampled + 1
+          local n2, b2, cut2 = measure(v, depth - 1)
+          sampledBytes = sampledBytes + b2 + n2 * 16
+          if cut2 then cut = true end
+        end
       else bytes = bytes + 8 end
     end
-    return n, bytes
+    if sampled > 0 then bytes = bytes + sampledBytes * tables / sampled end
+    return n, bytes, cut
   end
-  local parts = {}
+  local parts, unmeasured = {}, 0
   for key, v in pairs(ns.db or {}) do
     if type(v) == "table" then
-      local n, bytes = measure(v, 4)
-      parts[#parts + 1] = { key = key, n = n, kb = bytes / 1024 }
+      if visits >= LIMIT then unmeasured = unmeasured + 1
+      else
+        local n, bytes, cut = measure(v, 4)
+        parts[#parts + 1] = { key = key, n = n, kb = bytes / 1024, cut = cut }
+      end
     end
   end
   table.sort(parts, function(a, b) return a.kb > b.kb end)
   local out = {}
-  for i = 1, math.min(6, #parts) do out[i] = ("%s %.0f KB"):format(parts[i].key, parts[i].kb) end
-  print("  Biggest saved data (rough): " .. table.concat(out, ", "))
+  for i = 1, math.min(6, #parts) do
+    out[i] = ("%s %s%.0f KB"):format(parts[i].key, parts[i].cut and "at least " or "", parts[i].kb)
+  end
+  local tail = unmeasured > 0 and (" (%d more not measured: too much to look through at once)"):format(unmeasured) or ""
+  print("  Biggest saved data (rough): " .. table.concat(out, ", ") .. tail)
   if ns.loadMs then
     print(("  Loading the addon's files took %.0f ms, setting up saved data %.0f ms."):format(ns.loadMs, ns.readyMs or 0))
   end
@@ -1611,14 +1710,14 @@ function ns:ApiReport()
     "GetProfessions", "GetNumSkillLines",
     "C_AuctionHouse.SendSearchQuery", "C_AuctionHouse.ReplicateItems", "C_AuctionHouse.GetReplicateItemTimeLeft","C_AuctionHouse.GetCommoditySearchResultInfo",
     "C_AuctionHouse.GetItemSearchResultInfo", "C_MerchantFrame.GetItemInfo", "GetMerchantItemInfo",
-    "TooltipDataProcessor.AddTooltipPostCall", "IsPlayerSpell", "C_Spell.GetSpellName", "C_Item.GetItemInfo", "C_Item.IsItemDataCachedByID", "C_Item.GetItemCount", "GetItemCount",
+    "TooltipDataProcessor.AddTooltipPostCall", "IsPlayerSpell", "C_Spell.GetSpellName", "C_Item.GetItemInfo", "C_Item.IsItemDataCachedByID", "C_Item.RequestLoadItemDataByID", "C_Item.GetItemCount", "GetItemCount",
     "GetInboxHeaderInfo", "GetInboxInvoiceInfo", "GetInboxItem", "GetInboxNumItems",
     -- Your auctions (Auctions.lua).
     "C_AuctionHouse.CalculateCommodityDeposit", "C_AuctionHouse.CalculateItemDeposit", "C_AuctionHouse.GetItemKeyInfo",
     "ItemLocation.CreateFromBagAndSlot",
     "C_AuctionHouse.QueryOwnedAuctions", "C_AuctionHouse.GetNumOwnedAuctions", "C_AuctionHouse.GetOwnedAuctionInfo",
     "C_AuctionHouse.CancelAuction", "TakeInboxMoney", "AutoLootMailItem", "RepairAllItems",
-    "BuyMerchantItem", "GetMerchantItemID", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
+    "BuyMerchantItem", "GetMerchantItemID", "GetNumBuybackItems", "GetBuybackItemInfo", "GetBuybackItemLink", "BuybackItem", "C_Container.UseContainerItem", "C_Container.GetContainerItemInfo",
     "C_TradeSkillUI.CraftRecipe", "C_TradeSkillUI.OpenTradeSkill", "LOOT_ITEM_CREATED_SELF",
     "GetNumLootItems", "GetLootSlotInfo", "GetLootSlotLink", "GetLootSourceInfo", "C_Container.GetContainerNumSlots",
     "GetNumTrainerServices", "GetTrainerServiceInfo", "GetTrainerServiceSkillReq", "GetTrainerServiceCost",
@@ -1940,6 +2039,11 @@ SlashCmdList.FOREVERLEDGER = function(msg)
       ah and ah.CommoditiesSellFrame and (ah.CommoditiesSellFrame:IsVisible() and "shown" or "hidden") or "missing"))
   elseif msg == "perf" or msg == "perf reset" then
     ns:PrintPerf(msg == "perf reset")
+  elseif msg == "perf detail" then
+    ns.perfDetailOn, ns.perfDetail = not ns.perfDetailOn, {}
+    print(ns.PREFIX, ns.perfDetailOn
+      and "Timing by kind of work is on for this session: /fl perf shows it at the end. /fl perf detail again turns it off."
+      or "Timing by kind of work is off.")
   elseif msg == "de" or msg == "de reset" then
     ns:PrintDisenchants(msg == "de reset")
   elseif msg == "disenchant" then

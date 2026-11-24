@@ -804,6 +804,15 @@ local function groupChoices(prof)
   groupCache[prof] = c
   return c
 end
+-- The group dropdown's choices: the profession's own once worked out; before that (its
+-- first list) Any group and the chosen group kept, never another profession's choices
+-- (Codex review, November 21).
+local function groupOptions(gc, chosen)
+  if gc then return gc.opts end
+  local opts = { { value = "all", label = "Any group" } }
+  if chosen ~= "all" then opts[2] = { value = chosen, label = "Working out groups..." } end
+  return opts
+end
 
 -- What a row sorts by in a column (nil: no value, always last).
 local function plain(text)
@@ -1258,8 +1267,8 @@ function ns:RefreshRecipes()
   f.rdraw = nil   -- (the Trainers view draws all its rows: a few)
   if trainers then n = trainerRows(width, lay) elseif current then n, total, loading = recipeRows(current, width, lay) end
   gc = knownGroups()   -- (worked out just now if the list was done within its first frame)
-  if gc then
-    f.group:SetOptions(gc.opts)
+  if not trainers and current then
+    f.group:SetOptions(groupOptions(gc, s.group))
     f.group:SetValue(s.group)
   end
   for i, r in pairs(rows) do if i > n then r:Hide() end end   -- (pairs: gaps after a scroll jump)
@@ -1299,4 +1308,4 @@ function ns:RefreshRecipes()
 end
 
 ns.RefreshRecipes = ns.Timed("Recipes tab", ns.RefreshRecipes)
-ns._recipesTest = { buildList = buildList, settings = settings, groupChoices = groupChoices, listStamp = listStamp, valuesKey = valuesKey }   -- (tests)
+ns._recipesTest = { buildList = buildList, settings = settings, groupChoices = groupChoices, listStamp = listStamp, valuesKey = valuesKey, groupOptions = groupOptions }   -- (tests)

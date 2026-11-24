@@ -16,6 +16,11 @@ local RANGES = {
 }
 local SALES = { ahSale = true, vendorSell = true }
 local EXPENSES = { ahBuy = true, ahFee = true, vendorBuy = true, repair = true }
+-- Everything else in History.lua's money records: not trading, shown in the profit hover.
+-- (Coins looted with auto-loot often land in otherIn: the loot window never shows.)
+local EARNED = { loot = true, quest = true, otherIn = true }
+local COSTS = { training = true, flight = true, otherOut = true }
+local MOVED = { mailIn = 1, tradeIn = 1, mailOut = -1, tradeOut = -1 }
 local POINTS = 60
 local PAD_LEFT, PAD_RIGHT, PAD_TOP, PAD_BOTTOM = 58, 12, 8, 22
 
@@ -36,6 +41,7 @@ end
 local function settings()
   local d = ns.db.settings.dashboard
   d.char = d.char or "all"
+  ns.OwnCharChoice(d)
   d.range = d.range or "week"
   return d
 end
@@ -99,13 +105,19 @@ local function totals(keys, from, to)
   for _, k in ipairs(keys) do keyset[k] = true end
   local fromDay, toDay = ns.LocalDay(from), ns.LocalDay(to)
   local sales, expenses, firstDay = 0, 0, nil
+  -- The money that isn't trading, so the Trading profit hover can show what else moved
+  -- your gold (Frank, November 23: profit -92g in a week his gold rose 303g).
+  local earned, costs, moved = 0, 0, 0
   for _, k in ipairs(keys) do
     for day, src in pairs(ns.db.money[k] or {}) do
       if day >= fromDay and day <= toDay then
         if not firstDay or day < firstDay then firstDay = day end
         for s, amt in pairs(src) do
           if SALES[s] then sales = sales + amt elseif EXPENSES[s] then expenses = expenses + amt
-          elseif s == "ahDepositBack" then expenses = expenses - amt end   -- a deposit back offsets the fee paid
+          elseif s == "ahDepositBack" then expenses = expenses - amt   -- a deposit back offsets the fee paid
+          elseif EARNED[s] then earned = earned + amt
+          elseif COSTS[s] then costs = costs + amt
+          elseif MOVED[s] then moved = moved + MOVED[s] * amt end
         end
       end
     end
@@ -168,6 +180,7 @@ local function totals(keys, from, to)
   local days = math.max(1, toDay - math.max(fromDay, firstDay or toDay) + 1)
   return {
     sales = sales, expenses = expenses, profit = sales - expenses, days = days,
+    earned = earned, costs = costs, moved = moved,
     topSold = top(sold), topBought = top(bought), topProfit = top(net),
     nSales = nSales, nBuys = nBuys, bigSale = bigSale, bigBuy = bigBuy,
   }
@@ -367,6 +380,7 @@ function ns:BuildDashboard(parent)
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       ns:TooltipAddLine(self.title or "", 1, 1, 1)
       for _, line in ipairs(self.exact) do ns:TooltipAddDoubleLine(line[1], line[2], 0.7, 0.7, 0.7, 1, 1, 1) end
+      if self.note then ns:TooltipAddLine(self.note, 0.6, 0.6, 0.6, true) end
       GameTooltip:Show()
     end)
     t.hit:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -556,8 +570,21 @@ function ns:RefreshDashboard(f)
   local tiles = {
     { "Gold now", last and ns.MoneyBrief(last) or dim("no record yet"), first and last and (signed(last - first, true) .. " " .. phrase) or "",
       last and { { "Gold now", ns.Money(last) }, first and { ns.LocalizeText(phrase), signed(last - first, true, true) } or nil } },
-    { ns.LocalizeText("Profit %s"):format(ns.LocalizeText(phrase)), signed(n.profit, true), ns.LocalizeText("%s a day"):format(money(perDay)),
-      { { "Profit", signed(n.profit, true, true) }, { "A day", (perDay < 0 and "-" or "") .. ns.Money(math.abs(perDay)) } } },
+    -- Trading only (auction house and vendors), named so; the hover adds up the rest.
+    { ns.LocalizeText("Trading profit %s"):format(ns.LocalizeText(phrase)), signed(n.profit, true), "auction house and vendors",
+      (function()
+        local lines = {
+          { "Trading profit", signed(n.profit, true, true) },
+          { "A day", (perDay < 0 and "-" or "") .. ns.Money(math.abs(perDay)) },
+          { " ", " " },
+          { "Loot, quests and other income", signed(n.earned, false, true) },
+          { "Training, flights and other costs", signed(-n.costs, false, true) },
+        }
+        if n.moved ~= 0 then lines[#lines + 1] = { "Mail and trades", signed(n.moved, false, true) } end
+        lines[#lines + 1] = { "All money in and out", signed(n.profit + n.earned - n.costs + n.moved, true, true) }
+        return lines
+      end)(),
+      "Trading profit is what you sold at the auction house and to vendors, less what you bought there, fees and repairs. What you bought and haven't sold yet counts as spent. The lines below it are the rest of your money, so together they match how your gold changed (from whole days, so the total can differ a little from Gold now)." },
     { "Sales", ns.MoneyBrief(n.sales), n.topSold and ns.LocalizeText("top: %s"):format(n.topSold) or "", { { "Sales", ns.Money(n.sales) } } },
     { "Expenses", ns.MoneyBrief(n.expenses), n.topBought and ns.LocalizeText("top: %s"):format(n.topBought) or "", { { "Expenses", ns.Money(n.expenses) } } },
   }
@@ -573,7 +600,7 @@ function ns:RefreshDashboard(f)
     t.hit:ClearAllPoints()
     t.hit:SetPoint("TOPLEFT", f, "TOPLEFT", x, -tileY)
     t.hit:SetSize(tw, tileH)
-    t.hit.title, t.hit.exact = tiles[i][1], tiles[i][4]
+    t.hit.title, t.hit.exact, t.hit.note = tiles[i][1], tiles[i][4], tiles[i][5]
   end
 
   -- Riding fund strip (the graph gives up its height while it shows)

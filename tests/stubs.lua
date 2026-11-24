@@ -58,6 +58,8 @@ date = function(fmt, t) return os.date(fmt or "%c", t or S.now) end
 GetTime = function() return S.now % 100000 end
 debugprofilestop = function() return os.clock() * 1000 end
 GetRealmName = function() return "Testrealm" end
+-- (History.lua hooks it; a test can set BuybackItemNow to change the list during the call)
+BuybackItem = function(i) if BuybackItemNow then BuybackItemNow(i) end end
 UnitFactionGroup = function() return "Alliance" end
 UnitName = function() return "Tester" end
 UnitClass = function() return "Mage", "MAGE" end

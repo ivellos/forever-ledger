@@ -81,6 +81,18 @@ T.test("Professions: the group choices are worked out over several frames", func
   T.ok(result and result.sets[96002] and result.sets[96002].test_even, "kept for the list's filter")
 end)
 
+-- Codex review, November 21: before a profession's first group choices were worked out,
+-- the dropdown was empty, or still held the last profession's choices.
+T.test("Professions: the group dropdown while its choices are worked out", function()
+  local opts = ns._recipesTest.groupOptions
+  local loading = opts(nil, "all")
+  T.eq(#loading, 1); T.eq(loading[1].value, "all", "Any group only")
+  loading = opts(nil, "test_even")
+  T.eq(#loading, 2); T.eq(loading[2].value, "test_even", "the chosen group kept until its choices come")
+  local known = { opts = { { value = "all" }, { value = "test_even" } } }
+  T.eq(opts(known, "test_even"), known.opts, "once known: the profession's own")
+end)
+
 -- Codex review, November 21: the kept list missed a recipe just learned (here or by the
 -- other account's character), a source just seen and a material's new price until the
 -- minute turned.

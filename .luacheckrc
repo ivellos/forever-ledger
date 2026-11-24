@@ -53,7 +53,7 @@ read_globals = {
   "GetInboxInvoiceInfo", "GetInboxItem", "GetInboxNumItems", "GetInstanceInfo",
   "GetItemCount", "GetItemIcon", "GetItemInfo", "GetItemInfoInstant", "GetItemSpell", "IsQuestFlaggedCompleted", "GetLootSlotInfo",
   "GetLootSlotLink", "GetLootSourceInfo", "GetNumLootItems", "GetMerchantItemCostInfo",
-  "GetMerchantItemCostItem", "GetMerchantItemID", "GetMerchantItemInfo",
+  "BuybackItem", "GetBuybackItemInfo", "GetBuybackItemLink", "GetNumBuybackItems", "GetMerchantItemCostItem", "GetMerchantItemID", "GetMerchantItemInfo",
   "GetMerchantNumItems", "GetNumCompanions", "GetNumSkillLines", "GetNumSpellTabs",
   "GetNumTalents", "GetNumTalentTabs", "GetNumTrainerServices", "GetPlayerTradeMoney",
   "GetProfessionInfo", "GetProfessions", "GetQuestGreenRange", "GetQuestsCompleted",

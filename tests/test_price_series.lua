@@ -250,3 +250,38 @@ T.test("Price series: a version's points", function()
   T.eq(s[3].typical, nil, "versions have no typical price")
   T.same(ns:PriceSeries(70061, 9999), {})
 end)
+
+-- Frank's eighteenth /fl perf, November 22: after a reload every item's history is read
+-- once for the values (thousands of items), and the tables made per day and week were most
+-- of Gold making's 86 MB of leftovers. They're read into lists kept between items now: an
+-- item with less history after one with more gets only its own days, and little is left.
+T.test("Price history: items read one after another keep to their own days, with little left", function()
+  start()
+  local d, h = today(), market("history")
+  local function days(n, price)
+    local parts = {}
+    for i = n, 1, -1 do parts[#parts + 1] = ("%d:%d:%d"):format(d - i, price, price) end
+    return table.concat(parts, "|")
+  end
+  h[70201] = days(40, 500)   -- 13 days one by one, older ones as weeks
+  h[70202] = days(3, 200)
+  T.eq(ns:PriceStats(70201, "month").points >= 14, true)
+  local st = ns:PriceStats(70202, "month")
+  T.eq(st.points, 3, "only its own 3 days")
+  T.eq(st.usual, 200); T.eq(st.low, 200)
+  T.eq(ns:UsualPrice(70202, "week"), 200)
+  local daily, weekly = ns.PricingPoints(70202)
+  T.eq(#daily, 3); T.eq(#weekly, 0, "no weeks left over from the item before")
+
+  for i = 1, 100 do h[70300 + i] = days(40, 300 + i) end
+  collectgarbage("collect")
+  collectgarbage("stop")
+  local before = collectgarbage("count")
+  for i = 1, 100 do
+    ns:PriceStats(70300 + i, "month"); ns:UsualPrice(70300 + i, "week")
+  end
+  local kb = collectgarbage("count") - before
+  collectgarbage("restart")
+  T.eq(ns:PriceStats(70350, "month").usual, 350)
+  T.ok(kb < 500, ("%.0f KB for 100 items' first look (the answers kept for the day included)"):format(kb))
+end)

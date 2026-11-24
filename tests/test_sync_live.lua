@@ -437,3 +437,161 @@ T.test("Price history: days from the partner are merged, then reported once", fu
 end)
 
 ns.db.settings.syncPartner = nil
+
+-- Frank's twentieth /fl perf, November 22: each synced day of price history threw every
+-- value away. Now only the items whose history changed in this market are refreshed.
+T.test("Price history: a synced day refreshes only its own items' values, in this market", function()
+  local A = ns.MarketKey()
+  local today = ns.LocalDay(time())
+  local d2 = today - 2
+  ns.db.history[A] = { [72201] = ("%d:100:150"):format(d2) }
+  local packed = ns:PackHistoryDay(A, d2)
+  local realItem, realAll = ns.InvalidateItem, ns.InvalidateValues
+  local items, all = {}, 0
+  ns.InvalidateItem = function(_, id) items[#items + 1] = id end
+  ns.InvalidateValues = function() all = all + 1 end
+  local ok, err = pcall(function()
+    ns.db.history[A] = {}
+    T.eq(ns:MergeHistoryDay(A, d2, packed), 1)
+    T.eq(#items, 1); T.eq(items[1], 72201, "the item whose history changed")
+    T.eq(all, 0, "not every value")
+    items = {}
+    ns.db.history["Elsewhere|Alliance"] = {}
+    T.eq(ns:MergeHistoryDay("Elsewhere|Alliance", d2, packed), 1)
+    T.eq(#items, 0, "another market's history: no values here change")
+  end)
+  ns.InvalidateItem, ns.InvalidateValues = realItem, realAll
+  assert(ok, err)
+end)
+
+-- Codex review, November 22: a merge for another market that becomes this one partway
+-- (Booty Bay's auction house opened while it was taken in over several frames) refreshes
+-- the items it changes from then on.
+T.test("Price history: the market is checked for each changed item, not once at the start", function()
+  local B = "Elsewhere|Alliance"
+  local today = ns.LocalDay(time())
+  local d2 = today - 2
+  ns.db.history[B] = { [72301] = ("%d:100:150"):format(d2), [72302] = ("%d:200:250"):format(d2) }
+  local packed = ns:PackHistoryDay(B, d2)
+  local realItem, realKey = ns.InvalidateItem, ns.MarketKey
+  local items, calls = {}, 0
+  ns.InvalidateItem = function(_, id) items[#items + 1] = id end
+  local here = realKey()
+  ns.MarketKey = function() calls = calls + 1; if calls <= 1 then return here end return B end
+  local ok, err = pcall(function()
+    ns.db.history[B] = {}
+    T.eq(ns:MergeHistoryDay(B, d2, packed), 2)
+  end)
+  ns.InvalidateItem, ns.MarketKey = realItem, realKey
+  assert(ok, err)
+  T.eq(#items, 1, "only the item merged after the market became this one")
+  T.eq(items[1], 72302)
+end)
+
+-- Frank, November 22: "Solid minute no update ... after making some sales to a vendor on
+-- alt". Gold alone still goes within a minute; a logged trade within seconds.
+T.test("A trade's books go within seconds, gold alone within a minute", function()
+  ns:SyncCommand("unpair")
+  setup(true)
+  local m = find(read(), "books")
+  deliver({ k = "a", books = m.books.to })
+  local realAfter, waits = C_Timer.After, {}
+  local ok, err = pcall(function()
+    C_Timer.After = function(s, fn) waits[#waits + 1] = s; return realAfter(s, fn) end
+    ns:BooksChanged()
+    T.eq(waits[#waits], 60, "gold: within a minute")
+    ns:BooksChanged(true)
+    T.eq(waits[#waits], 5, "a trade: within seconds, ahead of the gold's minute")
+    local n = #waits
+    ns:BooksChanged()
+    T.eq(#waits, n, "more gold meanwhile: nothing later queued")
+  end)
+  C_Timer.After = realAfter
+  local books = countBooks(read())
+  assert(ok, err)
+  T.eq(books, 1, "one send for all of it")
+end)
+
+-- Frank, November 22: vendor sales on the alt "took quite a while" to show on the main,
+-- with bags and prices ahead of them in the queue. The books go to the front now.
+T.test("The books go ahead of prices already waiting to be sent", function()
+  ns:SyncCommand("unpair")
+  setup(true)
+  local m = find(read(), "books")
+  deliver({ k = "a", books = m.books.to })
+  read()
+  S.now = S.now + 5
+  local market = ns.MarketKey()
+  ns.db.prices[market] = ns.db.prices[market] or {}
+  for i = 1, 300 do ns.db.prices[market][96500 + i] = { m = 100 + i, a = 110 + i, q = 5, t = S.now } end
+  ns:SyncSend(false)        -- (prices: many pieces, the first goes at once)
+  ns:BooksChanged(true)     -- (a trade: the books, while the prices are still going)
+  T.runTimers()
+  -- (read() gives the messages in the order their last pieces went.)
+  local messages = read()
+  local booksAt, pricesAt
+  for k, msg in ipairs(messages) do
+    if msg.books then booksAt = booksAt or k
+    elseif msg.prices and next(msg.prices) then pricesAt = pricesAt or k end
+  end
+  for i = 1, 300 do ns.db.prices[market][96500 + i] = nil end
+  T.ok(booksAt and pricesAt, "both sent")
+  T.ok(booksAt < pricesAt, ("the books finished first (piece %s, prices %s)"):format(tostring(booksAt), tostring(pricesAt)))
+end)
+
+-- Codex review of 9b4bc1d: urgent books can go ahead of a message already half sent. Its
+-- other pieces wait behind them, so pieces from the same partner keep it from being dropped.
+T.test("A half-received message waits while urgent pieces from the partner keep coming", function()
+  setup(false)
+  read()
+  local key = "Testrealm|Alliance"
+  local prices = { [key] = { [97001] = { m = 7, q = 1, t = S.now, src = "scan" } } }
+  local text = ns.Serialize({ k = "d", prices = prices })
+  local half = math.ceil(#text / 2)
+  local function piece(id, i, n, s) T.fire("CHAT_MSG_ADDON", PREFIX, ("%s:%d:%d:%s"):format(id, i, n, s), "WHISPER", PARTNER) end
+  piece("81", 1, 2, text:sub(1, half))
+  -- Another message's pieces for over 2 minutes (the books, sent urgent)
+  local other = ns.Serialize({ k = "x", pad = string.rep("z", 6000) })
+  local n = math.ceil(#other / 200)
+  for i = 1, n do
+    piece("82", i, n, other:sub((i - 1) * 200 + 1, i * 200))
+    S.now = S.now + 10
+    for _, tick in ipairs(S.tickers) do tick() end
+  end
+  T.ok(n * 10 > 120, "longer than the 2 minute limit")
+  piece("81", 2, 2, text:sub(half + 1))
+  T.runTimers()
+  T.eq(ns.db.prices[key] and ns.db.prices[key][97001] and ns.db.prices[key][97001].m, 7, "the first message arrived")
+  ns.db.prices[key][97001] = nil
+end)
+
+-- Codex review of 9b4bc1d: a new link kept the old queue's count of urgent pieces, so the
+-- new link's books could be put past the end of the queue and never sent.
+T.test("A new link's books go, with the old link's urgent books still waiting", function()
+  ns:SyncCommand("unpair")
+  local me = ns.CharKey()
+  local purchases = ns.db.purchases
+  ns.db.purchases = {}
+  for i = 1, 400 do ns.db.purchases[i] = { t = S.now - 1000 + i, c = me, id = 2589, q = 1, a = 100 + i } end
+  setup(true)               -- (big books: the first piece goes, the rest wait at the front)
+  ns:SyncCommand("pair Someone Else")
+  ns:SyncCommand("pair " .. PARTNER)
+  ns.db.settings.syncMoney = true
+  sent = {}
+  deliver({ k = "h", v = 1, books = 2, reply = true })
+  local m = find(read(), "books")
+  ns.db.purchases = purchases
+  T.ok(m and type(m.books) == "table", "the new link's books arrived")
+end)
+
+T.test("/fl sync books reports both sides", function()
+  ns:SyncCommand("unpair")
+  setup(true)
+  local m = find(read(), "books")
+  deliver({ k = "a", books = m.books.to })
+  deliver({ k = "d", books = { from = 0, to = 555, chars = {} } })
+  read()
+  ns:SyncCommand("books")
+  ns:SyncCommand("unpair")
+  ns:SyncCommand("books")
+end)
