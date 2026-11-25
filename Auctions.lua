@@ -27,7 +27,7 @@ local AH = C_AuctionHouse
 local frame, rows = nil, {}
 local alerted = {}        -- [auctionID] = the cheapest price we alerted at
 local armed = {}          -- [auctionID] = time Cancel was clicked once ("Sure?")
-local depositsWaiting = {}   -- [itemID] = { deposit, ... }: paid when posting, not yet matched to an auction
+local depositsWaiting = {}   -- [itemID] = { { du = deposit each, left = units not yet matched }, ... }
 
 local function store()
   ns.db.myAuctions = ns.db.myAuctions or {}
@@ -35,6 +35,11 @@ local function store()
 end
 local function listKey() return ns.CharKey() .. (ns.neutralAH and " (neutral)" or "") end
 local function mine() return store()[listKey()] end
+
+-- The game lists each sold part of an auction as its own row with the auction's ID.
+function ns.OwnedAuctionKey(e)
+  return e.sold and (tostring(e.a) .. ":" .. tostring(e.q or 1)) or e.a
+end
 
 -- The game's own auctions list needs the auction house open; it answers with
 -- OWNED_AUCTIONS_UPDATED.
@@ -130,8 +135,12 @@ local function readOwned()
     if e.a then elsewhere[e.a] = mark end
     elsewhere[("%s:%s:%s"):format(e.id, e.each or 0, e.q or 1)] = mark
   end
+  local lot, seenAuction, partsSold = {}, {}, {}
   for _, e in ipairs((mine() or {}).list or {}) do
-    if e.a and not (e.sold and not e.up and elsewhere[e.a] == "up") then before[e.a] = e end
+    if e.a and not (e.sold and not e.up and elsewhere[e.a] == "up") then
+      before[ns.OwnedAuctionKey(e)] = e
+      if not e.sold then lot[e.a] = e end
+    end
   end
   for i = 1, n do
     local ok, info = pcall(AH.GetOwnedAuctionInfo, i)
@@ -140,21 +149,29 @@ local function readOwned()
       id = info.itemKey.itemID
       e = { a = info.auctionID, id = id, link = info.itemLink, q = info.quantity or 1,
         each = eachPrice(info, id, sold), left = info.timeLeftSeconds, sold = info.status == sold or nil }
-      if e.sold and not before[e.a] and (elsewhere[e.a] or elsewhere[("%s:%s:%s"):format(id, e.each or 0, e.q)]) then
+      if e.sold and not before[ns.OwnedAuctionKey(e)] and not lot[e.a] and (elsewhere[e.a] or elsewhere[("%s:%s:%s"):format(id, e.each or 0, e.q)]) then
         e = nil   -- (the other auction house's)
       end
     end
     if e then
-      if e.sold then e.soldAt = (before[e.a] and before[e.a].soldAt) or now end
-      e.up = (before[e.a] and before[e.a].up) or (not e.sold) or nil   -- seen listed here
-      -- Its deposit: kept from before, or the one just paid when it was posted.
-      if before[e.a] then
-        e.dep = before[e.a].dep
-      elseif depositsWaiting[id] and #depositsWaiting[id] > 0 then
-        e.dep = table.remove(depositsWaiting[id], 1)
+      local key = ns.OwnedAuctionKey(e)
+      local b, from = before[key], before[key] or lot[e.a]
+      if e.sold then e.soldAt = (b and b.soldAt) or now end
+      e.up = (from and from.up) or (not e.sold) or nil   -- seen listed here
+      e.du = from and (from.du or (from.dep and from.dep / (from.q or 1)))
+      if not from then
+        local waiting = depositsWaiting[id]
+        local w = waiting and waiting[1]
+        if w then
+          e.du, w.left = w.du, w.left - e.q
+          if w.left <= 0 then table.remove(waiting, 1) end
+        end
       end
+      e.dep = e.du and math.floor(e.du * e.q + 0.5) or nil
+      if not e.sold then e.told = from and from.told end
+      if e.sold and not b then partsSold[e.a] = (partsSold[e.a] or 0) + e.q end
       list[#list + 1] = e
-      if e.a then seen[e.a] = true end
+      if e.a then seen[key], seenAuction[e.a] = true, true end
     end
   end
   -- Sold before and gone from the list now: its gold was sent to the mailbox.
@@ -166,21 +183,30 @@ local function readOwned()
   local last = (mine() or {}).t or now
   local newlySold = {}
   local awaySold = {}
+  local lotNow = {}
   for _, e in ipairs(list) do
-    local b = before[e.a]
-    if e.sold and not (b and b.sold) then
+    if not e.sold and e.a then lotNow[e.a] = e end
+  end
+  for _, e in ipairs(list) do
+    local b = before[ns.OwnedAuctionKey(e)]
+    local bought = b and not b.sold and not e.sold and (b.q or 1) - (e.q or 1) - (partsSold[e.a] or 0)
+    local held = e.sold and not (b and b.sold) and (lotNow[e.a] or lot[e.a])
+    if held and (held.told or 0) >= e.q then
+      held.told = held.told - e.q   -- (already told when its stack went down)
+    elseif e.sold and not (b and b.sold) then
       newlySold[#newlySold + 1] = e
       if firstRead then awaySold[#awaySold + 1] = e end
-    elseif not e.sold and b and not b.sold and (b.q or 1) > (e.q or 1) then
+    elseif bought and bought > 0 then
+      e.told = (e.told or 0) + bought
       -- Part of a stack bought (materials sell a few at a time; owner's test, October 5:
       -- "A buyer has been found" for Strange Dust, and no line at the auction house).
-      newlySold[#newlySold + 1] = { id = e.id, q = (b.q or 1) - (e.q or 1), each = e.each }
+      newlySold[#newlySold + 1] = { id = e.id, q = bought, each = e.each, dep = e.du and math.floor(e.du * bought + 0.5) }
       if firstRead then awaySold[#awaySold + 1] = newlySold[#newlySold] end
     end
   end
   local confirming = false
   for a, e in pairs(before) do
-    if not seen[a] and not e.sold then
+    if not seen[a] and not e.sold and not seenAuction[e.a] then
       if not e.gone and (e.left or 0) > (now - last) + 300 then
         e.gone, e.goneAway = now, firstRead or nil
       end
@@ -233,9 +259,9 @@ local function itemOf(loc)
   local ok, id = pcall(function() return C_Item and C_Item.GetItemID and C_Item.GetItemID(loc) end)
   return ok and id or nil
 end
-local function onPost(loc)
+local function onPost(loc, _, quantity)
   local id = itemOf(loc)
-  if id then posting = { id = id, money = GetMoney(), t = GetTime() } end
+  if id and quantity then posting = { id = id, q = quantity, money = GetMoney(), t = GetTime() } end
 end
 -- Sold auctions saved before 5e46d01 kept the stack's money as the price each (issue
 -- #14); once gone from the game's list they're never read again. Corrected once.
@@ -262,7 +288,7 @@ ns:On("PLAYER_MONEY", function()
   -- next purchase or repair as its deposit.
   if paid > 0 and GetTime() - p.t < 5 then
     depositsWaiting[p.id] = depositsWaiting[p.id] or {}
-    table.insert(depositsWaiting[p.id], paid)
+    table.insert(depositsWaiting[p.id], { du = paid / p.q, left = p.q })
   end
 end)
 
