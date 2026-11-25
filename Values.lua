@@ -766,6 +766,26 @@ function ns:WorthOfCopy(best, options, copyPrice)
   return out[1].value, out
 end
 
+-- A bound copy stays with this character: no auction house, and no way that hands it
+-- to another character.
+function ns:WorthOfBoundCopy(best, options, id)
+  if not options then return best, options end
+  local me = ns.db.chars and ns.db.chars[ns.CharKey()]
+  local enchanting = me and me.profs and me.profs.Enchanting
+  local yield = ns:DisenchantYield(id)
+  local out = {}
+  for _, o in ipairs(options) do
+    local keep
+    if o.kind == "ah" then keep = false
+    elseif o.kind == "craft" then keep = o.who == nil
+    elseif o.kind == "disenchant" then keep = enchanting ~= nil and yield ~= nil and (enchanting.rank or 1) >= (yield.skill or 1)
+    else keep = true end
+    if keep then out[#out + 1] = o end
+  end
+  if #out == #options then return best, options end
+  return out[1] and out[1].value, out
+end
+
 -- What one looted item is worth: the better of the auction house after the cut and a
 -- vendor (or a vendor's only: Settings, Sessions, Count loot at); items that bind when picked
 -- up only a vendor's (they can't be listed). Sessions.lua values loot by it.
