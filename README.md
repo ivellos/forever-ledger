@@ -65,7 +65,7 @@
 ### Getting around
 - **Welcome and Help:** a short guide the first time, Help by topic with common questions, and search boxes for Settings and Help.
 - **Your look:** three themes (FL Clean, FL Bronze, FL Gilded), your accent color (or EllesmereUI's), a Size from 75% to 150%, and money in the game's own gold, silver and copper coins (or colored letters).
-- **Your language:** text in Simplified Chinese and Russian so far, with more languages welcome ([how to translate](https://github.com/ivellos/forever-ledger/blob/main/docs/TRANSLATING.md)), and every part that reads the game works on clients in any language.
+- **Your language:** text in Simplified Chinese and Russian so far, with more languages welcome ([how to translate](https://github.com/ivellos/forever-ledger/blob/main/docs/TRANSLATING.md)), and every part that reads the game works on clients in any language. Russian (`Locales/ruRU.lua`, contributed by zergzorg) gets counted nouns right — 1 предмет, 2 предмета, 5 предметов — and the Customers finder understands Russian Trade chat.
 - **Move the auction house window:** drag it by its top edge; each character keeps its own spot.
 - **Settings profiles:** characters can share a set of settings or each have their own; export a profile for a friend.
 - **Works with AHledger, Auctionator, TSM and Auctioneer** prices and full scans, switches off what they (or ForeverForge) already show, and looks at home with EllesmereUI. Other addons can read your scanned prices too ([for addon authors](https://github.com/ivellos/forever-ledger/blob/main/docs/DEVELOPING.md)).
@@ -138,6 +138,10 @@ Most things have a button; these are for when you'd rather type. The main ones:
 | `/fl money` | Today's money in and out for this character |
 | `/fl session start`, `/fl session stop` | Start or stop a session (or Ctrl-click the minimap button); also `pause`, `resume` and `reset` |
 | `/fl de` | Disenchant results so far, against what the addon expects (`/fl de reset` to start over) |
+| `/fl book` | Recipe data gathered so far |
+| `/fl deposit <item> [quantity] [2/8/24 hours]` | What a deposit costs for an item and how long, in chat |
+| `/fl trainer` | What the last trainer you opened teaches |
+| `/fl fund` | Show the riding fund on the Dashboard again |
 | `/fl new`, `/fl welcome` | What's new in this version; the welcome again |
 | `/fl pair First Last` | Pair with your character on another account for live sync (do it on both); `/fl unpair` stops it and removes their characters |
 | `/fl quiet` | Turns the game's sound off and plays Forever Ledger's chimes at full volume, for that character until you type it again |
@@ -149,6 +153,7 @@ Most things have a button; these are for when you'd rather type. The main ones:
 | `/fl csv` | Prices as plain text |
 | `/fl tooltip` | Turn tooltip lines on or off |
 | `/fl perf` | What the addon has spent time on, and recent freezes (for lag reports) |
+| `/fl probe` | What the game supports, for testing |
 | `/fl api` | Which game functions are available (useful in bug reports) |
 | `/fl debug` | Turn debug messages on or off |
 
@@ -163,11 +168,13 @@ Join the **[Forever Ledger Discord](https://discord.gg/WKsCtvupeC)** for updates
 | Path | What it is |
 |---|---|
 | `*.lua`, `ForeverLedger.toc` | The addon itself |
+| `Locales/` | One file per language: `zhCN.lua` and `ruRU.lua` so far. Anything a file doesn't translate shows in English |
 | `media/` | Pictures the addon uses |
 | `Libs/` | Shared libraries: LibStub (public domain) and LibAHTab by plusmouse (MIT, `Libs/LibAHTab/LICENSE`), so other addons' auction house tabs line up with ours |
 | `CHANGELOG.md` | What changed in each version |
 | `docs/` | The guide, and notes on testing, developing and releasing |
-| `tools/` | The web version of the flip calculator, and the scripts that build the Classic and Forever recipe data (sources in `tools/FOREVER_DATA_SOURCES.md`) |
+| `tools/` | The web version of the flip calculator, the translation coverage report, and the scripts that build the Classic and Forever recipe data (sources in `tools/FOREVER_DATA_SOURCES.md`) |
+| `tests/` | The addon's Lua tests, with no game needed (`lua5.1 tests/run.lua`) |
 | `.github/` | Automatic checks, release builds and the bug report form |
 
 ## License

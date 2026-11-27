@@ -89,6 +89,17 @@ and formatting after, as before.
   }
   ```
 
+### Russian, as a worked example
+
+`Locales\ruRU.lua` uses most of the optional parts:
+
+- `language.forms` and three-form tables cover counted nouns.
+- `language.TransformVisible` writes a range the Russian way: "1 to 3" becomes "1—3".
+- `language.FormatElapsed` writes "2 мин 5 с", and `language.postMarks` supplies the Post tab's states, where one English word needs different Russian ones.
+- `language.chatWords` teaches the Customers finder the Russian words for "looking for" and "offering", and the Russian names of professions and services.
+
+`tests/test_localization.lua` loads both language files and checks their placeholders, and `lua5.1 tools/locale-report.lua ruRU` lists what Russian still misses. The same two commands check a new language.
+
 ## What the addon reads from the game
 
 The addon never relies on English game text where an ID exists: professions by skill line, quests by quest ID, riding and Arcane Salvager by spell and item, the Trade channel by its channel number, Waylaid Crates by item, neutral auction houses by map. Names the game itself gives in your language (professions, quests, zones) are used for display without a translation entry. If you see game text that only works in English, please open an issue.
