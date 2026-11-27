@@ -226,6 +226,7 @@ function ns:SyncSend(full)
   -- st.booksTo moves on only when the partner says they arrived. With no reply in time
   -- they go again, even with nothing new (Codex review, November 6: the partner reloaded
   -- partway through and the history stayed missing).
+  -- Report a books error and leave the books due, so it cannot block characters, bags or prices.
   local books
   local waiting = booksSent and GetTime() < booksSent.waitUntil
   if not ns.db.settings.syncMoney then
@@ -233,8 +234,14 @@ function ns:SyncSend(full)
   elseif partnerBooks and not waiting and (full or booksChanged or booksSent) then
     local from = (not full and st.booksTo or 0) - BOOKS_OVERLAP
     if from < now - BOOKS_FULL_DAYS * 86400 then from = 0 end
-    books = ns:BooksSince(from)
-    books.to = now
+    local ok, made = pcall(ns.BooksSince, ns, from)
+    if ok then
+      books = made
+      books.to = now
+    else
+      booksChanged = true
+      geterrorhandler()(made)
+    end
   end
   if nWho + nData == 0 and not books then return end
   local n = nWho > 0 and send(who, to) or 0

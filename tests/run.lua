@@ -134,7 +134,7 @@ function T.resetDB()
 end
 
 -- The test files (listed here, so it runs the same on any system).
-local FILES = { "deposits", "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets", "sync", "neutral", "training", "shuffle_lists", "list_sources", "price_controls", "vendor_lists", "disenchant_lists", "auction_house", "realm", "quiet", "sync_live", "buy_queue", "price_series", "price_window", "watched", "sweep", "all_crafts", "forever_crafts", "sell_advice", "forever_disenchant", "price_values", "groups", "post", "craft_plan", "gold_making", "recipes_tab", "writs", "writ_data", "quick_disenchant", "sessions", "freezes", "crates", "localization", "languages", "api", "roi", "ledger_rows", "ah_move" }
+local FILES = { "deposits", "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets", "sync", "neutral", "training", "shuffle_lists", "list_sources", "price_controls", "vendor_lists", "disenchant_lists", "auction_house", "realm", "quiet", "sync_live", "sync_date", "buy_queue", "price_series", "price_window", "watched", "sweep", "all_crafts", "forever_crafts", "sell_advice", "forever_disenchant", "price_values", "groups", "post", "craft_plan", "gold_making", "recipes_tab", "writs", "writ_data", "quick_disenchant", "sessions", "freezes", "crates", "localization", "languages", "api", "roi", "ledger_rows", "ah_move" }
 for _, name in ipairs(FILES) do
   local f = "tests/test_" .. name .. ".lua"
   current = f:match("test_(.-)%.lua$")

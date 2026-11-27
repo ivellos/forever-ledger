@@ -65,6 +65,8 @@ local PURCHASE_SECONDS = 65
 -- thousands of entries at different times (ninth /fl perf: 49 MB of leftovers). Every time
 -- zone is a whole number of quarter hours from UTC and changes summer time on a whole local
 -- hour or half hour, so the offset never changes inside a quarter hour of UTC.
+-- Compare local and UTC fields for the same instant. Converting the UTC fields as local time
+-- can yield a pre-epoch timestamp when live sync asks for everything with BooksSince(0).
 local lastT, lastDay
 local offsets, nOffsets = {}, 0
 local function localDay(t)
@@ -73,9 +75,12 @@ local function localDay(t)
   local q = math.floor(t / 900)
   local offset = offsets[q]
   if not offset then
-    local utc = date("!*t", t)
-    utc.isdst = date("*t", t).isdst
-    offset = t - time(utc)   -- seconds ahead of UTC, summer time included
+    local utc, here = date("!*t", t), date("*t", t)
+    local hereDate = here.year * 10000 + here.month * 100 + here.day
+    local utcDate = utc.year * 10000 + utc.month * 100 + utc.day
+    -- seconds ahead of UTC, summer time included
+    offset = (hereDate > utcDate and 86400 or hereDate < utcDate and -86400 or 0)
+      + (here.hour - utc.hour) * 3600 + (here.min - utc.min) * 60 + (here.sec - utc.sec)
     if nOffsets >= 4096 then offsets, nOffsets = {}, 0 end
     offsets[q], nOffsets = offset, nOffsets + 1
   end
