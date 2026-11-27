@@ -71,7 +71,7 @@ local function probeCrates()
         say("Bag item %d (%s), bag %d slot %d, tooltip:", info.itemID, name, bag, slot)
         local ok, data = pcall(C_TooltipInfo.GetBagItem, bag, slot)
         for _, line in ipairs(ok and data and data.lines or {}) do
-          local l, r = line.leftText, line.rightText
+          local l, r = ns.Readable(line.leftText), ns.Readable(line.rightText)
           if l and l ~= "" then say("    %s%s", l, r and r ~= "" and ("  |  " .. r) or "") end
         end
       end

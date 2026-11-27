@@ -127,3 +127,25 @@ T.test("Professions: the kept list's stamp changes with what the list is made fr
   T.runTimers()
   assert(ok, err)
 end)
+
+T.test("Professions: Classic zones give their map in every language", function()
+  -- The Classic data's zones are English; on another client the game's map names differ.
+  local oldMap = C_Map
+  C_Map = { GetMapInfo = function(id) return { name = "Zone " .. id } end }
+  T.eq(ns:MapIDForZone("Stormwind City"), 1453)
+  T.eq(ns:MapIDForZone("Un'Goro Crater"), 1449)
+  T.eq(ns:MapIDForZone("The Barrens"), 1413)
+  T.eq(ns:MapIDForZone(nil), nil)
+  C_Map = oldMap
+  local seen = {}
+  for name, id in pairs(ns.CLASSIC_ZONE_MAPS) do
+    T.ok(id >= 1411 and id <= 1459, name)
+    T.ok(not seen[id], "one zone per map: " .. name); seen[id] = true
+  end
+end)
+
+T.test("Professions: an enchant is known by its profession, not its English name", function()
+  local autoType = ns._recipesTest.autoType
+  T.eq((autoType({ n = "Verzaubern: Armschiene - Geringe Ausdauer" }, "Enchanting")), "enchant")
+  T.eq((autoType({ n = "Enchant Bracer - Minor Stamina" })), "enchant", "the English name still works")
+end)

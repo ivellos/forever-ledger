@@ -406,7 +406,7 @@ ns:On("AUCTION_HOUSE_CLOSED", function() if view then view:Hide() end end)
 -- else straight onto the list at the vendor price.
 local function onModifiedClick(link)
   local v = view
-  if not (v and v:IsVisible() and type(link) == "string") then return end
+  if not (v and v:IsVisible() and ns.Readable(link)) then return end
   if IsModifiedClick and not IsModifiedClick("CHATLINK") then return end
   local id = ns.ItemIDFromLink(link)
   if not id then return end

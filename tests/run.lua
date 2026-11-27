@@ -10,7 +10,7 @@ local ADDON, ns = "ForeverLedger", {}
 
 -- The files to load, in the .toc's order, up to the last one the tests need.
 local LOAD = { "Locale.lua", "Locales\\zhCN.lua", "Core.lua", "LocaleHooks.lua", "Prices.lua", "Sweep.lua", "Quiet.lua", "History.lua", "Inventory.lua", "RecipeBook.lua", "Professions.lua", "Deposits.lua", "Values.lua", "Shuffles.lua", "Theme.lua", "Ledger.lua", "Crates.lua", "Settings.lua",
-  "Disenchant.lua", "SellAdvice.lua", "QuestItems.lua", "Customers.lua", "RecipesTab.lua", "Sessions.lua", "SessionWindow.lua", "Training.lua", "Sync.lua", "ShoppingLists.lua", "BuyQueue.lua", "Watched.lua", "Groups.lua", "Post.lua", "CraftPlan.lua", "GoldMaking.lua", "WritsData.lua", "Writs.lua", "QuickDisenchant.lua", "AuctionHouse.lua", "Auctions.lua", "PriceWindow.lua", "API.lua" }
+  "Disenchant.lua", "SellAdvice.lua", "QuestItems.lua", "Customers.lua", "RecipesTab.lua", "Sessions.lua", "SessionWindow.lua", "Training.lua", "Sync.lua", "ShoppingLists.lua", "BuyQueue.lua", "Watched.lua", "Groups.lua", "Post.lua", "CraftPlan.lua", "GoldMaking.lua", "WritsData.lua", "Writs.lua", "QuickDisenchant.lua", "AuctionHouse.lua", "Auctions.lua", "AHMove.lua", "PriceWindow.lua", "API.lua" }
 local wanted = {}
 for _, f in ipairs(LOAD) do wanted[f] = true end
 local order = {}
@@ -134,7 +134,7 @@ function T.resetDB()
 end
 
 -- The test files (listed here, so it runs the same on any system).
-local FILES = { "deposits", "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets", "sync", "neutral", "training", "shuffle_lists", "list_sources", "price_controls", "vendor_lists", "disenchant_lists", "auction_house", "realm", "quiet", "sync_live", "buy_queue", "price_series", "price_window", "watched", "sweep", "all_crafts", "forever_crafts", "sell_advice", "forever_disenchant", "price_values", "groups", "post", "craft_plan", "gold_making", "recipes_tab", "writs", "writ_data", "quick_disenchant", "sessions", "freezes", "crates", "localization", "languages", "api", "roi", "ledger_rows" }
+local FILES = { "deposits", "money", "export", "prices", "cut", "lists", "values", "logs", "retention", "auctions", "profiles", "markets", "sync", "neutral", "training", "shuffle_lists", "list_sources", "price_controls", "vendor_lists", "disenchant_lists", "auction_house", "realm", "quiet", "sync_live", "buy_queue", "price_series", "price_window", "watched", "sweep", "all_crafts", "forever_crafts", "sell_advice", "forever_disenchant", "price_values", "groups", "post", "craft_plan", "gold_making", "recipes_tab", "writs", "writ_data", "quick_disenchant", "sessions", "freezes", "crates", "localization", "languages", "api", "roi", "ledger_rows", "ah_move" }
 for _, name in ipairs(FILES) do
   local f = "tests/test_" .. name .. ".lua"
   current = f:match("test_(.-)%.lua$")

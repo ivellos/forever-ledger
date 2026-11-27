@@ -173,15 +173,14 @@ end
 -- { ..., fix = true } a fix (a wrench). The small ones share one card.
 ---------------------------------------------------------------------------
 ns.WHATS_NEW = {
-  version = "0.29.0",
+  version = "0.30.0",
   lines = {
-    { "No more freezes: Gold making, the Ledger, the Recipes tab and Writs open and refresh without holding up the game, and Live watch and sync with your other account leave far less memory for the game to clear.", major = true },
-    { "Russian: the addon's text in Russian, with the right word forms for numbers (thanks to zergzorg)." },
-    { "Coins: money shows the game's own gold, silver and copper coins, as in your bags (thanks to vulpeep). Settings, Appearance switches back to colored letters." },
-    { "Profit %: sort Vendor flips by the best return on what you spend (thanks to yippp)." },
-    { "Sync in seconds: your other account's sales and purchases reach your Ledger within seconds instead of up to a minute.", change = true },
-    { "Vendor sales with bag addons: sales made with a bag addon's buttons or a Sell junk button are logged by item, not only as the day's gold.", fix = true },
-    { "Your auctions: one you cancel, or one missing from the game's answer for a moment, no longer counts as sold (thanks to vulpeep).", fix = true },
+    { "Prices hour by hour: the price window shows today and this week hour by hour, with every range from Today to a Year in one dropdown.", major = true },
+    { "Sessions on their own: each login and each day are recorded without starting a session, listed in the Ledger's Sessions; or have a session start when you log in.", major = true },
+    { "Move the auction house window: drag it by its top edge; each character keeps its own spot, and right-click puts it back." },
+    { "Scroll anywhere: a How to buy dropdown on the Buy tab: click to buy, scroll to buy, or for Vendor flips scroll anywhere on screen while there's something to buy." },
+    { "Crates and writs: how many of each crate you have, with filters, Favor by crate level and kind, and each writ order checked against the game." },
+    { "Every language: crates, trainers, map pins and enchants now work on clients in any language.", fix = true },
   },
 }
 

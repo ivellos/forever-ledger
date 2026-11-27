@@ -28,8 +28,8 @@ local function has(list, v)
   return false
 end
 
-T.test("Groups: saved data starts empty under schema 9 (now 11)", function()
-  T.eq(ns.db.schema, 11)
+T.test("Groups: saved data starts empty under schema 9 (now 13)", function()
+  T.eq(ns.db.schema, 13)
   for _, k in ipairs({ "user", "added", "removed", "rules", "saved" }) do T.eq(type(ns.db.groups[k]), "table", k) end
   T.eq(ns.db.groups.nextId, 1)
 end)

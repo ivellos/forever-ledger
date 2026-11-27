@@ -13,13 +13,13 @@ local T = ns.Theme
 -- The list below is from fan guides read November 16 (conquestcapped.com,
 -- foreverchanges.pro, loreforeverwow.com, theforeverera.com; names checked against the
 -- game's item names): 150 orders, Alchemy, Blacksmithing, Engineering, Leatherworking
--- and Tailoring. Reputation (75, 125, 200) and the coin pouch amounts are the guides'
--- numbers and not yet seen in game; customers marked nil aren't known yet.
+-- and Tailoring. Reputation (75, 125, 200) is the guides' number until an order's turn-in
+-- shows it (learned below); customers marked nil aren't known yet. The coin pouch isn't counted.
 ---------------------------------------------------------------------------
 local TIERS = {
-  J = { key = "J", label = "Journeyman", rep = 75, pouch = 3300, sealed = 262888 },
-  E = { key = "E", label = "Expert", rep = 125, pouch = 7000, sealed = 262889 },
-  A = { key = "A", label = "Artisan", rep = 200, pouch = 7500, sealed = 262890 },
+  J = { key = "J", label = "Journeyman", rep = 75, sealed = 262888 },
+  E = { key = "E", label = "Expert", rep = 125, sealed = 262889 },
+  A = { key = "A", label = "Artisan", rep = 200, sealed = 262890 },
 }
 ns.WRIT_TIERS = TIERS
 
@@ -246,7 +246,7 @@ end
 ---------------------------------------------------------------------------
 -- What an order costs: the cheapest way to get the item (bought on the auction house or
 -- from a vendor, or made from its materials, whichever is cheaper, as Gold making's How
--- it adds up), less the coin pouch, per point of reputation.
+-- it adds up), per point of reputation.
 ---------------------------------------------------------------------------
 local fcByOut
 local function foreverRecipe(id)
@@ -379,11 +379,267 @@ function ns.WritTierAverage(key)
   return tierAvg[key] or a
 end
 
--- Copper per point of reputation after the pouch (negative: the pouch pays more).
-function ns.WritPerRep(cost, tier)
+-- Copper per point of reputation. The coin pouch isn't counted: its money varies (Frank,
+-- November 24), so the cost is what the order takes. rep: the order's own (learned) if known.
+function ns.WritPerRep(cost, tier, rep)
   local t = TIERS[tier]
-  if not (cost and t) then return end
-  return (cost - t.pouch) / t.rep
+  rep = rep or (t and t.rep)
+  if not (cost and rep and rep > 0) then return end
+  return cost / rep
+end
+function ns.WritRep(e) return e and (e.rep or (TIERS[e.tier] and TIERS[e.tier].rep)) end
+
+---------------------------------------------------------------------------
+-- Learned in game (Frank, November 24: check every order's requirements, and the coin
+-- pouch's money varies). From the writ's quest: how many it asks for (its objective), who
+-- takes it and where (the turn-in window), the reputation and money it gave. From the bags:
+-- which coin pouch a turn-in gave, and what opening one paid. Account-wide: writSeen
+-- [questID] = { qty, who, map, zone, rep, money, t } and pouches[itemID] = { n, sum, lo,
+-- hi, from = tier key or "crate" }. What's learned replaces the guides' numbers.
+---------------------------------------------------------------------------
+local byQuest = {}
+for _, o in ipairs(ns.WRIT_DATA and ns.WRIT_DATA.orders or {}) do
+  local e = o.quest and o.writ and byWrit[o.writ]
+  if e then byQuest[o.quest] = e; e.quest = o.quest end
+end
+ns.WritByQuest = byQuest
+local POUCHES = {}
+for _, p in ipairs(ns.WRIT_DATA and ns.WRIT_DATA.coinPouches or {}) do POUCHES[p.item] = true end
+ns.COIN_POUCHES = POUCHES
+
+local function num(v)
+  if type(v) == "number" and not (issecretvalue and issecretvalue(v)) then return v end
+end
+local zonesChanged
+-- The learned facts onto the order. Returns true if what it costs changed (the amount).
+local function applySeen(e)
+  local s = e.quest and ns.db and ns.db.writSeen and ns.db.writSeen[e.quest]
+  if not s then return end
+  local changed = s.qty and s.qty ~= e.qty
+  if s.qty then e.qty = s.qty end
+  if s.who then e.who = s.who end
+  if s.zone and s.zone ~= e.zone then e.zone = s.zone; zonesChanged = true end
+  if s.rep then e.rep = s.rep end
+  e.seen = true
+  return changed
+end
+ns:OnReady(function()
+  for _, e in pairs(byQuest) do applySeen(e) end
+  wipe(costs); costsAt = -math.huge; costsGen = costsGen + 1
+end)
+
+-- Something learned about a writ quest: saved, put on the order, its cost worked out again.
+function ns:WritLearned(quest, fields)
+  local e = byQuest[quest]
+  if not (e and ns.db) then return end
+  ns.db.writSeen = ns.db.writSeen or {}
+  local s = ns.db.writSeen[quest] or {}
+  local any
+  for k, v in pairs(fields) do
+    if v ~= nil and s[k] ~= v then s[k] = v; any = true end
+  end
+  if not any then return e end
+  s.t = time()
+  ns.db.writSeen[quest] = s
+  if applySeen(e) then wipe(costs); costsAt = -math.huge; costsGen = costsGen + 1 end
+  ns:Debug("Writ learned:", quest, s.qty, s.who, s.zone, s.rep, s.money)
+  return e
+end
+
+-- How many the quest asks for: its first objective with a number (item objectives).
+local function questQty(quest)
+  local get = C_QuestLog and C_QuestLog.GetQuestObjectives
+  if not get then return end
+  local ok, objs = pcall(get, quest)
+  if not ok or type(objs) ~= "table" then return end
+  for _, o in ipairs(objs) do
+    local ty = o.type
+    if issecretvalue and issecretvalue(ty) then ty = nil end
+    local need = num(o.numRequired)
+    if need and need > 0 and (ty == nil or ty == "item") then return need end
+  end
+end
+local function onQuest(quest)
+  if C_QuestLog and C_QuestLog.IsOnQuest then
+    local ok, on = pcall(C_QuestLog.IsOnQuest, quest)
+    return ok and on == true
+  end
+  return GetQuestLogIndexByID and (GetQuestLogIndexByID(quest) or 0) > 0
+end
+local readLogSoon
+local function readLog()
+  readLogSoon = nil
+  for quest in pairs(byQuest) do
+    if onQuest(quest) then
+      local qty = questQty(quest)
+      if qty then ns:WritLearned(quest, { qty = qty }) end
+    end
+  end
+end
+local function readLogLater()
+  if readLogSoon and GetTime() - readLogSoon < 5 then return end   -- (one waiting read at a time)
+  readLogSoon = GetTime()
+  C_Timer.After(1, readLog)
+end
+ns.WritReadLog = readLog   -- (tests)
+ns:On("QUEST_ACCEPTED", readLogLater)
+ns:On("QUEST_LOG_UPDATE", readLogLater)
+ns:On("PLAYER_ENTERING_WORLD", readLogLater)
+
+-- Reputation: every faction's standing (headers that are closed hide theirs), compared
+-- before and after the turn-in; the chat line, when the game lets addons read it, first.
+local function standings()
+  local out = {}
+  local R = C_Reputation
+  if R and R.GetNumFactions and R.GetFactionDataByIndex then
+    for i = 1, R.GetNumFactions() or 0 do
+      local ok, d = pcall(R.GetFactionDataByIndex, i)
+      if ok and type(d) == "table" and num(d.factionID) and num(d.currentStanding) then out[d.factionID] = d.currentStanding end
+    end
+  elseif GetNumFactions and GetFactionInfo then
+    for i = 1, GetNumFactions() or 0 do
+      local _, _, _, _, _, value, _, _, _, _, _, _, _, id = GetFactionInfo(i)
+      if num(id) and num(value) then out[id] = value end
+    end
+  end
+  return out
+end
+local repPattern
+local function repFromChat(msg)
+  if type(msg) ~= "string" or not FACTION_STANDING_INCREASED then return end
+  if not repPattern then
+    -- "Reputation with %s increased by %d." -> "^Reputation with (.+) increased by (%d+)%.$"
+    local p = FACTION_STANDING_INCREASED:gsub("%%s", "\1"):gsub("%%d", "\2"):gsub("([^%w%s\1\2])", "%%%1")
+    repPattern = "^" .. p:gsub("\1", "(.+)"):gsub("\2", "(%%d+)") .. "$"
+  end
+  local _, n = msg:match(repPattern)
+  return tonumber(n)
+end
+ns.WritRepFromChat = repFromChat
+
+-- The turn-in window (QUEST_COMPLETE): who and where. QUEST_TURNED_IN: the money, then the
+-- reputation a moment later. lastTurnIn tells the bags which coin pouch came from what.
+local pending, lastTurnIn
+local arrived, assignPouch, gained   -- (coin pouches, below)
+ns:On("QUEST_COMPLETE", function()
+  local quest = GetQuestID and num(GetQuestID())
+  if not (quest and byQuest[quest]) then pending = nil return end
+  local map = C_Map and C_Map.GetBestMapForUnit and num(C_Map.GetBestMapForUnit("player"))
+  local info = map and C_Map.GetMapInfo and C_Map.GetMapInfo(map)
+  pending = { quest = quest, who = ns.Readable(UnitName("npc")), map = map,
+    zone = info and ns.Readable(info.name), rep = standings() }
+end)
+ns:On("QUEST_TURNED_IN", function(quest, _, money)
+  quest = num(quest)
+  local e = quest and byQuest[quest]
+  if not e then return end
+  lastTurnIn = { from = e.tier, t = GetTime(), quest = quest }
+  gained = nil   -- (the quest's own money isn't a coin pouch's)
+  assignPouch()
+  local p = pending and pending.quest == quest and pending or nil
+  pending = nil
+  ns:WritLearned(quest, { who = p and p.who, map = p and p.map, zone = p and p.zone, money = num(money) })
+  if p then
+    C_Timer.After(1.5, function()
+      if lastTurnIn and lastTurnIn.quest == quest and lastTurnIn.rep then return end   -- (the chat line had it)
+      local after, best = standings(), nil
+      for id, v in pairs(after) do
+        local d = p.rep[id] and v - p.rep[id]
+        if d and d > 0 and (not best or d > best) then best = d end
+      end
+      if best then ns:WritLearned(quest, { rep = best }) end
+    end)
+  end
+end)
+ns:On("CHAT_MSG_COMBAT_FACTION_CHANGE", function(msg)
+  local n = repFromChat(msg)
+  if n and lastTurnIn and GetTime() - lastTurnIn.t < 3 and not lastTurnIn.rep then
+    lastTurnIn.rep = n
+    ns:WritLearned(lastTurnIn.quest, { rep = n })
+  end
+end)
+-- A crate turn-in (Crates.lua, when Merchant's Favor goes up), for the coin pouch it gives.
+-- (Not right after a writ's turn-in, in case that gives Favor too.)
+function ns:NoteCrateTurnIn()
+  if lastTurnIn and lastTurnIn.from ~= "crate" and GetTime() - lastTurnIn.t < 3 then return end
+  lastTurnIn = { from = "crate", t = GetTime() }
+  assignPouch()
+end
+
+-- Coin pouches: one turning up within 10 s of a turn-in (either first) came from it; one
+-- leaving the bags with money arriving within 3 s (either first) was opened, and paid that.
+-- Not at a vendor or the mailbox, where a pouch leaving and money arriving mean something else.
+local pouchCount, lastMoney, opened = {}, nil, nil
+assignPouch = function()
+  if not (arrived and lastTurnIn and math.abs(arrived.t - lastTurnIn.t) < 10) then return end
+  local p = ns.db.pouches[arrived.id] or { n = 0, sum = 0 }
+  p.from = lastTurnIn.from
+  ns.db.pouches[arrived.id] = p
+  arrived = nil
+end
+local function busy()
+  return (MerchantFrame and MerchantFrame:IsShown()) or (MailFrame and MailFrame:IsShown())
+    or (TradeFrame and TradeFrame:IsShown())
+end
+local function pair()
+  if not (opened and gained) then return end
+  local dt = gained.t - opened.t   -- (money up to 3 s after, or a moment before: auto loot)
+  if dt > 3 or dt < -1 then return end
+  local p = ns.db.pouches[opened.id] or { n = 0, sum = 0 }
+  p.n, p.sum = p.n + 1, p.sum + gained.amount
+  p.lo, p.hi = math.min(p.lo or gained.amount, gained.amount), math.max(p.hi or 0, gained.amount)
+  ns.db.pouches[opened.id] = p
+  ns:Debug("Coin pouch opened:", opened.id, gained.amount)
+  opened, gained = nil, nil
+end
+local function countPouches()
+  local get = (C_Item and C_Item.GetItemCount) or GetItemCount
+  local out = {}
+  for id in pairs(POUCHES) do out[id] = get and get(id) or 0 end
+  return out
+end
+ns:On("BAG_UPDATE_DELAYED", function()
+  if not ns.db then return end
+  local now = countPouches()
+  for id, n in pairs(now) do
+    local was = pouchCount[id]
+    if was and n > was then
+      arrived, gained = { id = id, t = GetTime() }, nil   -- (money before a pouch came isn't from opening it)
+      assignPouch()
+    elseif was and n < was and not busy() then
+      opened = { id = id, t = GetTime() }
+      pair()
+    end
+  end
+  pouchCount = now
+end)
+ns:On("PLAYER_MONEY", function()
+  local m = num(GetMoney())
+  if m and lastMoney and m > lastMoney and not busy() then
+    gained = { amount = m - lastMoney, t = GetTime() }
+    if ns.db then pair() end
+  end
+  lastMoney = m
+end)
+ns:On("PLAYER_ENTERING_WORLD", function()
+  lastMoney = num(GetMoney())
+  if ns.db then pouchCount = countPouches() end
+end)
+
+-- What the coin pouches from writs of a tier (or "crate") paid: "about 52s (3 opened,
+-- 30s to 1g 10s)", or nil before one was opened.
+function ns:PouchText(from)
+  local n, sum, lo, hi = 0, 0, nil, nil
+  for _, p in pairs(ns.db and ns.db.pouches or {}) do
+    if p.from == from and (p.n or 0) > 0 then
+      n, sum = n + p.n, sum + p.sum
+      lo, hi = math.min(lo or p.lo, p.lo), math.max(hi or p.hi, p.hi)
+    end
+  end
+  if n == 0 then return end
+  local avg = ns.Money(math.floor(sum / n + 0.5))
+  if n == 1 then return ("%s (1 opened)"):format(avg) end
+  return ("about %s (%d opened, %s to %s)"):format(avg, n, ns.Money(lo), ns.Money(hi))
 end
 
 -- How the cheapest way gets it: "buy on the AH", "make it", "from a vendor".
@@ -488,20 +744,13 @@ end
 function ns:WritTooltipLines(id)
   local e, tier = ns:WritFor(id)
   if e then
-    local t = TIERS[e.tier]
     local c = ns:WritCost(e)
     local lines = {}
     lines[1] = ("Writ: %s%s to %s, %d reputation"):format(e.qty > 1 and (e.qty .. " ") or "", itemName(e.item) or ns.ItemName(e.item),
-      e.who and (e.who .. (e.zone and (" (" .. e.zone .. ")") or "")) or (e.zone and ("someone in " .. e.zone) or "a customer not known yet"), t.rep)
+      e.who and (e.who .. (e.zone and (" (" .. e.zone .. ")") or "")) or (e.zone and ("someone in " .. e.zone) or "a customer not known yet"), ns.WritRep(e))
     if c then
-      local per = ns.WritPerRep(c.total, e.tier)
-      if per < 0 then
-        lines[2] = ("Cheapest: %s (%s); the coin pouch pays %s more, about %s per reputation"):format(ns.Money(math.floor(c.total + 0.5)),
-          howText(c, e), ns.Money(math.floor(t.pouch - c.total + 0.5)), ns.Money(math.floor(-per + 0.5)))
-      else
-        lines[2] = ("Cheapest: %s (%s), about %s per reputation after the coin pouch"):format(ns.Money(math.floor(c.total + 0.5)),
-          howText(c, e), ns.Money(math.floor(per + 0.5)))
-      end
+      lines[2] = ("Cheapest: %s (%s), about %s per reputation"):format(ns.Money(math.floor(c.total + 0.5)),
+        howText(c, e), ns.Money(math.floor(ns.WritPerRep(c.total, e.tier, e.rep) + 0.5)))
     end
     return lines
   elseif tier then
@@ -564,15 +813,19 @@ function ns:BuildWrits(parent)
   -- The zone the customer is in (Frank, November 23), to do the orders of one zone together.
   f.zone = T:Dropdown(f, 170, function(v) S().zone = v; ns:RefreshWrits() end)
   f.zone:SetPoint("LEFT", f.prof, "RIGHT", 10, 0)
-  local zopts = { { value = "all", label = "Any zone" } }
-  for _, z in ipairs(ns.WritZones()) do zopts[#zopts + 1] = { value = z, label = z } end
-  zopts[#zopts + 1] = { value = "?", label = "Zone not known yet" }
-  f.zone:SetOptions(zopts)
+  local function zoneOptions()
+    local zopts = { { value = "all", label = "Any zone" } }
+    for _, z in ipairs(ns.WritZones()) do zopts[#zopts + 1] = { value = z, label = z } end
+    zopts[#zopts + 1] = { value = "?", label = "Zone not known yet" }
+    return zopts
+  end
+  f.zoneOptions = zoneOptions
+  f.zone:SetOptions(zoneOptions())
   f.info = T:Text(f, 11, T.dim)
   f.info:SetPoint("TOPLEFT", f.tier, "BOTTOMLEFT", 0, -6)
   f.info:SetPoint("RIGHT", f, "RIGHT", -2, 0)
   f.info:SetJustifyH("LEFT")
-  f.info:SetText("Orders to deliver for reputation and a coin pouch, each once a day. Cheapest: buy or make the item at your last scan's prices. Per rep: that less the pouch, per point (green +: the pouch pays you that much). Click an order to search the auction house for its item, right-click for the writ itself.")
+  f.info:SetText("Orders to deliver for reputation and a coin pouch, each once a day. Cheapest: buy or make the item at your last scan's prices. Per rep: that per point of reputation (the pouch's money varies, so it isn't counted). Taking or handing in an order checks its amount, customer and reputation. Click an order to search for its item, right-click for the writ itself.")
   f.header = CreateFrame("Frame", nil, f)
   f.header:SetPoint("TOP", f.info, "BOTTOM", 0, -6)
   f.header:SetPoint("LEFT", f, "LEFT", 0, 0)
@@ -618,10 +871,16 @@ local function rowTooltip(self)
   GameTooltip:SetItemByID(e.item)
   ns:TooltipAddLine(" ")
   local t = TIERS[e.tier]
-  ns:TooltipAddDoubleLine("Writ", ("%s, %d reputation"):format(t.label, t.rep), 0.7, 0.7, 0.7, 1, 1, 1)
+  ns:TooltipAddDoubleLine("Writ", ("%s, %d reputation"):format(t.label, ns.WritRep(e)), 0.7, 0.7, 0.7, 1, 1, 1)
   ns:TooltipAddDoubleLine("Deliver to", e.who and (e.who .. (e.zone and (", " .. e.zone) or "")) or (e.zone and ("not known yet (players say " .. e.zone:gsub("%?$", "") .. ")") or "not known yet"),
     0.7, 0.7, 0.7, 1, 1, 1)
   ns:TooltipAddDoubleLine("To make it", ("%s, skill %d"):format(e.prof, e.skill or 0), 0.7, 0.7, 0.7, 1, 1, 1)
+  ns:TooltipAddDoubleLine("Coin pouch", ns:PouchText(e.tier) or "varies, not counted", 0.7, 0.7, 0.7, 1, 1, 1)
+  local s, got = e.quest and ns.db.writSeen and ns.db.writSeen[e.quest], {}
+  if s and s.qty then got[#got + 1] = "amount" end
+  if s and s.who then got[#got + 1] = "customer" end
+  if s and s.rep then got[#got + 1] = "reputation" end
+  ns:TooltipAddLine(#got > 0 and ("Checked in game: " .. table.concat(got, ", ") .. ".") or "From player guides until you take or hand in this order.", 0.6, 0.6, 0.6, true)
   if c and ns.GoldPlanLines then
     ns:TooltipAddLine(" ")
     ns:TooltipAddLine("The cheapest way", 1, 0.82, 0)
@@ -693,6 +952,7 @@ function ns:RefreshWrits()
   local s = S()
   f.tier:SetValue(s.tier)
   f.prof:SetValue(s.prof)
+  if zonesChanged then zonesChanged = nil; f.zone:SetOptions(f.zoneOptions()) end   -- (a zone learned in game)
   f.zone:SetValue(s.zone)
   local width = f:GetWidth() - 12
   local lay = layout(width)
@@ -734,7 +994,7 @@ function ns:RefreshWrits()
       local writPrice = e.writ and ns:GetPrice(e.writ)
       list[#list + 1] = { e = e, c = c, name = (itemName(e.item) or ns.ItemName(e.item)),
         -- (nil, not false, where there is no price: the sort compares numbers; Codex review.)
-        cost = c and c.total or nil, perRep = c and ns.WritPerRep(c.total, e.tier) or nil, writ = writPrice or nil,
+        cost = c and c.total or nil, perRep = c and ns.WritPerRep(c.total, e.tier, e.rep) or nil, writ = writPrice or nil,
         have = yours[e] ~= nil, ready = bagHas(e.item) >= e.qty }
     end
   end
@@ -742,7 +1002,8 @@ function ns:RefreshWrits()
   local function value(x, key)
     if key == "name" then return x.name:lower() end
     if key == "prof" then return x.e.prof end
-    if key == "tier" or key == "rep" then return tierRank[x.e.tier] end
+    if key == "tier" then return tierRank[x.e.tier] end
+    if key == "rep" then return ns.WritRep(x.e) end
     if key == "where" then return (x.e.who or x.e.zone or "~"):lower() end
     return x[key]
   end
@@ -769,16 +1030,14 @@ function ns:RefreshWrits()
     r.icon:SetTexture(ns:ItemIcon(x.e.item))
     r.icon:ClearAllPoints()
     r.icon:SetPoint("LEFT", r, "LEFT", lay.name.x, 0)
-    local e, t = x.e, TIERS[x.e.tier]
+    local e = x.e
     local values = {
       name = (e.qty > 1 and (e.qty .. " x ") or "") .. x.name .. (x.have and (T:AccentCode() .. "  yours|r") or ""),
       prof = e.prof,
-      rep = tostring(t.rep),
+      rep = tostring(ns.WritRep(e)),
       where = e.who or dim(e.zone and "not confirmed" or "not known yet"),
       cost = x.ready and "|cff7fd39cyou have it|r" or x.cost and (ns.MoneyShort(x.cost) .. dim(" " .. howText(x.c, e))) or dim(x.c == nil and "working out..." or "no price"),
-      -- Below zero the pouch pays more than the order costs: the gain per point, in green
-      -- (Frank's AH9, November 20: every order read "free", so the column told them apart by nothing).
-      perRep = x.perRep and (x.perRep < 0 and ("|cff7fd39c+" .. ns.MoneyShort(-x.perRep) .. "|r") or ns.MoneyShort(x.perRep)) or dim("?"),
+      perRep = x.perRep and ns.MoneyShort(x.perRep) or dim("?"),
       writ = x.writ and ns.MoneyShort(x.writ) or dim("-"),
     }
     for key, fs in pairs(r.cells) do

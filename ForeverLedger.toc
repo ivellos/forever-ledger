@@ -57,6 +57,7 @@ Watched.lua
 Groups.lua
 Auctions.lua
 AHTabs.lua
+AHMove.lua
 ScanOnce.lua
 Post.lua
 GroupsTab.lua

@@ -1209,3 +1209,38 @@ T.test("Buy queue: a new flip's count is looked up while the queue waits for you
   rawset(C_AuctionHouse, "IsThrottledMessageSystemReady", nil)
   Q.forceActive, Q.cur, Q.state, Q.lanes = nil, nil, "idle", lanes
 end)
+
+-- Frank, November 25: Scroll to buy anywhere on screen, only while there's something to buy.
+T.test("Buy queue: Scroll anywhere only on Vendor flips, while there's something to buy", function()
+  local bq = ns.db.settings.buyQueue
+  local was = { bq.screen, bq.wheel, bq.view, Q.toBuy, Q.state }
+  local realOpen, realAct = ns.IsAHOpen, ns.BuyQueueAct
+  ns.IsAHOpen = function() return true end
+  bq.screen, bq.wheel, bq.view, Q.toBuy, Q.state = true, true, "flips", 2, "idle"
+  T.eq(ns.ScreenWheelWanted(true), true)
+  T.eq(ns.ScreenWheelWanted(false), false, "not with the Buy queue off screen")
+  Q.toBuy = 0
+  T.eq(ns.ScreenWheelWanted(true), false, "nothing to buy: the wheel works as usual")
+  Q.state = "confirm"
+  T.eq(ns.ScreenWheelWanted(true), true, "but not in the middle of a purchase")
+  Q.toBuy, Q.state = 2, "idle"
+  bq.wheel = false
+  T.eq(ns.ScreenWheelWanted(true), false, "Scroll to buy unticked")
+  bq.wheel, bq.screen = true, false
+  T.eq(ns.ScreenWheelWanted(true), false, "Scroll to buy, not anywhere")
+  bq.screen, bq.view = true, "lists"
+  T.eq(ns.ScreenWheelWanted(true), false, "Shopping lists don't scroll anywhere")
+  -- Codex review of baf7505: not away from the auction house (P3), and a tick checks again
+  -- before buying (P2: turned off, it bought until the next redraw).
+  bq.view = "flips"
+  ns.IsAHOpen = function() return false end
+  T.eq(ns.ScreenWheelWanted(true), false, "the auction house closed")
+  ns.IsAHOpen = function() return true end
+  bq.screen = false
+  local acts, hidden = 0, false
+  ns.BuyQueueAct = function() acts = acts + 1 end
+  ns.ScreenWheelTick({ Hide = function() hidden = true end })
+  T.eq(acts, 0, "turned off: a tick buys nothing"); T.ok(hidden, "and the catcher goes")
+  ns.IsAHOpen, ns.BuyQueueAct = realOpen, realAct
+  bq.screen, bq.wheel, bq.view, Q.toBuy, Q.state = was[1], was[2], was[3], was[4], was[5]
+end)

@@ -460,7 +460,8 @@ local function captureTrainer()
     if C_TooltipInfo and C_TooltipInfo.GetUnit then
       local ok, data = pcall(C_TooltipInfo.GetUnit, "npc")
       local line = ok and data and data.lines and data.lines[2]
-      if line and line.leftText and line.leftText ~= "" then v.title = line.leftText end
+      local title = line and ns.Readable(line.leftText)
+      if title and title ~= "" then v.title = title end
     end
     -- Forever's trainer list may not name the skill, so the title fills in the profession.
     if not v.profession and ns.ProfessionFromTitle then v.profession = ns.ProfessionFromTitle(v.title) end

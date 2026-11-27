@@ -1725,8 +1725,9 @@ local function statusText()
   local name = e and ("|cffffffff" .. ns.ItemName(e.id) .. (e.suffix and (" " .. ns:VersionLabel(e.suffix)) or "") .. "|r") or ""
   local st = Q.state
   -- How to buy, said where you'd look (Magic, October 3: "which area do I scroll in?").
-  local how = S().wheel and (Q.armed == "flips" and "Scroll anywhere over Vendor flips, or click Buy." or "Scroll over this strip, or click Buy.")
-    or "Click Buy (or tick Scroll to buy and scroll here)."
+  local how = S().wheel and (Q.armed == "flips" and S().screen and "Scroll anywhere on screen, or click Buy."
+    or Q.armed == "flips" and "Scroll anywhere over Vendor flips, or click Buy." or "Scroll over this strip, or click Buy.")
+    or "Click Buy (or pick Scroll to buy above and scroll here)."
   local GREY = "|cff888888%s|r"
   if st == "wait" then
     if Q.waitText then return Q.waitText, Q.waitHint or "Carries on a few seconds after you stop, or click Go now.", "Go now" end
@@ -2163,21 +2164,29 @@ local function buildQueueView(parent)
     end)
     b:HookScript("OnLeave", function() GameTooltip:Hide() end)
   end
-  local wheel = T:Check(bar, function(self) S().wheel = self:GetChecked(); refreshQueue() end)
-  wheel.label:SetText("Scroll to buy")
-  -- The label sits to the right of the box: move the pair left by the label's width.
-  wheel:ClearAllPoints()
-  wheel:SetPoint("RIGHT", bar, "RIGHT", -(wheel.label:GetStringWidth() + 18), 0)
-  wheel:SetChecked(S().wheel)
-  wheel:SetHitRectInsets(0, -(wheel.label:GetStringWidth() + 8), 0, 0)
-  wheel:SetScript("OnEnter", function(self)
+  -- How to buy (Frank, November 25: a dropdown in place of the Scroll to buy box, here in
+  -- the view; Scroll anywhere for Vendor flips only, for now). S().wheel = scrolling buys,
+  -- S().screen = anywhere on screen (Vendor flips; Shopping lists scroll over their strip).
+  local mode = T:Dropdown(bar, 124, function(value)
+    S().wheel = value ~= "click"
+    if view() == "flips" then S().screen = value == "screen" end
+    refreshQueue()
+  end)
+  mode:SetPoint("RIGHT", bar, "RIGHT", -8, 0)
+  mode:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    ns:TooltipAddLine("Scroll to buy", 1, 1, 1)
-    ns:TooltipAddLine("Each tick of the mouse wheel, up or down, buys the next item: anywhere over Vendor flips (drag the bar on the right to scroll its list), or over the top strip of Shopping lists. A stack of materials is confirmed in the same tick (unless Confirm stacks with a second click is ticked in Settings, Auction house). It keeps working while the list is empty, so new flips can be bought the moment they show up. Off: only clicking Buy buys.", nil, nil, nil, true)
+    ns:TooltipAddLine("How to buy", 1, 1, 1)
+    ns:TooltipAddLine("Click to buy: only clicking Buy (or a row) buys.", nil, nil, nil, true)
+    ns:TooltipAddLine(view() == "flips" and "Scroll to buy: each tick of the mouse wheel, up or down, anywhere over Vendor flips buys the next item (drag the bar on the right to scroll its list)."
+      or "Scroll to buy: each tick of the mouse wheel, up or down, over the top strip buys the next item.", nil, nil, nil, true)
+    if view() == "flips" then
+      ns:TooltipAddLine("Scroll anywhere: each tick buys wherever the pointer is, while there's something to buy; the rest of the time the wheel works as usual.", nil, nil, nil, true)
+    end
+    ns:TooltipAddLine("A stack of materials is confirmed in the same tick, unless Confirm stacks with a second click is ticked in Settings, Auction house.", 0.7, 0.7, 0.7, true)
     GameTooltip:Show()
   end)
-  wheel:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  v.wheel = wheel
+  mode:HookScript("OnLeave", function() GameTooltip:Hide() end)
+  v.buyMode = mode
 
   -- Watched items (Watched.lua): Vendor flips only, as that's where they're bought.
   v.watched = T:Button(bar, "Watched", 96, function() ns:ToggleWatchedView(v) end, 22)
@@ -2393,8 +2402,9 @@ local function fillLane(L)
     L:SetScript("OnUpdate", nil)
   end
   L.title:SetText(ns.LocalizeText("%s  |cff888888%d to buy|r%s"):format(ns.LocalizeText(d.title), ready,
-    wheel and ("   |cff" .. (lit and hex(c) or "888888") .. (d.key == "flips" and "scroll anywhere here to buy|r" or "scroll here to buy|r"))
-      or "   |cff888888click Buy, or tick Scroll to buy|r"))
+    wheel and ("   |cff" .. (lit and hex(c) or "888888") .. (d.key == "flips" and S().screen and "scroll anywhere on screen to buy|r"
+      or d.key == "flips" and "scroll anywhere here to buy|r" or "scroll here to buy|r"))
+      or "   |cff888888click Buy, or pick Scroll to buy above|r"))
   local a, b, label
   if armed then
     a, b, label = statusText()
@@ -2459,6 +2469,52 @@ local function fillLane(L)
   L.sf.UpdateScrollBar()
 end
 
+-- Scroll anywhere (Frank, November 25; the How to buy dropdown, S().screen): while Vendor
+-- flips is on screen with something to buy (or a purchase under way) and Scroll to buy
+-- is ticked, a frame over the whole screen takes the mouse wheel, not clicks or hovers, so
+-- each tick buys wherever the pointer is, as it does over Vendor flips. With nothing to
+-- buy it goes, and the wheel scrolls chat, lists and the camera as usual. (Frank's test,
+-- November 25: WoW already takes the wheel from whatever window the pointer is over,
+-- active or not, so this adds no new way to buy by accident.) The earlier "scroll
+-- anywhere" key binding (October 2, above) only reached the world; this frame is above
+-- the auction house window and the panel.
+local BUY_MODES = { { value = "click", label = "Click to buy" }, { value = "scroll", label = "Scroll to buy" },
+  { value = "screen", label = "Scroll anywhere" } }
+local LIST_BUY_MODES = { BUY_MODES[1], BUY_MODES[2] }
+local screenWheel
+-- Only at the auction house (Codex review of baf7505, P3: the panel open on its own
+-- caught the wheel for flips it couldn't buy).
+local function screenWheelWanted(visible)
+  return (S().screen and S().wheel and view() == "flips" and visible and ns:IsAHOpen()
+    and ((Q.toBuy or 0) > 0 or (Q.state ~= nil and Q.state ~= "idle"))) and true or false
+end
+ns.ScreenWheelWanted = screenWheelWanted   -- (tests)
+-- A tick: checked again first, not only at the last redraw (Codex review of baf7505, P2:
+-- turned off, it still bought until the next redraw).
+local function onScreenWheel(self)
+  if not screenWheelWanted(queueView and queueView:IsVisible()) then self:Hide(); return end
+  local L = queueView and queueView.lanes and queueView.lanes[view()]
+  if L and L.wheel then L.wheel() end
+end
+ns.ScreenWheelTick = onScreenWheel   -- (tests)
+local function updateScreenWheel()
+  local v = queueView
+  if not screenWheelWanted(v and v:IsVisible()) then
+    if screenWheel then screenWheel:Hide() end
+    return
+  end
+  if not screenWheel then
+    screenWheel = CreateFrame("Frame", nil, UIParent)
+    screenWheel:SetAllPoints(UIParent)
+    screenWheel:SetFrameStrata("FULLSCREEN")
+    screenWheel:EnableMouse(false)
+    screenWheel:EnableMouseWheel(true)
+    screenWheel:SetScript("OnMouseWheel", onScreenWheel)
+  end
+  screenWheel:Show()
+end
+ns:On("AUCTION_HOUSE_CLOSED", function() C_Timer.After(0, updateScreenWheel) end)
+
 refreshQueue = function()
   local v = queueView
   if not v or not v:IsVisible() then return end
@@ -2478,6 +2534,11 @@ refreshQueue = function()
       profit and ns.LocalizeText(", profit %s"):format(profit >= 0 and ("|cff7fd39c" .. money(profit) .. "|r") or ("|cffee8597-" .. money(-profit) .. "|r")) or "")
     or ("%d to buy"):format(total))
   Q.toBuy = total
+  updateScreenWheel()
+  -- How to buy: Scroll anywhere only for Vendor flips (Frank, November 25).
+  local flips = view() == "flips"
+  v.buyMode:SetOptions(flips and BUY_MODES or LIST_BUY_MODES)
+  v.buyMode:SetValue(not S().wheel and "click" or (flips and S().screen) and "screen" or "scroll")
   if view() == "flips" then
     badgeIds = {}
     for _, x in ipairs(Q.lanes and Q.lanes.flips or {}) do
@@ -3056,7 +3117,7 @@ end
 -- that's Blizzard's and can't be stopped (owner, October 2).
 local function onModifiedClick(link)
   local v = listsView
-  if not (v and v:IsVisible() and type(link) == "string") then return end
+  if not (v and v:IsVisible() and ns.Readable(link)) then return end
   if IsModifiedClick and not IsModifiedClick("CHATLINK") then return end
   local id = ns.ItemIDFromLink(link)
   if not id then return end
@@ -3927,6 +3988,7 @@ local function ensureSide()
   table.insert(ns.scaledWindows, side)
   side:SetScale(((ns.db and ns.db.settings.uiScale) or 100) / 100)
   queueView = buildQueueView(side)
+  queueView:HookScript("OnHide", updateScreenWheel)   -- (off with the view)
   listsView = buildListsView(side)
   ns:DisenchantFinderFrame(side)
   side:SetScript("OnShow", function()
