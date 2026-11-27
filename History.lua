@@ -521,7 +521,7 @@ local UNEXPLAINED_SECONDS = 5
 local function buybackEntry(i)
   local okInfo, _, _, price, qty = pcall(GetBuybackItemInfo, i)
   local okLink, link = pcall(GetBuybackItemLink, i)
-  local id = okLink and type(link) == "string" and tonumber(link:match("item:(%d+)"))
+  local id = okLink and ns.Readable(link) and tonumber(link:match("item:(%d+)"))
   if okInfo and id and type(price) == "number" and price > 0 then
     qty = tonumber(qty) or 1
     return { id = id, price = price, qty = qty, slot = i, sig = ("%s:%d:%d"):format(link, price, qty) }
@@ -1072,10 +1072,33 @@ local function recordListed(id, d, listed, key)
   qty[id] = s
 end
 
+-- Hour by hour for the last week (Frank, November 24: a day's graph hour by hour, and a
+-- week's): historyHourly[market][id] = "hour:cheapest:typical:listed|...", hour = hours
+-- since 1970 (UTC; shown in local time). An hour keeps the lowest cheapest, the latest
+-- typical and the most listed. Older hours are dropped: the days keep them.
+local HOURLY_PRICE_HOURS = 7 * 24
+ns.HOURLY_PRICE_HOURS = HOURLY_PRICE_HOURS
+local function recordHour(id, cheapest, typical, listed, key)
+  local hourly = marketTable("historyHourly", key)
+  local h = thisHour()
+  local s = hourly[id] or ""
+  local lastH, lastMin, _, lastQ = s:match("(%d+):(%d+):(%d+):(%d+)$")
+  if tonumber(lastH) == h then
+    cheapest = math.min(cheapest, tonumber(lastMin))
+    listed = math.max(listed or 0, tonumber(lastQ))
+    s = s:gsub("[^|]*$", "")
+  elseif s ~= "" then
+    s = s .. "|"
+  end
+  s = s .. ("%.0f:%.0f:%.0f:%.0f"):format(h, cheapest, typical, listed or 0)
+  hourly[id] = dropOld(s, h - HOURLY_PRICE_HOURS)
+end
+
 -- key: the market (nil = the one you're at): prices from a sync partner name theirs.
 function ns:RecordPriceHistory(id, cheapest, typical, listed, key)
   if not ns.db or not cheapest then return end
   typical = typical or cheapest
+  recordHour(id, cheapest, typical, listed, key)
   local hist = marketTable("history", key)
   local d = today()
   if listed then recordListed(id, d, listed, key) end
@@ -1454,11 +1477,13 @@ function ns:TrimMarketHistory()
   trimVersions(d, key)
   local hist, weekly = marketTable("history", key), marketTable("historyWeekly", key)
   local qty, sold = marketTable("historyQty", key), marketTable("historySold2", key)
+  local hourly = marketTable("historyHourly", key)
   local ids = {}
   for id in pairs(hist) do ids[#ids + 1] = id end
   for id in pairs(weekly) do if not hist[id] then ids[#ids + 1] = id end end
   for id in pairs(qty) do if not hist[id] and not weekly[id] then ids[#ids + 1] = id end end
   for id in pairs(sold) do if not hist[id] and not weekly[id] and not qty[id] then ids[#ids + 1] = id end end
+  for id in pairs(hourly) do if not hist[id] and not weekly[id] and not qty[id] and not sold[id] then ids[#ids + 1] = id end end
   local i = 0
   local function step()
     for _ = 1, 200 do
@@ -1484,6 +1509,7 @@ function ns:TrimMarketHistory()
         hist[id] = #kept > 0 and table.concat(kept, "|") or nil
       end
       if weekly[id] then weekly[id] = trimCounts(weekly[id], math.floor(d / 7) - WEEKLY_WEEKS) end
+      if hourly[id] then hourly[id] = trimCounts(hourly[id], thisHour() - HOURLY_PRICE_HOURS) end
       if qty[id] then qty[id] = trimCounts(qty[id], d - COUNT_DAYS) end
       if sold[id] then sold[id] = trimCounts(sold[id], d - COUNT_DAYS) end
     end
@@ -1535,6 +1561,21 @@ function ns:PriceSeries(id, suffix, days)
   end
   for _, p in ipairs(days_) do out[#out + 1] = p end
   table.sort(out, function(x, y) return x.day < y.day end)
+  return out
+end
+
+-- Hour by hour, for the price window's day and week graphs: { { hour, cheapest, typical,
+-- listed }, ... } oldest first, from the hour fromHour on (hours since 1970, UTC). Hours
+-- without a scan are missing. Gear versions have no hours (full scans keep days).
+function ns:PriceSeriesHourly(id, fromHour)
+  local out = {}
+  for h, m, a, q in (marketTable("historyHourly")[id] or ""):gmatch("(%d+):(%d+):(%d+):(%d+)") do
+    h = tonumber(h)
+    if h >= (fromHour or 0) then
+      q = tonumber(q)
+      out[#out + 1] = { hour = h, cheapest = tonumber(m), typical = tonumber(a), listed = q > 0 and q or nil }
+    end
+  end
   return out
 end
 

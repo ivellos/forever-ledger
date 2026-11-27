@@ -282,3 +282,18 @@ T.test("Hidden unit text: Readable gives nil for a hidden value, the string othe
   issecretvalue = nil
   T.eq(ns.Readable("Creature-0-1-2-3-4-5"), "Creature-0-1-2-3-4-5")
 end)
+
+-- Frank's BugSack, November 26: "attempt to perform string conversion on a secret string
+-- value", 27 times, no stack. Hidden item links and tooltip text are read as nothing.
+T.test("Hidden links: no item, no version, nothing learned", function()
+  local link = "|cff1eff00|Hitem:2589::::::::20:::::::::|h[Linen Cloth]|h|r"
+  issecretvalue = function(v) return v == link end
+  local ok, id = pcall(ns.ItemIDFromLink, link)
+  T.ok(ok, "no error")
+  T.eq(id, nil)
+  T.eq(#ns.LinkBonusIDs(link), 0)
+  T.eq(ns:VersionOfLink(2589, link), nil)
+  T.ok(pcall(ns.LearnVersionName, ns, 2589, 1234, link), "no error learning a version")
+  issecretvalue = nil
+  T.eq(ns.ItemIDFromLink(link), 2589)
+end)

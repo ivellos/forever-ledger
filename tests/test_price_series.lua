@@ -177,6 +177,16 @@ T.test("Price history: two copies of a version's history merge field by field", 
   local weeks = { [1019] = "3:50:1:1" }
   ns.CombineVersions(weeks, { [1019] = "3:60:10:6" }, "week")
   T.eq(weeks[1019], "3:50:10:6", "the fuller week, with the cheaper price")
+  -- Hours (Codex review, November 24): the cheaper price, the most listed and the typical
+  -- price of the row that saw more, in either order.
+  local h1 = { [5] = "400:100:200:2" }
+  ns.CombineVersions(h1, { [5] = "400:90:120:50" }, "hour")
+  local h2 = { [5] = "400:90:120:50" }
+  ns.CombineVersions(h2, { [5] = "400:100:200:2" }, "hour")
+  T.eq(h1[5], "400:90:120:50"); T.eq(h2[5], "400:90:120:50")
+  local h3, h4 = { [5] = "400:100:200:3" }, { [5] = "400:90:150:3" }
+  ns.CombineVersions(h3, { [5] = "400:90:150:3" }, "hour"); ns.CombineVersions(h4, { [5] = "400:100:200:3" }, "hour")
+  T.eq(h3[5], "400:90:150:3", "the same count: the lower typical"); T.eq(h4[5], h3[5])
 end)
 
 -- Codex review, November 7: with 90 days kept, a month's usual price counted every day,
@@ -284,4 +294,88 @@ T.test("Price history: items read one after another keep to their own days, with
   collectgarbage("restart")
   T.eq(ns:PriceStats(70350, "month").usual, 350)
   T.ok(kb < 500, ("%.0f KB for 100 items' first look (the answers kept for the day included)"):format(kb))
+end)
+
+-- Frank, November 24: a day's graph hour by hour, and a week's; hours kept for 7 days.
+T.test("Price history: the last week hour by hour", function()
+  start()
+  local now = S.now
+  local h0 = math.floor(now / 3600)
+  -- Two scans in one hour: the lower cheapest, the latest typical, the most listed.
+  ns:RecordPriceHistory(70061, 500, 600, 4)
+  ns:RecordPriceHistory(70061, 450, 650, 2)
+  local pts = ns:PriceSeriesHourly(70061)
+  T.eq(#pts, 1)
+  T.eq(pts[1].hour, h0); T.eq(pts[1].cheapest, 450); T.eq(pts[1].typical, 650); T.eq(pts[1].listed, 4)
+  -- Every hour for 8 days: 7 days' worth are kept.
+  for i = 8 * 24, 1, -1 do
+    S.now = now + 3600 - i * 3600 + 3600 * 8 * 24
+    ns:RecordPriceHistory(70062, 100 + i, 110 + i)
+  end
+  local all = ns:PriceSeriesHourly(70062)
+  T.ok(#all <= ns.HOURLY_PRICE_HOURS + 1 and #all >= ns.HOURLY_PRICE_HOURS, "a week of hours: " .. #all)
+  for i = 2, #all do T.eq(all[i].hour, all[i - 1].hour + 1, "in order") end
+  T.eq(all[#all].listed, nil, "no listed count: none")
+  local later = ns:PriceSeriesHourly(70062, all[#all].hour - 2)
+  T.eq(#later, 3, "from an hour on")
+  -- An item no longer scanned loses its hours at the daily trim.
+  S.now = now + 9 * 86400
+  ns.db.lastTrim = nil
+  T.ready("History.lua")
+  T.runTimers()
+  T.eq(market("historyHourly")[70061], nil)
+  S.now = now
+end)
+
+T.test("Price window: hour by hour ranges", function()
+  local DAY = 86400
+  local now = time({ year = 2026, month = 11, day = 25, hour = 15, min = 20 })   -- a Wednesday
+  local from, to, marks = ns.PriceHourAxis("today", now)
+  T.eq(date("%H:%M", from), "00:00"); T.eq(to - from, DAY)
+  T.eq(#marks, 25, "a mark each hour, both midnights")
+  local labels = 0
+  for _, m in ipairs(marks) do if m.label then labels = labels + 1 end end
+  T.eq(labels, 8, "a label every three hours")
+  from, to = ns.PriceHourAxis("24h", now)
+  T.eq(to, now); T.eq(from, now - DAY)
+  from, to, marks = ns.PriceHourAxis("week", now)
+  T.eq(date("%a %H:%M", from), "Mon 00:00"); T.eq(date("%a %H:%M", to), "Mon 00:00"); T.eq(to - from, 7 * DAY)
+  local days, noons = 0, 0
+  for _, m in ipairs(marks) do if m.strong then days = days + 1 elseif m.label then noons = noons + 1 end end
+  T.eq(days, 8); T.eq(noons, 7, "Monday to Sunday at noon")
+  from, to = ns.PriceHourAxis("7d", now)
+  T.eq(to - from, 7 * DAY)
+  -- A Monday is the week's first day, a Sunday its last.
+  local sun = time({ year = 2026, month = 11, day = 29, hour = 23 })
+  from = ns.PriceHourAxis("week", sun)
+  T.eq(date("%d", from), "23")
+  T.eq(ns.PriceClock(time({ year = 2026, month = 11, day = 25, hour = 0 })), "12 AM")
+  T.eq(ns.PriceClock(time({ year = 2026, month = 11, day = 25, hour = 15 })), "3 PM")
+  T.eq(#ns.PRICE_RANGES, 8)
+end)
+
+-- Frank, November 25: the day and week graphs were empty until a month (no hours saved
+-- before November 24): days with no hours show that day's own point.
+T.test("Price window: days before hour by hour saving show their day's point", function()
+  local now = time({ year = 2026, month = 11, day = 25, hour = 9, min = 30 })   -- a Wednesday
+  local d0 = ns.LocalDay(now)
+  local from, to = ns.PriceHourAxis("week", now)
+  local h = math.floor(now / 3600)
+  local hours = { { hour = h - 1, cheapest = 90, typical = 95 }, { hour = h, cheapest = 80, typical = 85 } }
+  local days = {
+    { day = d0 - 3, cheapest = 120, typical = 130, listed = 7 },   -- Sunday: before the week
+    { day = d0 - 2, cheapest = 110, typical = 115 },               -- Monday
+    { day = d0 - 1, cheapest = 100, typical = 105, listed = 4 },   -- Tuesday
+    { day = d0, cheapest = 80, typical = 85 },                     -- today: has hours
+    { day = d0 - 40, week = true, cheapest = 1, typical = 1 },
+  }
+  local pts = ns.PriceHourPoints(hours, days, from, to, now)
+  T.eq(#pts, 4, "Monday, Tuesday, and today's two hours")
+  T.ok(pts[1].allDay and pts[1].day == d0 - 2, "Monday first")
+  T.eq(date("%a %H:%M", pts[1].at), "Mon 12:00", "at noon")
+  T.eq(pts[2].listed, 4)
+  T.eq(pts[3].hour, h - 1); T.eq(pts[4].hour, h)
+  -- Today with no hours yet: today's point, not after the time now.
+  pts = ns.PriceHourPoints({}, { { day = d0, cheapest = 80, typical = 85 } }, ns.PriceHourAxis("today", now), select(2, ns.PriceHourAxis("today", now)), now)
+  T.eq(#pts, 1); T.eq(pts[1].at, now)
 end)

@@ -164,14 +164,15 @@ ns.ItemQuality = quality   -- (the Ledger's Rarity choice)
 
 -- Items a hand list holds that change at run time: the crate bundles read from crate
 -- tooltips, and the quest and Darkmoon Faire turn-ins.
--- Crate bundles are saved as { qty, name } (Crates.lua reads them from tooltips).
+-- Every crate's items are known by item number (Crates.lua CRATE_BUNDLES); a crate read
+-- from its tooltip is saved as { qty =, name =, id = } parts (older saves { qty, name }).
 local function inCrates(id)
+  if ns.CrateTakesItem and ns.CrateTakesItem(id) then return true end
   local name = ns.ItemName and ns.ItemName(id)
-  if not name then return false end
   for _, crate in pairs(ns.db.crates or {}) do
     for _, bundle in ipairs(crate.bundles or {}) do
       for _, part in ipairs(bundle) do
-        if part[2] == name then return true end
+        if part.id == id or (name and (part.name or part[2]) == name) then return true end
       end
     end
   end

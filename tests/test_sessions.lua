@@ -281,3 +281,102 @@ T.test("Session window: past sessions, newest first, the best one marked", funct
   T.ok(rows[2].best, "the best gold an hour")
   T.eq(rows[3].best, nil)
 end)
+
+-- Frank, November 24: "some sessions just recording at all times ... Daily and per login".
+T.test("Sessions: each login and each day are recorded on their own", function()
+  withValues(function()
+    ns.db.autoLive, ns.db.autoSessions = { days = {} }, {}
+    local now, me = S.now, ns.CharKey()
+    T.fire("PLAYER_ENTERING_WORLD", true, false)
+    local a = ns.db.autoLive
+    local L = a.login
+    T.ok(L and L.resume, "a login record")
+    T.ok(a.days[me] and a.days[me].resume, "and today's")
+    T.eq(ns.db.liveSession, nil, "no session of your own is started")
+    ns:SessionMoney("vendorSell", 300)
+    T.eq(L.money.vendorSell, 300); T.eq(a.days[me].money.vendorSell, 300)
+    -- A loading screen is the same login.
+    T.fire("PLAYER_ENTERING_WORLD", false, false)
+    T.ok(a.login == L)
+    -- A /reload carries on the same one.
+    S.now = now + 600
+    T.fire("PLAYER_LOGOUT")
+    T.eq(L.resume, nil); T.ok(L.final, "its loot valued at logout")
+    S.now = now + 630
+    T.fire("PLAYER_ENTERING_WORLD", false, true)
+    T.ok(a.login == L and L.resume, "the same login")
+    T.eq(#ns.db.autoSessions, 0)
+    T.eq(#ns:AutoSessionsRunning(), 2, "both show in the Ledger, counting")
+    -- Logging out and in again: that login is finished; the day goes on.
+    S.now = now + 1200
+    T.fire("PLAYER_LOGOUT")
+    S.now = now + 1500
+    T.fire("PLAYER_ENTERING_WORLD", true, false)
+    T.eq(#ns.db.autoSessions, 1)
+    local e = ns.db.autoSessions[1]
+    T.eq(e.kind, "login"); T.eq(e.earned, 300); T.eq(e.secs, 1170, "time played, not the time between")
+    T.ok(a.login ~= L, "a new login")
+    T.eq(a.days[me].money.vendorSell, 300, "the day carries on")
+    -- Past midnight: the day is finished and a new one starts.
+    S.now = now + 2 * 86400
+    ns:SessionMoney("vendorSell", 50)
+    local days = {}
+    for _, x in ipairs(ns.db.autoSessions) do if x.kind == "day" then days[#days + 1] = x end end
+    T.eq(#days, 1); T.eq(days[1].earned, 300)
+    T.eq(a.days[me].money.vendorSell, 50)
+    -- A login with nothing in it isn't kept.
+    local before = #ns.db.autoSessions
+    ns.FinishAutoSession({ t = S.now, active = 100, char = me, money = {}, loot = {} }, "login")
+    T.eq(#ns.db.autoSessions, before)
+    S.now = now
+  end)
+  ns.db.autoLive, ns.db.autoSessions = { days = {} }, {}
+end)
+
+T.test("Sessions: automatic records are kept 30 days (logins) and a year (days)", function()
+  ns.db.autoSessions = {
+    { kind = "login", t = S.now - 40 * 86400, stop = S.now - 40 * 86400, earned = 1 },
+    { kind = "login", t = S.now - 10 * 86400, stop = S.now - 10 * 86400, earned = 1 },
+    { kind = "day", t = S.now - 200 * 86400, stop = S.now - 200 * 86400, earned = 1 },
+    { kind = "day", t = S.now - 400 * 86400, stop = S.now - 400 * 86400, earned = 1 },
+  }
+  ns.FinishAutoSession({ t = S.now, active = 100, char = ns.CharKey(), money = { vendorSell = 5 }, loot = {} }, "login")
+  T.eq(#ns.db.autoSessions, 3)
+  T.eq(ns.db.autoSessions[1].stop, S.now - 10 * 86400)
+  T.eq(ns.db.autoSessions[2].kind, "day")
+  ns.db.autoSessions = {}
+end)
+
+-- Codex review, November 24: an empty finish skipped the age limits.
+T.test("Sessions: old automatic records go even when the finished one is empty", function()
+  ns.db.autoSessions = {
+    { kind = "login", t = S.now - 40 * 86400, stop = S.now - 40 * 86400, earned = 1 },
+    { kind = "day", t = S.now - 400 * 86400, stop = S.now - 400 * 86400, earned = 1 },
+    { kind = "day", t = S.now - 20 * 86400, stop = S.now - 20 * 86400, earned = 1 },
+  }
+  ns.FinishAutoSession({ t = S.now, active = 100, char = ns.CharKey(), money = {}, loot = {} }, "login")
+  T.eq(#ns.db.autoSessions, 1)
+  T.eq(ns.db.autoSessions[1].stop, S.now - 20 * 86400)
+  ns.db.autoSessions = {}
+end)
+
+-- Codex review, November 24: a character played earlier today was missing from Each day
+-- until midnight.
+T.test("Sessions: today's days of characters played earlier show in the Ledger", function()
+  withValues(function()
+    local today = ns.LocalDay()
+    ns.db.autoSessions = {}
+    ns.db.autoLive = { days = {
+      ["Other Alt-PvE"] = { day = today, t = S.now - 7200, active = 1800, out = S.now - 3600, char = "Other Alt-PvE",
+        money = { vendorSell = 100 }, loot = {}, final = { loot = 0, top = {} } },
+      ["Quiet Alt-PvE"] = { day = today, t = S.now - 7200, active = 60, out = S.now - 7000, char = "Quiet Alt-PvE", money = {}, loot = {} },
+      ["Old Alt-PvE"] = { day = today - 1, t = S.now - 90000, active = 60, out = S.now - 89000, char = "Old Alt-PvE",
+        money = { vendorSell = 5 }, loot = {} },
+    } }
+    local rows = ns:AutoSessionsRunning()
+    T.eq(#rows, 1, "the one with money in it, from today")
+    T.eq(rows[1].c, "Other Alt-PvE"); T.eq(rows[1].earned, 100); T.eq(rows[1].running, nil, "not counting now")
+    T.eq(rows[1].secs, 1800); T.eq(rows[1].stop, S.now - 3600)
+  end)
+  ns.db.autoLive, ns.db.autoSessions = { days = {} }, {}
+end)

@@ -81,10 +81,11 @@ local function craftValue(r)
   return best.value * (r.oq or 1) - cost, best
 end
 
-local function autoType(r)
+local function autoType(r, prof)
   if ALWAYS_SHUFFLE[r.out or 0] then return "shuffle" end
-  -- Enchants make no item: their value is what players pay for the service.
-  if not r.out and (r.n or ""):find("^Enchant ") then return "enchant" end
+  -- Enchants make no item: their value is what players pay for the service. (By the
+  -- profession, which is English on every client; the name only as a fallback.)
+  if not r.out and (prof == "Enchanting" or (r.n or ""):find("^Enchant ")) then return "enchant" end
   local _, _, _, _, _, _, _, _, _, _, sell, _, _, bind = ns.GetItemInfo(r.out or 0)
   local profit, best = craftValue(r)
   if bind == 1 or not best then return "notsale", profit end
@@ -138,9 +139,28 @@ end
 ---------------------------------------------------------------------------
 -- Zone name -> map ID, from the game's own map list (Classic zone and city maps are
 -- numbered 1411-1458; Stormwind City is 1453).
+-- The Classic data's zone names are English, so on other clients the game's own map
+-- names don't match: these give the map ID in every language (November 24).
+local CLASSIC_ZONE_MAPS = {
+  ["Durotar"] = 1411, ["Mulgore"] = 1412, ["The Barrens"] = 1413, ["Alterac Mountains"] = 1416,
+  ["Arathi Highlands"] = 1417, ["Badlands"] = 1418, ["Blasted Lands"] = 1419, ["Tirisfal Glades"] = 1420,
+  ["Silverpine Forest"] = 1421, ["Western Plaguelands"] = 1422, ["Eastern Plaguelands"] = 1423,
+  ["Hillsbrad Foothills"] = 1424, ["The Hinterlands"] = 1425, ["Dun Morogh"] = 1426, ["Searing Gorge"] = 1427,
+  ["Burning Steppes"] = 1428, ["Elwynn Forest"] = 1429, ["Deadwind Pass"] = 1430, ["Duskwood"] = 1431,
+  ["Loch Modan"] = 1432, ["Redridge Mountains"] = 1433, ["Stranglethorn Vale"] = 1434,
+  ["Swamp of Sorrows"] = 1435, ["Westfall"] = 1436, ["Wetlands"] = 1437, ["Teldrassil"] = 1438,
+  ["Darkshore"] = 1439, ["Ashenvale"] = 1440, ["Thousand Needles"] = 1441, ["Stonetalon Mountains"] = 1442,
+  ["Desolace"] = 1443, ["Feralas"] = 1444, ["Dustwallow Marsh"] = 1445, ["Tanaris"] = 1446,
+  ["Azshara"] = 1447, ["Felwood"] = 1448, ["Un'Goro Crater"] = 1449, ["Moonglade"] = 1450,
+  ["Silithus"] = 1451, ["Winterspring"] = 1452, ["Stormwind City"] = 1453, ["Orgrimmar"] = 1454,
+  ["Ironforge"] = 1455, ["Thunder Bluff"] = 1456, ["Darnassus"] = 1457, ["Undercity"] = 1458,
+  ["Alterac Valley"] = 1459,
+}
+ns.CLASSIC_ZONE_MAPS = CLASSIC_ZONE_MAPS
 local mapByName
 function ns:MapIDForZone(zone)
   if not zone then return end
+  if CLASSIC_ZONE_MAPS[zone] then return CLASSIC_ZONE_MAPS[zone] end
   if not mapByName then
     mapByName = {}
     if C_Map and C_Map.GetMapInfo then
@@ -944,7 +964,7 @@ local function buildList(prof, s, match)
     if known then knownCount = knownCount + 1 end
     if not ((s.view == "all" or (s.view == "known") == known) and (match == "" or (r.n or ""):lower():find(match, 1, true))) then return end
     if s.group ~= "all" and not (r.out and groups.sets[r.out] and groups.sets[r.out][s.group]) then return end
-    local auto, profit = autoType(r)
+    local auto, profit = autoType(r, prof)
     local mine = s.custom and ns.db.recipeTypes[id] or nil
     local t = mine or auto
     if s.type ~= "all" and s.type ~= t then return end
@@ -1071,22 +1091,27 @@ ns.TrainerFromTitle = fromTitle
 
 local function trainerRows(width, lay)
   local list, seen = {}, {}
-  local classicByName = {}
-  for _, t in ipairs(ns.CLASSIC_TRAINERS or {}) do classicByName[t.name:lower()] = t end
+  -- Matched by NPC number (names differ by language), the name only as a fallback.
+  local classicByName, classicByNpc, seenNpc = {}, {}, {}
+  for _, t in ipairs(ns.CLASSIC_TRAINERS or {}) do
+    classicByName[t.name:lower()] = t
+    if t.npc then classicByNpc[t.npc] = t end
+  end
   for npcID, v in pairs(ns.db.vendors) do
     if v.trainer then
       -- Fill what the trainer window didn't give: from the title, then the Classic list.
       local prof, tier = fromTitle(v.title)
-      local c = v.name and classicByName[v.name:lower()]
+      local c = classicByNpc[tonumber(npcID) or 0] or (v.name and classicByName[v.name:lower()])
       list[#list + 1] = { id = npcID, v = v, profession = v.profession or prof or (c and c.profession),
         tier = v.tier or tier or (c and c.tier) }
       if v.name then seen[v.name:lower()] = true end
+      if tonumber(npcID) then seenNpc[tonumber(npcID)] = true end
     end
   end
   local classicCount = 0
   -- Classic trainers (ClassicRecipes.lua, positions from pfQuest) not visited yet.
   for _, t in ipairs(ns.CLASSIC_TRAINERS or {}) do
-    if not seen[t.name:lower()] then
+    if not (seen[t.name:lower()] or (t.npc and seenNpc[t.npc])) then
       local n = t.npc and classicNPC(t.npc, "trainer") or {}
       list[#list + 1] = { classic = true, profession = t.profession, tier = t.tier,
         v = { name = t.name, title = t.title, zone = n.zone or t.zone, x = n.x, y = n.y, mapID = n.mapID } }
@@ -1308,4 +1333,4 @@ function ns:RefreshRecipes()
 end
 
 ns.RefreshRecipes = ns.Timed("Recipes tab", ns.RefreshRecipes)
-ns._recipesTest = { buildList = buildList, settings = settings, groupChoices = groupChoices, listStamp = listStamp, valuesKey = valuesKey, groupOptions = groupOptions }   -- (tests)
+ns._recipesTest = { buildList = buildList, settings = settings, groupChoices = groupChoices, listStamp = listStamp, valuesKey = valuesKey, groupOptions = groupOptions, autoType = autoType }   -- (tests)

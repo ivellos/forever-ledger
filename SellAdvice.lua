@@ -142,13 +142,13 @@ function ns.SellTooltipFlags(tt)
     if type(_G[key]) == "string" then boundTexts[_G[key]] = true end
   end
   local function red(fs)
-    if not (fs and fs.GetTextColor and fs.GetText and fs:GetText()) then return false end
+    if not (fs and fs.GetTextColor and fs.GetText and ns.Readable(fs:GetText())) then return false end
     local r, g, b = fs:GetTextColor()
     return r and r > 0.9 and g < 0.25 and b < 0.25
   end
   for i = 2, tt:NumLines() do
     local left, right = _G[name .. "TextLeft" .. i], _G[name .. "TextRight" .. i]
-    local text = left and left.GetText and left:GetText()
+    local text = left and left.GetText and ns.Readable(left:GetText())
     if text and boundTexts[text] then bound = true end
     if red(left) or (right and right.IsShown and right:IsShown() and red(right)) then usable = false end
   end

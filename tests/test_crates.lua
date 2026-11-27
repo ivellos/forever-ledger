@@ -58,3 +58,56 @@ T.test("Crates: a bundle's item found by name without loading every priced item"
   ns.CrateNamesReset()
   if not ok then error(err, 0) end
 end)
+
+T.test("Crates: every crate's items are known by item number, one item per bundle", function()
+  for id in pairs(ns.CRATE_IDS) do
+    local list = ns.CRATE_BUNDLES[id]
+    T.ok(list and #list >= 4 and #list % 2 == 0, "crate " .. id)
+  end
+  -- The three the tooltip's last-line color code had hidden.
+  T.ok(ns.CrateTakesItem(2450) and ns.CrateTakesItem(2771) and ns.CrateTakesItem(11084))
+  T.eq(ns.CrateTakesItem(990399), false)
+end)
+
+T.test("Crates: a crate read in another language uses the item numbers (issue #48)", function()
+  local saved = ns.db.crates[248683]
+  ns.db.crates[248683] = { name = "Caja extraviada: mineral de aprendiz",
+    bundles = { { { qty = 20, name = "de mineral de cobre" } }, { { qty = 20, name = "de mineral de esta\195\177o" } } } }
+  local ok, err = pcall(function()
+    local r = ns:CrateReport(248683)
+    T.eq(#r.bundles, 2)
+    T.eq(r.bundles[1].parts[1].id, 2770); T.eq(r.bundles[1].parts[1].qty, 20)
+    T.eq(r.bundles[2].parts[1].id, 2771)
+  end)
+  ns.db.crates[248683] = saved
+  if not ok then error(err, 0) end
+end)
+
+T.test("Crates: a tooltip line's color code isn't part of the item name", function()
+  local b = ns.CrateBundlesFromLines({ "Fill it with any bundle below:\n- 20 Copper Ore\n|cffffffff- 20 Tin Ore|r" })
+  T.eq(#b, 2); T.eq(b[2][1].name, "Tin Ore")
+end)
+
+T.test("Crates: Favor by level and kind, learned from a turn-in", function()
+  T.eq(ns.CrateQuality(248682), 1); T.eq(ns.CrateQuality(248713), 2)
+  T.eq(ns.CrateSealedFor(248682), 248765, "Apprentice Herbs: white Sealed Apprentice Crate")
+  T.eq(ns.CrateSealedFor(248702), 248770, "Apprentice Fabrics: green Sealed Apprentice Crate")
+  T.eq(ns.CrateSealedFor(248713), 248773, "Artisan Parts: green Sealed Artisan Crate")
+  T.ok(ns.SEALED_CRATE_IDS[248768] and ns.SEALED_CRATE_IDS[248779])
+  local seen = ns.db.crateFavorSeen
+  ns.db.crateFavorSeen = {}
+  local ok, err = pcall(function()
+    T.eq((ns.CrateFavor(248682)), 5); T.eq((ns.CrateFavor(248702)), 10)
+    T.eq((ns.CrateFavor(248689)), 10, "Journeyman gathered"); T.eq((ns.CrateFavor(248709)), 30, "Expert crafted")
+    T.eq((ns.CrateFavor(248699)), 20); T.eq((ns.CrateFavor(248713)), 40)
+    ns.CrateLearnFavor(248770, nil, 100); ns.CrateLearnFavor(nil, 12, 102)
+    T.eq((ns.CrateFavor(248702)), 12, "what the turn-in gave")
+    T.eq(select(2, ns.CrateFavor(248702)), true)
+    T.eq((ns.CrateFavor(248703)), 12, "same sealed crate, same Favor")
+    T.eq((ns.CrateFavor(248705)), 20, "another sealed crate keeps its own")
+    ns.CrateLearnFavor(248765, nil, 200); ns.CrateLearnFavor(nil, 7, 210)
+    T.eq((ns.CrateFavor(248682)), 5, "too far apart to be the same turn-in")
+  end)
+  ns.db.crateFavorSeen = seen
+  if not ok then error(err, 0) end
+end)

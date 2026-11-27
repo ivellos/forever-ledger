@@ -5,15 +5,19 @@ local T = ns.Theme
 -- Waylaid Crates: fill one with any bundle from its list (read from the crate's
 -- tooltip), turn it in for Merchant's Favor. This works out the cheapest bundle at
 -- today's prices, the total with the crate's own price, and gold per Favor.
--- Every turn-in pays the same (TURN_IN_FAVOR, TURN_IN_PAY).
+-- A turn-in's Favor depends on the crate's level and kind (crateFavor); its money isn't counted.
 ---------------------------------------------------------------------------
 local FAVOR = 3402
 local PREFIX = "Waylaid Crate"
--- What a turn-in pays: every filled crate becomes a Sealed Apprentice Crate, which pays
--- 5s and 10 Merchant's Favor whatever the crate's tier or quality (owner's turn-ins,
--- beta, October 3). The first turn-in is a one-time quest with more; not counted.
-local TURN_IN_FAVOR = 10
-local TURN_IN_PAY = 500
+-- What a turn-in gives: a filled crate becomes a Sealed (Apprentice to Artisan) Crate of
+-- the same quality. In the beta every one gave 10 Merchant's Favor (owner's turn-ins,
+-- October 3). Now (player reports gathered on outof.games, November 24; Frank: a green
+-- crate gives twice a white one): 5 Favor per level for a gathered (white) crate, 10 per
+-- level for a crafted (green) one: Apprentice 5 / 10 up to Artisan 20 / 40. The Favor a
+-- turn-in really gives is learned per sealed crate (crateFavorSeen) and wins over these.
+-- Its money (a coin pouch at best, and that varies: Frank, November 24) isn't counted, so
+-- the cost is what the crate takes. The first turn-in is a one-time quest (50 Favor).
+local FAVOR_PER_LEVEL = 5
 
 local function dim(t) return "|cff888888" .. t .. "|r" end
 local function money(v) return v and ns.Money(math.floor(v + 0.5)) or dim("?") end
@@ -55,10 +59,93 @@ local function isCrate(id, name)
   if id and CRATE_IDS[id] then return true end
   return name and name:sub(1, #PREFIX) == PREFIX or false
 end
--- A filled crate: "Sealed Apprentice Crate", one item number per quality (wago.tools,
--- ItemSparse at the pinned build 1.60.1.70938, November 18); the English name as fallback.
-local SEALED_IDS = { [248765] = true, [248770] = true, [248775] = true }
+-- A filled crate: "Sealed Apprentice Crate" to "Sealed Elite Crate", five levels in each of
+-- three qualities: 248765-248769 white, 248770-248774 green, 248775-248779 blue (ItemSparse,
+-- build 1.60.1.71091, November 24; only the Apprentice ones were known before, so filling a
+-- higher crate went unseen outside English). The English name as fallback.
+local SEALED_FIRST = 248765
+local SEALED_IDS = {}
+for id = SEALED_FIRST, SEALED_FIRST + 14 do SEALED_IDS[id] = true end
 ns.SEALED_CRATE_IDS = SEALED_IDS
+
+-- Each crate's quality (ItemSparse, build 1.60.1.71091, November 24): Herbs, Ore, Textiles
+-- and Curiosities are white, Fabrics, Ingots and Parts green. A crate added later: the game's.
+local function crateQuality(id)
+  if id and id >= 248682 and id <= 248699 then return 1 end
+  if id and id >= 248702 and id <= 248713 then return 2 end
+  local _, _, q = ns.GetItemInfo(id)
+  return q
+end
+ns.CrateQuality = crateQuality
+
+-- The sealed crate a crate becomes when filled: same level, same quality.
+local function sealedFor(id)
+  local q, level = crateQuality(id), crateKind(id, ns.ItemName(id))
+  if not (q and level and q >= 1 and q <= 3) then return end
+  return SEALED_FIRST + (q - 1) * 5 + (level - 1)
+end
+ns.CrateSealedFor = sealedFor
+
+-- Merchant's Favor for turning in a crate: what a turn-in of its sealed crate gave, else
+-- 5 per level, twice that for a crafted (green) crate. Second value: true if seen in game.
+local function crateFavor(id)
+  local q, level = crateQuality(id), crateKind(id, ns.ItemName(id))
+  if not (q and level) then return end
+  local sealed = sealedFor(id)
+  local seen = sealed and ns.db and ns.db.crateFavorSeen and ns.db.crateFavorSeen[sealed]
+  return seen or FAVOR_PER_LEVEL * level * (q >= 2 and 2 or 1), seen and true or false
+end
+ns.CrateFavor = crateFavor
+
+-- Every crate's bundles by item number: { qty, itemID, qty, itemID, ... }, one item per
+-- bundle, in the tooltip's order. Read from the English tooltips saved on Frank's second
+-- account (November 24; the last line's color code had hidden Briarthorn, Tin Ore and
+-- Large Glimmering Shard), item numbers checked in Forever's ItemSparse. Used in every
+-- language, so no names need matching (a Spanish client's tooltip read "de polvo de alma":
+-- issue #48). The tooltip is read only for a crate missing here.
+local CRATE_BUNDLES = {
+  [248682] = { 20, 2447, 20, 765, 10, 2449, 10, 785, 10, 2450 },        -- Apprentice Herbs
+  [248683] = { 20, 2770, 20, 2771 },                                    -- Apprentice Ore
+  [248684] = { 40, 2589, 20, 2318 },                                    -- Apprentice Textiles
+  [248685] = { 20, 10940, 4, 10939, 6, 10978, 2, 11084 },               -- Apprentice Curiosities
+  [248686] = { 10, 3820, 10, 2453, 10, 3355, 10, 3369, 10, 3356 },      -- Journeyman Herbs
+  [248687] = { 10, 2775, 20, 2772 },                                    -- Journeyman Ore
+  [248688] = { 20, 2592, 40, 4306, 20, 2319 },                          -- Journeyman Textiles
+  [248689] = { 20, 11083, 4, 11082, 6, 11138, 2, 11139 },               -- Journeyman Curiosities
+  [248690] = { 20, 3357, 10, 3818, 10, 3821, 10, 3358 },                -- Earthly Expert Herbs
+  [248691] = { 10, 3819, 10, 4625, 20, 8831, 10, 8836 },                -- Flowering Expert Herbs
+  [248692] = { 10, 2776, 20, 3858 },                                    -- Expert Ore
+  [248693] = { 40, 4338, 20, 4234 },                                    -- Expert Textiles
+  [248694] = { 20, 11137, 4, 11135, 6, 11177, 2, 11178 },               -- Expert Curiosities
+  [248695] = { 10, 13464, 20, 8838, 10, 8839, 10, 8845, 10, 8846 },     -- Earthly Artisan Herbs
+  [248696] = { 20, 13463, 20, 13465, 20, 13466, 20, 13467 },            -- Flowering Artisan Herbs
+  [248697] = { 10, 7911, 20, 10620, 20, 11370 },                        -- Artisan Ore
+  [248698] = { 40, 14047, 20, 4304, 20, 8170 },                         -- Artisan Textiles
+  [248699] = { 20, 11176, 4, 11175, 6, 14343, 2, 14344 },               -- Artisan Curiosities
+  [248702] = { 2, 4231, 20, 2996 },                                     -- Apprentice Fabrics
+  [248703] = { 20, 2840, 20, 3576, 10, 2841 },                          -- Apprentice Ingots
+  [248704] = { 16, 4359, 16, 4361, 4, 4363 },                           -- Apprentice Parts
+  [248705] = { 6, 2997, 10, 4305, 2, 4233 },                            -- Journeyman Fabrics
+  [248706] = { 10, 2842, 20, 3575 },                                    -- Journeyman Ingots
+  [248707] = { 8, 4371, 7, 4375, 4, 4382, 45, 10558 },                  -- Journeyman Parts
+  [248708] = { 8, 4339, 2, 4236 },                                      -- Expert Fabrics
+  [248709] = { 20, 3860, 15, 3859, 10, 3577 },                          -- Expert Ingots
+  [248710] = { 8, 4387, 5, 10559, 12, 10560, 5, 10561 },                -- Expert Parts
+  [248711] = { 8, 14048, 2, 8172 },                                     -- Artisan Fabrics
+  [248712] = { 2, 11371, 10, 6037, 20, 12359 },                         -- Artisan Ingots
+  [248713] = { 5, 15994, 5, 18631, 2, 16000 },                          -- Artisan Parts
+}
+ns.CRATE_BUNDLES = CRATE_BUNDLES
+local crateItems   -- itemID = true for every item a crate takes (Groups.lua's Crates group)
+function ns.CrateTakesItem(id)
+  if not crateItems then
+    crateItems = {}
+    for _, list in pairs(CRATE_BUNDLES) do
+      for i = 2, #list, 2 do crateItems[list[i]] = true end
+    end
+  end
+  return crateItems[id] or false
+end
 local function isSealed(id, name)
   if id and SEALED_IDS[id] then return true end
   return name and name:find("^Sealed") and name:find("Crate", 1, true) and true or false end
@@ -108,6 +195,8 @@ local function parseBundles(lines)
   local all, english, inList = {}, {}, false
   for _, text in ipairs(lines) do
     for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+      -- Color codes off: the last line ends in |r ("Tin Ore|r" matched no item).
+      line = line:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
       if line:find("any bundle", 1, true) then inList = true end
       local rest = line:match("^%s*%-%s*(%d.+)$")
       if rest then
@@ -123,15 +212,30 @@ local function parseBundles(lines)
 end
 ns.CrateBundlesFromLines = parseBundles
 
--- Bundles for a crate, read once from its tooltip and saved.
+-- Bundles for a crate: by item number for the crates above (saved over any read from a
+-- tooltip before), else read once from its tooltip and saved.
+local fixedDone = {}
 local function crateInfo(id)
   local saved = ns.db.crates[id]
+  local list = CRATE_BUNDLES[id]
+  if list then
+    if not fixedDone[id] then
+      local bundles = {}
+      for i = 1, #list, 2 do bundles[#bundles + 1] = { { qty = list[i], id = list[i + 1] } } end
+      local _, _, _, _, minLevel = ns.GetItemInfo(id)
+      saved = { name = saved and saved.name, level = minLevel or (saved and saved.level), bundles = bundles }
+      ns.db.crates[id] = saved
+      fixedDone[id] = true
+    end
+    saved.name = ns.GetItemInfo(id) or saved.name or ns.ItemName(id)
+    return saved
+  end
   if saved and saved.bundles and #saved.bundles > 0 then return saved end
   if not (C_TooltipInfo and C_TooltipInfo.GetItemByID) then return end
   local ok, data = pcall(C_TooltipInfo.GetItemByID, id)
   if not ok or not data or not data.lines then return end
   local texts = {}
-  for _, l in ipairs(data.lines) do texts[#texts + 1] = l.leftText or "" end
+  for _, l in ipairs(data.lines) do texts[#texts + 1] = ns.Readable(l.leftText) or "" end
   local bundles = parseBundles(texts)
   if #bundles == 0 then return end
   local name, _, _, _, minLevel = ns.GetItemInfo(id)
@@ -349,7 +453,7 @@ function ns:CrateReport(id)
       local cost = pid and ns:CostToBuy(pid, p.qty)
       local bags, bank, alts, byAlt = ns:ItemLocations(pid)
       local owned = bags + bank + alts
-      b.parts[#b.parts + 1] = { id = pid, name = p.name, qty = p.qty, cost = cost, owned = owned,
+      b.parts[#b.parts + 1] = { id = pid, name = pid and ns.ItemName(pid) or p.name, qty = p.qty, cost = cost, owned = owned,
         bags = bags, bank = bank, alts = alts, byAlt = byAlt }
       if cost then b.cost = b.cost + cost else b.cost = nil end
       if owned < p.qty then b.have = false end
@@ -364,13 +468,10 @@ function ns:CrateReport(id)
   r.have, r.haveBags, r.haveBank, r.haveAlts, r.haveBy = cb + cbank + calts, cb, cbank, calts, cby
   r.tier, r.kind = crateKind(id, info.name)
   r.cratePrice = (not r.owned) and rec and not rec.none and rec.m or nil
-  r.favor, r.pay = TURN_IN_FAVOR, TURN_IN_PAY
+  r.favor, r.favorSeen = crateFavor(id)
   if r.cheapest then
     r.total = r.cheapest.cost + (r.cratePrice or 0)
-    -- What it really costs once the turn-in's money is back. Below zero, the crate is
-    -- a straight gold profit (the "raw gold shuffle" with cheap crates).
-    r.net = r.total - (r.pay or 0)
-    if r.favor and r.favor > 0 then r.perFavor = math.max(r.net, 0) / r.favor; r.sortKey = r.net / r.favor end
+    if r.favor and r.favor > 0 then r.perFavor = r.total / r.favor; r.sortKey = r.perFavor end
   end
   return r
 end
@@ -403,18 +504,44 @@ end
 ---------------------------------------------------------------------------
 local lastFavor, cratesInBags, sealedInBags = nil, {}, 0
 
+local sealedById = {}   -- filled crates in the bags by item number (which quality left)
+
 local function crateCounts()
-  local counts, sealed = {}, 0
-  if not C_Container then return counts, sealed end
+  local counts, sealed, byId = {}, 0, {}
+  if not C_Container then return counts, sealed, byId end
   for bag = 0, (NUM_BAG_SLOTS or 4) + 1 do
     for slot = 1, (C_Container.GetContainerNumSlots(bag) or 0) do
       local info = C_Container.GetContainerItemInfo(bag, slot)
       local name = info and info.itemID and ns.ItemName(info.itemID)
       if isCrate(info and info.itemID, name) then counts[name] = (counts[name] or 0) + (info.stackCount or 1)
-      elseif isSealed(info and info.itemID, name) then sealed = sealed + (info.stackCount or 1) end
+      elseif isSealed(info and info.itemID, name) then
+        sealed = sealed + (info.stackCount or 1)
+        byId[info.itemID] = (byId[info.itemID] or 0) + (info.stackCount or 1)
+      end
     end
   end
-  return counts, sealed
+  return counts, sealed, byId
+end
+
+-- Learning a turn-in's Favor: a sealed crate leaves the bags and Favor
+-- goes up within 5 seconds of it, in either order.
+local sealedGone, favorGain
+local function learnFavor()
+  if not (sealedGone and favorGain) or math.abs(sealedGone.t - favorGain.t) > 5 then return end
+  local sealed, n = sealedGone.id, favorGain.n
+  sealedGone, favorGain = nil, nil
+  if not (ns.db and sealed and n and n > 0) then return end
+  ns.db.crateFavorSeen = ns.db.crateFavorSeen or {}
+  if ns.db.crateFavorSeen[sealed] ~= n then
+    ns:Debug("Crate turn-in,", ns.ItemName(sealed), sealed, "gives", n, "Favor")
+    ns.db.crateFavorSeen[sealed] = n
+    if ns.RefreshCrates then ns:RefreshCrates() end
+  end
+end
+ns.CrateLearnFavor = function(sealed, n, t)   -- (tests)
+  if sealed then sealedGone = { id = sealed, t = t or GetTime() } end
+  if n then favorGain = { n = n, t = t or GetTime() } end
+  learnFavor()
 end
 
 local function favorNow()
@@ -426,7 +553,14 @@ end
 
 ns:On("BAG_UPDATE_DELAYED", function()
   if not ns.db then return end
-  local now, sealed = crateCounts()
+  local now, sealed, byId = crateCounts()
+  for id, n in pairs(sealedById) do
+    if (byId[id] or 0) < n and SEALED_IDS[id] then
+      sealedGone = { id = id, t = GetTime() }
+      learnFavor()
+    end
+  end
+  sealedById = byId
   if sealed > sealedInBags then
     for name, n in pairs(cratesInBags) do
       if (now[name] or 0) < n then
@@ -442,7 +576,12 @@ ns:On("CURRENCY_DISPLAY_UPDATE", function(currencyID)
   if currencyID and currencyID ~= FAVOR then return end
   local q = favorNow()
   if not q then return end
-  if lastFavor and q > lastFavor then ns:Debug("Merchant's Favor:", "+" .. (q - lastFavor)) end
+  if lastFavor and q > lastFavor then
+    ns:Debug("Merchant's Favor:", "+" .. (q - lastFavor))
+    favorGain = { n = q - lastFavor, t = GetTime() }
+    learnFavor()
+    if ns.NoteCrateTurnIn then ns:NoteCrateTurnIn() end   -- (the coin pouch it gives: Writs.lua)
+  end
   lastFavor = q
   if ns.db then ns.db.favor[ns.CharKey()] = q end
 end)
@@ -451,7 +590,7 @@ ns:On("PLAYER_ENTERING_WORLD", function()
   C_Timer.After(3, function()
     lastFavor = favorNow()
     if lastFavor and ns.db then ns.db.favor[ns.CharKey()] = lastFavor end
-    cratesInBags = crateCounts()
+    cratesInBags, sealedInBags, sealedById = crateCounts()
   end)
 end)
 
@@ -476,10 +615,8 @@ function ns:CrateTooltipText(id)
   local parts = {}
   for _, p in ipairs(r.cheapest.parts) do parts[#parts + 1] = p.qty .. " " .. p.name end
   local per = ""
-  if r.net and r.net < 0 then
-    per = (", turn-in pays %s more than that"):format(money(-r.net))
-  elseif r.perFavor then
-    per = (", about %s per Favor after the turn-in's money"):format(money(r.perFavor))
+  if r.perFavor then
+    per = (", about %s per Favor (%d Favor)"):format(money(r.perFavor), r.favor)
   end
   return ("Cheapest fill: %s, %s%s"):format(table.concat(parts, " + "), money(r.cheapest.cost), per)
 end
@@ -498,7 +635,8 @@ local COLS = {
   { key = "fill", label = "Cheapest fill", w = 150 },
   { key = "fillCost", label = "Fill cost", w = 74 },
   { key = "cratePrice", label = "Price", w = 70 },
- { key = "total", label = "Net cost", w = 80 },
+  { key = "total", label = "Total", w = 80 },
+  { key = "favor", label = "Favor", w = 44 },
   { key = "perFavor", label = "Per Favor", w = 80 },
 }
 
@@ -693,8 +831,9 @@ function ns:RefreshCrates()
   end)
 
   local favor = ns.db.favor[ns.CharKey()]
-  f.info:SetText(("Cheapest way to fill each Waylaid Crate at your last scan's prices, best Favor per gold first. After your first turn-in (a one-time quest), every crate pays 5s and 10 Merchant's Favor; Net cost takes the 5s off, and shows green if a crate somehow pays for itself. You have %s Merchant's Favor on this character.%s Click a crate for every bundle."):format(
-    favor and tostring(favor) or "?", unread > 0 and (" %d crates still loading."):format(unread) or ""))
+  local pouch = ns.PouchText and ns:PouchText("crate")
+  f.info:SetText(("Cheapest way to fill each Waylaid Crate at your last scan's prices, least gold per Favor first. A turn-in gives 5 Merchant's Favor a level for gathered goods (Herbs, Ore, Textiles, Curiosities), 10 a level for crafted goods (Fabrics, Ingots, Parts); Favor turns white once a turn-in has checked it. Its money varies, so it isn't counted%s. You have %s Merchant's Favor on this character.%s Click a crate for every bundle."):format(
+    pouch and (" (coin pouches from crates: " .. pouch .. ")") or "", favor and tostring(favor) or "?", unread > 0 and (" %d crates still loading."):format(unread) or ""))
 
   f.content:SetWidth(width)
   local y, n, nd = 0, 0, 0
@@ -719,8 +858,9 @@ function ns:RefreshCrates()
       fill = #parts > 0 and table.concat(parts, " + ") .. (r.cheapest.have and dim(" (have)") or "") or dim("no prices yet"),
       fillCost = r.cheapest and money(r.cheapest.cost) or dim("?"),
       cratePrice = r.owned and dim("owned") or money(r.cratePrice),
-     total = r.net and (r.net < 0 and ("|cff7fd39c+" .. money(-r.net) .. "|r") or money(r.net)) or dim("?"),
-      perFavor = r.net and r.net <= 0 and "|cff7fd39cfree|r" or r.perFavor and ("|cff7fd39c" .. money(r.perFavor) .. "|r") or dim("?"),
+      total = r.total and money(r.total) or dim("?"),
+      favor = r.favor and ((r.favorSeen and "" or "|cffbbbbbb") .. r.favor .. (r.favorSeen and "" or "|r")) or dim("?"),
+      perFavor = r.perFavor and ("|cff7fd39c" .. money(r.perFavor) .. "|r") or dim("?"),
     }
     for key, fs in pairs(row.cells) do
       fs:ClearAllPoints()

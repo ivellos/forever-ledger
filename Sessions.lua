@@ -21,6 +21,46 @@ local TRACKER_SECONDS = 1   -- the tracker redraws this often, and only while a 
 local function live() return ns.db and ns.db.liveSession end
 local drawTracker   -- (the tracker, below; the loot event redraws it)
 
+-- Automatic records (Frank, November 24: "some sessions just recording at all times ...
+-- Daily and per login"): ns.db.autoLive = { login = record, days = { [charKey] = record } },
+-- counted like a session you start (the same fields, day = the local day for a day's),
+-- never paused. A login's record runs from logging in to logging out, and a /reload
+-- carries on the same one; a day's, from the character's first login that day to midnight
+-- or its last logout. Finished ones go to ns.db.autoSessions like ns.db.sessions, with
+-- kind = "login" or "day", for the Ledger's Sessions. While one runs, resume = when its
+-- clock last started and seen = when it was last seen running (the game closing without a
+-- logout counts up to then); at logout, final = its loot then, while this character's bags
+-- can still say what's held.
+local AUTO_KEEP = { login = 30 * 86400, day = 365 * 86400 }
+local AUTO_MAX = 2000
+local RELOAD_SECONDS = 120   -- a login this soon after a logout on the same character is a /reload
+local function autoLive()
+  if not ns.db then return end
+  ns.db.autoLive = ns.db.autoLive or {}
+  local a = ns.db.autoLive
+  a.days = a.days or {}
+  return a
+end
+local rollDays   -- (below)
+
+-- The records counting for this character now: your session (not while paused, unless
+-- evenPaused) and the automatic ones.
+local function counting(evenPaused)
+  local out = {}
+  if not ns.db then return out end
+  local me = ns.CharKey()
+  local s = live()
+  if s and s.char == me and (evenPaused or not s.paused) then out[#out + 1] = s end
+  local a = ns.db.autoLive
+  if a then
+    local d = a.days and a.days[me]
+    if d and d.resume and d.day ~= ns.LocalDay() and rollDays then rollDays(); d = a.days[me] end
+    if a.login and a.login.char == me and a.login.resume then out[#out + 1] = a.login end
+    if d and d.resume then out[#out + 1] = d end
+  end
+  return out
+end
+
 -- Gold an hour, losses in red with a minus (owner's test, October 3: a session that
 -- spent 16s said "0c an hour").
 local function rateText(v)
@@ -139,9 +179,7 @@ ns.SessionFormat = { duration = duration, signed = signed, rate = rateText }   -
 ---------------------------------------------------------------------------
 -- Every gold change, with where it came from (History.lua onMoney).
 function ns:SessionMoney(source, delta)
-  local s = live()
-  if not s or s.char ~= ns.CharKey() or s.paused then return end
-  s.money[source] = (s.money[source] or 0) + delta
+  for _, s in ipairs(counting()) do s.money[source] = (s.money[source] or 0) + delta end
 end
 
 -- Something sold to a vendor or on the auction house (History.lua, with the gold it
@@ -195,9 +233,7 @@ local function usePosts(s, id, qty)
     if batches[1][2] <= 0 then table.remove(batches, 1) end
   end
 end
-function ns:SessionSold(item, qty, arrived)
-  local s = live()
-  if not (s and item) or s.char ~= ns.CharKey() then return end
+local function soldIn(s, item, qty, arrived)
   qty = tonumber(qty) or 1
   local id = type(item) == "number" and item or nil
   if not id then
@@ -219,13 +255,14 @@ function ns:SessionSold(item, qty, arrived)
   s.sold = s.sold or {}
   s.sold[id] = math.min(s.loot[id], (s.sold[id] or 0) + qty)
 end
+function ns:SessionSold(item, qty, arrived)
+  if not item then return end
+  for _, s in ipairs(counting(true)) do soldIn(s, item, qty, arrived) end
+end
 
 -- Posted on the auction house during the session (the hooks below): what its sales can
 -- count against.
-function ns:SessionPosted(id, qty)
-  local s = live()
-  if not (s and id) or s.char ~= ns.CharKey() then return end
-  qty = tonumber(qty) or 1
+local function postedIn(s, id, qty)
   s.posted = s.posted or {}
   s.posted[id] = (s.posted[id] or 0) + qty
   -- When, so a sale's mail from before it can't be this post's (postsBefore above).
@@ -233,10 +270,14 @@ function ns:SessionPosted(id, qty)
   s.postedAt[id] = s.postedAt[id] or {}
   table.insert(s.postedAt[id], { time(), qty })
 end
+function ns:SessionPosted(id, qty)
+  if not id then return end
+  qty = tonumber(qty) or 1
+  for _, s in ipairs(counting(true)) do postedIn(s, id, qty) end
+end
 ns:OnReady(function()
   local AH = C_AuctionHouse
   local function onPost(loc, _, qty)
-    if not live() then return end
     local ok, id = pcall(function() return C_Item and C_Item.GetItemID and C_Item.GetItemID(loc) end)
     if ok and id then ns:SessionPosted(id, qty) end
   end
@@ -265,15 +306,16 @@ local function patterns()
 end
 
 ns:On("CHAT_MSG_LOOT", function(msg)
-  local s = live()
-  if not (s and msg) or s.char ~= ns.CharKey() or s.paused then return end
+  if not msg or not ns.db then return end
+  local list = counting()
+  if #list == 0 then return end
   for _, pat in ipairs(patterns()) do
     local link, n = msg:match(pat.p)
     if link then
       local id = ns.ItemIDFromLink(link)
       if id then
         n = tonumber(n) or 1
-        s.loot[id] = (s.loot[id] or 0) + n
+        for _, s in ipairs(list) do s.loot[id] = (s.loot[id] or 0) + n end
         ns:RememberItem(id)
         -- The tracker shows what came in for a few seconds ("+2 Linen Cloth").
         ns.sessionLastLoot = { id = id, n = n, t = GetTime and GetTime() or time() }
@@ -469,6 +511,15 @@ drawTracker = function()
   else
     tracker.loot:SetText(("|cff999999Loot|r %s"):format(ns.Money(st.loot)))
   end
+  -- Gold and Loot side by side ran into each other with gold, silver and copper in both
+  -- (Frank's screenshot, November 24): the tracker grows to fit them, never narrower.
+  if not ns.db.settings.sessionSmall then
+    local function textW(fs) return (fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth()) or fs:GetStringWidth() or 0 end
+    local lootW = math.min(textW(tracker.loot), 160)
+    tracker.loot:SetWidth(math.max(lootW, 1))
+    local need = 8 + textW(tracker.gold) + 14 + lootW + 8
+    tracker:SetWidth(math.max(W_MINI, math.ceil(need)))
+  end
   if ns.SessionPaceSample then ns.SessionPaceSample(s, st) end   -- (the window's graph)
   if ns.DrawSessionWindow then ns:DrawSessionWindow(st, s, flashID) end
 end
@@ -620,8 +671,14 @@ end
 -- A session left running at logout carries on at login, on the same character. Another
 -- character leaves it paused until its own comes back (Codex review of 893cbbd: logging in
 -- on another character resumed it, and its logout put that character's hour into it).
-ns:On("PLAYER_ENTERING_WORLD", function()
+ns:On("PLAYER_ENTERING_WORLD", function(isLogin)
   local s = live()
+  -- Settings, Sessions, Start one when I log in (Frank, November 24): unless one is
+  -- already running on this character, which carries on.
+  if isLogin and ns.db.settings.sessionAtLogin and not (s and s.char == ns.CharKey()) then
+    ns:StartGeneralSession()
+    return
+  end
   -- Carrying on after a logout or reload: count time again from now.
   if s and s.char == ns.CharKey() and not s.resume and not s.paused then
     if s.active == nil then s.active = time() - s.t end   -- one started before this was counted
@@ -645,3 +702,154 @@ ns:On("PLAYER_LOGOUT", function()
   end
   s.resume = nil
 end)
+
+---------------------------------------------------------------------------
+-- Automatic records: each login and each day (see autoLive at the top)
+---------------------------------------------------------------------------
+local function newRecord(day)
+  local now = time()
+  return { t = now, resume = now, seen = now, active = 0, char = ns.CharKey(), money = {}, loot = {}, day = day }
+end
+-- Stops its clock at `at` (a logout, or when it was last seen running).
+local function bank(rec, at)
+  if rec.resume then
+    rec.active = (rec.active or 0) + math.max(0, (at or time()) - rec.resume)
+    rec.resume = nil
+  end
+end
+local function topOf(st)
+  local top = {}
+  for k = 1, math.min(5, #st.items) do top[k] = { st.items[k].id, st.items[k].n, st.items[k].value } end
+  return top
+end
+-- A record as the Ledger lists it (finished, or running = true for the one counting now).
+function ns.AutoSessionEntry(rec, kind, running)
+  local st = ns:SessionTotals(rec)
+  local loot, top = st.loot, topOf(st)
+  if rec.final and not running then loot, top = rec.final.loot or 0, rec.final.top or {} end
+  return { kind = kind, c = rec.char, t = rec.t, stop = rec.out or time(), secs = st.secs, earned = st.earned,
+    spent = st.spent, loot = loot, top = top, money = rec.money, day = rec.day, running = running or nil }
+end
+-- Older ones than AUTO_KEEP go, and the oldest past AUTO_MAX. Run at each finish and each
+-- login, whether or not anything was kept (Codex review, November 24: an empty finish
+-- skipped it).
+local function trimAuto()
+  local list = ns.db and ns.db.autoSessions
+  if not list then return end
+  local now, i = time(), 1
+  while list[i] do
+    local x = list[i]
+    if (x.stop or x.t or 0) < now - (AUTO_KEEP[x.kind] or AUTO_KEEP.day) then table.remove(list, i) else i = i + 1 end
+  end
+  while #list > AUTO_MAX do table.remove(list, 1) end
+end
+
+-- Into autoSessions, unless nothing happened in it.
+local function finishAuto(rec, kind)
+  if not rec then return end
+  local e = ns.AutoSessionEntry(rec, kind)
+  if e.earned ~= 0 or e.spent ~= 0 or e.loot ~= 0 then
+    ns.db.autoSessions = ns.db.autoSessions or {}
+    local list = ns.db.autoSessions
+    list[#list + 1] = e
+  end
+  trimAuto()
+end
+ns.FinishAutoSession = finishAuto   -- (tests)
+
+-- Days that are over: finished. This character's, if it's playing across midnight, goes on
+-- in a new day from now.
+rollDays = function()
+  local a = autoLive()
+  if not a then return end
+  local today, me = ns.LocalDay(), ns.CharKey()
+  for c, rec in pairs(a.days) do
+    if rec.day ~= today then
+      local playing = c == me and rec.resume
+      finishAuto(rec, "day")
+      a.days[c] = playing and newRecord(today) or nil
+    end
+  end
+end
+
+local autoTicker
+local function autoTick()
+  local a = autoLive()
+  if not a then return end
+  local me, now = ns.CharKey(), time()
+  if a.login and a.login.char == me and a.login.resume then a.login.seen = now end
+  local d = a.days[me]
+  if d and d.resume then d.seen = now end
+  if d and d.day ~= ns.LocalDay() then rollDays() end
+end
+
+ns:On("PLAYER_ENTERING_WORLD", function(isLogin, isReload)
+  local a = autoLive()
+  if not a then return end
+  local me, now = ns.CharKey(), time()
+  local fresh = isLogin or isReload
+  if fresh then
+    -- Left running when the game closed without a logout: counted up to when last seen.
+    local recs = { a.login }
+    for _, rec in pairs(a.days) do recs[#recs + 1] = rec end
+    for _, rec in pairs(recs) do
+      if rec.resume then bank(rec, rec.seen or rec.resume); rec.out = rec.out or rec.seen end
+    end
+  end
+  rollDays()
+  if fresh then trimAuto() end
+  -- This login: a /reload carries on the one before it, anything else starts a new one.
+  local L = a.login
+  if fresh or not (L and L.char == me) then
+    if L and L.char == me and isReload and L.out and now - L.out <= RELOAD_SECONDS then
+      L.resume, L.seen, L.final, L.out = now, now, nil, nil
+    else
+      finishAuto(L, "login")
+      a.login = newRecord()
+    end
+  end
+  -- Today, for this character: carried on from an earlier login today, or a new day.
+  local D = a.days[me]
+  if not D then
+    a.days[me] = newRecord(ns.LocalDay())
+  elseif fresh or not D.resume then
+    D.resume, D.seen, D.final, D.out = now, now, nil, nil
+  end
+  if not autoTicker and C_Timer and C_Timer.NewTicker then autoTicker = C_Timer.NewTicker(60, autoTick) end
+end)
+
+-- Logging out (or reloading): the loot is valued now, while the bags can say what's held,
+-- and the clocks stop.
+ns:On("PLAYER_LOGOUT", function()
+  local a = ns.db and ns.db.autoLive
+  if not a then return end
+  local me, now = ns.CharKey(), time()
+  for _, rec in pairs({ a.login or false, (a.days or {})[me] or false }) do
+    if rec and rec.char == me and rec.resume then
+      local st = ns:SessionTotals(rec)
+      rec.final = { loot = st.loot, top = topOf(st) }
+      bank(rec, now)
+      rec.out = now
+    end
+  end
+end)
+
+-- The records not yet finished, as Ledger rows: this character's login and day (running =
+-- true), and today's days of characters that logged out earlier today, as they were at their
+-- logout (Codex review, November 24: those were missing from Each day until midnight).
+function ns:AutoSessionsRunning()
+  local a = ns.db and ns.db.autoLive
+  local me, out = ns.CharKey(), {}
+  if not a then return out end
+  if a.login and a.login.char == me and a.login.resume then out[#out + 1] = ns.AutoSessionEntry(a.login, "login", true) end
+  local today = ns.LocalDay()
+  for c, d in pairs(a.days or {}) do
+    if c == me and d.resume then
+      out[#out + 1] = ns.AutoSessionEntry(d, "day", true)
+    elseif d.day == today and not d.resume then
+      local e = ns.AutoSessionEntry(d, "day")
+      if e.earned ~= 0 or e.spent ~= 0 or e.loot ~= 0 then out[#out + 1] = e end
+    end
+  end
+  return out
+end

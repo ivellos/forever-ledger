@@ -9,7 +9,8 @@ local T = ns.Theme
 --   strip:  usual price, trend, listed now, you have, posted
 --   graph:  cheapest and typical price per day (weeks past 90 days), listed counts as
 --           bars, flat lines for the vendor price, disenchant value and cost to craft;
---           2 weeks, 3 months or 1 year; a version picker for random-stat gear
+--           a dropdown of ranges: today, the past 24 hours, this week and the past 7
+--           days hour by hour, a month to a year by day; a version picker for random-stat gear
 --   side:   your last 7 days with it, worth to you, Add to shopping list
 --   craft:  when a recipe makes it: the materials at auction house prices, cost to
 --           craft against what it sells for after the cut and one unsold listing (the
@@ -145,7 +146,16 @@ local GRAPH_H = 250
 local PAD_L, PAD_R, PAD_T, PAD_B = 56, 10, 8, 20
 local GOLD, BLUE = { 0.95, 0.78, 0.35 }, { 0.47, 0.58, 0.88 }
 local GREEN, PURPLE, BAR = { 0.5, 0.83, 0.61 }, { 0.80, 0.56, 0.90 }, { 1, 1, 1, 0.07 }
-local RANGES = { { value = 14, label = "2 weeks" }, { value = 90, label = "3 months" }, { value = 365, label = "1 year" } }
+-- Ranges (Frank, November 24), in a dropdown: the first four hour by hour (the last week
+-- is kept per hour, History.lua), the rest a point a day (weeks past 90 days).
+local RANGES = {
+  { value = "today", label = "Today" }, { value = "24h", label = "Past 24 hours" },
+  { value = "week", label = "This week" }, { value = "7d", label = "Past 7 days" },
+  { value = 30, label = "Month" }, { value = 90, label = "3 months" },
+  { value = 180, label = "6 months" }, { value = 365, label = "Year" },
+}
+local HOURLY = { today = true, ["24h"] = true, week = true, ["7d"] = true }
+ns.PRICE_RANGES, ns.PRICE_RANGES_HOURLY = RANGES, HOURLY   -- (tests)
 local MAX_MATS = 8
 
 local win
@@ -183,8 +193,6 @@ local function scaleLabel(v, step)
   return table.concat(out, " ")
 end
 ns.PriceScaleLabel = scaleLabel
-local function dayTime(day) return time() - (today() - day) * DAY end
-
 local function pool(g, name, make)
   g[name] = g[name] or {}
   local p, used = g[name], 0
@@ -211,9 +219,89 @@ local function place(fs, x, y, w)
   if w then fs:SetWidth(w) end
 end
 
--- The graph: pts from ns:PriceSeries, flats = { { value, color, label } }. Returns the
--- flat lines it drew (one far off the prices would squash them, so it's left out).
-local function drawGraph(g, pts, flats)
+local function dayTime(day) return time() - (today() - day) * DAY end
+
+-- Local midnight of the day t is in, and n days on from a midnight (summer time can make a
+-- day 23 or 25 hours, so each is found again from the day's middle).
+local function midnight(t)
+  local d = date("*t", t)
+  d.hour, d.min, d.sec, d.isdst = 0, 0, 0, nil
+  return time(d)
+end
+local function addDays(m, n) return midnight(m + n * DAY + 12 * 3600) end
+
+-- An hour as the game shows the clock: "3 PM", or "15:00" with the 24-hour clock on.
+local function clock(t)
+  local h = tonumber(date("%H", t))
+  if GetCVar and GetCVar("timeMgrUseMilitaryTime") == "1" then return ("%02d:00"):format(h) end
+  return ("%d %s"):format((h % 12 == 0) and 12 or h % 12, h < 12 and "AM" or "PM")
+end
+ns.PriceClock = clock   -- (tests)
+
+-- The time axis of an hour-by-hour range, in seconds: from, to, and the marks along it as
+-- { t, label or nil, strong }. Today: midnight to midnight, a mark each hour, labelled every
+-- three. This week: Monday to Sunday, a strong mark each midnight, a faint one each noon,
+-- the day's name in its middle. The past 24 hours and 7 days roll with the clock.
+function ns.PriceHourAxis(range, now)
+  now = now or time()
+  local from, to
+  if range == "today" then from = midnight(now); to = addDays(from, 1)
+  elseif range == "24h" then from, to = now - DAY, now
+  elseif range == "week" then
+    from = addDays(midnight(now), -((tonumber(date("%w", now)) + 6) % 7))   -- back to Monday
+    to = addDays(from, 7)
+  else from, to = now - 7 * DAY, now end
+  local marks = {}
+  if range == "today" or range == "24h" then
+    for t = math.ceil(from / 3600) * 3600, to, 3600 do
+      local h = tonumber(date("%H", t))
+      marks[#marks + 1] = { t = t, label = (h % 3 == 0 and t < to) and clock(t) or nil, strong = h == 0 }
+    end
+  else
+    local m = midnight(from)
+    while m <= to do
+      if m >= from then marks[#marks + 1] = { t = m, strong = true } end
+      local noon = m + 12 * 3600
+      if noon > from and noon < to then
+        marks[#marks + 1] = { t = noon, label = date(range == "week" and "%a" or "%a %d", noon) }
+      end
+      m = addDays(m, 1)
+    end
+  end
+  return from, to, marks
+end
+
+-- An hour-by-hour range's points: the hours saved, and for each day in the range with no
+-- hours (before hour-by-hour saving began, November 24) that day's own point, at its noon
+-- (today's at most at the time now), marked allDay (Frank, November 25: the day and week
+-- graphs were empty until a month). hours from ns:PriceSeriesHourly, days from ns:PriceSeries.
+function ns.PriceHourPoints(hours, days, from, to, now)
+  now = now or time()
+  local out, hasHours = {}, {}
+  for _, p in ipairs(hours) do
+    out[#out + 1] = p
+    hasHours[ns.LocalDay(p.hour * 3600)] = true
+  end
+  local d0 = ns.LocalDay(now)
+  for _, p in ipairs(days) do
+    if not p.week and not hasHours[p.day] then
+      local at = addDays(midnight(now), p.day - d0) + 12 * 3600
+      if p.day == d0 then at = math.min(at, now) end
+      if at >= from and at <= to then
+        out[#out + 1] = { day = p.day, at = at, allDay = true, cheapest = p.cheapest, typical = p.typical, listed = p.listed }
+      end
+    end
+  end
+  table.sort(out, function(x, y)
+    return (x.at or x.hour * 3600 + 1800) < (y.at or y.hour * 3600 + 1800)
+  end)
+  return out
+end
+
+-- The graph: pts from ns:PriceSeries (days) or ns:PriceSeriesHourly (hours, hourly true),
+-- flats = { { value, color, label } }. Returns the flat lines it drew (one far off the
+-- prices would squash them, so it's left out).
+local function drawGraph(g, pts, flats, hourly)
   local shownFlats = {}
   local w, h = g:GetWidth(), g:GetHeight()
   local plotW, plotH = w - PAD_L - PAD_R, h - PAD_T - PAD_B
@@ -231,6 +319,25 @@ local function drawGraph(g, pts, flats)
   local nextLabel, doneLabels = pool(g, "labels", function() return T:Text(g, 10, T.dim) end)
   g.pts = {}
 
+  -- Where each point goes along the bottom, and how far apart two can be and still be
+  -- joined (more than that: no scans in between). Days: by day, a week at its middle.
+  -- Hours: by time, an hour at its middle.
+  local from, to, marks, pos, joinGap, slots
+  if hourly then
+    from, to, marks = ns.PriceHourAxis(state.range)
+    pos = function(p) return p.at or p.hour * 3600 + 1800 end
+    joinGap, slots = 3 * 3600, (to - from) / 3600
+  else
+    pos = function(p) return p.week and p.day + 3 or p.day end
+    joinGap = 8
+  end
+  local inRange = {}
+  for _, p in ipairs(pts) do
+    local at = pos(p)
+    if not hourly or (at >= from and at <= to) then inRange[#inRange + 1] = p end
+  end
+  pts = inRange
+
   local lo, hi, qmax, first
   for _, p in ipairs(pts) do
     for _, v in ipairs({ p.cheapest, p.typical }) do
@@ -239,6 +346,9 @@ local function drawGraph(g, pts, flats)
     if p.listed then qmax = math.max(qmax or 0, p.listed) end
     first = first or p.day
   end
+  g.empty:SetText(hourly and (state.suffix and "Gear versions keep one point a day: pick Month or longer."
+    or "No prices in this time yet. Each scan saves one point an hour.")
+    or "No price history yet. Each scan saves one point a day.")
   g.empty:SetShown(lo == nil)
   if lo then
     -- Flat lines that would squash the prices into a sliver are left out (a vendor price
@@ -257,16 +367,17 @@ local function drawGraph(g, pts, flats)
     local bottom = math.max(0, math.floor(padLo / step) * step)
     local top = math.ceil(padHi / step) * step
     if top <= bottom then top = bottom + step end
-    local from = math.max(d - state.range + 1, first)
-    if d - from < 6 then from = d - 6 end
-    local function x(day) return PAD_L + (day - from) / (d - from) * plotW end
-    local function y(v) return PAD_B + (v - bottom) / (top - bottom) * plotH end
-    -- A week is drawn at its middle; one whose middle is before the range is left out.
-    local inRange = {}
-    for _, p in ipairs(pts) do
-      if (p.week and p.day + 3 or p.day) >= from then inRange[#inRange + 1] = p end
+    if not hourly then
+      from = math.max(d - state.range + 1, first)
+      if d - from < 6 then from = d - 6 end
+      to, slots = d, d - from + 1
+      -- A week is drawn at its middle; one whose middle is before the range is left out.
+      local kept = {}
+      for _, p in ipairs(pts) do if pos(p) >= from then kept[#kept + 1] = p end end
+      pts = kept
     end
-    pts = inRange
+    local function x(at) return PAD_L + (at - from) / (to - from) * plotW end
+    local function y(v) return PAD_B + (v - bottom) / (top - bottom) * plotH end
 
     -- Scale and grid, a line every step
     for i = 0, math.floor((top - bottom) / step + 0.5) do
@@ -282,14 +393,47 @@ local function drawGraph(g, pts, flats)
       l:SetText(scaleLabel(v, step))
     end
 
+    -- Hour by hour: a mark each hour (today) or each midnight and noon (a week), and the
+    -- time now on today's and this week's graphs.
+    if hourly then
+      local now = time()
+      for _, m in ipairs(marks) do
+        if m.t >= from and m.t <= to then
+          local t = nextTex()
+          t:SetColorTexture(1, 1, 1, m.strong and 0.14 or 0.05)
+          t:ClearAllPoints()
+          t:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x(m.t), PAD_B)
+          t:SetSize(1, plotH)
+          if m.label then
+            local l = nextLabel()
+            l:ClearAllPoints()
+            l:SetPoint("TOP", g, "BOTTOMLEFT", x(m.t), PAD_B - 4)
+            l:SetText(m.label)
+          end
+        end
+      end
+      if now > from and now < to then
+        local t = nextTex()
+        t:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.35)
+        t:ClearAllPoints()
+        t:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x(now), PAD_B)
+        t:SetSize(1, plotH)
+        local l = nextLabel()
+        l:ClearAllPoints()
+        l:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x(now) + 3, PAD_B + plotH - 10)
+        l:SetText("now")
+      end
+    end
+
     -- How many were listed, as faint bars along the bottom fifth. Kept inside the plot:
     -- today's bar sat half over the edge (owner's screenshot, November 8).
     if qmax and qmax > 0 then
-      local bw = math.max(1, plotW / math.max(d - from + 1, 1) * 0.7)
+      local bw = math.max(1, plotW / math.max(slots, 1) * 0.7)
       for _, p in ipairs(pts) do
         if p.listed and p.listed > 0 then
-          local cx = p.week and x(p.day + 3) or x(p.day)
-          local width = p.week and math.max(bw, plotW / math.max(d - from + 1, 1) * 6) or bw
+          local cx = x(pos(p))
+          local width = p.week and math.max(bw, plotW / math.max(slots, 1) * 6)
+            or p.allDay and math.max(bw, plotW / math.max(slots, 1) * 20) or bw
           local left = math.max(PAD_L, cx - width / 2)
           local right = math.min(PAD_L + plotW, cx + width / 2)
           if right - left >= 1 then
@@ -315,21 +459,24 @@ local function drawGraph(g, pts, flats)
       end
     end
 
-    -- The price lines: typical first, cheapest on top. Days more than 8 apart (no scans
-    -- in between) aren't joined.
+    -- The price lines: typical first, cheapest on top. Points further apart than joinGap
+    -- (no scans in between) aren't joined.
     for _, key in ipairs({ "typical", "cheapest" }) do
       local c = key == "cheapest" and GOLD or BLUE
       local prev
       for _, p in ipairs(pts) do
         local v = p[key]
         if v then
-          local px, py = p.week and x(p.day + 3) or x(p.day), y(v)
-          if prev and p.day - prev.day <= 8 and g.CreateLine then
+          local at = pos(p)
+          local px, py = x(at), y(v)
+          -- (a day's own point, in an hour-by-hour range, joins the next day's: 36 hours)
+          local joined = prev and at - prev.at <= ((p.allDay or prev.allDay) and 36 * 3600 or joinGap)
+          if joined and g.CreateLine then
             local l = nextLine()
             l:SetColorTexture(c[1], c[2], c[3], key == "cheapest" and 1 or 0.8)
             l:SetStartPoint("BOTTOMLEFT", g, prev.x, prev.y)
             l:SetEndPoint("BOTTOMLEFT", g, px, py)
-          elseif not (prev and p.day - prev.day <= 8) then
+          elseif not joined then
             -- A point on its own: a small dot, so a single day still shows.
             local t = nextTex()
             t:SetColorTexture(c[1], c[2], c[3], 1)
@@ -337,42 +484,44 @@ local function drawGraph(g, pts, flats)
             t:SetPoint("CENTER", g, "BOTTOMLEFT", px, py)
             t:SetSize(3, 3)
           end
-          prev = { day = p.day, x = px, y = py }
+          prev = { at = at, x = px, y = py, allDay = p.allDay }
           if key == "cheapest" then g.pts[#g.pts + 1] = { x = px, p = p } end
         end
       end
     end
 
-    -- The line between weekly and daily points, on a year
-    local firstDaily
-    for _, p in ipairs(pts) do if not p.week then firstDaily = p.day; break end end
-    if firstDaily and pts[1] and pts[1].week and firstDaily > from then
-      local t = nextTex()
-      t:SetColorTexture(1, 1, 1, 0.15)
-      t:ClearAllPoints()
-      t:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x(firstDaily) - 2, PAD_B)
-      t:SetSize(1, plotH)
-      local l1, l2 = nextLabel(), nextLabel()
-      l1:ClearAllPoints(); l1:SetPoint("TOPRIGHT", g, "BOTTOMLEFT", x(firstDaily) - 6, PAD_B + plotH)
-      l1:SetText("weekly")
-      l2:ClearAllPoints(); l2:SetPoint("TOPLEFT", g, "BOTTOMLEFT", x(firstDaily) + 2, PAD_B + plotH)
-      l2:SetText("daily")
-    end
+    if not hourly then
+      -- The line between weekly and daily points, on a year
+      local firstDaily
+      for _, p in ipairs(pts) do if not p.week then firstDaily = p.day; break end end
+      if firstDaily and pts[1] and pts[1].week and firstDaily > from then
+        local t = nextTex()
+        t:SetColorTexture(1, 1, 1, 0.15)
+        t:ClearAllPoints()
+        t:SetPoint("BOTTOMLEFT", g, "BOTTOMLEFT", x(firstDaily) - 2, PAD_B)
+        t:SetSize(1, plotH)
+        local l1, l2 = nextLabel(), nextLabel()
+        l1:ClearAllPoints(); l1:SetPoint("TOPRIGHT", g, "BOTTOMLEFT", x(firstDaily) - 6, PAD_B + plotH)
+        l1:SetText("weekly")
+        l2:ClearAllPoints(); l2:SetPoint("TOPLEFT", g, "BOTTOMLEFT", x(firstDaily) + 2, PAD_B + plotH)
+        l2:SetText("daily")
+      end
 
-    -- Dates along the bottom
-    for i = 0, 3 do
-      local day = math.floor(from + (d - from) * i / 3 + 0.5)
-      local l = nextLabel()
-      l:ClearAllPoints()
-      l:SetPoint("TOP", g, "BOTTOMLEFT", x(day), PAD_B - 4)
-      l:SetText(day == d and "Today" or date("%b %d", dayTime(day)))
+      -- Dates along the bottom
+      for i = 0, 3 do
+        local day = math.floor(from + (d - from) * i / 3 + 0.5)
+        local l = nextLabel()
+        l:ClearAllPoints()
+        l:SetPoint("TOP", g, "BOTTOMLEFT", x(day), PAD_B - 4)
+        l:SetText(day == d and "Today" or date("%b %d", dayTime(day)))
+      end
     end
   end
   doneLines(); doneTex(); doneLabels()
   return shownFlats
 end
 
--- Hovering the graph: the nearest point's day, prices and listed count.
+-- Hovering the graph: the nearest point's day (or hour), prices and listed count.
 local function hoverGraph(g)
   if not g.pts or #g.pts == 0 then return end
   local mx = GetCursorPosition() / g:GetEffectiveScale() - g:GetLeft()
@@ -386,11 +535,19 @@ local function hoverGraph(g)
   g.marker:SetHeight(g:GetHeight() - PAD_T - PAD_B)
   g.marker:Show()
   GameTooltip:SetOwner(g, "ANCHOR_CURSOR")
-  local when = p.week and ("Week of " .. date("%b %d", dayTime(p.day))) or (p.day == today() and "Today" or date("%a %b %d", dayTime(p.day)))
+  local when
+  if p.allDay then
+    when = (p.day == today() and ns.LocalizeText("Today") or date("%a %b %d", p.at)) .. ", the whole day"
+  elseif p.hour then
+    local t = p.hour * 3600
+    when = (ns.LocalDay(t) == today() and ns.LocalizeText("Today") or date("%a %b %d", t)) .. ", " .. clock(t) .. " - " .. clock(t + 3600)
+  else
+    when = p.week and ("Week of " .. date("%b %d", dayTime(p.day))) or (p.day == today() and "Today" or date("%a %b %d", dayTime(p.day)))
+  end
   ns:TooltipAddLine(when, 1, 1, 1)
   ns:TooltipAddDoubleLine("Cheapest", ns.Money(p.cheapest), 0.7, 0.7, 0.7, GOLD[1], GOLD[2], GOLD[3])
   if p.typical then ns:TooltipAddDoubleLine("Typical", ns.Money(p.typical), 0.7, 0.7, 0.7, BLUE[1], BLUE[2], BLUE[3]) end
-  if p.listed then ns:TooltipAddDoubleLine(p.week and "Listed, on average" or "Listed", count(p.listed), 0.7, 0.7, 0.7, 1, 1, 1) end
+  if p.listed then ns:TooltipAddDoubleLine(p.week and "Listed, on average" or (p.hour and "Listed, the most that hour" or "Listed"), count(p.listed), 0.7, 0.7, 0.7, 1, 1, 1) end
   GameTooltip:Show()
 end
 
@@ -559,7 +716,8 @@ local function build()
 
   -- Graph card
   f.graphHead = text(f, 11)
-  f.range = T:Choice(f, RANGES, function(v) state.range = v; ns:RefreshPriceWindow() end)
+  f.range = T:Dropdown(f, 130, function(v) state.range = v; ns:RefreshPriceWindow() end)
+  f.range:SetOptions(RANGES)
   f.version = T:Dropdown(f, 170, function(v) state.suffix = v ~= "all" and v or nil; ns:RefreshPriceWindow() end)
   local g = CreateFrame("Frame", nil, f)
   g.empty = T:Text(g, 12, T.dim)
@@ -775,15 +933,23 @@ function ns:RefreshPriceWindow()
   if de and de > 0 then flats[#flats + 1] = { de, GREEN, "disenchant value" }
   elseif vendor and vendor > 0 then flats[#flats + 1] = { vendor, GREEN, "vendor price" } end
   if s.craft and s.craft.cost then flats[#flats + 1] = { s.craft.cost, PURPLE, "cost to craft" } end
-  local pts = ns:PriceSeries(id, state.suffix, state.range)
+  local hourly = HOURLY[state.range] or false
+  local pts
+  if hourly then
+    local from, to = ns.PriceHourAxis(state.range)
+    pts = state.suffix and {} or ns.PriceHourPoints(ns:PriceSeriesHourly(id, math.floor(from / 3600) - 1),
+      ns:PriceSeries(id, nil, 9), from, to)
+  else
+    pts = ns:PriceSeries(id, state.suffix, state.range)
+  end
   -- Only the flat lines the graph drew go in the legend.
-  for _, fl in ipairs(drawGraph(f.graph, pts, flats)) do
+  for _, fl in ipairs(drawGraph(f.graph, pts, flats, hourly)) do
     legend[#legend + 1] = (fl[2] == PURPLE and "|cffcc8fe6- -|r " or "|cff7fd39c- -|r ") .. fl[3]
   end
   place(f.legend, x0 + 12, gTop + GRAPH_H - 18, gw - 24)
   -- The hover hint only where it fits (owner's screenshot, November 8: "hover for each..."
   -- with a vendor price and a cost to craft in the legend).
-  f.legend:SetText(table.concat(legend, "    ") .. dim("    hover for each day"))
+  f.legend:SetText(table.concat(legend, "    ") .. dim(hourly and "    hover for each hour" or "    hover for each day"))
   if f.legend:GetStringWidth() > gw - 24 then f.legend:SetText(table.concat(legend, "    ")) end
   if f.legend:GetStringWidth() > gw - 24 then f.legend:SetText(table.concat(legend, "  ")) end
 
@@ -1063,7 +1229,7 @@ function ns.HoveredItemGone() hover.gone = GetTime() end
 local function onTooltipItem(tt)
   if tt ~= GameTooltip or not tt.GetItem then return end
   local ok, _, link = pcall(tt.GetItem, tt)
-  if ok and type(link) == "string" then ns.RememberHoveredItem(link) end
+  if ok and ns.Readable(link) then ns.RememberHoveredItem(link) end
 end
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
   TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, onTooltipItem)
@@ -1080,7 +1246,7 @@ local function hoveredLink(id)
   local tip = GameTooltip
   if tip and tip.IsShown and tip:IsShown() and tip.GetItem then
     local ok, _, link = pcall(tip.GetItem, tip)
-    if ok and type(link) == "string" then
+    if ok and ns.Readable(link) then
       if ns.ItemIDFromLink(link) == id then return link end
       return
     end

@@ -29,10 +29,7 @@ T.test("Writs: a writ item is found by its ID, its name, or its sealed tier", fu
   T.eq(ns:WritFor(2589), nil, "linen cloth is no writ")
 end)
 
-T.test("Writs: cost per reputation after the coin pouch", function()
-  T.eq(ns.WritPerRep(10800, "J"), 100, "(10800 - 3300) / 75")
-  T.ok(ns.WritPerRep(1000, "J") < 0, "a cheap order: the pouch pays more")
-  T.eq(ns.WritPerRep(nil, "J"), nil)
+T.test("Writs: an order's cost from the auction house", function()
   local key = ns.MarketKey()
   ns.db.prices[key] = ns.db.prices[key] or {}
   ns.db.prices[key][3383] = { m = 900, a = 900, q = 5, l = "900:5", t = S.now }
@@ -221,5 +218,67 @@ T.test("Writs: a cost worked out meanwhile isn't overwritten by the background's
   if ns.InvalidateValues then ns:InvalidateValues(true) end
   W.forget()
   T.runTimers()
+  assert(ok, err)
+end)
+
+T.test("Writs: per reputation is the cost divided by the reputation, the pouch not counted", function()
+  T.eq(ns.WritPerRep(7500, "J"), 100, "7500 / 75")
+  T.eq(ns.WritPerRep(1000, "J", 100), 10, "the order's own reputation, once learned")
+  T.eq(ns.WritPerRep(nil, "J"), nil)
+end)
+
+T.test("Writs: the reputation chat line gives its number", function()
+  local was = FACTION_STANDING_INCREASED
+  FACTION_STANDING_INCREASED = "Reputation with %s increased by %d."
+  T.eq(ns.WritRepFromChat("Reputation with Azeroth Commerce Authority increased by 125."), 125)
+  T.eq(ns.WritRepFromChat("You have gained 5 Merchant's Favor."), nil)
+  FACTION_STANDING_INCREASED = was
+end)
+
+-- Frank, November 24: an order's amount, customer and reputation are learned from its quest,
+-- and what a coin pouch paid from opening it.
+T.test("Writs: learned from the quest, the turn-in and the coin pouch", function()
+  local e = ns:WritFor(264014)
+  T.eq(e and e.quest, 94214, "the writ's quest, from the game data")
+  local saved = { qty = e.qty, who = e.who, zone = e.zone, rep = e.rep, seen = e.seen }
+  local was = { C_QuestLog = C_QuestLog, C_Map = C_Map, GetQuestID = GetQuestID, F = FACTION_STANDING_INCREASED }
+  local ok, err = pcall(function()
+    C_QuestLog = { IsOnQuest = function(q) return q == 94214 end,
+      GetQuestObjectives = function() return { { type = "item", numRequired = 3 } } end }
+    ns.WritReadLog()   -- (what QUEST_LOG_UPDATE does a second later)
+    T.eq(e.qty, 3, "the amount the quest asks for")
+    T.eq(ns.db.writSeen[94214].qty, 3)
+    -- The turn-in: who, where, and the reputation from the chat line.
+    C_Map = { GetBestMapForUnit = function() return 1431 end, GetMapInfo = function() return { name = "Duskwood" } end }
+    GetQuestID = function() return 94214 end
+    FACTION_STANDING_INCREASED = "Reputation with %s increased by %d."
+    S.money = 10000
+    T.fire("PLAYER_MONEY")
+    T.fire("BAG_UPDATE_DELAYED")
+    T.fire("QUEST_COMPLETE")
+    T.fire("QUEST_TURNED_IN", 94214, 0, 0)
+    T.fire("CHAT_MSG_COMBAT_FACTION_CHANGE", "Reputation with Azeroth Commerce Authority increased by 80.")
+    T.eq(e.who, "Tester", "the customer")
+    T.eq(e.zone, "Duskwood")
+    T.eq(ns.WritRep(e), 80, "the reputation it gave")
+    -- A coin pouch turns up: it came from a Journeyman order. Opened: it paid 45s.
+    S.bags[284583] = 1
+    T.fire("BAG_UPDATE_DELAYED")
+    T.eq(ns.db.pouches[284583] and ns.db.pouches[284583].from, "J")
+    T.eq(ns:PouchText("J"), nil, "none opened yet")
+    S.bags[284583] = 0
+    T.fire("BAG_UPDATE_DELAYED")
+    S.money = 14500
+    T.fire("PLAYER_MONEY")
+    T.eq(ns.db.pouches[284583].n, 1)
+    T.eq(ns.db.pouches[284583].sum, 4500)
+    T.eq(ns:PouchText("J"), ns.Money(4500) .. " (1 opened)")
+    T.eq(ns:PouchText("E"), nil, "nothing for another tier")
+  end)
+  C_QuestLog, C_Map, GetQuestID, FACTION_STANDING_INCREASED = was.C_QuestLog, was.C_Map, was.GetQuestID, was.F
+  ns.db.writSeen[94214] = nil
+  ns.db.pouches[284583] = nil
+  S.bags[284583] = nil
+  e.qty, e.who, e.zone, e.rep, e.seen = saved.qty, saved.who, saved.zone, saved.rep, saved.seen
   assert(ok, err)
 end)

@@ -10,8 +10,9 @@ end
 ns.PREFIX = "|cffb9a2ffForever Ledger:|r"
 
 local DEFAULTS = {
-  schema = 11,
+  schema = 13,
   charRealm = {},   -- [full name] = the realm last read for that character, for when the game gives none (schema 11)
+  ahPos = {},       -- [charKey] = { point, relativePoint, x, y }: where that character moved the auction house window (AHMove.lua, schema 13)
   profAliases = {}, -- [the game's name for a profession] = English key (Professions.lua, schema 10)
   chars = {},       -- [charKey] = { name, realm, class, level, faction, updated, profs = { [profName] = { rank, max, updated, recipes = {...} } } }
   prices = {},      -- [marketKey][itemID] = { m = cheapest, a = avg of cheapest 20, q = listed, t = time, src = "scan" }
@@ -29,14 +30,17 @@ local DEFAULTS = {
   recipeSources = {}, -- [recipe name lowercased][kind..npc] = { kind, conf = "seen", npc, npcID, mapID, x, y, zone, cost, currency, skill, limited, t }
   vendors = {},     -- [npcID] = { name, mapID, x, y, zone, t, trainer }
   recipeTypes = {}, -- [recipeID] = "shuffle" | "sells" | "notsale" | "loss", the player's own choice (RecipesTab.lua)
-  crates = {},      -- [crate itemID] = { name, level, bundles = { { { qty, name }, ... } } } read from tooltips
+  crates = {},      -- [crate itemID] = { name, level, bundles = { { { qty =, id =, name = }, ... } } } (Crates.lua CRATE_BUNDLES, else its tooltip)
   vendorSellChanged = {}, -- [itemID] = local day its vendor sell price was seen to change (older price history is ignored)
   favor = {},       -- [charKey] = Merchant's Favor held
+  writSeen = {},    -- [writ questID] = { qty, who, map, zone, rep, money, t } learned from the quest (Writs.lua)
+  pouches = {},     -- [Coin Pouch itemID] = { n, sum, lo, hi, from = writ tier key or "crate" } (Writs.lua)
+  crateFavorSeen = {},   -- [sealed crate itemID] = Merchant's Favor its turn-in gave (Crates.lua)
   inventory = {},   -- [charKey] = { bags = { [itemID] = count }, bank = { ... }, t, bankT, via = sync partner's name if theirs } (Inventory.lua)
   itemNames = {},   -- [itemID] = name, remembered so lists don't flicker (Prices.lua ns.ItemName)
   disenchants = {}, -- { t, id, ilvl, q, cls, mats = { [itemID] = count } } (Disenchant.lua, last 1000)
   sync = {},        -- [partner name lowercased] = { sentUpTo = time } (Sync.lua; partner in settings.syncPartner)
-  sessions = {},    -- finished sessions (Sessions.lua, archived November 13: kept and synced, no longer shown)
+  sessions = {},    -- finished sessions you started (Sessions.lua; the Ledger's Sessions), kept and synced
   history = {},       -- [marketKey][itemID] = "day:cheapest:typical|..." (90 days, History.lua)
   historyWeekly = {}, -- [marketKey][itemID] = "week:cheapest:typical:days|..." (52 weeks)
   historyVersions = {},       -- [marketKey][itemID][suffix] = "day:cheapest:listed|..." gear versions from full scans (90 days)
@@ -45,6 +49,9 @@ local DEFAULTS = {
   suffixNames = {},   -- [version name, "of the Whale"] = the bonus ID full scans saw for it (Prices.lua)
   -- soldSnap = { t, market, items = { [itemID] = "price:count" } }: the last full scan's counts (Prices.lua), no default
   historyQty = {},    -- [marketKey][itemID] = "day:listed|..." most listed seen each day (last 30 days)
+  historyHourly = {}, -- [marketKey][itemID] = "hour:cheapest:typical:listed|..." the last 7 days hour by hour (History.lua)
+  autoLive = { days = {} }, -- the automatic session records counting now: { login = record, days = { [charKey] = record } } (Sessions.lua)
+  autoSessions = {},  -- finished automatic records, each login (30 days) and each day (a year), like sessions (Sessions.lua)
   dungeons = {},      -- [dungeon name] = { runs, secs, coin, drops = { [itemID] = runs it dropped in } } (Dungeons.lua, archived November 14: kept, nothing adds to it)
   ledgerMonths = {},  -- ledger entries older than 30 days, as monthly totals per item: { { t = month start, c, k = "sale" | "buy" | "vsell" | "vbuy", id or n, q, a, cnt, mx } } (History.lua, kept a year)
   historySold2 = {},  -- [marketKey][itemID] = "day:bought:minutes:closeMinutes:expired|..." units that vanished though they couldn't have expired, and those gone from the last time band (expired) (sell speed, since October 2)
@@ -54,8 +61,8 @@ local DEFAULTS = {
   shopping = { lists = {} }, -- shopping lists: { lists = { { name, on, items = { { id, max, qty } } } }, current } (ShoppingLists.lua)
   watchItems = {},   -- [itemID] = { max = copper or nil for the vendor price, t = added }: watched items (Watched.lua)
   groups = { user = {}, added = {}, removed = {}, rules = {}, saved = {}, nextId = 1 }, -- groups and rules, account-wide (Groups.lua: shapes there)
-  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, dealChat = true, sellGuard = true, watchResume = true, stackTwoClicks = false, sessionValue = "best", saleSound = true, deRolls = true, keepGold = 0, postUndercut = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
-    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, ahTabs = true, dashboard = {}, ledger = {}, goldMaking = {}, writs = {}, crateTab = {}, quickDE = true, quickDEKey = "ctrlalt", deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
+  settings = { source = "auto", maxAgeHours = 12, tooltip = true, debug = false, watch = {}, ahCut = 5, margin = 10, actionSeconds = 3, skipChars = {}, minimap = true, minimapAngle = 200, dealSound = true, dealScreen = true, dealChat = true, sellGuard = true, watchResume = true, stackTwoClicks = false, sessionValue = "best", sessionAtLogin = false, saleSound = true, deRolls = true, keepGold = 0, postUndercut = 0, vendorItemsAH = false, undercutAlerts = true, undercutSound = true, updateNotice = true, priceHelper = true, soldSummary = true,
+    dealUsualPct = 20, dealWindow = "all", dealVendorPct = 10, dealVendorMin = 0, dealHistory = "auto", dealUsualMin = 1000, dealShowThin = false, dealsSort = {}, window = {}, ahHighlight = true, ahTabs = true, ahMove = true, dashboard = {}, ledger = {}, goldMaking = {}, writs = {}, crateTab = {}, quickDE = true, quickDEKey = "ctrlalt", deFinder = {}, crates = true, recipes = {}, openFlips = true, customers = true, customerSound = true, customerWindow = true, customerChat = false,
     svcCrafting = true, svcFood = true, svcPortal = true, svcSummon = true, svcLockpick = true,
     -- Buy queue (BuyQueue.lua): what goes in it, scroll anywhere to buy, the side panel's tab.
     -- wheel: on from the start (owner, October 22: the fresh-install test found it hard to
@@ -231,7 +238,7 @@ function ns:SearchAuctionHouse(id)
 end
 
 function ns.ItemIDFromLink(link)
-  if type(link) ~= "string" then return nil end
+  if not ns.Readable(link) then return nil end
   return tonumber(link:match("item:(%d+)"))
 end
 
@@ -435,6 +442,8 @@ end
 -- of the same day can't just keep the cheaper row (Codex review, November 7):
 --   day  "day:cheapest:listed"            the cheaper price and the most listed
 --   week "week:cheapest:listedSum:days"   the row covering more days, with the cheaper price
+--   hour "hour:cheapest:typical:listed"   (historyHourly) the cheaper price, the most listed
+--                                         and the typical price of the row that saw more
 -- (Two weekly summaries of one week can't be added up without knowing which days each
 -- covers, so the fuller one stands.) All-time figures: combineAllTime above.
 local OWN_MERGE = { historyVersions = "day", historyVersionsWeekly = "week", historyAll = "all" }
@@ -453,6 +462,12 @@ local function combinePeriods(a, b, kind)
           keys[#keys + 1] = key
         elseif kind == "day" then
           have[2], have[3] = math.min(have[2] or f[2], f[2] or have[2]), math.max(have[3] or 0, f[3] or 0)
+        elseif kind == "hour" then
+          -- Which came later in the hour isn't known: the typical price of the one that saw
+          -- more listed (the same count: the lower), so either order gives the same row.
+          local hq, fq = have[4] or 0, f[4] or 0
+          if fq > hq or (fq == hq and (f[3] or math.huge) < (have[3] or math.huge)) then have[3] = f[3] or have[3] end
+          have[2], have[4] = math.min(have[2] or f[2], f[2] or have[2]), math.max(hq, fq)
         else
           local cheapest = math.min(have[2] or f[2], f[2] or have[2])
           if (f[4] or 0) > (have[4] or 0) then byKey[key] = f; have = f end
@@ -495,6 +510,7 @@ local function addUp(into, from)
   return into
 end
 OWN_MERGE.money = "sum"
+OWN_MERGE.historyHourly = "hour"   -- (Codex review, November 24: not the version-day layout)
 
 -- Renames keys (newKey) and string values (newValue) everywhere in t; two records that end
 -- up under one key are combined. kind: inside a table with its own way of combining (OWN_MERGE).
@@ -1402,6 +1418,18 @@ ns:On("ADDON_LOADED", function(name)
     ForeverLedgerDB.charRealm = ForeverLedgerDB.charRealm or {}
     ForeverLedgerDB.schema = 11
   end
+  -- Schema 12 (November 24): historyHourly, prices hour by hour for the last week (History.lua);
+  -- autoLive and autoSessions, a record of each login and day (Sessions.lua). Both start empty.
+  if ForeverLedgerDB.schema < 12 then
+    ForeverLedgerDB.historyHourly = ForeverLedgerDB.historyHourly or {}
+    ForeverLedgerDB.schema = 12
+  end
+  -- Schema 13 (November 25): ahPos, where each character moved the auction house window
+  -- (AHMove.lua). Starts empty.
+  if ForeverLedgerDB.schema < 13 then
+    ForeverLedgerDB.ahPos = ForeverLedgerDB.ahPos or {}
+    ForeverLedgerDB.schema = 13
+  end
   -- Settings per character (below): while a character used its own, the shared settings
   -- were also kept under settingsAccount. If the game ever saved the stand-in instead of
   -- the real table, this brings them back.
@@ -1724,6 +1752,9 @@ function ns:ApiReport()
     "C_Map.GetBestMapForUnit", "C_Map.SetUserWaypoint",
     "C_QuestLog.GetAllCompletedQuestIDs", "GetQuestsCompleted", "C_QuestLog.GetTitleForQuestID",
     "C_QuestLog.RequestLoadQuestByID", "GetQuestGreenRange", "IsInInstance", "GetInstanceInfo",
+    -- Writs learned in game (Writs.lua): the quest's amount, the customer, the reputation.
+    "C_QuestLog.GetQuestObjectives", "C_QuestLog.IsOnQuest", "GetQuestID", "C_Map.GetMapInfo",
+    "C_Reputation.GetNumFactions", "C_Reputation.GetFactionDataByIndex", "GetFactionInfo", "FACTION_STANDING_INCREASED",
     "C_ChatInfo.SendAddonMessage", "C_ChatInfo.RegisterAddonMessagePrefix", "ChatFrame_AddMessageEventFilter",
     "C_AuctionHouse.PostItem", "C_AuctionHouse.PostCommodity", "C_AuctionHouse.ConfirmCommoditiesPurchase",
     -- Buy queue (BuyQueue.lua): buying needs these, each from a click or a mouse wheel tick.

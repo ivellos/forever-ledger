@@ -416,7 +416,7 @@ end
 -- "Simple Britches of the Whale" = item:9747::::::::20:1482::1:1:12719:1:28:7000, field 13
 -- is how many bonus IDs follow, here one, 12719). With several, the highest is used.
 function ns.SuffixFromLink(link)
-  local s = type(link) == "string" and link:match("item:([%-%d:]+)")
+  local s = ns.Readable(link) and link:match("item:([%-%d:]+)")
   if not s then return end
   local f = {}
   for v in (s .. ":"):gmatch("([^:]*):") do f[#f + 1] = v end
@@ -435,7 +435,7 @@ end
 
 -- Every bonus ID in a modern item link (field 13 says how many follow), as a list.
 function ns.LinkBonusIDs(link)
-  local s = type(link) == "string" and link:match("item:([%-%d:]+)")
+  local s = ns.Readable(link) and link:match("item:([%-%d:]+)")
   local out = {}
   if not s then return out end
   local f = {}
@@ -467,7 +467,7 @@ function ns:ForgetVersionNames() versionNames = nil end
 -- the version's. Saved, unless that name already belongs to another number (then for
 -- this session only, so a scan's choice is never overwritten).
 function ns:LearnVersionName(id, suffix, link)
-  if not suffix or type(link) ~= "string" or ns:VersionName(suffix) then return end
+  if not suffix or not ns.Readable(link) or ns:VersionName(suffix) then return end
   local shown = link:match("%[(.-)%]")
   local base = (ns.db.itemNames or {})[id] or getItemInfo(id)
   if not (shown and base and shown:sub(1, #base + 1) == base .. " ") then return end
@@ -489,7 +489,7 @@ end
 -- full scans have seen, on this item or any other), or Classic's suffix field. nil for
 -- an auction house group, whose link has a general bonus ID (3524) instead.
 function ns:VersionOfLink(id, link)
-  if type(link) ~= "string" then return end
+  if not ns.Readable(link) then return end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   for _, b in ipairs(ns.LinkBonusIDs(link)) do
     if ns:VersionName(b) or (rec and rec.sx and (";" .. rec.sx):find(";" .. b .. ":", 1, true)) then return b end

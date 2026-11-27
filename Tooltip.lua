@@ -80,7 +80,8 @@ local function slotsOf(id)
   if ok and classID == container and subclassID == 0 and C_TooltipInfo and C_TooltipInfo.GetItemByID then
     local ok2, data = pcall(C_TooltipInfo.GetItemByID, id)
     for _, line in ipairs(ok2 and data and data.lines or {}) do
-      local n = line.leftText and tonumber(line.leftText:match(SLOTS_PATTERN))
+      local text = ns.Readable(line.leftText)
+      local n = text and tonumber(text:match(SLOTS_PATTERN))
       if n then slots = n; break end
     end
   end

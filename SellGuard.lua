@@ -221,7 +221,7 @@ local function helperUpdate(h)
   -- item's own cheapest can be another version's.
   local okLink, link = false, nil
   if C_Item and C_Item.GetItemLink then okLink, link = pcall(C_Item.GetItemLink, loc) end
-  if not okLink or type(link) ~= "string" then link = nil end
+  if not okLink or not ns.Readable(link) then link = nil end
   if cheapest and link and ns.VersionOfLink and ns.SuffixPrice then
     local suffix = ns:VersionOfLink(id, link)
     local m = suffix and ns:SuffixPrice(id, suffix)

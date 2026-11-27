@@ -103,6 +103,9 @@ local PAGES = {
         { key = "ahTabs", label = "Forever Ledger's tabs in the auction house", kind = "check",
           after = function() if ns.ApplyAHTabs then ns:ApplyAHTabs() end end,
           help = "Buy and My auctions tabs after Blizzard's Buy, Sell and Auctions, inside the auction house window. Off: the Buy queue panel opens beside the window instead, with its Buy queue button." },
+        { key = "ahMove", label = "Let me move the auction house window", kind = "check",
+          after = function() if ns.ApplyAHMove then ns:ApplyAHMove() end end,
+          help = "Drag the auction house window by its top edge. Each character keeps its own spot. Right-click the top edge to put it back." },
         { sub = "Buy queue" },
         { key = "vendorItemsAH", label = "Buy vendor items on the auction house too", kind = "check",
           after = function() if ns.RefreshListsView then ns:RefreshListsView() end; if ns.RebuildBuyQueue then ns:RebuildBuyQueue() end end,
@@ -267,6 +270,9 @@ local PAGES = {
       { key = "sessionValue", label = "Count loot at", kind = "choice", options = {
           { "best", "Best of auction and vendor" }, { "vendor", "Vendor only" } },
         help = "What a session counts each looted item as worth. Auction house prices are after the cut; items that bind when picked up always count at vendor price. Start a session with /fl session start, or Ctrl-click the minimap button." },
+      { sub = "Starting" },
+      { key = "sessionAtLogin", label = "Start a session when I log in", kind = "check",
+        help = "Starts a session, with its tracker, each time this character logs in (one already running carries on). Each login and each day are also recorded on their own without one: Ledger, Sessions." },
     } },
 
   { group = "Other" },

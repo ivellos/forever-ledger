@@ -5,15 +5,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+
+- No more "string conversion on a secret string value" errors when the game hides a tooltip line, a trainer's title or an item link from addons: Forever Ledger now skips what it can't read.
+
+## [0.30.0] - 2026-11-25
+
+### Highlights
+- Δ **Prices hour by hour**: the price window shows today and this week hour by hour, with every range from Today to a Year in one dropdown.
+- Δ **Sessions on their own**: each login and each day are recorded without starting a session, listed in the Ledger's Sessions; or have a session start when you log in.
+- + **Move the auction house window**: drag it by its top edge; each character keeps its own spot, and right-click puts it back.
+- + **Scroll anywhere**: a How to buy dropdown on the Buy tab: click to buy, scroll to buy, or for Vendor flips scroll anywhere on screen while there's something to buy.
+- + **Crates and writs**: how many of each crate you have, with filters, Favor by crate level and kind, and each writ order checked against the game.
+- ✓ **Every language**: crates, trainers, map pins and enchants now work on clients in any language.
+
 ### Added
+- Buy queue: a dropdown at the top right of the view, in place of the Scroll to buy box, picks how you buy: **Click to buy**, **Scroll to buy**, or for Vendor flips **Scroll anywhere**: each tick of the mouse wheel buys wherever the pointer is, not only over Vendor flips. With nothing to buy, the wheel works as usual.
+- Auction house: **drag the auction house window by its top edge** to move it. Each character keeps its own spot; right-click the top edge to put it back. Settings → Auction house → **Let me move the auction house window** (turned off once when BlizzMove or MoveAny is installed).
+- Sessions: **each login and each day are recorded on their own**, without starting a session: gold in and out by where it came from, and what you loot. In the Ledger's Sessions sub-tab, a dropdown switches between **Started by you**, **Each login** and **Each day**; the one counting now is on top, and characters you played earlier today are listed too. A /reload carries on the same login. Logins are kept 30 days, days a year.
+- Settings, Sessions: **Start a session when I log in**.
+- Price window: a dropdown of times for the graph. **Today**, **Past 24 hours**, **This week** (Monday to Sunday) and **Past 7 days** show the price hour by hour, with a mark every hour, or every midnight and noon, and a line at the time now; **Month**, **3 months**, **6 months** and **Year** show it day by day. Prices are now kept hour by hour for a week (then by day, as before); days from before that show one point each.
 - Crates: a **Have** column with how many of each crate you have (bags, bank and your other characters; hover for where), and filters for the level (Apprentice to Artisan), the kind (Herbs, Ore, Ingots, Textiles, Fabrics, Parts, Curiosities) and **Only ones I have**.
 - Writs: a filter for the zone the customer is in; right-click an order to search the auction house for the writ itself; **List** also puts the writ on the Writs shopping list when you have none.
+- Writs: what each order asks for is checked in game. Taking an order reads how many it wants; handing it in notes the customer, the zone and the reputation it gave; opening a coin pouch notes what it paid (the hover shows the average for that tier). Each order's hover says what has been checked. All 150 orders and all 30 crates match the game's own items (build of November 24).
 
 ### Fixed
+- Professions in other languages: trainers you've visited are matched to the Classic list by NPC number (they showed twice), Classic sources' map pins work (the zone names are English), and enchants are known by their profession, not their English name.
+- Session tracker: **Gold** and **Loot** no longer run into each other when both show gold, silver and copper; the tracker widens to fit them.
 - An error at trainers (and when trading or looting a recipe) now that the game hides some characters' IDs and names from addons: the recipe book skips what it can't read.
+- Crates in other languages: a Spanish client found none of a crate's items (the names came through as "de polvo de alma"). Every crate's items are now known by item number, so no names need matching in any language. Briarthorn, Tin Ore and Large Glimmering Shard (the last line of their crates) were never found in English either. The Crates item group now holds every item a crate takes. Filling a Journeyman or higher crate is noticed in every language (only the Apprentice sealed crates were known by item number).
 
 ### Changed
 - Dashboard: the profit tile is now **Trading profit** (auction house and vendors), and its hover adds up the rest of your money (loot, quests, training, flights, mail and trades), so it matches how your gold changed. A week of farming showed a loss there while gold went up.
+- Writs: **Per rep** is the order's cost divided by its reputation. The coin pouch is no longer taken off, since its money varies; the guides' fixed amounts made cheap orders look like they paid you.
+- Crates: **Total** and **Per Favor** no longer take the turn-in's money off (a coin pouch at best, and it varies), so Per Favor is what the crate takes, divided by its Favor: 5 a level for gathered goods (Herbs, Ore, Textiles, Curiosities: Apprentice 5 to Artisan 20), twice that for crafted goods (Fabrics, Ingots, Parts), checked at each turn-in, in a new **Favor** column. Every crate counted 10 before. The column read Net cost; it's **Total** now.
 
 ## [0.29.0] - 2026-11-22
 

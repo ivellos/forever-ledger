@@ -29,6 +29,11 @@ local SUBTABS = {
   { key = "other", label = "Other" },
   { key = "sessions", label = "Sessions" },   -- (owner, October 4: a home for every session)
 }
+-- Sessions: the ones you started, or the records of each login and each day (Frank,
+-- November 24: "the automated ones can be viewed in a seperate tab maybe").
+local SESSION_KINDS = {
+  { value = "mine", label = "Started by you" }, { value = "login", label = "Each login" }, { value = "day", label = "Each day" },
+}
 local OTHER = {
   ahFee = "Auction house fees", ahDepositBack = "Auction deposits back", repair = "Repairs", mailIn = "Mail received", mailOut = "Mail sent",
   tradeIn = "Trade received", tradeOut = "Trade given", loot = "Loot", quest = "Quests",
@@ -104,6 +109,7 @@ local function settings()
   s.sort = s.sort or {}
   s.group = s.group or "all"
   s.rarity = s.rarity or "all"
+  s.sessionKind = s.sessionKind or "mine"
   return s
 end
 
@@ -186,7 +192,7 @@ end
 ---------------------------------------------------------------------------
 local GROUP_SECONDS = 60
 -- The saved logs the lists come from (RefreshLedger builds again when one of them grows).
-local LOGS = { "sales", "purchases", "vendorLog", "ledgerMonths", "otherLog", "sessions" }
+local LOGS = { "sales", "purchases", "vendorLog", "ledgerMonths", "otherLog", "sessions", "autoSessions" }
 
 -- The order the rows are shown in: sort = { key, desc }; ties newest first.
 -- A row's money in (+) or out (-): its own amount where it has one (other money, sessions),
@@ -435,15 +441,38 @@ local function records(tab, from, charOK, match, opts)
     end
   end
   if tab == "sessions" then
-    -- Sessions (Sessions.lua; older shuffle sessions too). Ones saved before October 4
-    -- don't know their character: they show under every character choice.
-    for _, e in ipairs(ns.db.sessions or {}) do
-      if (e.t or 0) >= from and (not e.c or charOK(e.c)) then
-        local secs = e.secs or ((e.stop or e.t) - e.t)
-        local gained = (e.earned or 0) - (e.spent or 0)
-        out[#out + 1] = { t = e.t, session = e, item = e.kind == "general" and "Session" or (e.name or "Shuffle"),
-          kind = "Session", length = secs, total = gained, amount = gained, loot = e.kind == "general" and (e.loot or 0) or nil,
-          rate = ns.SessionRate and ns.SessionRate(e) or nil, char = e.c }
+    local kind = opts.sessionKind or "mine"
+    if kind == "mine" then
+      -- Sessions you started (Sessions.lua; older shuffle sessions too). Ones saved before
+      -- October 4 don't know their character: they show under every character choice.
+      for _, e in ipairs(ns.db.sessions or {}) do
+        if (e.t or 0) >= from and (not e.c or charOK(e.c)) then
+          local secs = e.secs or ((e.stop or e.t) - e.t)
+          local gained = (e.earned or 0) - (e.spent or 0)
+          out[#out + 1] = { t = e.t, session = e, item = e.kind == "general" and "Session" or (e.name or "Shuffle"),
+            kind = "Session", length = secs, total = gained, amount = gained, loot = e.kind == "general" and (e.loot or 0) or nil,
+            rate = ns.SessionRate and ns.SessionRate(e) or nil, char = e.c }
+        end
+      end
+    else
+      -- Recorded on their own (Frank, November 24): each login or each day, the one
+      -- counting now first; today's days of characters played earlier today too.
+      local list = {}
+      for _, e in ipairs(ns.db.autoSessions or {}) do if e.kind == kind then list[#list + 1] = e end end
+      for _, e in ipairs(ns.AutoSessionsRunning and ns:AutoSessionsRunning() or {}) do
+        if e.kind == kind then list[#list + 1] = e end
+      end
+      for _, e in ipairs(list) do
+        if keep(e) then
+          local gained = (e.earned or 0) - (e.spent or 0)
+          local name
+          if kind == "day" then
+            name = e.running and "Today, so far" or (e.day == ns.LocalDay() and "Today" or date("%A", e.t))
+          else name = e.running and "This login, so far" or ("Login, to " .. date("%H:%M", e.stop or e.t)) end
+          out[#out + 1] = { t = e.t, session = e, item = name, kind = "Session", length = e.secs, total = gained,
+            amount = gained, loot = e.loot or 0, rate = ns.SessionRate and ns.SessionRate(e) or nil, char = e.c,
+            sessionDay = kind == "day" or nil }
+        end
       end
     end
   end
@@ -718,6 +747,10 @@ local function charChoice()
     f.group:SetPoint("LEFT", f.chars, "RIGHT", 10, 0)
     f.rarity = T:Dropdown(f, 120, function(v) settings().rarity = v; clearSelection(); ns:RefreshLedger() end)
     f.rarity:SetPoint("LEFT", f.group, "RIGHT", 6, 0)
+    -- Sessions: the ones you started, or the records of each login or each day.
+    f.sessionKind = T:Dropdown(f, 150, function(v) settings().sessionKind = v; clearSelection(); ns:RefreshLedger() end)
+    f.sessionKind:SetPoint("LEFT", f.chars, "RIGHT", 10, 0)
+    f.sessionKind:SetOptions(SESSION_KINDS)
   end
   f.chars:SetOptions(ns:CharacterOptions())
 end
@@ -802,6 +835,7 @@ local function show(rec, key)
     if key == "loot" then return v and ns.Money(v) or dim("-") end
     if key == "char" and not v then return dim("-") end
   end
+  if key == "t" and rec.sessionDay then return dim(date("%b %d", v)) end
   if key == "t" then return dim(date((rec.month and "%B %Y") or (rec.day and "%b %d") or "%b %d %H:%M", v)) end
   if key == "char" then return charName(v) end
   if rec.byItem and v == nil then return dim("-") end   -- (By item: never bought, or never sold)
@@ -835,6 +869,9 @@ local function rowTooltip(r)
     -- A session: where its gold came from and what it looted best.
     local function line(a, b, r, g, bl) ns:TooltipAddDoubleLine(a, b, 0.7, 0.7, 0.7, r or 1, g or 1, bl or 1) end
     ns:TooltipAddLine(("%s, %s"):format(rec.item, date("%b %d %H:%M", rec.t or 0)), 1, 1, 1)
+    if session.running then
+      ns:TooltipAddLine(session.kind == "day" and "Still counting: the day ends at midnight or when you log out." or "Still counting: the login ends when you log out.", 0.5, 0.83, 0.61, true)
+    end
     line("Length", show(rec, "length"))
     local function gold(v, r, g, bl) if (v or 0) > 0 then return ns.Money(v), r, g, bl end return ns.Money(0), 0.6, 0.6, 0.6 end
     if session.earned then line("Gold in", gold(session.earned, 0.5, 0.83, 0.61)) end
@@ -986,6 +1023,8 @@ local EMPTY = {
   resale = "Nothing bought or sold for these filters yet. Each item you buy or sell gets one line here: how many, the average prices, and the profit once you've both bought and sold it.",
   other = "No other money for these filters yet: repairs, mail, trades, loot, quests, training and flights show here, each with its time (older than 30 days, by day).",
   sessions = "No sessions for these filters yet. Start one with /fl session start, or Ctrl-click the minimap button; it's listed here when you stop it.",
+  sessionsLogin = "No logins recorded for these filters yet. Each login is recorded on its own from when you log in to when you log out (a /reload carries on the same one): gold in and out and what you loot. Logins with nothing in them aren't kept; the last 30 days are.",
+  sessionsDay = "No days recorded for these filters yet. Each character's day is recorded on its own, from its first login to midnight or its last logout: gold in and out and what you loot. Days with nothing in them aren't kept; the last year is.",
 }
 
 function ns:RefreshLedger()
@@ -1015,12 +1054,14 @@ function ns:RefreshLedger()
   local itemTab = s.tab == "sales" or s.tab == "purchases" or s.tab == "resale"
   f.group:SetShown(itemTab)
   f.rarity:SetShown(itemTab)
+  f.sessionKind:SetShown(s.tab == "sessions")
+  f.sessionKind:SetValue(s.sessionKind)
   -- The same filters over the same logs give the same list: built again only when one of
   -- them changes, or a minute on (Frank's /fl perf, November 21: 240 ms and 20 MB of
   -- leftovers for each of 24 refreshes in 20 minutes).
   local sort = s.sort[s.tab] or { key = s.tab == "resale" and "profit" or "t", desc = true }
   local order = tostring(sort.key) .. (sort.desc and ":desc" or ":asc")
-  local stamp = { s.tab, s.range, tostring(s.char), match, tostring(s.group), tostring(s.rarity), math.floor(time() / 60), order, tostring(ns.ledgerRev or 0) }
+  local stamp = { s.tab, s.range, tostring(s.char), match, tostring(s.group), tostring(s.rarity), tostring(s.sessionKind), math.floor(time() / 60), order, tostring(ns.ledgerRev or 0) }
   for _, k in ipairs(LOGS) do
     local l = ns.db[k] or {}
     local last = l[#l]
@@ -1034,7 +1075,7 @@ function ns:RefreshLedger()
     -- build drops that build.
     ns.StopSlices(f.buildRun)
     f.building = stamp
-    local tab, group, rarity, inside = s.tab, s.group, s.rarity, true
+    local tab, group, rarity, inside, sessionKind = s.tab, s.group, s.rarity, true, s.sessionKind
     f.buildRun = ns.RunInSlices("Ledger list", function()
       -- Sorted here too, a few hundred rows at a time (sorting thousands in one go took 100
       -- ms: Frank's /fl perf, November 21).
@@ -1045,7 +1086,7 @@ function ns:RefreshLedger()
         if ns.SlicePart then ns.SlicePart(nil) end
         return l
       end
-      if not itemTab then return { stamp = stamp, tab = tab, list = sorted(records(tab, from, charOK, match)) } end
+      if not itemTab then return { stamp = stamp, tab = tab, list = sorted(records(tab, from, charOK, match, { sessionKind = sessionKind })) } end
       local g, r = group, rarity
       local function itemOK(id)
         -- Rarity first: it is quick, and an item it rules out needs no group look-up.
@@ -1127,7 +1168,7 @@ function ns:RefreshLedger()
   f.draw = { cols = cols, lay = lay, width = width, done = {} }
   for _, r in pairs(rows) do r:Hide() end   -- (pairs: the pool has gaps after a scroll jump; Codex review)
   local narrowed = itemTab and (s.group ~= "all" or s.rarity ~= "all")
-  f.empty:SetText(f.loading and "Loading..." or (EMPTY[s.tab] or EMPTY.all) .. (narrowed and "\n\nThe Group or Rarity choice is hiding some: choose Any group and Any rarity to see them." or ""))
+  f.empty:SetText(f.loading and "Loading..." or (EMPTY[(s.tab == "sessions" and s.sessionKind == "login" and "sessionsLogin") or (s.tab == "sessions" and s.sessionKind == "day" and "sessionsDay") or s.tab] or EMPTY.all) .. (narrowed and "\n\nThe Group or Rarity choice is hiding some: choose Any group and Any rarity to see them." or ""))
   f.empty:SetShown(#list == 0)
   f.content:SetHeight(math.max(n * ROW_HEIGHT, 30))
   f.sf.UpdateScrollBar()
