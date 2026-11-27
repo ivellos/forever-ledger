@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- A date error could stop live sync before sending characters, bags and bank when gold and sales sharing was on. Live sync now handles that date and keeps sending character data if it can't build the gold and sales history.
 - No more "string conversion on a secret string value" errors when the game hides a tooltip line, a trainer's title or an item link from addons: Forever Ledger now skips what it can't read.
 - A trainer whose list the game partly hides is still read, and one failed read no longer stops the recipe book reading trainers until a reload.
 
