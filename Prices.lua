@@ -547,6 +547,7 @@ function ns:RemoveBought(id, qty, each)
   if id then liveAt[id] = GetTime() end
   local rec = (ns.db.prices[ns.MarketKey()] or {})[id]
   if not (rec and rec.l and not rec.none) then return end
+  if ns.PricesChanged then ns.PricesChanged() end
   local levels, prev = {}, 0
   for p, c in rec.l:gmatch("(%d+):(%d+)") do
     p, c = tonumber(p), tonumber(c)
@@ -634,6 +635,7 @@ function ns:DropBelow(id, price, quiet)
     local ok, err = pcall(ns.CheckFlip, ns, id)
     if not ok then ns:Debug("Flip check failed for", id, err) end
   end
+  if ns.PricesChanged then ns.PricesChanged() end
   if quiet then return gone end
   ns:Debug("Auction house list: cheapest", ns.ItemName(id) or id, "is now", ns.Money(price) .. ";", gone, "cheaper saved listings are gone.")
   if ns.InvalidateItem then ns:InvalidateItem(id) elseif ns.InvalidateValues then ns:InvalidateValues(true) end
@@ -671,6 +673,7 @@ function ns:AddCheapest(id, price, listed)
     ns.LadderTypical(rec)
   end
   liveAt[id] = GetTime()
+  if ns.PricesChanged then ns.PricesChanged() end
   if ns.CheckFlip then
     local ok, err = pcall(ns.CheckFlip, ns, id)
     if not ok then ns:Debug("Flip check failed for", id, err) end
@@ -726,6 +729,7 @@ end
 -- and price history.
 local function record(id, units, src, liveSince)
   if ns.InvalidateItem then ns:InvalidateItem(id) end
+  if ns.PricesChanged then ns.PricesChanged() end   -- (API.lua: tells other addons, once things settle)
   local key = ns.MarketKey()
   ns.db.prices[key] = ns.db.prices[key] or {}
   local keep = src == "full" and liveSince and liveAt[id] and liveAt[id] >= liveSince

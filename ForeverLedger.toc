@@ -68,4 +68,5 @@ Writs.lua
 QuickDisenchant.lua
 PriceWindow.lua
 API.lua
+CraftProfitSource.lua
 Probe.lua

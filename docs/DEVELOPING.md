@@ -30,6 +30,7 @@ The first path is where the game looks for addons. The second is where GitHub De
 | `Tooltip.lua` | Extra lines on item tooltips |
 | `UI.lua` | The ledger window and text windows |
 | `API.lua` | `ForeverLedgerAPI`: prices for other addons |
+| `CraftProfitSource.lua` | Forever Ledger in CraftProfit's list of price sources |
 
 ## Prices for other addons
 
@@ -42,8 +43,14 @@ The first path is where the game looks for addons. The second is where GitHub De
 | `GetCost(itemID, quantity)` | what buying that many costs up the levels, how many it could price (no guess past the saved levels), when scanned |
 | `GetUsualPrice(itemID, window)` | the usual price over `"week"` (default), `"month"`, `"3months"`, `"6months"`, `"year"` or `"all"`, and how many days it used |
 | `GetLastFullScan()` | when the last full scan finished |
+| `GetVendorPrice(itemID)` | what a vendor pays for one, and what one costs from a vendor (`nil` where it isn't sold there or hasn't been seen at one) |
+| `GetSoldPerDay(itemID)` | about how many sell a day, how many are listed, and the hours of full scans it's based on; nothing until there are enough scans |
+| `GetVersionPrice(itemID, version)` or `GetVersionPrice(itemLink)` | one version of random-stat gear (the version is the bonus ID in its link) from the last full scan: cheapest, how many of it are listed, when scanned; none listed gives `nil, 0, when` |
+| `RegisterForUpdate(name, fn)` | calls `fn()` after Forever Ledger saves new prices: once saving has stopped for 3 seconds, and at most every 30 seconds. `name` is your addon's name; registering it again replaces the function. `UnregisterForUpdate(name)` stops it |
 
-`ForeverLedgerAPI.version` is 1; a change that breaks callers raises it.
+`ForeverLedgerAPI.version` is 1; a change that breaks callers raises it. Functions added later keep version 1, so check that one exists before calling it (`GetVendorPrice`, `GetSoldPerDay`, `GetVersionPrice` and `RegisterForUpdate` came in after 0.30.0).
+
+CraftProfit: Forever Ledger adds itself to CraftProfit's price sources (`CraftProfitSource.lua`, built on these functions), players can turn it off in Settings, Global settings, Prices ("Prices for CraftProfit").
 
 ## Text in other languages
 

@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- **Prices for CraftProfit**: with CraftProfit installed, Forever Ledger is one of its price sources (pick Forever Ledger in its Price source setting), so its crafting profits can use your own scans. Settings, Global settings, Prices turns it off.
+- More for other addons in `ForeverLedgerAPI`: vendor prices, about how many sell a day, prices of each random-stat version of gear, and a notice when new prices are saved (docs/DEVELOPING.md).
+
 ### Fixed
 
 - No more "string conversion on a secret string value" errors when the game hides a tooltip line, a trainer's title or an item link from addons: Forever Ledger now skips what it can't read.

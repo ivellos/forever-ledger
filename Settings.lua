@@ -33,6 +33,9 @@ local PAGES = {
         { key = "source", label = "Auction house prices from", kind = "choice", after = recalc, options = {
             { "auto", "Auto" }, { "own", "My scans" }, { "AHledger", "AHledger" }, { "Auctionator", "Auctionator" }, { "TSM", "TSM" }, { "Auctioneer", "Auctioneer" } },
           help = "Auto uses your own scans while they're fresh, then other auction addons: AHledger first (prices from every player's scans, credited as Prices from AHledger, ahledger.com), then Auctionator, TSM and Auctioneer." },
+        { sub = "Sharing with other addons" },
+        { key = "shareCraftProfit", label = "Prices for CraftProfit", kind = "check",
+          help = "Adds Forever Ledger to CraftProfit's price sources: pick Forever Ledger in CraftProfit's Price source setting to use your scans there. Only your own scans are shared, never prices from other addons." },
       } },
       { name = "Flips and deals", rules = true, rows = {
         { sub = "Vendor flips" },
