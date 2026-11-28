@@ -68,7 +68,7 @@ read_globals = {
   "SetTrainerServiceTypeFilter", "IsPlayerSpell", "IsSpellKnown", "UnitCharacterPoints",
 
   -- Optional addon APIs: used only behind their existing runtime checks.
-  "AHledgerAPI", "AucAdvanced", "Auctionator", "EllesmereUI", "TSM_API",
+  "AHledgerAPI", "AucAdvanced", "Auctionator", "CraftProfit", "EllesmereUI", "TSM_API",
 }
 
 -- Blizzard tables whose fields the addon deliberately registers or mutates.

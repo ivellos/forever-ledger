@@ -156,3 +156,4 @@ function api.UnregisterForUpdate(name)
 end
 
 ForeverLedgerAPI = api
+ns.API = api   -- (for our own files: CraftProfitSource.lua)

@@ -9,7 +9,7 @@ local _, ns = ...
 -- settings, Prices) turns it off: CraftProfit then lists us as not installed.
 
 local KEY = "foreverledger"
-local api = ForeverLedgerAPI
+local api = ns.API
 
 local function on()
   return api ~= nil and ns.db ~= nil and ns.db.settings.shareCraftProfit ~= false
