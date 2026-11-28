@@ -194,3 +194,109 @@ T.test("Ledger: a day total sits at the start of its day, below that morning's e
   ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths = saved[4], saved[5], saved[6], saved[7]
   assert(ok, err)
 end)
+
+T.test("Ledger Sales: buyer search is literal and combines with exact item, date and character", function()
+  local saved = { ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths }
+  local ok, err = pcall(function()
+    local now = time()
+    ns.db.sales = {
+      { t = now - 100, c = ME, n = "Silk Cloth", q = 3, a = 600, b = "Alix-Testrealm" },
+      { t = now - 99, c = ME, n = "Silk Cloth", q = 2, a = 400, b = "Alix-Testrealm" },
+      { t = now - 101, c = ME, n = "Silk Cloth", q = 1, a = 200, b = "Ali-Testrealm" },
+      { t = now - 102, c = ME, n = "Silk Cloth", q = 1, a = 200 },
+      { t = now - 104, c = ME, n = "Bolt of Silk Cloth", q = 1, a = 500, b = "Alix-Testrealm" },
+      { t = now - 900, c = ME, n = "Silk Cloth", q = 1, a = 200, b = "Alix-Testrealm" },
+      { t = now - 105, c = "Alt-Testrealm", n = "Silk Cloth", q = 1, a = 200, b = "Alix-Testrealm" },
+    }
+    ns.db.purchases, ns.db.vendorLog = {}, {}
+    ns.db.ledgerMonths = { { t = now - 100000, c = ME, n = "Silk Cloth", k = "sale", q = 50, a = 10000 } }
+    local own = function(c) return c == ME end
+    local rows = ns.LedgerRecords("sales", now - 200, own, '"silk cloth"', { buyer = "  ALIX-test  " })
+    T.eq(#rows, 1, "only the selected character's matching Silk Cloth sales in range")
+    T.eq(rows[1].who, "Alix-Testrealm")
+    T.eq(rows[1].qty, 5, "both matching sales still group")
+    T.eq(rows[1].total, 1000)
+    T.eq(#ns.LedgerRecords("sales", 0, own, "", { buyer = ".*" }), 0, "not a Lua pattern")
+    T.eq(#ns.LedgerRecords("sales", 0, own, '"silk cloth"', { buyer = " -test " }), 3, "unnamed sales and monthly totals do not match")
+    T.eq(#ns.LedgerRecords("sales", 0, own, '"silk cloth"', { buyer = "  " }), 5, "blank keeps all matching rows")
+    T.eq(#ns.LedgerRecords("all", 0, own, '"silk cloth"', { buyer = "nomatch" }), 5, "other tabs don't use the buyer filter")
+  end)
+  ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths = saved[1], saved[2], saved[3], saved[4]
+  assert(ok, err)
+end)
+
+T.test("Ledger Sales: editing and clearing the buyer box refreshes the displayed list", function()
+  if not L.frame() then ns:BuildLedger(S.dummy()) end
+  local F = L.frame()
+  T.ok(F.buyer, "Sales needs a separate buyer box")
+  local saved = { ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths, ns.db.settings.ledger }
+  local realChoice = { ns.IsCharChoice, ns.CharChoiceHas, ns.CharacterOptions }
+  local realShown, realGet, realSet, realSetShown = F.IsShown, F.buyer.GetText, F.buyer.SetText, F.buyer.SetShown
+  local realClearShown = F.clear.SetShown
+  local text, visible, selected = "", nil, nil
+  local ok, err = pcall(function()
+    F.clear.SetShown = function(_, shown) selected = shown end
+    ns.IsCharChoice = ns.IsCharChoice or function() return true end
+    ns.CharChoiceHas = ns.CharChoiceHas or function() return true end
+    ns.CharacterOptions = ns.CharacterOptions or function() return { { value = "all", label = "All" } } end
+    F.IsShown = function() return true end
+    F.buyer.GetText = function() return text end
+    F.buyer.SetText = function(self, value)
+      text = value
+      self:GetScript("OnTextChanged")(self)
+    end
+    F.buyer.SetShown = function(_, shown) visible = shown end
+    local now = time()
+    ns.db.sales = {
+      { t = now - 10, c = ME, n = "Silk Cloth", q = 1, a = 200, b = "Alix" },
+      { t = now - 20, c = ME, n = "Silk Cloth", q = 1, a = 200, b = "Mora" },
+    }
+    ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths = {}, {}, {}
+    ns.db.settings.ledger = { tab = "all", range = "all", char = "all", sort = {}, group = "all", rarity = "all" }
+    ns:RefreshLedger(); T.runTimers()
+    ns.db.settings.ledger.tab = "sales"
+    ns:RefreshLedger(); T.runTimers()
+    T.eq(visible, true)
+    T.eq(#F.list, 2)
+    F.buyer:SetText("al")
+    T.runTimers()
+    T.eq(#F.list, 1)
+    T.eq(F.list[1].who, "Alix")
+    F.buyer:SetText("mora")
+    T.runTimers()
+    T.eq(#F.list, 1)
+    T.eq(F.list[1].who, "Mora", "buyer text is part of the list's cache key")
+    ns.db.settings.ledger.tab = "all"
+    ns:RefreshLedger(); T.runTimers()
+    T.eq(visible, false)
+    T.eq(#F.list, 2, "a hidden filter doesn't change other tabs")
+    ns.db.settings.ledger.tab = "sales"
+    ns:RefreshLedger(); T.runTimers()
+    T.eq(F.list[1].who, "Mora", "back to Sales keeps the active filter")
+    F.buyer:GetScript("OnEscapePressed")(F.buyer)
+    T.runTimers()
+    T.eq(#F.list, 2, "Escape clears the filter")
+
+    F.buyer:SetText("al")
+    local row = L.rows()[1]
+    F.subtabs.all:GetScript("OnClick")(F.subtabs.all)
+    local shift, ctrl = IsShiftKeyDown, IsControlKeyDown
+    IsShiftKeyDown = function() return false end
+    IsControlKeyDown = IsShiftKeyDown
+    local clicked, clickErr = pcall(row:GetScript("OnMouseDown"), row, "LeftButton")
+    IsShiftKeyDown, IsControlKeyDown = shift, ctrl
+    assert(clicked, clickErr)
+    row:GetScript("OnMouseUp")(row, "LeftButton")
+    T.eq(selected, true, "the row is selected before the buyer timer fires")
+    T.runTimers()
+    T.eq(selected, true, "a pending buyer edit doesn't clear the selection on All")
+    F.clear:GetScript("OnClick")(F.clear)
+  end)
+  ns.db.sales, ns.db.purchases, ns.db.vendorLog, ns.db.ledgerMonths, ns.db.settings.ledger =
+    saved[1], saved[2], saved[3], saved[4], saved[5]
+  ns.IsCharChoice, ns.CharChoiceHas, ns.CharacterOptions = realChoice[1], realChoice[2], realChoice[3]
+  F.IsShown, F.buyer.GetText, F.buyer.SetText, F.buyer.SetShown = realShown, realGet, realSet, realSetShown
+  F.clear.SetShown = realClearShown
+  T.runTimers()
+  assert(ok, err)
+end)

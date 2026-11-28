@@ -306,9 +306,11 @@ end
 
 -- opts (optional): itemOK(id) keeps only some items (Sales, Purchases, By item: the Group
 -- and Rarity choices); seen[id] = true collects every item before that, for the choices.
+-- buyer narrows Sales to rows with a matching buyer name.
 local function records(tab, from, charOK, match, opts)
   local out = {}
   opts = opts or {}
+  local buyer = tab == "sales" and (opts.buyer or ""):match("^%s*(.-)%s*$"):lower() or ""
   local function keep(e) return (e.t or 0) >= from and charOK(e.c) end
 
   if tab == "sales" or tab == "purchases" or tab == "resale" or tab == "all" then
@@ -549,16 +551,19 @@ local function records(tab, from, charOK, match, opts)
 
   -- Search: the item's name, or (All) the type too. In quotes, that one item's name exactly
   -- (By item's double-click puts one there: Silk Cloth, not Bolt of Silk Cloth too).
-  if match ~= "" then
+  if match ~= "" or buyer ~= "" then
     if ns.SlicePart then ns.SlicePart("search") end
     local exact = match:match('^"(.+)"$')
     local kept = {}
     for _, r in ipairs(out) do
       ns.MaybeYield()
       local hit
-      if exact then hit = (r.item or ""):lower() == exact
+      if match == "" then hit = true
+      elseif exact then hit = (r.item or ""):lower() == exact
       else hit = ((r.item or "") .. " " .. (r.kind or "")):lower():find(match, 1, true) end
-      if hit then kept[#kept + 1] = r end
+      if hit and (buyer == "" or (type(r.who) == "string" and r.who:lower():find(buyer, 1, true))) then
+        kept[#kept + 1] = r
+      end
     end
     out = kept
   end
@@ -695,16 +700,30 @@ function ns:BuildLedger(parent)
   f.searchLabel:SetText("Search")
   f.search = T:EditBox(f, 150, "LEFT")
   f.search:SetPoint("LEFT", f.searchLabel, "RIGHT", 8, 0)
+  f.buyerLabel = T:Text(f, 12, T.dim)
+  f.buyerLabel:SetPoint("TOPLEFT", 4, -66)
+  f.buyerLabel:SetText("Buyer")
+  f.buyer = T:EditBox(f, 150, "LEFT")
+  f.buyer:SetPoint("LEFT", f.buyerLabel, "RIGHT", 8, 0)
+  f.buyerLabel:Hide()
+  f.buyer:Hide()
+
   -- Redraw once typing pauses (code review, October 4: every key rebuilt every record).
   local typed = 0
-  f.search:SetScript("OnTextChanged", function()
+  local function searchChanged(box)
     typed = typed + 1
     local mine = typed
+    local buyerOnly = box == f.buyer
     C_Timer.After(0.25, function()
-      if mine == typed then clearSelection(); ns:RefreshLedger() end
+      if mine ~= typed or (buyerOnly and ns.db.settings.ledger.tab ~= "sales") then return end
+      clearSelection()
+      ns:RefreshLedger()
     end)
-  end)
-  f.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+  end
+  for _, box in ipairs({ f.search, f.buyer }) do
+    box:SetScript("OnTextChanged", searchChanged)
+    box:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+  end
   f.charLabel = T:Text(f, 12, T.dim)
   f.charLabel:SetPoint("LEFT", f.search, "RIGHT", 18, 0)
   f.charLabel:SetText("Characters")
@@ -716,7 +735,7 @@ function ns:BuildLedger(parent)
   T:Fill(f.header, { 1, 1, 1, 0.05 })
 
   f.sf, f.content = T:Scroll(f)
-  f.sf:SetPoint("TOPLEFT", 0, -90)
+  f.sf:SetPoint("TOPLEFT", f.header, "BOTTOMLEFT", 0, -2)
   f.sf:SetPoint("BOTTOMRIGHT", 0, 24)
   f.sf:HookScript("OnVerticalScroll", function() drawVisible() end)
   f.sf:HookScript("OnSizeChanged", function() drawVisible() end)
@@ -1051,6 +1070,17 @@ function ns:RefreshLedger()
   -- All: this ruleset and faction (Dashboard.lua CharacterOptions).
   local function charOK(c) return ns:CharChoiceHas(s.char, c) end
   local match = (f.search:GetText() or ""):lower()
+  local showBuyer = s.tab == "sales"
+  if f.showBuyer ~= showBuyer then
+    f.showBuyer = showBuyer
+    f.buyerLabel:SetShown(showBuyer)
+    f.buyer:SetShown(showBuyer)
+    if not showBuyer then f.buyer:ClearFocus() end
+    local top = showBuyer and -92 or -66
+    f.header:SetPoint("TOPLEFT", 0, top)
+    f.header:SetPoint("TOPRIGHT", 0, top)
+  end
+  local buyer = showBuyer and (f.buyer:GetText() or "") or ""
   local itemTab = s.tab == "sales" or s.tab == "purchases" or s.tab == "resale"
   f.group:SetShown(itemTab)
   f.rarity:SetShown(itemTab)
@@ -1061,7 +1091,7 @@ function ns:RefreshLedger()
   -- leftovers for each of 24 refreshes in 20 minutes).
   local sort = s.sort[s.tab] or { key = s.tab == "resale" and "profit" or "t", desc = true }
   local order = tostring(sort.key) .. (sort.desc and ":desc" or ":asc")
-  local stamp = { s.tab, s.range, tostring(s.char), match, tostring(s.group), tostring(s.rarity), tostring(s.sessionKind), math.floor(time() / 60), order, tostring(ns.ledgerRev or 0) }
+  local stamp = { s.tab, s.range, tostring(s.char), match, buyer, tostring(s.group), tostring(s.rarity), tostring(s.sessionKind), math.floor(time() / 60), order, tostring(ns.ledgerRev or 0) }
   for _, k in ipairs(LOGS) do
     local l = ns.db[k] or {}
     local last = l[#l]
@@ -1095,7 +1125,7 @@ function ns:RefreshLedger()
       local function run()
         local seen = {}
         local filtered = g ~= "all" or r ~= "all"
-        return records(tab, from, charOK, match, { seen = seen, itemOK = filtered and itemOK or nil }), seen
+        return records(tab, from, charOK, match, { seen = seen, itemOK = filtered and itemOK or nil, buyer = buyer }), seen
       end
       local list, seen = run()
       if ns.SlicePart then ns.SlicePart("choices") end
